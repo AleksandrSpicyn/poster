@@ -123,6 +123,5 @@
     "void_return": true
   },
   "exclude": [
-    "app/Containers/Vendor"
   ]
 }

@@ -39,5 +39,5 @@ return [
         'api_key' => env('RUNWAY_API_KEY'),
         'api_url' => env('RUNWAY_API_URL', 'https://api.dev.runwayml.com/v1'),
         'version' => env('RUNWAY_API_VERSION', '2024-11-06'),
-    ]
+    ],
 ];
