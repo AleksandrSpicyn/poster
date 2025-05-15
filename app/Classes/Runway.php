@@ -56,8 +56,7 @@ class Runway
      */
     private function request(string $url, string $method = 'POST', array $parameters = []): Response
     {
-        $response = Http
-            ::withToken($this->token)
+        $response = Http::withToken($this->token)
             ->withHeaders([
                 'X-Runway-Version' => $this->version,
                 'Content-Type' => 'application/json',
@@ -68,6 +67,7 @@ class Runway
 
         if ($response->failed()) {
             Log::error($response->json());
+
             throw new RuntimeException('RunwayML API Error: ' . $response->body());
         }
 

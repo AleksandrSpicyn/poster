@@ -23,7 +23,7 @@ class CheckVideoCreation implements ShouldQueue, ShouldBeUnique
     {
         $result = $runway->check($this->id);
 
-        if(!$result){
+        if (!$result) {
             $this->release(10);
         }
     }
