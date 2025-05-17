@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->text('prompt');
             $table->text('image_url')->nullable();
             $table->text('audio_url')->nullable();
+            $table->text('video_id')->nullable();
             $table->text('video_url')->nullable();
             $table->foreignIdFor(Project::class)->constrained()->cascadeOnDelete();
             $table->timestamps();

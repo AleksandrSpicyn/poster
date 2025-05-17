@@ -2,8 +2,11 @@
 
 namespace App\Actions;
 
-use App\Jobs\CheckVideoCreation;
+use App\Events\ImageGenerated;
+use App\Events\PromptGenerated;
+use App\Events\VideoGenerating;
 use App\Models\Project;
+use App\Models\Prompt;
 use App\Tasks\CreateBasePrompt;
 use App\Tasks\CreateImage;
 use App\Tasks\CreateVideo;
@@ -17,24 +20,39 @@ class MakeShortAction extends Action
     ) {
     }
 
-    /* TODO Переделать на Pipeline */
     public function run(Project $project): void
+    {
+        $prompt = $this->generatePrompt($project);
+        $this->generateImage($prompt);
+        $this->generateVideo(Prompt::first());
+    }
+
+    private function generatePrompt(Project $project): Prompt
     {
         $idea = $this->createBasePrompt->run($project);
 
         $prompt = $project->prompts()->create(['prompt' => $idea]);
 
-        $image = $this->createImage->run($prompt);
+        event(new PromptGenerated($prompt));
 
-        $prompt->update(['image_url' => $image]);
+        return $prompt;
+    }
 
-        $videoId = $this->createVideo->run($image, $idea);
+    private function generateImage(Prompt $prompt): void
+    {
+        $imageUrl = $this->createImage->run($prompt->prompt);
 
-        $prompt->update(['video_url' => $videoId]);
+        $prompt->update(['image_url' => $imageUrl]);
 
-        CheckVideoCreation::dispatch($videoId);
+        event(new ImageGenerated($imageUrl));
+    }
 
-        /* TODO генерация аудио */
-        /* TODO фабрика постер классов для всех типов их ChannelType */
+    private function generateVideo(Prompt $prompt): void
+    {
+        $videoId = $this->createVideo->run($prompt->image_url, $prompt->prompt);
+
+        $prompt->update(['video_id' => $videoId]);
+
+        event(new VideoGenerating($prompt));
     }
 }

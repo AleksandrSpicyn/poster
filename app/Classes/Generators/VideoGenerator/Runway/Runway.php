@@ -3,9 +3,13 @@
 namespace App\Classes\Generators\VideoGenerator\Runway;
 
 use App\Classes\Generators\VideoGenerator\AbstractVideoGenerator;
+use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
+use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
+use App\Exceptions\VideoGeneratingException;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -41,14 +45,26 @@ class Runway extends AbstractVideoGenerator
 
     /**
      * @throws ConnectionException
+     * @throws VideoGeneratingException
      */
-    public function check(string $id): string
+    public function check(string $id): ?string
     {
         $response = $this->request("tasks/$id", 'GET');
 
-        Log::info($response->json());
+        $dto = CreationData::from($response->json());
 
-        return $response->json();
+        if ($dto->status === GenerationStatus::FAILED->value) {
+            Log::error("Video generation failed: $dto->failure", [
+                'id' => $dto->id,
+                'createdAt' => $dto->createdAt,
+            ]);
+
+            throw new VideoGeneratingException();
+        }
+
+        return $dto->status === GenerationStatus::SUCCEEDED->value
+            ? Arr::first($dto->output)
+            : null;
     }
 
     /**

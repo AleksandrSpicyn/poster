@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Classes\Generators\VideoGenerator\Runway\Data;
+
+use Spatie\LaravelData\Data;
+
+class CreationData extends Data
+{
+    public function __construct(
+        public readonly string $id,
+        public readonly string $status,
+        public readonly ?string $createdAt = null,
+        public readonly ?array $output = null,
+        public readonly ?string $failure = null,
+    ) {
+    }
+}

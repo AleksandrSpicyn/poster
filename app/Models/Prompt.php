@@ -14,6 +14,7 @@ class Prompt extends Model
         'prompt',
         'image_url',
         'audio_url',
+        'video_id',
         'video_url',
     ];
 
