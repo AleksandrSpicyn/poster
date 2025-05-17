@@ -2,11 +2,15 @@
 
 namespace App\Tasks;
 
-use App\Classes\ChatGpt;
+use App\Classes\Generators\PromptGenerator\PromptGenerator;
 use App\Models\Project;
 
-class CreateBasePrompt
+class CreateBasePrompt extends Task
 {
+    public function __construct(private readonly PromptGenerator $promptGenerator)
+    {
+    }
+
     public function run(Project $project): string
     {
         $history = $project->prompts()
@@ -25,6 +29,6 @@ $history
 Сгенерируй один новый визуальный запрос в том же стиле, избегая повторов. Не объясняй ничего, просто выдай результат.
 TEXT;
 
-        return ChatGpt::createPrompt($fullPrompt);
+        return $this->promptGenerator->generate($fullPrompt);
     }
 }

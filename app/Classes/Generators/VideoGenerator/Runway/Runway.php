@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Classes;
+namespace App\Classes\Generators\VideoGenerator\Runway;
 
+use App\Classes\Generators\VideoGenerator\AbstractVideoGenerator;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -9,8 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-/* TODO Пересадить на Interface и Abstract */
-class Runway
+class Runway extends AbstractVideoGenerator
 {
     private string $baseUrl;
     private string $token;
@@ -42,7 +42,7 @@ class Runway
     /**
      * @throws ConnectionException
      */
-    public function check(string $id): array
+    public function check(string $id): string
     {
         $response = $this->request("tasks/$id", 'GET');
 

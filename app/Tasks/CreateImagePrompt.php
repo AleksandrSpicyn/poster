@@ -2,7 +2,7 @@
 
 namespace App\Tasks;
 
-class CreateImagePrompt
+class CreateImagePrompt extends Task
 {
     public const DALLE_STYLE_TAGS = [
         'ultra detailed',

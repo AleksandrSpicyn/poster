@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Classes\Runway;
+use App\Classes\Generators\VideoGenerator\VideoGenerator;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,10 +18,9 @@ class CheckVideoCreation implements ShouldQueue, ShouldBeUnique
     {
     }
 
-    /* TODO Inject через interface */
-    public function handle(Runway $runway): void
+    public function handle(VideoGenerator $videoGenerator): void
     {
-        $result = $runway->check($this->id);
+        $result = $videoGenerator->check($this->id);
 
         if (!$result) {
             $this->release(10);

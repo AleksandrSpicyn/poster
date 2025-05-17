@@ -2,21 +2,23 @@
 
 namespace App\Tasks;
 
-use App\Classes\Runway;
-use Illuminate\Http\Client\ConnectionException;
+use App\Classes\Generators\VideoGenerator\VideoGenerator;
 
-readonly class CreateVideo
+class CreateVideo extends Task
 {
-    /* TODO Inject через interface */
-    public function __construct(private Runway $runway)
+    public function __construct(private readonly VideoGenerator $videoGenerator)
     {
     }
 
-    /**
-     * @throws ConnectionException
-     */
-    public function run(string $imageUrl, string $prompt): string
+    public function run(string $imageUrl, string $idea): string
     {
-        return $this->runway->generate($imageUrl, $prompt);
+        $prompt = <<<TEXT
+This video is based on the following concept: "$idea".
+Animate the image with smooth cinematic motion. Add dynamic lighting, parallax depth, and surreal energy.
+Use immersive camera motion (slow zoom, pan, or parallax) to bring the idea to life.
+Do not animate characters unless they are obviously in motion.
+TEXT;
+
+        return $this->videoGenerator->generate($imageUrl, $prompt);
     }
 }

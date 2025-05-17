@@ -28,7 +28,7 @@ class MakeShortAction extends Action
 
         $prompt->update(['image_url' => $image]);
 
-        $videoId = $this->createVideo->run($image, $prompt);
+        $videoId = $this->createVideo->run($image, $idea);
 
         $prompt->update(['video_url' => $videoId]);
 
