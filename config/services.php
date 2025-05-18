@@ -40,4 +40,9 @@ return [
         'api_url' => env('RUNWAY_API_URL', 'https://api.dev.runwayml.com/v1'),
         'version' => env('RUNWAY_API_VERSION', '2024-11-06'),
     ],
+
+    'suno_unofficial' => [
+        'api_key' => env('SUNO_UNOFFICIAL_API_KEY'),
+        'api_url' => env('SUNO_UNOFFICIAL_API_URL', 'https://apibox.erweima.ai/api/v1'),
+    ],
 ];

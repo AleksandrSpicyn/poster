@@ -6,6 +6,7 @@ use App\Classes\Generators\VideoGenerator\AbstractVideoGenerator;
 use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
 use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
 use App\Exceptions\VideoGeneratingException;
+use App\Settings\GeneralSettings;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -38,7 +39,7 @@ class Runway extends AbstractVideoGenerator
                 'promptImage' => $imageUrl,
                 'promptText' => $prompt,
                 'ratio' => '720:1280',
-                'duration' => 5,
+                'duration' => app(GeneralSettings::class)->duration,
             ])
             ->json('id');
     }

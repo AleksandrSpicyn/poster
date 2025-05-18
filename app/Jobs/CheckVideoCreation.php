@@ -13,7 +13,7 @@ class CheckVideoCreation implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 5;
+    public int $tries = 10;
 
     public function __construct(private readonly Prompt $prompt)
     {
@@ -25,7 +25,9 @@ class CheckVideoCreation implements ShouldQueue
             $result = $videoGenerator->check($this->prompt->video_id);
 
             if (!$result) {
-                $this->release(10);
+                $this->release(15);
+
+                return;
             }
 
             $this->prompt->update(['video_url' => $result]);

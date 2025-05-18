@@ -2,15 +2,14 @@
 
 namespace App\Listeners;
 
+use App\Events\AudioGenerated;
 use App\Events\VideoGenerated;
+use App\Jobs\SaveVideoJob;
 
 class VideoGeneratedListener
 {
-    public function handle(VideoGenerated $event): void
+    public function handle(VideoGenerated|AudioGenerated $event): void
     {
-        $prompt = $event->getPrompt();
-
-        /* TODO Publish and saving */
-        $prompt->project->channels->each->publish($prompt->video_url);
+        SaveVideoJob::dispatch($event->getPrompt());
     }
 }

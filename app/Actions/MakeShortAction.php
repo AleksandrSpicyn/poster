@@ -2,11 +2,13 @@
 
 namespace App\Actions;
 
+use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
 use App\Events\VideoGenerating;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Tasks\CreateAudio;
 use App\Tasks\CreateBasePrompt;
 use App\Tasks\CreateImage;
 use App\Tasks\CreateVideo;
@@ -17,14 +19,17 @@ class MakeShortAction extends Action
         private readonly CreateBasePrompt $createBasePrompt,
         private readonly CreateImage $createImage,
         private readonly CreateVideo $createVideo,
+        private readonly CreateAudio $createAudio,
     ) {
     }
 
     public function run(Project $project): void
     {
         $prompt = $this->generatePrompt($project);
+
         $this->generateImage($prompt);
-        $this->generateVideo(Prompt::first());
+        $this->generateVideo($prompt);
+        $this->generateAudio($prompt);
     }
 
     private function generatePrompt(Project $project): Prompt
@@ -54,5 +59,14 @@ class MakeShortAction extends Action
         $prompt->update(['video_id' => $videoId]);
 
         event(new VideoGenerating($prompt));
+    }
+
+    private function generateAudio(Prompt $prompt): void
+    {
+        $audioId = $this->createAudio->run($prompt->prompt);
+
+        $prompt->update(['audio_id' => $audioId]);
+
+        event(new AudioGenerating($prompt));
     }
 }

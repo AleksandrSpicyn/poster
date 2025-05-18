@@ -4,18 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @mixin IdeHelperPrompt
  */
-class Prompt extends Model
+class Prompt extends Model implements HasMedia
 {
+    use InteractsWithMedia;
+
     protected $fillable = [
         'prompt',
         'image_url',
+        'audio_id',
         'audio_url',
         'video_id',
         'video_url',
+        'generated',
     ];
 
     public function project(): BelongsTo

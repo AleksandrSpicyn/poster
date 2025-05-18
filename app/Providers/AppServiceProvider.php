@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Classes\Generators\AudioGenerator\AudioGenerator;
+use App\Classes\Generators\AudioGenerator\SunoUnofficial\SunoUnofficial;
 use App\Classes\Generators\ImageGenerator\ChatGpt\ChatGpt;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Classes\Generators\PromptGenerator\ChatGpt\ChatGpt as ChatGptPromptGenerator;
@@ -21,5 +23,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ImageGenerator::class, ChatGpt::class);
         $this->app->bind(PromptGenerator::class, ChatGptPromptGenerator::class);
         $this->app->bind(VideoGenerator::class, Runway::class);
+        $this->app->bind(AudioGenerator::class, SunoUnofficial::class);
     }
 }
