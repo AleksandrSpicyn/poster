@@ -7,16 +7,17 @@ use App\Classes\Publishers\Tiktok\Tiktok;
 use App\Classes\Publishers\Vk\Vk;
 use App\Classes\Publishers\Youtube\Youtube;
 use App\Enums\ChannelType;
+use App\Models\Channel;
 
 class PublisherFactory
 {
-    public static function make(ChannelType $channelType): Publisher
+    public static function make(Channel $channel): Publisher
     {
-        return match ($channelType) {
-            ChannelType::YOUTUBE => new Youtube(),
-            ChannelType::TIKTOK => new Tiktok(),
-            ChannelType::INSTAGRAM => new Instagram(),
-            ChannelType::VK => new Vk(),
+        return match ($channel->type) {
+            ChannelType::YOUTUBE => new Youtube($channel),
+            ChannelType::TIKTOK => new Tiktok($channel),
+            ChannelType::INSTAGRAM => new Instagram($channel),
+            ChannelType::VK => new Vk($channel),
         };
     }
 }

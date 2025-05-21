@@ -35,6 +35,6 @@ class Channel extends Model
 
     public function publish(string $url): bool
     {
-        return PublisherFactory::make($this->type)->publish($url);
+        return PublisherFactory::make($this)->publish($url);
     }
 }

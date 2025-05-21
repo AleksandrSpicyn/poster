@@ -2,7 +2,9 @@
 
 namespace App\Classes\Publishers;
 
+use App\Models\Prompt;
+
 interface Publisher
 {
-    public function publish(string $url): bool;
+    public function publish(Prompt $prompt): bool;
 }
