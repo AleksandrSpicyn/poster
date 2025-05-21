@@ -19,7 +19,7 @@ echo -e "${GREEN}🚀 Начинаем деплой проекта ${PWD}...${NC
 
 # 1. Обновление кода
 echo -e "${GREEN}📥 Обновляем код из Git...${NC}"
-git pull origin master
+git pull origin main
 
 # 2. Установка зависимостей
 echo -e "${GREEN}📦 Устанавливаем Composer-зависимости...${NC}"
