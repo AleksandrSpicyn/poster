@@ -22,7 +22,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function getTitle(): string
     {
-        return $this->prompt->prompt;
+        return 'What if the animal ends up in another country #Shorts #AIArt #WhatIf';
     }
 
     protected function getPath(): ?string
