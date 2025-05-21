@@ -11,9 +11,8 @@ class VideoBuiledListener
     {
         Log::info("VideoBuiled: {$event->getPrompt()->getFirstMediaUrl()}");
 
-        /* TODO Publish and saving */
-        //$prompt = $event->getPrompt();
+        $prompt = $event->getPrompt();
 
-        //$prompt->project->channels->each->publish($prompt->video_url);
+        $prompt->project->channels->each->publish($prompt->video_url);
     }
 }

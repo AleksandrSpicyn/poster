@@ -45,4 +45,9 @@ return [
         'api_key' => env('SUNO_UNOFFICIAL_API_KEY'),
         'api_url' => env('SUNO_UNOFFICIAL_API_URL', 'https://apibox.erweima.ai/api/v1'),
     ],
+
+    'youtube' => [
+        'client_id' => env('YOUTUBE_CLIENT_ID'),
+        'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
+    ],
 ];

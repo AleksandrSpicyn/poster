@@ -12,7 +12,9 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('type');
-            $table->text('api_key')->nullable();
+            $table->text('client_id')->nullable();
+            $table->text('client_secret')->nullable();
+            $table->json('credentials')->nullable();
             $table->foreignIdFor(Project::class)->constrained()->cascadeOnDelete();
             $table->timestamps();
         });

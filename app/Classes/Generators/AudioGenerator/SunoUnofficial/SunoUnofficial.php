@@ -33,8 +33,7 @@ class SunoUnofficial extends AbstractAudioGenerator
                 'instrumental' => true,
                 'model' => 'V3_5',
                 'negativeTags' => ['Classical'],
-                'callBackUrl' => 'https://9157-171-4-235-224.ngrok-free.app/api/webhook/suno',
-//                'callBackUrl' => route('webhook.suno'),
+                'callBackUrl' => route('webhook.suno'),
             ]);
 
         Log::info('Audio', $request->json());

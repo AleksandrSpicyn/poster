@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ChannelType;
+use App\Models\Channel;
 use App\Models\Project;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +11,8 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
+        Project::truncate();
+
         $prompt = <<<TEXT
 Ты креативный помощник, который ежедневно придумывает визуальные идеи для коротких видеороликов. Целевая аудитория — молодёжь 12–25 лет. Видео создаются на основе визуального запроса (prompt) для генерации изображения с помощью DALL·E.
 
@@ -30,6 +34,19 @@ class ProjectSeeder extends Seeder
 - Лёгкий, ироничный стиль; визуально насыщенный образ
 TEXT;
 
-        Project::factory()->create(compact('prompt'));
+        Project::factory()
+            ->has(
+                Channel::factory()->state([
+                    'name' => 'Midjourney Shorts',
+                    'type' => ChannelType::YOUTUBE,
+                    'client_id' => config('services.youtube.client_id'),
+                    'client_secret' => config('services.youtube.client_secret'),
+                ]),
+                'channels',
+            )
+            ->create([
+                'name' => 'Midjourney Shorts',
+                'prompt' => $prompt,
+            ]);
     }
 }
