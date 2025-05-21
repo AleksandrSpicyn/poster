@@ -4,7 +4,9 @@ namespace App\Classes\Publishers\Youtube;
 
 use App\Classes\Publishers\AbstractPublisher;
 use App\Models\Prompt;
+use Exception;
 use Google\Client;
+use Google\Http\MediaFileUpload;
 use Google\Service\YouTube as YouTubeService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -33,7 +35,7 @@ class Youtube extends AbstractPublisher
 
             $youtube = new YouTubeService($client);
 
-            $media = $prompt->getFirstMedia('video');
+            $media = $prompt->getFirstMedia();
 
             if (!$media) {
                 Log::error('YouTube: No media file found.');
@@ -59,7 +61,7 @@ class Youtube extends AbstractPublisher
 
             $insertRequest = $youtube->videos->insert('status,snippet', $video);
 
-            $media = new \Google\Http\MediaFileUpload(
+            $media = new MediaFileUpload(
                 $client,
                 $insertRequest,
                 'video/*',
@@ -80,7 +82,7 @@ class Youtube extends AbstractPublisher
             $client->setDefer(false);
             Log::info('YouTube: Видео успешно опубликовано.');
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('YouTube Publish Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return false;
         }
