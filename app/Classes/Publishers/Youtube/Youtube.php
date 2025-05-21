@@ -11,6 +11,7 @@ use Google\Service\YouTube\Video;
 use Google\Service\YouTube\VideoStatus;
 use Log;
 use Psr\Http\Message\RequestInterface;
+use RuntimeException;
 
 class Youtube extends AbstractPublisher
 {
@@ -29,82 +30,25 @@ class Youtube extends AbstractPublisher
 
             $media = $this->makeMedia($client, $video);
             $status = $this->upload($media);
-            $videoId = $status['id'] ?? null;
 
-            Log::info('YouTube uploaded video ID: ' . $videoId, $status);
+            if (!$status instanceof Video) {
+                throw new RuntimeException('Failed to upload video');
+            }
 
-            $this->savePost($videoId);
+            Log::info('YouTube uploaded video ID: ' . $status->getId(), (array)$status);
+
+            $this->savePost($status->getId());
         } catch (Exception $e) {
-            Log::error('YouTube Publish Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('YouTube Publish Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'channel' => $this->channel->id,
+                'prompt' => $this->prompt->id,
+            ]);
 
             return false;
         }
 
         return true;
-    }
-
-    /**
-     * @throws \Google\Service\Exception
-     */
-    private function makeMedia(Client $client, Video $video): MediaFileUpload
-    {
-        $youtube = new YouTubeService($client);
-        /** @var RequestInterface $insertRequest */
-        $insertRequest = $youtube->videos->insert('status,snippet', $video);
-
-        return new MediaFileUpload(
-            $client,
-            $insertRequest,
-            'video/*',
-            null,
-            true,
-            self::CHUNK_SIZE,
-        );
-    }
-
-    private function upload(MediaFileUpload $media): array|bool|null
-    {
-        $videoPath = $this->getPath();
-
-        if (!$videoPath) {
-            Log::error('YouTube: No media file found.');
-
-            return false;
-        }
-
-        $media->setFileSize(filesize($videoPath));
-
-        $handle = fopen($videoPath, 'rb');
-        $status = false;
-
-        while (!$status && !feof($handle)) {
-            $chunk = fread($handle, self::CHUNK_SIZE);
-            $status = $media->nextChunk($chunk);
-        }
-
-        fclose($handle);
-
-        return $status;
-    }
-
-    private function setStatus(Video $video): void
-    {
-        $status = new VideoStatus();
-
-        $status->privacyStatus = 'public';
-
-        $video->setStatus($status);
-    }
-
-    private function setSnippet(Video $video): void
-    {
-        $snippet = new YouTubeService\VideoSnippet();
-
-        $snippet->setTitle($this->getTitle());
-        $snippet->setDescription($this->getDescription());
-        $snippet->setCategoryId('22');
-
-        $video->setSnippet($snippet);
     }
 
     private function getClient(): Client
@@ -131,5 +75,69 @@ class Youtube extends AbstractPublisher
         $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
         $this->channel->credentials = $client->getAccessToken();
         $this->channel->save();
+    }
+
+    private function setStatus(Video $video): void
+    {
+        $status = new VideoStatus();
+
+        $status->privacyStatus = 'public';
+
+        $video->setStatus($status);
+    }
+
+    private function setSnippet(Video $video): void
+    {
+        $snippet = new YouTubeService\VideoSnippet();
+
+        $snippet->setTitle($this->getTitle());
+        $snippet->setDescription($this->getDescription());
+        $snippet->setCategoryId('22');
+
+        $video->setSnippet($snippet);
+    }
+
+    /**
+     * @throws \Google\Service\Exception
+     */
+    private function makeMedia(Client $client, Video $video): MediaFileUpload
+    {
+        $youtube = new YouTubeService($client);
+        /** @var RequestInterface $insertRequest */
+        $insertRequest = $youtube->videos->insert('status,snippet', $video);
+
+        return new MediaFileUpload(
+            $client,
+            $insertRequest,
+            'video/*',
+            null,
+            true,
+            self::CHUNK_SIZE,
+        );
+    }
+
+    private function upload(MediaFileUpload $media): mixed
+    {
+        $videoPath = $this->getPath();
+
+        if (!$videoPath) {
+            Log::error('YouTube: No media file found.');
+
+            return false;
+        }
+
+        $media->setFileSize(filesize($videoPath));
+
+        $handle = fopen($videoPath, 'rb');
+        $status = false;
+
+        while (!$status && !feof($handle)) {
+            $chunk = fread($handle, self::CHUNK_SIZE);
+            $status = $media->nextChunk($chunk);
+        }
+
+        fclose($handle);
+
+        return $status;
     }
 }
