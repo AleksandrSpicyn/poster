@@ -42,7 +42,7 @@ class Youtube extends AbstractPublisher
                 return false;
             }
 
-            $videoPath = Storage::disk($media->disk)->path($media->getPath());
+            $videoPath = $media->getPath();
 
             $snippet = new YouTubeService\VideoSnippet();
             $snippet->setTitle(Str::limit($prompt->prompt));
