@@ -39,11 +39,11 @@ php artisan route:cache
 php artisan view:cache
 
 # 5. Права
-echo -e "${GREEN}🔑 Настройка прав...${NC}"
-chown -R "${WWW_USER:-www-data}":"${WWW_GROUP:-www-data}" .
-find . -type d -exec chmod 755 {} \;
-find . -type f -exec chmod 644 {} \;
-chmod -R 775 storage bootstrap/cache
+#echo -e "${GREEN}🔑 Настройка прав...${NC}"
+#chown -R "${WWW_USER:-www-data}":"${WWW_GROUP:-www-data}" .
+#find . -type d -exec chmod 755 {} \;
+#find . -type f -exec chmod 644 {} \;
+#chmod -R 775 storage bootstrap/cache
 
 # 6. Очереди
 echo -e "${GREEN}🔁 Перезапуск очередей...${NC}"
