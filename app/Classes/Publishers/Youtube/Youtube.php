@@ -37,7 +37,7 @@ class Youtube extends AbstractPublisher
 
             Log::info('YouTube uploaded video ID: ' . $status->getId(), (array)$status);
 
-            $this->savePost($status->getId());
+            $this->savePost($status->getId(), $this->getUrl($status->getId()));
         } catch (Exception $e) {
             Log::error('YouTube Publish Error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -139,5 +139,10 @@ class Youtube extends AbstractPublisher
         fclose($handle);
 
         return $status;
+    }
+
+    public function getUrlTemplate(): string
+    {
+        return 'https://www.youtube.com/shorts/%s';
     }
 }
