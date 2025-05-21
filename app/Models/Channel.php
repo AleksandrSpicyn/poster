@@ -33,8 +33,8 @@ class Channel extends Model
         return $this->belongsTo(Project::class);
     }
 
-    public function publish(string $url): bool
+    public function publish(Prompt $prompt): bool
     {
-        return PublisherFactory::make($this)->publish($url);
+        return PublisherFactory::make($this)->publish($prompt);
     }
 }
