@@ -11,7 +11,7 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
-        Project::truncate();
+        Project::delete();
 
         $prompt = <<<TEXT
 Ты креативный помощник, который ежедневно придумывает визуальные идеи для коротких видеороликов. Целевая аудитория — молодёжь 12–25 лет. Видео создаются на основе визуального запроса (prompt) для генерации изображения с помощью DALL·E.
