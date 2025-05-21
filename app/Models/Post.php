@@ -14,11 +14,17 @@ class Post extends Model
         'title',
         'description',
         'external_id',
+        'prompt_id',
         'url',
     ];
 
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class);
+    }
+
+    public function prompt(): BelongsTo
+    {
+        return $this->belongsTo(Prompt::class);
     }
 }

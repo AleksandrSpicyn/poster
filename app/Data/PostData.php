@@ -2,11 +2,15 @@
 
 namespace App\Data;
 
+use App\Models\Channel;
+use App\Models\Prompt;
 use Spatie\LaravelData\Data;
 
 class PostData extends Data
 {
     public function __construct(
+        public Channel $channel,
+        public Prompt $prompt,
         public string $title,
         public string $description,
         public ?string $url = null,

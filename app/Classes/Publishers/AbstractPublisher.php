@@ -30,8 +30,9 @@ abstract class AbstractPublisher implements Publisher
     protected function savePost(?string $externalId, ?string $url): void
     {
         app(SavePost::class)->run(
-            $this->channel,
             new PostData(
+                $this->channel,
+                $this->prompt,
                 $this->getTitle(),
                 $this->getDescription(),
                 $url,

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Channel;
+use App\Models\Prompt;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +15,8 @@ return new class extends Migration {
             $table->text('description');
             $table->string('external_id')->nullable();
             $table->text('url')->nullable();
-            $table->foreignIdFor(Channel::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(Channel::class)->constrained()->nullOnDelete();
+            $table->foreignIdFor(Prompt::class)->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }
