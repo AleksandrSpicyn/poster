@@ -18,7 +18,7 @@ class AuthorizeYoutube extends Command
         $client = new Client();
         $client->setClientId($channel->client_id);
         $client->setClientSecret($channel->client_secret);
-        $client->setRedirectUri(config('services.ngrok.url')); // консольный flow
+        $client->setRedirectUri(route('home')); // консольный flow
         $client->setScopes(['https://www.googleapis.com/auth/youtube.upload']);
         $client->setAccessType('offline');
         $client->setPrompt('consent');
