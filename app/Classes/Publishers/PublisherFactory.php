@@ -8,16 +8,17 @@ use App\Classes\Publishers\Vk\Vk;
 use App\Classes\Publishers\Youtube\Youtube;
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\Prompt;
 
 class PublisherFactory
 {
-    public static function make(Channel $channel): Publisher
+    public static function make(Channel $channel, Prompt $prompt): Publisher
     {
         return match ($channel->type) {
-            ChannelType::YOUTUBE => new Youtube($channel),
-            ChannelType::TIKTOK => new Tiktok($channel),
-            ChannelType::INSTAGRAM => new Instagram($channel),
-            ChannelType::VK => new Vk($channel),
+            ChannelType::YOUTUBE => new Youtube($channel, $prompt),
+            ChannelType::TIKTOK => new Tiktok($channel, $prompt),
+            ChannelType::INSTAGRAM => new Instagram($channel, $prompt),
+            ChannelType::VK => new Vk($channel, $prompt),
         };
     }
 }
