@@ -15,8 +15,8 @@ return new class extends Migration {
             $table->text('description');
             $table->string('external_id')->nullable();
             $table->text('url')->nullable();
-            $table->foreignIdFor(Channel::class)->constrained()->nullOnDelete();
-            $table->foreignIdFor(Prompt::class)->constrained()->nullOnDelete();
+            $table->foreignIdFor(Channel::class)->nullable()->constrained()->nullOnDelete();
+            $table->foreignIdFor(Prompt::class)->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }
