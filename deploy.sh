@@ -28,7 +28,7 @@ composer install --no-interaction --prefer-dist --optimize-autoloader
 # 3. Миграции и сиды
 echo -e "${GREEN}🛠️ Выполняем миграции и сиды...${NC}"
 php artisan migrate --force
-php artisan db:seed --force || echo -e "${RED}⚠️ Seed не выполнен или необязателен${NC}"
+#php artisan db:seed --force || echo -e "${RED}⚠️ Seed не выполнен или необязателен${NC}"
 
 # 4. Очистка кешей
 echo -e "${GREEN}♻️ Очистка и кеширование...${NC}"

@@ -13,6 +13,6 @@ class VideoBuiledListener
 
         $prompt = $event->getPrompt();
 
-        $prompt->project->channels->each->publish($prompt->video_url);
+        $prompt->project->channels->each->publish($prompt);
     }
 }
