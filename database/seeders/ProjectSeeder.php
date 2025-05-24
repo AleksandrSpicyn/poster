@@ -11,9 +11,43 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
-        Project::query()->delete();
+        $project = Project::firstOrCreate(
+            ['name' => 'Midjourney Shorts'],
+            ['prompt' => $this->prompt()],
+        );
 
-        $prompt = <<<TEXT
+        Channel::firstOrCreate(
+            [
+                'project_id' => $project->id,
+                'type' => ChannelType::YOUTUBE,
+            ],
+            [
+                'name' => 'AI Fakes X',
+                'client_id' => config('services.youtube.client_id'),
+                'client_secret' => config('services.youtube.client_secret'),
+            ],
+        );
+
+        Channel::firstOrCreate(
+            [
+                'project_id' => $project->id,
+                'type' => ChannelType::INSTAGRAM,
+            ],
+            [
+                'name' => 'AI Fakes X',
+                'client_id' => config('services.instagram.client_id'),
+                'client_secret' => config('services.instagram.client_secret'),
+                'credentials' => [
+                    'access_token' => config('services.instagram.token'),
+                    'channel_id' => '17841402123695030',
+                ],
+            ],
+        );
+    }
+
+    private function prompt(): string
+    {
+        return <<<TEXT
 Ты креативный помощник, который ежедневно придумывает визуальные идеи для коротких видеороликов. Целевая аудитория — молодёжь 12–25 лет. Видео создаются на основе визуального запроса (prompt) для генерации изображения с помощью DALL·E.
 
 Проект называется “Midjourney Shorts”. Каждый день публикуется один визуально насыщенный и забавный запрос.
@@ -33,20 +67,5 @@ class ProjectSeeder extends Seeder
 - Не более 1–2 предложений
 - Лёгкий, ироничный стиль; визуально насыщенный образ
 TEXT;
-
-        Project::factory()
-            ->has(
-                Channel::factory()->state([
-                    'name' => 'Midjourney Shorts',
-                    'type' => ChannelType::YOUTUBE,
-                    'client_id' => config('services.youtube.client_id'),
-                    'client_secret' => config('services.youtube.client_secret'),
-                ]),
-                'channels',
-            )
-            ->create([
-                'name' => 'Midjourney Shorts',
-                'prompt' => $prompt,
-            ]);
     }
 }
