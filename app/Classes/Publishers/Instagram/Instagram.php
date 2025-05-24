@@ -12,4 +12,9 @@ class Instagram extends AbstractPublisher
 
         return false;
     }
+
+    public function getUrlTemplate(): string
+    {
+        // TODO: Implement getUrlTemplate() method.
+    }
 }
