@@ -32,7 +32,7 @@ class Instagram extends AbstractPublisher
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
-            sleep(10); // Wait for the container to be ready
+            sleep(20); // Wait for the container to be ready
 
             $publishRes = $client->post('media_publish', [
                 'creation_id' => $containerId,
