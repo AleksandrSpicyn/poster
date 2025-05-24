@@ -1,40 +1,26 @@
-<script setup>
-import AppLayout from '@/layouts/AppLayout.vue';
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <AppLayout>
-        <div class="mx-auto max-w-3xl px-4 py-12 text-gray-800 dark:text-gray-200">
-            <h1 class="mb-6 text-3xl font-bold">Политика конфиденциальности</h1>
+    <Head title="Privacy Policy" />
 
-            <p class="mb-4 text-sm text-gray-500">Дата вступления в силу: 21 мая 2025 г.</p>
+    <div class="mx-auto max-w-3xl px-4 py-12 text-gray-800 dark:text-gray-200">
+        <h1 class="mb-6 text-3xl font-bold">Privacy Policy</h1>
+        <p class="mb-4">Effective Date: May 21, 2025</p>
 
-            <h2 class="mt-8 mb-2 text-xl font-semibold">1. Кто мы</h2>
-            <p class="mb-4">
-                Мы — команда проекта <strong>AI Fails</strong>, создающего короткие развлекательные видео с помощью генеративного искусственного
-                интеллекта.
-            </p>
-            <p class="mb-4">
-                Сайт: <a href="https://24i-poster.ru" class="text-blue-600 underline">24i-poster.ru</a><br />
-                Контакт: <a href="mailto:fenixxxar85@gmail.com" class="text-blue-600 underline">fenixxxar85@gmail.com</a>
-            </p>
+        <p class="mb-4">
+            This app (AI Fails) is a private tool developed and used exclusively by its creator. It is not publicly accessible and does not collect or
+            share any user data from third parties.
+        </p>
 
-            <h2 class="mt-8 mb-2 text-xl font-semibold">2. Какие данные мы собираем</h2>
-            <ul class="mb-4 list-inside list-disc space-y-1">
-                <li>Имя вашего аккаунта</li>
-                <li>Идентификаторы каналов и страниц</li>
-                <li>Разрешения OAuth (YouTube, Instagram)</li>
-                <li>Access Token (только для публикации от вашего имени)</li>
-            </ul>
+        <p class="mb-4">
+            During authorization, the app receives an access token to publish short videos to the owner's account only. No sensitive information such
+            as passwords or private messages is collected or stored.
+        </p>
 
-            <h2 class="mt-8 mb-2 text-xl font-semibold">3. Как мы используем данные</h2>
-            <p class="mb-4">Мы используем их исключительно для публикации видео от вашего имени. Данные не передаются третьим лицам.</p>
+        <p class="mb-4">All data is stored securely on a private server and used solely for personal publishing automation.</p>
 
-            <h2 class="mt-8 mb-2 text-xl font-semibold">4. Хранение данных</h2>
-            <p class="mb-4">Все токены шифруются. Вы можете отозвать доступ через Meta или Google.</p>
-
-            <h2 class="mt-8 mb-2 text-xl font-semibold">5. Контакты</h2>
-            <p>По вопросам: <a href="mailto:fenixxxar85@gmail.com" class="text-blue-600 underline">fenixxxar85@gmail.com</a></p>
-        </div>
-    </AppLayout>
+        <p>For questions, contact: <a href="mailto:fenixxxar85@gmail.com" class="text-blue-600 underline">fenixxxar85@gmail.com</a></p>
+    </div>
 </template>

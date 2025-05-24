@@ -11,6 +11,10 @@ Route::get('policy', static function () {
     return Inertia::render('Policy');
 })->name('policy');
 
+Route::get('terms', static function () {
+    return Inertia::render('Terms');
+})->name('terms');
+
 Route::get('dashboard', static function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
