@@ -9,5 +9,6 @@ return [
 | The 'web' middleware will be applied automatically if empty.
 |
 */
+    'require_auth_in_production' => false,
     'middleware' => ['web', 'auth'],
 ];
