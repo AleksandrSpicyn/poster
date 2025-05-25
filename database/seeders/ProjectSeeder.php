@@ -43,6 +43,18 @@ class ProjectSeeder extends Seeder
                 ],
             ],
         );
+
+        Channel::firstOrCreate(
+            [
+                'project_id' => $project->id,
+                'type' => ChannelType::TIKTOK,
+            ],
+            [
+                'name' => 'AI Fakes X',
+                'client_id' => config('services.tiktok.client_id'),
+                'client_secret' => config('services.tiktok.client_secret'),
+            ],
+        );
     }
 
     private function prompt(): string

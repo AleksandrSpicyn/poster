@@ -61,4 +61,9 @@ return [
         'token' => env('INSTAGRAM_TOKEN'),
         'version' => 'v21.0',
     ],
+
+    'tiktok' => [
+        'client_id' => env('TIKTOK_CLIENT_ID'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+    ],
 ];
