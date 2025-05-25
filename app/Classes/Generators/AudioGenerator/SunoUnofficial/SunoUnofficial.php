@@ -55,7 +55,7 @@ class SunoUnofficial extends AbstractAudioGenerator
             ]);
 
         if ($response->failed()) {
-            Log::error($response->json());
+            Log::error('SunoUnofficial API Error', $response->json());
 
             throw new RuntimeException('SunoUnofficial API Error: ' . $response->body());
         }

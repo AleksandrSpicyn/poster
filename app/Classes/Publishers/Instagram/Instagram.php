@@ -29,6 +29,8 @@ class Instagram extends AbstractPublisher
             $containerId = $containerRes->json('id');
 
             if (!$containerId) {
+                Log::error('Instagram cannot create containe Context', $containerRes->json());
+
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
@@ -41,6 +43,8 @@ class Instagram extends AbstractPublisher
             $mediaId = $publishRes->json('id');
 
             if (!$mediaId) {
+                Log::error('Instagram Publish Error Context', $publishRes->json());
+
                 throw new RuntimeException('Instagram cannot publish video.');
             }
 
