@@ -53,6 +53,6 @@ class AuthorizeTiktok extends Command
         $channel->credentials = $data;
         $channel->save();
 
-        $this->info('✅ Токен сохранён. Канал готов к публикации.');
+        $this->info('✅ Token saved. Channel ready for publishing.');
     }
 }

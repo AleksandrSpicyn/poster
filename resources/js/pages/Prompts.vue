@@ -10,6 +10,7 @@ import { Check } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 
+/* TODO Typification */
 const page = usePage<{
     prompts: {
         data: any[];
@@ -101,15 +102,15 @@ const breadcrumbs: BreadcrumbItem[] = [
                             <TableCell>
                                 <Dialog>
                                     <DialogTrigger as-child v-if="!!prompt.url">
-                                        <Button variant="secondary"> Просмотр </Button>
+                                        <Button variant="secondary"> View </Button>
                                     </DialogTrigger>
                                     <DialogContent class="max-w-3xl">
                                         <DialogHeader>
-                                            <DialogTitle>Просмотр видео</DialogTitle>
+                                            <DialogTitle>Watch video</DialogTitle>
                                         </DialogHeader>
-                                        <video controls class="h-auto w-full" autoplay>
+                                        <video controls class="h-auto w-full" autoplay loop>
                                             <source :src="prompt.url" type="video/mp4" />
-                                            Ваш браузер не поддерживает воспроизведение видео.
+                                            Your browser does not support the video tag.
                                         </video>
                                     </DialogContent>
                                 </Dialog>

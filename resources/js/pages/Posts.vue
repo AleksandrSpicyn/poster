@@ -7,6 +7,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+/* TODO Typification */
 const page = usePage<{
     posts: {
         data: any[];
@@ -113,6 +114,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <TableCell>
                             <Link
                                 :href="post.url"
+                                target="_blank"
                                 class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                             >
                                 {{ post.url }}

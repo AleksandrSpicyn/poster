@@ -18,20 +18,20 @@ class AuthorizeYoutube extends Command
         $client = new Client();
         $client->setClientId($channel->client_id);
         $client->setClientSecret($channel->client_secret);
-        $client->setRedirectUri(route('home')); // консольный flow
+        $client->setRedirectUri(route('home'));
         $client->setScopes(['https://www.googleapis.com/auth/youtube.upload']);
         $client->setAccessType('offline');
         $client->setPrompt('consent');
 
         $authUrl = $client->createAuthUrl();
-        $this->info("Открой ссылку и авторизуйся:\n\n$authUrl\n");
+        $this->info("Open the link and log in:\n\n$authUrl\n");
 
-        $code = $this->ask('Вставь authorization code из браузера');
+        $code = $this->ask('Paste the authorization code from the browse');
 
         $accessToken = $client->fetchAccessTokenWithAuthCode($code);
 
         if (isset($accessToken['error'])) {
-            $this->error('Ошибка авторизации: ' . $accessToken['error_description']);
+            $this->error('Authorization error: ' . $accessToken['error_description']);
 
             return;
         }
@@ -39,6 +39,6 @@ class AuthorizeYoutube extends Command
         $channel->credentials = $accessToken;
         $channel->save();
 
-        $this->info('✅ Токен сохранён. Канал готов к публикации.');
+        $this->info('✅ Token saved. Channel ready for publishing.');
     }
 }

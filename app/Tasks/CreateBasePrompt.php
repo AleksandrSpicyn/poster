@@ -23,11 +23,11 @@ class CreateBasePrompt extends Task
         $fullPrompt = <<<TEXT
 {$project->prompt}
 
-Вот ранее использованные промпты:
+Here are the previously used prompts:
 $history
 
-Сгенерируй **один новый** “Что если...” визуальный запрос в стиле Midjourney Shorts.
-Только результат, без пояснений.
+Generate **one new** “What if...” visual query in the style of Midjourney Shorts.
+Just the result, no explanation.
 TEXT;
 
         return $this->promptGenerator->generate($fullPrompt);
