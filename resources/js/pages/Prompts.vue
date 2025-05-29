@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Check } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { Button } from '@/components/ui/button';
 
 const page = usePage<{
     prompts: {
@@ -83,7 +85,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <TableHeader>
                     <TableRow>
                         <TableHead class="w-[80px]">ID</TableHead>
-                        <TableHead>Prompt</TableHead>
+                        <TableHead class="max-w-[24px] truncate">Prompt</TableHead>
                         <TableHead>Project</TableHead>
                         <TableHead>URL</TableHead>
                         <TableHead>Generated</TableHead>
@@ -96,12 +98,22 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <TableCell>{{ prompt.title }}</TableCell>
                         <TableCell>{{ prompt.project }}</TableCell>
                         <TableCell>
-                            <Link
-                                :href="prompt.url"
-                                class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                            >
-                                {{ prompt.url }}
-                            </Link>
+                            <TableCell>
+                                <Dialog>
+                                    <DialogTrigger as-child>
+                                        <Button variant="secondary"> {{ prompt.url }} </Button>
+                                    </DialogTrigger>
+                                    <DialogContent class="max-w-3xl">
+                                        <DialogHeader>
+                                            <DialogTitle>Просмотр видео</DialogTitle>
+                                        </DialogHeader>
+                                        <video controls class="h-auto w-full">
+                                            <source :src="prompt.url" type="video/mp4" />
+                                            Ваш браузер не поддерживает воспроизведение видео.
+                                        </video>
+                                    </DialogContent>
+                                </Dialog>
+                            </TableCell>
                         </TableCell>
                         <TableCell>
                             <Check v-if="prompt.generated" class="text-green-500" />
