@@ -85,9 +85,9 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <TableHeader>
                     <TableRow>
                         <TableHead class="w-[80px]">ID</TableHead>
-                        <TableHead class="max-w-[24px] truncate">Prompt</TableHead>
+                        <TableHead class="max-w-[240px] truncate">Prompt</TableHead>
                         <TableHead>Project</TableHead>
-                        <TableHead>URL</TableHead>
+                        <TableHead></TableHead>
                         <TableHead>Generated</TableHead>
                         <TableHead>Date</TableHead>
                     </TableRow>
@@ -95,19 +95,19 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <TableBody>
                     <TableRow v-for="prompt in page.props.prompts.data" :key="prompt.id">
                         <TableCell>{{ prompt.id }}</TableCell>
-                        <TableCell>{{ prompt.title }}</TableCell>
+                        <TableCell class="max-w-[240px] truncate">{{ prompt.title }}</TableCell>
                         <TableCell>{{ prompt.project }}</TableCell>
                         <TableCell>
                             <TableCell>
                                 <Dialog>
-                                    <DialogTrigger as-child>
-                                        <Button variant="secondary"> {{ prompt.url }} </Button>
+                                    <DialogTrigger as-child v-if="!!prompt.url">
+                                        <Button variant="secondary"> Просмотр </Button>
                                     </DialogTrigger>
                                     <DialogContent class="max-w-3xl">
                                         <DialogHeader>
                                             <DialogTitle>Просмотр видео</DialogTitle>
                                         </DialogHeader>
-                                        <video controls class="h-auto w-full">
+                                        <video controls class="h-auto w-full" autoplay>
                                             <source :src="prompt.url" type="video/mp4" />
                                             Ваш браузер не поддерживает воспроизведение видео.
                                         </video>
