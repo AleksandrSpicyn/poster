@@ -99,6 +99,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <TableHead class="w-[80px]">ID</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>URL</TableHead>
+                        <TableHead>Date</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -112,6 +113,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 {{ post.url }}
                             </a>
                         </TableCell>
+                        <TableCell>{{ post.created_at ? new Date(post.created_at).toLocaleString() : '' }}</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
