@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Tasks;
+namespace App\Tasks\Posts;
 
 use App\Data\PostData;
 use App\Events\PostCreated;
+use App\Tasks\Task;
 
 class SavePost extends Task
 {

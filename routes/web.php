@@ -1,6 +1,7 @@
 <?php
 
-use App\Http\Controllers\Posts\ListController;
+use App\Http\Controllers\Posts\ListController as PostsListController;
+use App\Http\Controllers\Prompts\ListController as PromptsListController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -25,7 +26,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-    Route::get('posts', ListController::class)->name('posts');
+    Route::get('posts', PostsListController::class)->name('posts');
+    Route::get('prompts', PromptsListController::class)->name('prompts');
 });
 
 require __DIR__ . '/settings.php';

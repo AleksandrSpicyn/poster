@@ -4,15 +4,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const page = usePage<{
     posts: {
         data: any[];
-        current_page: number;
-        per_page: number;
-        total: number;
+        meta: {
+            current_page: number;
+            per_page: number;
+            total: number;
+        };
     };
     filters: {
         type?: string;
@@ -22,16 +24,16 @@ const page = usePage<{
 }>();
 
 const pagination = computed(() => ({
-    page: page.props.posts.current_page,
-    itemsPerPage: page.props.posts.per_page,
-    total: page.props.posts.total,
+    page: page.props.posts.meta.current_page,
+    itemsPerPage: page.props.posts.meta.per_page,
+    total: page.props.posts.meta.total,
 }));
 
 const filters = ref({
     type: page.props.filters.type ?? 'All',
     sort: page.props.filters.sort ?? 'desc',
-    perPage: page.props.posts.per_page ?? 10,
-    page: page.props.posts.current_page,
+    perPage: page.props.posts.meta.per_page ?? 10,
+    page: page.props.posts.meta.current_page,
 });
 
 const types = computed(() => page.props.types);
@@ -106,14 +108,17 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <TableRow v-for="post in page.props.posts.data" :key="post.id">
                         <TableCell>{{ post.id }}</TableCell>
                         <TableCell>
-                            <img :src="`/icons/${post.channel.type}.svg`" :alt="post.channel.type" class="h-5 w-5" />
+                            <img :src="`/icons/${post.channel}.svg`" :alt="post.channel" class="h-5 w-5" />
                         </TableCell>
                         <TableCell>
-                            <a :href="post.url" target="_blank" class="text-blue-600 underline">
+                            <Link
+                                :href="post.url"
+                                class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                            >
                                 {{ post.url }}
-                            </a>
+                            </Link>
                         </TableCell>
-                        <TableCell>{{ post.created_at ? new Date(post.created_at).toLocaleString() : '' }}</TableCell>
+                        <TableCell>{{ post.created_at }}</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>

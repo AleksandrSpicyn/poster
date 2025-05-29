@@ -5,7 +5,7 @@ namespace App\Classes\Publishers;
 use App\Data\PostData;
 use App\Models\Channel;
 use App\Models\Prompt;
-use App\Tasks\SavePost;
+use App\Tasks\Posts\SavePost;
 
 abstract class AbstractPublisher implements Publisher
 {

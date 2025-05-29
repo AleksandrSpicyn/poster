@@ -1,0 +1,133 @@
+<script setup lang="ts">
+import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Check } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+
+const page = usePage<{
+    prompts: {
+        data: any[];
+        meta: {
+            current_page: number;
+            per_page: number;
+            total: number;
+        };
+    };
+    filters: {
+        sort?: string;
+    };
+}>();
+
+const pagination = computed(() => ({
+    page: page.props.prompts.meta.current_page,
+    itemsPerPage: page.props.prompts.meta.per_page,
+    total: page.props.prompts.meta.total,
+}));
+
+const filters = ref({
+    sort: page.props.filters.sort ?? 'desc',
+    perPage: page.props.prompts.meta.per_page ?? 10,
+    page: page.props.prompts.meta.current_page,
+});
+
+const applyFilters = () => {
+    router.get(route('prompts'), filters.value, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Prompts',
+        href: '/prompts',
+    },
+];
+</script>
+
+<template>
+    <Head title="Prompts" />
+
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <div class="px-4 py-6">
+            <!-- Filters -->
+            <div class="flex flex-wrap gap-4">
+                <Select v-model="filters.perPage" @update:modelValue="applyFilters">
+                    <SelectTrigger class="w-[140px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="10">10</SelectItem>
+                        <SelectItem :value="25">25</SelectItem>
+                        <SelectItem :value="50">50</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select v-model="filters.sort" @update:modelValue="applyFilters">
+                    <SelectTrigger class="w-[140px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="desc">Newest</SelectItem>
+                        <SelectItem value="asc">Oldest</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <!-- Table -->
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead class="w-[80px]">ID</TableHead>
+                        <TableHead>Prompt</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>URL</TableHead>
+                        <TableHead>Generated</TableHead>
+                        <TableHead>Date</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="prompt in page.props.prompts.data" :key="prompt.id">
+                        <TableCell>{{ prompt.id }}</TableCell>
+                        <TableCell>{{ prompt.title }}</TableCell>
+                        <TableCell>{{ prompt.project }}</TableCell>
+                        <TableCell>
+                            <Link
+                                :href="prompt.url"
+                                class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                            >
+                                {{ prompt.url }}
+                            </Link>
+                        </TableCell>
+                        <TableCell>
+                            <Check v-if="prompt.generated" class="text-green-500" />
+                        </TableCell>
+                        <TableCell>{{ prompt.created_at }}</TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+
+            <!-- Pagination -->
+            <div class="flex justify-center pt-4">
+                <Pagination
+                    v-model:page="filters.page"
+                    :items-per-page="pagination.itemsPerPage"
+                    :total="pagination.total"
+                    @update:page="applyFilters"
+                >
+                    <PaginationContent v-slot="{ items }">
+                        <template v-for="(item, index) in items" :key="index">
+                            <PaginationItem v-if="item.type === 'page'" :value="item.value" :is-active="item.value === filters.page">
+                                {{ item.value }}
+                            </PaginationItem>
+                        </template>
+                    </PaginationContent>
+                </Pagination>
+            </div>
+        </div>
+    </AppLayout>
+</template>
