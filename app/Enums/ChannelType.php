@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Traits\EnumTrait;
+
 enum ChannelType: string
 {
+    use EnumTrait;
+
     case YOUTUBE = 'youtube';
     case TIKTOK = 'tiktok';
     case INSTAGRAM = 'instagram';

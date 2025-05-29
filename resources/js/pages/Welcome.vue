@@ -6,7 +6,7 @@ import { Head, Link } from '@inertiajs/vue3';
     <Head title="Fails" />
 
     <div class="flex min-h-screen flex-col items-center justify-between bg-white p-6 text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-white">
-        <div class="flex-1 flex items-center justify-center w-full">
+        <div class="flex w-full flex-1 items-center justify-center">
             <div class="text-center">
                 <h1 class="mb-4 text-4xl font-extrabold tracking-tight">Welcome to <span class="text-red-600">AI Fails</span></h1>
                 <p class="mx-auto mb-8 max-w-xl text-lg">
