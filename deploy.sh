@@ -35,11 +35,11 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# 6. Queues
+# 5. Queues
 echo -e "${GREEN}🔁 Restart queue...${NC}"
 php artisan queue:restart || echo -e "${RED}⚠️ Queue not configured? Skipped.${NC}"
 
-# 7. Front (if the --with-frontend flag is passed)
+# 6. Front (if the --with-frontend flag is passed)
 if [[ "${1:-}" == "--with-frontend" ]]; then
     echo -e "${GREEN}🌐 Install frontend dependencies and build...${NC}"
     npm install
