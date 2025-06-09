@@ -3,15 +3,16 @@
 namespace App\Classes\Publishers\Youtube;
 
 use App\Classes\Publishers\AbstractPublisher;
-use Exception;
 use Google\Client;
 use Google\Http\MediaFileUpload;
+use Google\Service\Exception;
 use Google\Service\YouTube as YouTubeService;
 use Google\Service\YouTube\Video;
 use Google\Service\YouTube\VideoStatus;
 use Log;
 use Psr\Http\Message\RequestInterface;
 use RuntimeException;
+use Throwable;
 
 class Youtube extends AbstractPublisher
 {
@@ -38,7 +39,7 @@ class Youtube extends AbstractPublisher
             Log::info('YouTube uploaded video ID: ' . $status->getId(), (array)$status);
 
             $this->savePost($status->getId(), $this->getUrl($status->getId()));
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             Log::error('YouTube Publish Error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'channel' => $this->channel->id,
@@ -98,7 +99,7 @@ class Youtube extends AbstractPublisher
     }
 
     /**
-     * @throws \Google\Service\Exception
+     * @throws Exception
      */
     private function makeMedia(Client $client, Video $video): MediaFileUpload
     {

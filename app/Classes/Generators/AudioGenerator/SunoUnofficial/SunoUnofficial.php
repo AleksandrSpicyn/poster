@@ -36,8 +36,6 @@ class SunoUnofficial extends AbstractAudioGenerator
                 'callBackUrl' => route('webhook.suno'),
             ]);
 
-        Log::info('Audio', $request->json());
-
         return $request->json('data.taskId');
     }
 

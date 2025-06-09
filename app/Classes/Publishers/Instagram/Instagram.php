@@ -9,6 +9,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Throwable;
 
 class Instagram extends AbstractPublisher
 {
@@ -34,7 +35,7 @@ class Instagram extends AbstractPublisher
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
-            sleep(20); // Wait for the container to be ready
+            sleep(30); // Wait for the container to be ready
 
             $publishRes = $client->post('media_publish', [
                 'creation_id' => $containerId,
@@ -49,7 +50,7 @@ class Instagram extends AbstractPublisher
             }
 
             $this->savePost($mediaId, $this->getUrl($mediaId));
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             Log::error('Instagram Publish Error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'channel' => $this->channel->id,
