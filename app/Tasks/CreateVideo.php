@@ -15,13 +15,13 @@ class CreateVideo extends Task
         $prompt = <<<TEXT
 This video is based on the following concept: "{$idea}".
 
-Create a vivid, lifelike animated scene where the animal is fully integrated into its environment. The animal should move naturally and responsively — turning its head, blinking, shifting weight, sniffing, reacting to sounds or light changes — as if truly aware of its surroundings. Avoid robotic or repetitive motion; prioritize subtle, organic gestures that convey curiosity and presence.
+Animate a vivid, lifelike scene where the animal naturally interacts with its environment — moving its head, blinking, shifting weight, reacting to sounds or light. Avoid static posing or looping motions; gestures should feel organic and curious.
 
-The environment must feel alive too: animate ambient elements like wind rustling grass or trees, water movement, drifting particles, or dynamic lighting shifts. The scene should have depth and realism, using cinematic camera techniques like smooth parallax motion, slow zooms, subtle panning or orbiting shots to explore the space and create immersion.
+Bring the surroundings to life: add wind-blown trees, drifting particles, moving shadows, or rippling water. Use cinematic camera motion — parallax, panning, zooming — to explore the space with depth and realism.
 
-Prioritize high-resolution textures, realistic lighting, soft shadows, and atmospheric depth. Avoid flat or collage-like compositions — the goal is to evoke a single living moment in time, not a static frame.
+Prioritize high-resolution textures, natural lighting, soft shadows, and atmospheric depth. Avoid collage-like or flat visuals.
 
-The final animation should feel like a short, compelling shot from a wildlife film — emotionally engaging, visually rich, and fully alive.
+The result should feel like a rich, dynamic moment from a nature film — immersive, emotional, and alive.
 TEXT;
 
         return $this->videoGenerator->generate($imageUrl, $prompt);
