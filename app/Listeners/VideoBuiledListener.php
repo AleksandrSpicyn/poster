@@ -13,6 +13,8 @@ class VideoBuiledListener
 
         $prompt = $event->getPrompt();
 
-        $prompt->project->channels->each->publish($prompt);
+        $prompt->project->channels->each(function ($channel) use ($prompt): void {
+            $channel->publish($prompt);
+        });
     }
 }
