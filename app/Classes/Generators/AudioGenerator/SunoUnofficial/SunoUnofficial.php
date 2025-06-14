@@ -45,6 +45,7 @@ class SunoUnofficial extends AbstractAudioGenerator
     private function request(string $url, string $method = 'POST', array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
+            ->timeout(60)
             ->withHeaders([
                 'Content-Type' => 'application/json',
             ])
