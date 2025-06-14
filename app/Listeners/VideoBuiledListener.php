@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\VideoBuiled;
+use App\Models\Channel;
 use Log;
 
 class VideoBuiledListener
@@ -13,7 +14,7 @@ class VideoBuiledListener
 
         $prompt = $event->getPrompt();
 
-        $prompt->project->channels->each(function ($channel) use ($prompt): void {
+        $prompt->project->channels->each(function (Channel $channel) use ($prompt): void {
             $channel->publish($prompt);
         });
     }

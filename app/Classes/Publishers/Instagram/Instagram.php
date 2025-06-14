@@ -3,8 +3,8 @@
 namespace App\Classes\Publishers\Instagram;
 
 use App\Classes\Publishers\AbstractPublisher;
-use Exception;
 use App\Jobs\PublishInstagramJob;
+use Exception;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
