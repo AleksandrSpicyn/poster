@@ -4,6 +4,7 @@ namespace App\Classes\Publishers\Instagram;
 
 use App\Classes\Publishers\AbstractPublisher;
 use Exception;
+use App\Jobs\PublishInstagramJob;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -35,21 +36,8 @@ class Instagram extends AbstractPublisher
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
-            sleep(30); // Wait for the container to be ready
-
-            $publishRes = $client->post('media_publish', [
-                'creation_id' => $containerId,
-            ]);
-
-            $mediaId = $publishRes->json('id');
-
-            if (!$mediaId) {
-                Log::error('Instagram Publish Error Context', $publishRes->json());
-
-                throw new RuntimeException('Instagram cannot publish video.');
-            }
-
-            $this->savePost($mediaId, $this->getUrl($mediaId));
+            PublishInstagramJob::dispatch($this, $containerId)
+                ->delay(now()->addMinutes(5));
         } catch (Throwable $e) {
             Log::error('Instagram Publish Error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -76,6 +64,25 @@ class Instagram extends AbstractPublisher
             ->withHeaders([
                 'Content-Type' => 'application/json',
             ]);
+    }
+
+    public function publishContainer(string $containerId): void
+    {
+        $client = $this->getClient();
+
+        $publishRes = $client->post('media_publish', [
+            'creation_id' => $containerId,
+        ]);
+
+        $mediaId = $publishRes->json('id');
+
+        if (!$mediaId) {
+            Log::error('Instagram Publish Error Context', $publishRes->json());
+
+            throw new RuntimeException('Instagram cannot publish video.');
+        }
+
+        $this->savePost($mediaId, $this->getUrl($mediaId));
     }
 
     public function getUrl(string $id): string
