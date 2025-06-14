@@ -74,6 +74,7 @@ class Runway extends AbstractVideoGenerator
     private function request(string $url, string $method = 'POST', array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
+            ->timeout(60)
             ->withHeaders([
                 'X-Runway-Version' => $this->version,
                 'Content-Type' => 'application/json',
