@@ -30,17 +30,14 @@ class Hailuo extends AbstractVideoGenerator
      */
     public function generate(string $imageUrl, string $prompt): string
     {
-        $response = $this
+        return $this
             ->request('video_generation', parameters: [
                 'model' => 'MiniMax-Hailuo-02',
                 'first_frame_image' => $imageUrl,
                 'prompt' => $prompt,
                 'duration' => app(GeneralSettings::class)->duration,
-            ]);
-
-        dump($response->json());
-
-        return $response->json('task_id');
+            ])
+            ->json('task_id');
     }
 
     /**
@@ -54,9 +51,7 @@ class Hailuo extends AbstractVideoGenerator
             ->json('file_id');
 
         if (!$fileId) {
-            Log::error('Video file generation failed');
-
-            throw new VideoGeneratingException();
+            return null;
         }
 
         $url = $this->get($fileId);
