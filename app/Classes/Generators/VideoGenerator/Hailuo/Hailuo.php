@@ -33,7 +33,6 @@ class Hailuo extends AbstractVideoGenerator
         return $this
             ->request('video_generation', parameters: [
                 'model' => 'MiniMax-Hailuo-02',
-                'first_frame_image' => $imageUrl,
                 'prompt' => $prompt,
                 'duration' => app(GeneralSettings::class)->duration,
             ])
