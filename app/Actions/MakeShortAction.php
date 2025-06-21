@@ -27,7 +27,7 @@ class MakeShortAction extends Action
     {
         $prompt = $this->generatePrompt($project);
 
-        //$this->generateImage($prompt);
+        $this->generateImage($prompt);
         $this->generateVideo($prompt);
         $this->generateAudio($prompt);
     }
@@ -54,7 +54,7 @@ class MakeShortAction extends Action
 
     private function generateVideo(Prompt $prompt): void
     {
-        $videoId = $this->createVideo->run('', $prompt->prompt);
+        $videoId = $this->createVideo->run($prompt->image_url, $prompt->prompt);
 
         $prompt->update(['video_id' => $videoId]);
 

@@ -15,15 +15,13 @@ class CreateVideo extends Task
         $prompt = <<<TEXT
 This video is based on the following concept: "{$idea}".
 
-Animate a vivid, lifelike scene where the animal naturally interacts with its environment — moving its head, blinking, shifting weight, reacting to sounds or light. Avoid static posing or looping motions; gestures should feel organic and curious.
+Create a cinematic, photorealistic video showing what would happen if a wild animal suddenly found itself in a completely foreign country or ecosystem. The animal should move naturally — blinking, shifting its weight, sniffing the air, looking around with curiosity or confusion. Its movements must feel organic, unscripted, and full of life — no looping or robotic motions.
 
-Bring the surroundings to life: add wind-blown trees, drifting particles, moving shadows, or rippling water. Use cinematic camera motion — parallax, panning, zooming — to explore the space with depth and realism.
+The environment should be rich and alive: wind rustling through unfamiliar trees, particles floating in the air, dynamic lighting with soft shadows moving over the terrain. Include water reflections, natural sounds, or sudden distant noises that trigger subtle animal reactions. Use smooth camera movement (panning, slow zooms, parallax effects) to explore the scene and add immersive depth.
 
-Prioritize high-resolution textures, natural lighting, soft shadows, and atmospheric depth. Avoid collage-like or flat visuals.
-
-The result should feel like a rich, dynamic moment from a nature film — immersive, emotional, and alive.
+Textures must be high-resolution with detailed fur, feathers, or skin, and lighting should simulate real-world physics — soft, directional, and changing over time. Prioritize realism, atmosphere, and emotional resonance — as if this was a dramatic moment from a high-end nature documentary.
 TEXT;
 
-        return $this->videoGenerator->generate($imageUrl, $idea);
+        return $this->videoGenerator->generate($imageUrl, $prompt);
     }
 }
