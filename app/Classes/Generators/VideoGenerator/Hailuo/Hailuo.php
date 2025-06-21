@@ -87,9 +87,13 @@ class Hailuo extends AbstractVideoGenerator
             ->withHeaders([
                 'Content-Type' => 'application/json',
             ])
-            ->send($method, "$this->baseUrl/$url", [
-                RequestOptions::JSON => $parameters,
-            ]);
+            ->send(
+                $method,
+                "$this->baseUrl/$url",
+                $parameters
+                    ? [RequestOptions::JSON => $parameters]
+                    : [],
+            );
 
         if ($response->failed()) {
             Log::error($response->json());
