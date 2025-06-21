@@ -25,7 +25,7 @@ class CheckVideoCreation implements ShouldQueue
             $result = $videoGenerator->check($this->prompt->video_id);
 
             if (!$result) {
-                $this->release(30);
+                $this->release(60);
 
                 return;
             }
