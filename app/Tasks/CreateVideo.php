@@ -24,6 +24,6 @@ Prioritize high-resolution textures, natural lighting, soft shadows, and atmosph
 The result should feel like a rich, dynamic moment from a nature film — immersive, emotional, and alive.
 TEXT;
 
-        return $this->videoGenerator->generate($imageUrl, $prompt);
+        return $this->videoGenerator->generate($imageUrl, $idea);
     }
 }

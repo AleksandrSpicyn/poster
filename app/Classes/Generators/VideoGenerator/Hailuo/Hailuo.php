@@ -73,7 +73,7 @@ class Hailuo extends AbstractVideoGenerator
     public function get(string $fileId): ?string
     {
         return $this
-            ->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId")
+            ->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", 'GET')
             ->json('file.download_url');
     }
 
