@@ -9,6 +9,6 @@ class VideoGeneratingListener
 {
     public function handle(VideoGenerating $event): void
     {
-        CheckVideoCreation::dispatch($event->getPrompt());
+        CheckVideoCreation::dispatch($event->getPrompt(), $event->getAlternative());
     }
 }

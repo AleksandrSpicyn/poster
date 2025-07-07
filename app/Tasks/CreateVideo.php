@@ -2,15 +2,20 @@
 
 namespace App\Tasks;
 
+use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class CreateVideo extends Task
 {
-    public function __construct(private readonly VideoGenerator $videoGenerator)
-    {
+    public function __construct(
+        private readonly VideoGenerator $videoGenerator,
+        private readonly AlternativeVideoGenerator $alternativeVideoGenerator,
+    ) {
     }
 
-    public function run(string $imageUrl, string $idea): string
+    public function run(string $imageUrl, string $idea): array
     {
         $prompt = <<<TEXT
 This video is based on the following concept: "{$idea}".
@@ -22,6 +27,12 @@ The environment should be rich and alive: wind rustling through unfamiliar trees
 Textures must be high-resolution with detailed fur, feathers, or skin, and lighting should simulate real-world physics — soft, directional, and changing over time. Prioritize realism, atmosphere, and emotional resonance — as if this was a dramatic moment from a high-end nature documentary.
 TEXT;
 
-        return $this->videoGenerator->generate($imageUrl, $prompt);
+        try {
+            return [$this->videoGenerator->generate($imageUrl, $prompt), false];
+        } catch (Throwable $throwable) {
+            Log::warning("Using alternative video generator due to: {$throwable->getMessage()}");
+
+            return [$this->alternativeVideoGenerator->generate($imageUrl, $prompt), true];
+        }
     }
 }
