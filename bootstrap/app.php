@@ -26,13 +26,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command(MakeShort::class)->mondays()->at('15:00');
-        $schedule->command(MakeShort::class)->tuesdays()->at('15:00');
-        $schedule->command(MakeShort::class)->wednesdays()->at('17:00');
-        $schedule->command(MakeShort::class)->thursdays()->at('17:00');
-        $schedule->command(MakeShort::class)->fridays()->at('16:00');
-        $schedule->command(MakeShort::class)->saturdays()->at('11:00');
-        $schedule->command(MakeShort::class)->sundays()->at('12:00');
+//        $schedule->command(MakeShort::class)->mondays()->at('15:00');
+//        $schedule->command(MakeShort::class)->tuesdays()->at('15:00');
+//        $schedule->command(MakeShort::class)->wednesdays()->at('17:00');
+//        $schedule->command(MakeShort::class)->thursdays()->at('17:00');
+//        $schedule->command(MakeShort::class)->fridays()->at('16:00');
+//        $schedule->command(MakeShort::class)->saturdays()->at('11:00');
+//        $schedule->command(MakeShort::class)->sundays()->at('12:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
