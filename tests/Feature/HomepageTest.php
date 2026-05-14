@@ -20,13 +20,14 @@ class HomepageTest extends TestCase
             ->component('Welcome')
             ->where('homepage.navigation', [
                 ['label' => 'Services', 'href' => '#services'],
+                ['label' => 'Clients', 'href' => '#selected-clients'],
                 ['label' => 'Work Process', 'href' => '#work-process'],
                 ['label' => 'Official Status', 'href' => '#official-status'],
                 ['label' => 'Contact', 'href' => '#contact'],
             ])
             ->where('homepage.hero.kicker', 'Independent backend software developer')
             ->where('homepage.hero.title', 'Scalable backend systems, API integrations, and reliable software architecture for long-term business operations.')
-            ->where('homepage.hero.summary', 'I design and deliver maintainable backend systems for production-critical workflows, with a focus on API integrations, infrastructure clarity, long-term support, and stable operations.')
+            ->where('homepage.hero.summary', 'I provide remote backend development for long-term client engagements, focusing on web applications, REST APIs, scalable backend systems, system architecture, API integrations, and business automation solutions.')
             ->where('homepage.hero.primary_cta', [
                 'label' => 'Discuss a project',
                 'href' => 'mailto:fenixxxar85@gmail.com',
@@ -38,7 +39,7 @@ class HomepageTest extends TestCase
             ->where('homepage.hero.highlights', [
                 'Backend systems',
                 'REST APIs',
-                'Docker infrastructure',
+                'Business automation',
             ])
             ->where('homepage.identity', [
                 'legal_name' => 'Aleksandr Olegovich Spitsyn',
@@ -59,10 +60,10 @@ class HomepageTest extends TestCase
                     'Database architecture and optimization',
                     'Docker-based infrastructure setup',
                     'Queue systems and asynchronous processing',
-                    'ERP and third-party integrations',
+                    'ERP and third-party service integrations',
                     'High-load web application development',
                     'System architecture and technical consulting',
-                    'Maintenance and optimization of existing systems',
+                    'Maintenance and optimization of existing projects',
                 ],
             ])
             ->where('homepage.process', [
@@ -93,21 +94,54 @@ class HomepageTest extends TestCase
             ->where('homepage.achievements', [
                 'title' => 'Professional History and Achievements',
                 'items' => [
-                    'Several years of professional software development experience',
-                    'Remote contract work with direct client communication',
-                    'Full lifecycle participation from planning to production monitoring',
-                    'Experience with high-load and multi-region applications',
-                    'Successful implementation of third-party integrations',
+                    'Development of scalable backend systems for business platforms',
+                    'Experience working with high-load and multi-region applications',
                     'Long-term cooperation with clients under service contracts',
+                    'Development and support of production systems with continuous monitoring and optimization',
+                ],
+            ])
+            ->where('homepage.selected_clients', [
+                'title' => 'Selected Clients and Contract History',
+                'items' => [
+                    [
+                        'name' => 'Elite Trade (ETFP)',
+                        'href' => 'https://etfp.ru',
+                        'period' => '2025 - Present',
+                        'summary' => 'Development of internal business systems, ERP (1C) integrations, automation tools, APIs, and high-load backend infrastructure for foodtech and logistics operations.',
+                    ],
+                    [
+                        'name' => 'Flor2u.ru',
+                        'href' => 'https://flor2u.ru/',
+                        'period' => '2023 - 2025',
+                        'summary' => 'Led development of new platform modules, participated in CRM development, created APIs for mobile applications, and optimized database performance for a large flower delivery e-commerce platform.',
+                    ],
+                    [
+                        'name' => 'Hicaliber',
+                        'href' => 'https://www.hicaliber.com.au/',
+                        'period' => '2021 - 2023',
+                        'summary' => 'Developed B2B CRM systems, real estate integrations, lead processing systems, internal messengers, logistics solutions, and business automation platforms for Australian companies. Managed a development team and participated in large-scale enterprise projects.',
+                    ],
+                    [
+                        'name' => 'Irkutsk Segodnya',
+                        'href' => 'https://irk.today/',
+                        'period' => '2017 - 2021',
+                        'summary' => 'Worked on media platforms, CRM systems, ticket aggregation services, mobile applications, and microservices architecture for regional news and event platforms.',
+                    ],
+                    [
+                        'name' => 'Irk Life',
+                        'href' => 'https://irk.life/',
+                        'period' => '2017 - 2019',
+                        'summary' => 'Developed internal corporate systems for warehouse accounting, logistics, QR tracking, equipment monitoring, and transport control using GPS/GLONASS data.',
+                    ],
                 ],
             ])
             ->where('homepage.official_status', [
                 'title' => 'Official Status',
                 'items' => [
-                    'I work independently as a registered sole proprietor in Russia.',
-                    'My software development work is performed under contract agreements.',
-                    'All communication, implementation, deployment, and support are handled personally.',
-                    'This business structure is standard for independent software development and consulting services.',
+                    'I am officially registered in the Russian Federation as an Individual Entrepreneur (sole proprietor / ИП).',
+                    'My business operates under the Russian Patent Taxation System, which is a simplified legal taxation regime for independent professionals and small businesses.',
+                    'I work independently without employees, which is common in software development and IT consulting.',
+                    'All development, communication, deployment, and technical support tasks are performed personally by me.',
                 ],
             ])
             ->where('homepage.contact', [
@@ -115,12 +149,22 @@ class HomepageTest extends TestCase
                 'email' => 'fenixxxar85@gmail.com',
                 'cta_label' => 'Email for project discussion',
                 'cta_href' => 'mailto:fenixxxar85@gmail.com',
-                'note' => 'Available for remote contract work, backend delivery, integrations, and long-term technical support.',
+                'note' => 'Most engagements are long-term cooperation agreements focused on continuous backend development, maintenance, integrations, and remote technical collaboration.',
+                'links' => [
+                    [
+                        'label' => 'LinkedIn',
+                        'href' => 'https://www.linkedin.com/in/alexandr-spitsyn-79716020a/',
+                    ],
+                    [
+                        'label' => 'GitHub',
+                        'href' => 'https://github.com/AleksandrSpicyn',
+                    ],
+                ],
             ])
             ->where('homepage.footer', [
                 'legal_name' => 'Aleksandr Olegovich Spitsyn',
                 'label' => 'Independent backend software developer',
-                'note' => 'Public business profile for client and official review.',
+                'note' => 'Public business profile, client history, and official review information.',
             ])
         );
     }

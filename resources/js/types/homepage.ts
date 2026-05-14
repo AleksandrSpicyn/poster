@@ -29,12 +29,25 @@ export interface HomepageSection {
     items: string[];
 }
 
+export interface HomepageClient {
+    name: string;
+    href: string;
+    period: string;
+    summary: string;
+}
+
+export interface HomepageClientSection {
+    title: string;
+    items: HomepageClient[];
+}
+
 export interface HomepageContact {
     title: string;
     email: string;
     cta_label: string;
     cta_href: string;
     note: string;
+    links: HomepageLink[];
 }
 
 export interface HomepageFooter {
@@ -51,6 +64,7 @@ export interface HomepageProps {
     process: HomepageSection;
     stack: HomepageSection;
     achievements: HomepageSection;
+    selected_clients: HomepageClientSection;
     official_status: HomepageSection;
     contact: HomepageContact;
     footer: HomepageFooter;
