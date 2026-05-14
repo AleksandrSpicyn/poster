@@ -1,13 +1,12 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Posts\ListController as PostsListController;
 use App\Http\Controllers\Prompts\ListController as PromptsListController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', static function () {
-    return Inertia::render('Welcome');
-})->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::get('policy', static function () {
     return Inertia::render('Policy');
@@ -16,10 +15,6 @@ Route::get('policy', static function () {
 Route::get('terms', static function () {
     return Inertia::render('Terms');
 })->name('terms');
-
-Route::get('dashboard', static function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', static function () {
