@@ -87,3 +87,12 @@ Scribe MCP 1.x через VCS: stdio local transport, initialize/tools list/sear
 проверены против реального артефакта `storage/app/private/scribe/openapi.yaml`.
 Rector 2.8.4 и PHPStan 2.3.5/Larastan 3.15 доступны; max-анализ запущен,
 исходно 342 ошибки. Достижение нуля — отдельный этап, пока не выполнен.
+
+### Boost
+
+Boost 2.10.4 установлен штатной `boost:install --guidelines --skills --mcp`.
+Сохранены project instructions через `.ai/guidelines/project.blade.php`; добавлены
+6 штатных скиллов, boost.json и project-local `.codex/config.toml`. Оба MCP
+запускаются внутри Docker с PHP/extension/config проекта. Boost initialize/tools
+list, search-docs и get-absolute-url проверены. Новые skills доступны клиенту
+после обновления контекста/следующего хода.
