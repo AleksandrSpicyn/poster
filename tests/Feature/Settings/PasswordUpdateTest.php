@@ -1,13 +1,15 @@
 <?php
 
 use App\Models\User;
+
 use Illuminate\Support\Facades\Hash;
 
-test('password can be updated', function (): void {
+use function Pest\Laravel\actingAs;
+
+test('владелец меняет пароль', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->from('/settings/password')
         ->put('/settings/password', [
             'current_password' => 'password',
@@ -19,14 +21,13 @@ test('password can be updated', function (): void {
         ->assertSessionHasNoErrors()
         ->assertRedirect('/settings/password');
 
-    $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+    expect(Hash::check('new-password', $user->refresh()->password))->toBeTrue();
 });
 
-test('correct password must be provided to update password', function (): void {
+test('неверный текущий пароль запрещает смену', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->from('/settings/password')
         ->put('/settings/password', [
             'current_password' => 'wrong-password',

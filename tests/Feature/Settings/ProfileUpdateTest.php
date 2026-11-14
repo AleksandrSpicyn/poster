@@ -2,21 +2,23 @@
 
 use App\Models\User;
 
-test('profile page is displayed', function (): void {
+use function Pest\Laravel\actingAs;
+
+use function Pest\Laravel\assertGuest;
+
+test('владелец видит настройки профиля', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->get('/settings/profile');
 
-    $response->assertOk();
+    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('settings/Profile'));
 });
 
-test('profile information can be updated', function (): void {
+test('изменение email сбрасывает подтверждение', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->patch('/settings/profile', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -28,16 +30,15 @@ test('profile information can be updated', function (): void {
 
     $user->refresh();
 
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    expect($user->name)->toBe('Test User');
+    expect($user->email)->toBe('test@example.com');
+    expect($user->email_verified_at)->toBeNull();
 });
 
-test('email verification status is unchanged when the email address is unchanged', function (): void {
+test('сохранение прежнего email не сбрасывает подтверждение', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->patch('/settings/profile', [
             'name' => 'Test User',
             'email' => $user->email,
@@ -47,14 +48,13 @@ test('email verification status is unchanged when the email address is unchanged
         ->assertSessionHasNoErrors()
         ->assertRedirect('/settings/profile');
 
-    $this->assertNotNull($user->refresh()->email_verified_at);
+    expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function (): void {
+test('удаление профиля завершает сессию и удаляет пользователя', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->delete('/settings/profile', [
             'password' => 'password',
         ]);
@@ -63,15 +63,14 @@ test('user can delete their account', function (): void {
         ->assertSessionHasNoErrors()
         ->assertRedirect('/');
 
-    $this->assertGuest();
-    $this->assertNull($user->fresh());
+    assertGuest();
+    expect($user->fresh())->toBeNull();
 });
 
-test('correct password must be provided to delete account', function (): void {
+test('неверный пароль запрещает удаление профиля', function (): void {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $response = actingAs($user)
         ->from('/settings/profile')
         ->delete('/settings/profile', [
             'password' => 'wrong-password',
@@ -81,5 +80,5 @@ test('correct password must be provided to delete account', function (): void {
         ->assertSessionHasErrors('password')
         ->assertRedirect('/settings/profile');
 
-    $this->assertNotNull($user->fresh());
+    expect($user->fresh())->not->toBeNull();
 });

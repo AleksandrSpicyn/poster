@@ -1,8 +1,11 @@
 <?php
 
 use App\Events\AudioGenerated;
+
 use App\Models\Prompt;
 use Illuminate\Support\Facades\Event;
+
+use function Pest\Laravel\postJson;
 
 function sunoPayload(string $taskId, string $type = 'complete', ?string $url = 'https://cdn.example.com/audio.mp3'): array
 {
@@ -17,7 +20,7 @@ test('готовое аудио сохраняется только для со�
     $prompt = Prompt::factory()->create(['audio_id' => 'task-1']);
     $decoy = Prompt::factory()->create(['audio_id' => 'task-2']);
 
-    $this->postJson(route('webhook.suno'), sunoPayload('task-1'))->assertOk()->assertContent('');
+    postJson(route('webhook.suno'), sunoPayload('task-1'))->assertOk()->assertContent('');
 
     expect($prompt->fresh()->audio_url)->toBe('https://cdn.example.com/audio.mp3')
         ->and($decoy->fresh()->audio_url)->toBeNull();
@@ -27,7 +30,7 @@ test('готовое аудио сохраняется только для со�
 test('неготовое неизвестное или пустое аудио не изменяет идею', function (string $id, string $type, ?string $url): void {
     Event::fake([AudioGenerated::class]);
     $prompt = Prompt::factory()->create(['audio_id' => 'task-1']);
-    $this->postJson(route('webhook.suno'), sunoPayload($id, $type, $url))->assertOk();
+    postJson(route('webhook.suno'), sunoPayload($id, $type, $url))->assertOk();
     expect($prompt->fresh()->audio_url)->toBeNull();
     Event::assertNotDispatched(AudioGenerated::class);
 })->with([
@@ -38,7 +41,7 @@ test('неготовое неизвестное или пустое аудио �
 
 test('невалидный callback не сохраняет данные', function (): void {
     Event::fake([AudioGenerated::class]);
-    $this->postJson(route('webhook.suno'), [])->assertUnprocessable()
+    postJson(route('webhook.suno'), [])->assertUnprocessable()
         ->assertJsonValidationErrors(['code', 'msg', 'data']);
     Event::assertNotDispatched(AudioGenerated::class);
 });

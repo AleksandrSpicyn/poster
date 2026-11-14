@@ -96,3 +96,10 @@ Boost 2.10.4 установлен штатной `boost:install --guidelines --s
 запускаются внутри Docker с PHP/extension/config проекта. Boost initialize/tools
 list, search-docs и get-absolute-url проверены. Новые skills доступны клиенту
 после обновления контекста/следующего хода.
+
+### Pest-стиль
+
+Все прикладные тесты переведены на Pest; русские сценарии, semantic assertions,
+Pest\Laravel imports, проверка Inertia components вместо status-only проверок
+в затронутых сценариях. Большой независимый эталон главной вынесен в fixture.
+Итог: 69 passed / 334 assertions.

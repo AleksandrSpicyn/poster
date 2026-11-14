@@ -2,49 +2,53 @@
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+
 use Illuminate\Support\Facades\Notification;
 
-test('reset password link screen can be rendered', function (): void {
-    $response = $this->get('/forgot-password');
+use function Pest\Laravel\get;
+use function Pest\Laravel\post;
 
-    $response->assertStatus(200);
+test('форма восстановления доступна гостю', function (): void {
+    $response = get('/forgot-password');
+
+    $response->assertOk();
 });
 
-test('reset password link can be requested', function (): void {
+test('восстановление отправляет уведомление владельцу', function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
 
-    $this->post('/forgot-password', ['email' => $user->email]);
+    post('/forgot-password', ['email' => $user->email]);
 
     Notification::assertSentTo($user, ResetPassword::class);
 });
 
-test('reset password screen can be rendered', function (): void {
+test('ссылка восстановления открывает форму', function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
 
-    $this->post('/forgot-password', ['email' => $user->email]);
+    post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-        $response = $this->get('/reset-password/' . $notification->token);
+    Notification::assertSentTo($user, ResetPassword::class, function (\Illuminate\Auth\Notifications\ResetPassword $notification) {
+        $response = get('/reset-password/' . $notification->token);
 
-        $response->assertStatus(200);
+        $response->assertOk();
 
         return true;
     });
 });
 
-test('password can be reset with valid token', function (): void {
+test('верный токен позволяет сменить пароль', function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
 
-    $this->post('/forgot-password', ['email' => $user->email]);
+    post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-        $response = $this->post('/reset-password', [
+    Notification::assertSentTo($user, ResetPassword::class, function (\Illuminate\Auth\Notifications\ResetPassword $notification) use ($user) {
+        $response = post('/reset-password', [
             'token' => $notification->token,
             'email' => $user->email,
             'password' => 'password',

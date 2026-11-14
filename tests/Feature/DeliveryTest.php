@@ -2,6 +2,7 @@
 
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+
 use App\Classes\Publishers\PublisherFactory;
 use App\Enums\ChannelType;
 use App\Events\AudioGenerated;
@@ -19,11 +20,14 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\mock;
+
 // Fake only the external video boundary; persistence and job orchestration stay real.
 test('проверка видео сохраняет результат выбранного провайдера', function (bool $alternative): void {
     Event::fake([VideoGenerated::class]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
-    $this->mock($alternative ? AlternativeVideoGenerator::class : VideoGenerator::class)
+    mock($alternative ? AlternativeVideoGenerator::class : VideoGenerator::class)
         ->shouldReceive('check')->once()->with('video-1')->andReturn('https://cdn.example.com/video.mp4');
     (new CheckVideoCreation($prompt, $alternative))->handle();
     expect($prompt->fresh()->video_url)->toBe('https://cdn.example.com/video.mp4');
@@ -33,7 +37,7 @@ test('проверка видео сохраняет результат выбр
 test('неготовое видео возвращается в очередь', function (): void {
     Event::fake([VideoGenerated::class]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
-    $this->mock(VideoGenerator::class)->shouldReceive('check')->with('video-1')->once()->andReturnNull();
+    mock(VideoGenerator::class)->shouldReceive('check')->with('video-1')->once()->andReturnNull();
     $job = (new CheckVideoCreation($prompt))->withFakeQueueInteractions();
     $job->handle();
     $job->assertReleased(60);
@@ -44,7 +48,7 @@ test('неготовое видео возвращается в очередь',
 test('ошибка провайдера завершает проверку без готового видео', function (): void {
     Event::fake([VideoGenerated::class]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
-    $this->mock(VideoGenerator::class)->shouldReceive('check')->once()->andThrow(new RuntimeException('provider failure'));
+    mock(VideoGenerator::class)->shouldReceive('check')->once()->andThrow(new RuntimeException('provider failure'));
     $job = (new CheckVideoCreation($prompt))->withFakeQueueInteractions();
     $job->handle();
     $job->assertFailedWith(RuntimeException::class);
@@ -74,5 +78,5 @@ test('незавершённые интеграции не создают пуб
     $channel = Channel::factory()->create(['type' => $type]);
     $prompt = Prompt::factory()->create();
     expect(PublisherFactory::make($channel, $prompt)->publish())->toBeFalse();
-    $this->assertDatabaseCount('posts', 0);
+    assertDatabaseCount('posts', 0);
 })->with([ChannelType::TIKTOK, ChannelType::VK]);

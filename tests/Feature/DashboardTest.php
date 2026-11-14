@@ -2,15 +2,19 @@
 
 use App\Models\User;
 
-test('guests are redirected to the login page', function (): void {
-    $response = $this->get('/dashboard');
+use function Pest\Laravel\actingAs;
+
+use function Pest\Laravel\get;
+
+test('гость перенаправляется на вход', function (): void {
+    $response = get('/dashboard');
     $response->assertRedirect('/login');
 });
 
-test('authenticated users can visit the dashboard', function (): void {
+test('пользователь видит кабинет', function (): void {
     $user = User::factory()->create();
-    $this->actingAs($user);
+    actingAs($user);
 
-    $response = $this->get('/dashboard');
-    $response->assertStatus(200);
+    $response = get('/dashboard');
+    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('Dashboard'));
 });

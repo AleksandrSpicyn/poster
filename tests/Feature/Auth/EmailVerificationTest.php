@@ -1,19 +1,22 @@
 <?php
 
 use App\Models\User;
+
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 
-test('email verification screen can be rendered', function (): void {
+use function Pest\Laravel\actingAs;
+
+test('неподтверждённый пользователь видит проверку email', function (): void {
     $user = User::factory()->unverified()->create();
 
-    $response = $this->actingAs($user)->get('/verify-email');
+    $response = actingAs($user)->get('/verify-email');
 
-    $response->assertStatus(200);
+    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('auth/VerifyEmail'));
 });
 
-test('email can be verified', function (): void {
+test('подписанная ссылка подтверждает email', function (): void {
     $user = User::factory()->unverified()->create();
 
     Event::fake();
@@ -24,14 +27,14 @@ test('email can be verified', function (): void {
         ['id' => $user->id, 'hash' => sha1($user->email)],
     );
 
-    $response = $this->actingAs($user)->get($verificationUrl);
+    $response = actingAs($user)->get($verificationUrl);
 
     Event::assertDispatched(Verified::class);
-    $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
     $response->assertRedirect(route('dashboard', absolute: false) . '?verified=1');
 });
 
-test('email is not verified with invalid hash', function (): void {
+test('неверный hash не подтверждает email', function (): void {
     $user = User::factory()->unverified()->create();
 
     $verificationUrl = URL::temporarySignedRoute(
@@ -40,7 +43,7 @@ test('email is not verified with invalid hash', function (): void {
         ['id' => $user->id, 'hash' => sha1('wrong-email')],
     );
 
-    $this->actingAs($user)->get($verificationUrl);
+    actingAs($user)->get($verificationUrl);
 
-    $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    expect($user->fresh()->hasVerifiedEmail())->toBeFalse();
 });
