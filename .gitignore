@@ -30,3 +30,8 @@ _ide_helper_models.php
 .env.docker
 /storage/phpstan/
 /storage/rector/
+
+/.scribe/
+/public/vendor/scribe/
+/resources/views/scribe/
+/boost.cache.json

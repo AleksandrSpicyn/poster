@@ -75,3 +75,15 @@ SSR server и реальный SSR HTML главной через Nginx HTTP 200
 npm audit: 7 moderate в dev toolchain typescript-eslint/minimatch; предложенное
 npm исправление откатывает typescript-eslint. Без force/отката рабочей toolchain.
 Источники: Laravel 13 upgrade guide, Inertia v3 upgrade guide, Composer/NPM metadata.
+
+### Инструменты
+
+Horizon 5.51: Redis, supervisor timeout 3660 < retry_after 3720, snapshot каждые
+5 минут; запуск/status/snapshot проверены, временный процесс завершён. Production
+gate закрыт до явной настройки операторов. Worker profile включается вручную.
+Scribe 5.11 генерирует 25 endpoints; response calls отключены, UI требует auth,
+Try It Out отключён. ProfileUpdateRequest безопасен при извлечении правил без actor.
+Scribe MCP 1.x через VCS: stdio local transport, initialize/tools list/search/get
+проверены против реального артефакта `storage/app/private/scribe/openapi.yaml`.
+Rector 2.8.4 и PHPStan 2.3.5/Larastan 3.15 доступны; max-анализ запущен,
+исходно 342 ошибки. Достижение нуля — отдельный этап, пока не выполнен.
