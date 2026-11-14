@@ -103,3 +103,15 @@ list, search-docs и get-absolute-url проверены. Новые skills до
 Pest\Laravel imports, проверка Inertia components вместо status-only проверок
 в затронутых сценариях. Большой независимый эталон главной вынесен в fixture.
 Итог: 69 passed / 334 assertions.
+
+### APIdoc и проверка MCP
+
+Описаны все 24 HTTP-операции прикладных контроллеров: session/CSRF, Inertia,
+входные поля, пагинация/сортировка, redirects и достижимые ошибки. 12 полных
+примеров Inertia получены реальными запросами в изолированной SQLite.
+OpenAPI extension фиксирует cookie security и ограничения query-полей.
+ResponseCalls удалена из списка strategies: пустой only в Scribe НЕ означает
+отключение. Тест генерации запрещает внешние вызовы и проверяет отсутствие HTTP.
+Проверены summaries/responses всех операций, query bounds/enums, MCP search/get
+с реальным артефактом и ошибка отсутствующего артефакта. 71 passed / 357 assertions.
+Схема OpenAPI проверена структурно; отдельный внешний schema validator не установлен.

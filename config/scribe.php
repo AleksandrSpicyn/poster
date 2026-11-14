@@ -2,8 +2,6 @@
 
 use Knuckles\Scribe\Config\AuthIn;
 
-use function Knuckles\Scribe\Config\configureStrategy;
-
 use Knuckles\Scribe\Config\Defaults;
 
 use function Knuckles\Scribe\Config\removeStrategies;
@@ -36,7 +34,7 @@ return [
         [
             'match' => [
                 // Match only routes whose paths match this pattern (use * as a wildcard to match any characters). Example: 'users/*'.
-                'prefixes' => ['api/*', '/', 'posts', 'prompts', 'register', 'login', 'forgot-password', 'reset-password*', 'verify-email*', 'email/verification-notification', 'confirm-password', 'logout', 'settings/*'],
+                'prefixes' => ['api/*', '/', 'posts', 'prompts', 'register', 'login', 'forgot-password', 'reset-password*', 'verify-email*', 'email/verification-notification', 'confirm-password', 'logout', 'settings/profile', 'settings/password'],
 
                 // Match only routes whose domains match this pattern (use * as a wildcard to match any characters). Example: 'api.*'.
                 'domains' => ['*'],
@@ -108,17 +106,17 @@ return [
     // How is your API authenticated? This information will be used in the displayed docs, generated examples and response calls.
     'auth' => [
         // Set this to true if ANY endpoints in your API use authentication.
-        'enabled' => false,
+        'enabled' => true,
 
         // Set this to true if your API should be authenticated by default. If so, you must also set `enabled` (above) to true.
         // You can then use @unauthenticated or @authenticated on individual endpoints to change their status from the default.
         'default' => false,
 
         // Where is the auth value meant to be sent in a request?
-        'in' => AuthIn::BEARER->value,
+        'in' => AuthIn::HEADER->value,
 
         // The name of the auth parameter (e.g. token, key, apiKey) or header (e.g. Authorization, Api-Key).
-        'name' => 'key',
+        'name' => 'Cookie',
 
         // The value of the parameter to be used by Scribe to authenticate response calls.
         // This will NOT be included in the generated documentation. If empty, Scribe will use a random value.
@@ -126,10 +124,10 @@ return [
 
         // Placeholder your users will see for the auth parameter in the example requests.
         // Set this to null if you want Scribe to use a random value as placeholder instead.
-        'placeholder' => '{YOUR_AUTH_KEY}',
+        'placeholder' => 'poster-session={SESSION_COOKIE}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
-        'extra_info' => 'You can retrieve your token by visiting your dashboard and clicking <b>Generate API token</b>.',
+        'extra_info' => 'Сессионная cookie после входа. Web-записи требуют X-XSRF-TOKEN; публичные API webhooks работают без сессии.',
     ],
 
     // Example requests for each endpoint will be shown in each of these languages.
@@ -171,7 +169,7 @@ return [
 
         // Additional generators to use when generating the OpenAPI spec.
         // Should extend `Knuckles\Scribe\Writing\OpenApiSpecGenerators\OpenApiGenerator`.
-        'generators' => [],
+        'generators' => [\App\Support\Documentation\OpenApiGenerator::class],
     ],
 
     'groups' => [
@@ -235,16 +233,7 @@ return [
         'bodyParameters' => [
             ...Defaults::BODY_PARAMETERS_STRATEGIES,
         ],
-        'responses' => configureStrategy(
-            Defaults::RESPONSES_STRATEGIES,
-            Strategies\Responses\ResponseCalls::withSettings(
-                only: [],
-                // Recommended: disable debug mode in response calls to avoid error stack traces in responses
-                config: [
-                    'app.debug' => false,
-                ],
-            ),
-        ),
+        'responses' => removeStrategies(Defaults::RESPONSES_STRATEGIES, [Strategies\Responses\ResponseCalls::class]),
         'responseFields' => [
             ...Defaults::RESPONSE_FIELDS_STRATEGIES,
         ],

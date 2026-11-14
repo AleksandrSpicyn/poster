@@ -16,7 +16,34 @@ use Inertia\Response;
 class RegisteredUserController extends Controller
 {
     /**
-     * Show the registration page.
+     * Форма регистрации
+     * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
+     *
+     * @group Авторизация
+     * @unauthenticated
+     * @header Accept application/json
+     * @header X-Inertia true
+     * @header X-Inertia-Version {ASSET_VERSION}
+     * @responseFile 200 docs/responses/register.json
+     * @responseField component string component.
+     * @responseField props object props.
+     * @responseField props.errors object props.errors.
+     * @responseField props.name string props.name.
+     * @responseField props.quote object props.quote.
+     * @responseField props.quote.message string props.quote.message.
+     * @responseField props.quote.author string props.quote.author.
+     * @responseField props.auth object props.auth.
+     * @responseField props.auth.user string props.auth.user. Значение может быть null.
+     * @responseField props.ziggy object props.ziggy.
+     * @responseField props.ziggy.url string props.ziggy.url.
+     * @responseField props.ziggy.port integer props.ziggy.port.
+     * @responseField props.ziggy.defaults string[] props.ziggy.defaults.
+     * @responseField props.ziggy.routes object props.ziggy.routes.
+     * @responseField props.ziggy.location string props.ziggy.location.
+     * @responseField props.sidebarOpen boolean props.sidebarOpen.
+     * @responseField url string url.
+     * @responseField version string version.
+     * @responseField sharedProps string[] sharedProps.
      */
     public function create(): Response
     {
@@ -24,9 +51,20 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Handle an incoming registration request.
+     * Регистрация пользователя
+     * Redirect после операции: HTTP 302, Location указывает кабинет, login или предыдущую страницу согласно сценарию.
+     * Web-валидация возвращает redirect назад и session errors; JSON-вариант — 422.
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @group Авторизация
+     * @unauthenticated
+     * @header Accept application/json
+     * @response 302
+     * @bodyParam name string required Имя, не более 255 символов. Example: Demo User
+     * @bodyParam email string required Уникальный email в нижнем регистре, до 255 символов. Example: demo@example.com
+     * @bodyParam password string required Пароль по текущей политике. Example: password-example
+     * @bodyParam password_confirmation string required Совпадает с password. Example: password-example
+     * @response 422 scenario="Validation error (JSON)" {"message": "The name field is required.", "errors": {"name": ["The name field is required."]}}
+     * @header X-XSRF-TOKEN {CSRF_TOKEN}
      */
     public function store(Request $request): RedirectResponse
     {
