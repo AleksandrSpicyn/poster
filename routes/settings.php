@@ -10,7 +10,7 @@ use App\Http\Controllers\Settings\Profile\UpdateController as UpdateProfileContr
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->prefix('settings')->group(function (): void {
-    Route::redirect('/', '/settings/profile');
+    Route::redirect('/', '/settings/profile')->name('settings');
 
     Route::prefix('profile')->name('profile.')->group(function (): void {
         Route::get('/', EditProfileController::class)->name('edit');

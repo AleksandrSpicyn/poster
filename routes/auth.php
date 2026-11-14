@@ -21,12 +21,12 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function (): void {
     Route::prefix('register')->group(function (): void {
         Route::get('/', CreateRegistrationController::class)->name('register');
-        Route::post('/', StoreRegistrationController::class);
+        Route::post('/', StoreRegistrationController::class)->name('register.store');
     });
 
     Route::prefix('login')->group(function (): void {
         Route::get('/', CreateLoginController::class)->name('login');
-        Route::post('/', StoreLoginController::class);
+        Route::post('/', StoreLoginController::class)->name('login.store');
     });
 
     Route::prefix('forgot-password')->name('password.')->group(function (): void {
@@ -54,7 +54,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::prefix('confirm-password')->group(function (): void {
         Route::get('/', ShowConfirmPasswordController::class)->name('password.confirm');
-        Route::post('/', StoreConfirmPasswordController::class);
+        Route::post('/', StoreConfirmPasswordController::class)->name('password.confirm.store');
     });
 
     Route::post('logout', LogoutController::class)->name('logout');

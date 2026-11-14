@@ -2,32 +2,31 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Testing\PendingCommand;
+use Knuckles\Scribe\ScribeServiceProvider;
 use Tests\TestCase;
-use function Pest\Laravel\artisan;
 
-pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Feature');
+use function Pest\Laravel\withoutVite;
 
-pest()->beforeEach(function (): void {
-    Http::preventStrayRequests();
-})->in('Feature');
+require_once __DIR__ . '/Support/Console.php';
+require_once __DIR__ . '/Support/Google.php';
 
-/** @return array{code: int, msg: string, data: array{callbackType: string, task_id: string, data: list<array{id: string, audio_url: string|null}>}} */
-function sunoPayload(string $taskId, string $type = 'complete', ?string $url = 'https://cdn.example.com/audio.mp3'): array
-{
-    return ['code' => 200, 'msg' => 'success', 'data' => [
-        'callbackType' => $type, 'task_id' => $taskId,
-        'data' => [['id' => 'track-1', 'audio_url' => $url]],
-    ]];
-}
+pest()
+    ->extend(TestCase::class)
+    ->use(LazilyRefreshDatabase::class)
+    ->in('Feature');
 
-/** @param array<string, int|string> $arguments */
-function consoleCommand(string $command, array $arguments = []): PendingCommand
-{
-    $pending = artisan($command, $arguments);
-    assert($pending instanceof PendingCommand);
+pest()
+    ->beforeEach(function (): void {
+        withoutVite();
+        Http::preventStrayRequests();
+    })
+    ->in('Feature');
 
-    return $pending;
-}
+// Scribe caches the translation loader across Laravel application instances.
+pest()
+    ->afterEach(function (): void {
+        ScribeServiceProvider::$customTranslationLayerLoaded = false;
+    })
+    ->in('Feature/Routes/DocumentationTest.php', 'Feature/Support/Documentation/ScribeMcpTest.php');

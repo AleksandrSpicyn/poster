@@ -11,6 +11,6 @@ class DeleteProfileRequest extends FormRequest
     /** @return array<string, list<string>> */
     public function rules(): array
     {
-        return ['password' => ['required', 'current_password']];
+        return ['password' => ['bail', 'required', 'string', 'current_password']];
     }
 }

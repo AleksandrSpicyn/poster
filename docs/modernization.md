@@ -141,3 +141,19 @@ readonly/типизированные constants, Eloquent builders и настр
 Config/Auth/Bind/Storage/RouteParameter, сгруппированы route prefixes. Settings
 Rector/Pint перенесены из B2B с адаптацией путей и правил импортов; повторный
 make pipe, TypeScript и client/SSR build успешны. 113 tests / 540 assertions.
+
+
+### Рефакторинг тестов
+
+30 маршрутов приложения имеют имена и отдельные Feature-файлы: 24 для
+контроллеров, 6 для closure/redirect/documentation routes. Requests и redirects
+используют route(). Unit-файлы разделены по проверяемому классу. Убраны $this,
+общие builders Suno/Instagram перенесены в их файлы; Support содержит только
+реально общие helpers Console и Google HTTP fake. Добавлены негативные сценарии
+авторизации, email verification, валидации и dashboard documentation.
+
+Новые кейсы подтвердили 500 при передаче массива в current_password/password;
+Form Requests смены пароля и удаления профиля теперь применяют bail/string
+до проверки хеша. Scribe static translation loader сбрасывается между тестами,
+которые пересоздают приложение. Pest проходит в обычном и случайном порядке:
+167 tests / 795 assertions, PHPStan max и Pint/Rector — без ошибок.

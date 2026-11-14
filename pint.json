@@ -147,7 +147,7 @@
       "allow_single_line_anonymous_functions": false
     },
     "no_unused_imports": true,
-    "blank_line_between_import_groups": false,
+    "blank_line_between_import_groups": true,
     "declare_strict_types": true,
     "blank_line_after_namespace": true
   }
