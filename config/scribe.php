@@ -7,6 +7,7 @@ use Knuckles\Scribe\Config\AuthIn;
 use Knuckles\Scribe\Config\Defaults;
 use Knuckles\Scribe\Extracting\Strategies\Responses\ResponseCalls;
 use Knuckles\Scribe\Extracting\Strategies\StaticData;
+
 use function Knuckles\Scribe\Config\removeStrategies;
 
 // Only the most common configs are shown. See the https://scribe.knuckles.wtf/laravel/reference/config for all.

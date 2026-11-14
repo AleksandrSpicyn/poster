@@ -52,8 +52,6 @@ make npm-build
 [ai-init](https://github.com/AleksandrSpicyn/ai-init), точная версия —
 [docs/ai-init-source.json](docs/ai-init-source.json).
 
-План и результаты модернизации: [docs/modernization.md](docs/modernization.md).
-
 ## Проверки
 
 ```sh
@@ -69,3 +67,10 @@ PHPStan анализирует app, bootstrap, public/index.php, config, databas
 
 Для обновления подсказок Laravel в IDE после установки зависимостей выполните
 `make ide-helper`. Генерируемый `_ide_helper.php` не хранится в Git.
+
+## CI/CD
+
+Проверки GitHub Actions и автоматическое развёртывание `main` на production:
+[docs/deployment.md](docs/deployment.md). Очереди обслуживает Horizon;
+ссылка **Queues** находится в меню кабинета. Доступ к Logs и Queues ограничен
+подтверждёнными учётными записями с соответствующим разрешением.

@@ -1,0 +1,125 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Quality, tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      APP_NAME: Poster
+      APP_ENV: testing
+      APP_DEBUG: false
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      BCRYPT_ROUNDS: 4
+      INERTIA_SSR_ENABLED: false
+      VITE_APP_NAME: Poster
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, intl, mbstring, pcntl, pdo_mysql, pdo_sqlite, redis, xml, zip
+          coverage: none
+          ini-values: memory_limit=1G
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Prepare environment and FFmpeg
+        run: |
+          cp .env.example .env
+          command -v ffmpeg || { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; }
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          npm ci --no-fund
+          php artisan key:generate --force
+          php artisan vendor:publish --tag=laravel-assets --force
+      - name: Verify PHP
+        run: |
+          composer validate --strict
+          composer audit --locked --no-interaction
+          php vendor/bin/pint --test
+          php vendor/bin/rector process --dry-run
+          php vendor/bin/phpstan analyse --memory-limit=1G
+          php vendor/bin/pest --compact
+      - name: Verify frontend and documentation
+        run: |
+          npm run typecheck
+          npm run build:ssr
+          php artisan scribe:generate --no-interaction
+          bash -n deploy/*.sh
+      - name: Package production dependencies and assets
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          php artisan vendor:publish --tag=laravel-assets --force
+          bash deploy/package.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          name: app-${{ github.sha }}
+          path: app.tar.gz
+          retention-days: 7
+          overwrite: true
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy production
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    concurrency:
+      group: poster-production
+      cancel-in-progress: false
+    steps:
+      - name: Check commit is current
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [[ "$current_sha" == "$GITHUB_SHA" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Skipping an outdated commit.'
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          name: app-${{ github.sha }}
+      - name: Deploy application
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          SSH_HOST: ${{ secrets.POSTER_SSH_HOST }}
+          SSH_PORT: ${{ secrets.POSTER_SSH_PORT }}
+          SSH_USER: ${{ secrets.POSTER_SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.POSTER_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.POSTER_SSH_KNOWN_HOSTS }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/poster
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/poster ~/.ssh/known_hosts
+          ssh -i ~/.ssh/poster -p "$SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" deploy < app.tar.gz
+          curl --fail --silent --show-error "$PRODUCTION_URL/up"

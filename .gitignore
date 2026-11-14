@@ -33,6 +33,7 @@ _ide_helper_models.php
 
 /.scribe/
 /public/vendor/scribe/
+/public/vendor/log-viewer/
 /resources/views/scribe/
 /boost.cache.json
 

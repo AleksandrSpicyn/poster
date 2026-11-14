@@ -19,6 +19,12 @@ return [
 
     'name' => env('HORIZON_NAME'),
 
+    'allowed_emails' => collect(explode(',', (string) (env('HORIZON_ALLOWED_EMAILS', '') ?: env('ADMIN_EMAIL', ''))))
+        ->map(static fn(string $email): string => trim($email))
+        ->filter()
+        ->values()
+        ->all(),
+
     /*
     |--------------------------------------------------------------------------
     | Horizon Domain
@@ -85,7 +91,7 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    'middleware' => ['web', 'auth', 'verified'],
 
     /*
     |--------------------------------------------------------------------------
@@ -217,7 +223,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 10,
+                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 1),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],

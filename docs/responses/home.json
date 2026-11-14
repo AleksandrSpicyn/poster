@@ -357,12 +357,6 @@
                         "POST"
                     ]
                 },
-                "webhook.ukassa": {
-                    "uri": "api/webhook/ukassa",
-                    "methods": [
-                        "POST"
-                    ]
-                },
                 "home": {
                     "uri": "/",
                     "methods": [
