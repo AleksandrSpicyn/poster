@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\AudioGenerator\SunoUnofficial\Data;
 
 use Spatie\LaravelData\Data;
@@ -10,6 +12,5 @@ class SunoData extends Data
         public string $code,
         public string $msg,
         public CallbackData $data,
-    ) {
-    }
+    ) {}
 }

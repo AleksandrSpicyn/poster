@@ -24,7 +24,8 @@
         "spatie/laravel-data": "^4.15",
         "spatie/laravel-medialibrary": "^11.12",
         "spatie/laravel-settings": "^3.4",
-        "tightenco/ziggy": "^2.4"
+        "tightenco/ziggy": "^2.4",
+        "ext-pdo": "*"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.5",
@@ -93,11 +94,11 @@
             ],
             "aliases": {
                 "FFMpeg": "ProtoneMedia\\LaravelFFMpeg\\Support\\ServiceProvider"
-            },
-            "google/apiclient-services": [
-                "YouTube"
-            ]
-        }
+            }
+        },
+        "google/apiclient-services": [
+            "YouTube"
+        ]
     },
     "config": {
         "optimize-autoloader": true,
@@ -110,9 +111,11 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "repositories": [{
-        "name": "scribe-mcp",
-        "type": "vcs",
-        "url": "https://github.com/AleksandrSpicyn/scribe-mcp"
-    }]
+    "repositories": [
+        {
+            "name": "scribe-mcp",
+            "type": "vcs",
+            "url": "https://github.com/AleksandrSpicyn/scribe-mcp"
+        }
+    ]
 }

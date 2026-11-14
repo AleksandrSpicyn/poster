@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
-class CreateImagePrompt extends Task
+class CreateImagePrompt
 {
-    public const DALLE_STYLE_TAGS = [
+    public const array DALLE_STYLE_TAGS = [
         'photo-realistic',
         'natural lighting',
         'sharp focus',

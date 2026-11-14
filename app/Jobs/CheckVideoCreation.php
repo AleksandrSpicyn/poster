@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
@@ -19,19 +21,21 @@ class CheckVideoCreation implements ShouldQueue
     public function __construct(
         private readonly Prompt $prompt,
         private readonly bool $alternative = false,
-    ) {
-    }
+    ) {}
 
-    public function handle(): void
+    public function handle(VideoGenerator $videoGenerator, AlternativeVideoGenerator $alternativeVideoGenerator): void
     {
+        $this->prompt->refresh();
+
+        if ($this->prompt->video_url || ! $this->prompt->video_id) {
+            return;
+        }
+
         try {
-            $checkClass = $this->alternative
-                ? AlternativeVideoGenerator::class
-                : VideoGenerator::class;
+            $generator = $this->alternative ? $alternativeVideoGenerator : $videoGenerator;
+            $result = $generator->check($this->prompt->video_id);
 
-            $result = app($checkClass)->check($this->prompt->video_id);
-
-            if (!$result) {
+            if (! $result) {
                 $this->release(60);
 
                 return;

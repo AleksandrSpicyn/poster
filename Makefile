@@ -3,9 +3,9 @@ EXEC = docker compose exec -T --user appuser app
 PHP = $(EXEC) php
 ARTISAN = $(PHP) artisan
 
-.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost
+.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper
 help:
-	@echo 'build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost'
+	@echo 'build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper'
 build:
 	docker compose build
 up:
@@ -17,6 +17,7 @@ status:
 init:
 	$(EXEC) composer install --no-interaction
 	$(EXEC) npm ci --no-fund
+	$(EXEC) sh -c 'if grep -q "^APP_KEY=$$" .env.docker; then php artisan key:generate --env=docker --no-interaction; fi'
 	$(ARTISAN) storage:link
 migrate:
 	$(ARTISAN) migrate --no-interaction
@@ -38,6 +39,8 @@ rector-dry:
 	$(PHP) vendor/bin/rector process --dry-run
 docs:
 	$(ARTISAN) scribe:generate
+ide-helper:
+	$(ARTISAN) ide-helper:generate --no-interaction
 boost:
 	$(ARTISAN) boost:install
 quality: pint rector-dry stan

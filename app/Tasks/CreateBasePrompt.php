@@ -1,22 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
 use App\Classes\Generators\PromptGenerator\PromptGenerator;
 use App\Models\Project;
+use App\Models\Prompt;
 
-class CreateBasePrompt extends Task
+readonly class CreateBasePrompt
 {
-    public function __construct(private readonly PromptGenerator $promptGenerator)
-    {
-    }
+    public function __construct(private PromptGenerator $promptGenerator) {}
 
     public function run(Project $project): string
     {
         $history = $project->prompts()
             ->latest()
             ->limit(50)
-            ->pluck('prompt')
+            ->get(['prompt'])
+            ->map(fn(Prompt $prompt): string => $prompt->prompt)
             ->map(fn(string $p): string => "- $p")
             ->join("\n");
 

@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoGenerationData;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class CreateVideo extends Task
+readonly class CreateVideo
 {
     public function __construct(
-        private readonly VideoGenerator $videoGenerator,
-        private readonly AlternativeVideoGenerator $alternativeVideoGenerator,
-    ) {
-    }
+        private VideoGenerator $videoGenerator,
+        private AlternativeVideoGenerator $alternativeVideoGenerator,
+    ) {}
 
-    public function run(string $imageUrl, string $idea): array
+    public function run(string $imageUrl, string $idea): VideoGenerationData
     {
         $prompt = <<<TEXT
-This video is based on the following concept: "{$idea}".
+This video is based on the following concept: "$idea".
 
 Create a cinematic, photorealistic video showing what would happen if a wild animal suddenly found itself in a completely foreign country or ecosystem. The animal should move naturally — blinking, shifting its weight, sniffing the air, looking around with curiosity or confusion. Its movements must feel organic, unscripted, and full of life — no looping or robotic motions.
 
@@ -28,11 +30,11 @@ Textures must be high-resolution with detailed fur, feathers, or skin, and light
 TEXT;
 
         try {
-            return [$this->videoGenerator->generate($imageUrl, $prompt), false];
+            return new VideoGenerationData($this->videoGenerator->generate($imageUrl, $prompt), false);
         } catch (Throwable $throwable) {
             Log::warning("Using alternative video generator due to: {$throwable->getMessage()}");
 
-            return [$this->alternativeVideoGenerator->generate($imageUrl, $prompt), true];
+            return new VideoGenerationData($this->alternativeVideoGenerator->generate($imageUrl, $prompt), true);
         }
     }
 }

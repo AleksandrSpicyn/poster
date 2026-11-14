@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use Spatie\LaravelData\Data;
@@ -11,6 +13,5 @@ class GetPromptsListData extends Data
         public ?string $sort = 'desc',
         public ?int $perPage = 10,
         public ?int $page = 1,
-    ) {
-    }
+    ) {}
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\VideoGenerator\Runway\Enums;
 
 use App\Traits\EnumTrait;

@@ -1,47 +1,48 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\VideoGenerator\Runway;
 
-use App\Classes\Generators\VideoGenerator\AbstractVideoGenerator;
+use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
 use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
+use App\Support\Integrations\Payload;
 use GuzzleHttp\RequestOptions;
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-class Runway extends AbstractVideoGenerator
+readonly class Runway implements AlternativeVideoGenerator
 {
-    private string $baseUrl;
-    private string $token;
-    private string $version;
-
-    public function __construct()
-    {
-        $this->baseUrl = config('services.runway.api_url');
-        $this->token = config('services.runway.api_key');
-        $this->version = config('services.runway.version');
-    }
+    public function __construct(
+        #[Config('services.runway.api_url')] private string $baseUrl,
+        #[Config('services.runway.api_key')] private string $token,
+        #[Config('services.runway.version')] private string $version,
+        private GeneralSettings $settings,
+    ) {}
 
     /**
      * @throws ConnectionException
      */
     public function generate(string $imageUrl, string $prompt): string
     {
-        return $this
+        $id = $this
             ->request('image_to_video', parameters: [
                 'model' => 'gen4_turbo',
                 'promptImage' => $imageUrl,
                 'promptText' => $prompt,
                 'ratio' => '720:1280',
-                'duration' => app(GeneralSettings::class)->duration,
+                'duration' => $this->settings->duration,
             ])
             ->json('id');
+
+        return Payload::string($id, 'id');
     }
 
     /**
@@ -64,16 +65,18 @@ class Runway extends AbstractVideoGenerator
         }
 
         return $dto->status === GenerationStatus::SUCCEEDED->value
-            ? Arr::first($dto->output)
+            ? ($dto->output[0] ?? throw new VideoGeneratingException('Completed video has no output.'))
             : null;
     }
 
     /**
+     * @param array<string, mixed> $parameters
      * @throws ConnectionException
      */
     private function request(string $url, string $method = 'POST', array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
+            ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
                 'X-Runway-Version' => $this->version,
@@ -84,9 +87,9 @@ class Runway extends AbstractVideoGenerator
             ]);
 
         if ($response->failed()) {
-            Log::error($response->json());
+            Log::error('Runway API Error', ['status' => $response->status()]);
 
-            throw new RuntimeException('RunwayML API Error: ' . $response->body());
+            throw new RuntimeException('Runway API request failed.');
         }
 
         return $response;

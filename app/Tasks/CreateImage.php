@@ -1,14 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 
-class CreateImage extends Task
+readonly class CreateImage
 {
-    public function __construct(private readonly ImageGenerator $imageGenerator)
-    {
-    }
+    public function __construct(private ImageGenerator $imageGenerator) {}
 
     public function run(string $idea): string
     {

@@ -1,19 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 use AleksandrSpicyn\ScribeMcp\Servers\ApiDocumentationServer;
 use AleksandrSpicyn\ScribeMcp\Tools\GetApiEndpointTool;
 use AleksandrSpicyn\ScribeMcp\Tools\SearchApiEndpointsTool;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\Fluent\AssertableJson;
-
-use function Pest\Laravel\artisan;
-
+use Illuminate\Testing\PendingCommand;
 use Symfony\Component\Yaml\Yaml;
+use function Pest\Laravel\artisan;
 
 test('Scribe генерирует контракты без HTTP и MCP возвращает тот же endpoint', function (): void {
     Http::fake();
 
-    artisan('scribe:generate')->assertSuccessful();
+    $command = artisan('scribe:generate');
+    expect($command)->toBeInstanceOf(PendingCommand::class);
+    assert($command instanceof PendingCommand);
+    $command->assertSuccessful();
 
     Http::assertNothingSent();
     $spec = Yaml::parseFile(config()->string('scribe-mcp.openapi_path'));
@@ -24,10 +28,10 @@ test('Scribe генерирует контракты без HTTP и MCP возв
         ->and(data_get($spec, 'paths./api/webhook/suno.post.responses'))->toHaveKeys([200, 422]);
 
     ApiDocumentationServer::tool(SearchApiEndpointsTool::class, ['query' => 'suno'])
-        ->assertOk()->assertStructuredContent(fn(AssertableJson $json) => $json
+        ->assertOk()->assertStructuredContent(fn(AssertableJson $json): AssertableJson => $json
         ->where('endpoints.0.id', 'POST /api/webhook/suno')->where('endpoints.0.authenticated', false)->etc());
     ApiDocumentationServer::tool(GetApiEndpointTool::class, ['endpoint_id' => 'GET /posts'])
-        ->assertOk()->assertStructuredContent(fn(AssertableJson $json) => $json
+        ->assertOk()->assertStructuredContent(fn(AssertableJson $json): AssertableJson => $json
         ->where('endpoint.operation', data_get($spec, 'paths./posts.get'))->has('document.components')->etc());
 });
 

@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
-
+use Inertia\Testing\AssertableInertia;
 use function Pest\Laravel\actingAs;
-
 use function Pest\Laravel\assertGuest;
 
 test('владелец видит настройки профиля', function (): void {
@@ -12,10 +13,10 @@ test('владелец видит настройки профиля', function (
     $response = actingAs($user)
         ->get('/settings/profile');
 
-    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('settings/Profile'));
+    $response->assertOk()->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->component('settings/Profile'));
 });
 
-test('изменение email сбрасывает подтверждение', function (): void {
+test('изменение email сбрасывает подтверждение', /** @throws Exception */ function (): void {
     $user = User::factory()->create();
 
     $response = actingAs($user)
@@ -30,12 +31,12 @@ test('изменение email сбрасывает подтверждение',
 
     $user->refresh();
 
-    expect($user->name)->toBe('Test User');
-    expect($user->email)->toBe('test@example.com');
-    expect($user->email_verified_at)->toBeNull();
+    expect($user->name)->toBe('Test User')
+        ->and($user->email)->toBe('test@example.com')
+        ->and($user->email_verified_at)->toBeNull();
 });
 
-test('сохранение прежнего email не сбрасывает подтверждение', function (): void {
+test('сохранение прежнего email не сбрасывает подтверждение', /** @throws Exception */ function (): void {
     $user = User::factory()->create();
 
     $response = actingAs($user)
@@ -51,7 +52,7 @@ test('сохранение прежнего email не сбрасывает по
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('удаление профиля завершает сессию и удаляет пользователя', function (): void {
+test('удаление профиля завершает сессию и удаляет пользователя', /** @throws Exception */ function (): void {
     $user = User::factory()->create();
 
     $response = actingAs($user)

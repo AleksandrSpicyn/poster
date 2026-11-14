@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
-
 use App\Classes\Publishers\PublisherFactory;
 use App\Enums\ChannelType;
 use App\Events\AudioGenerated;
@@ -14,12 +15,12 @@ use App\Jobs\SaveVideoJob;
 use App\Listeners\PostCreatedListener;
 use App\Models\Channel;
 use App\Models\Chat;
+use App\Models\Post;
 use App\Models\Prompt;
 use App\Notifications\PostCreatedNotification;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
-
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\mock;
 
@@ -29,8 +30,8 @@ test('проверка видео сохраняет результат выбр
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
     mock($alternative ? AlternativeVideoGenerator::class : VideoGenerator::class)
         ->shouldReceive('check')->once()->with('video-1')->andReturn('https://cdn.example.com/video.mp4');
-    (new CheckVideoCreation($prompt, $alternative))->handle();
-    expect($prompt->fresh()->video_url)->toBe('https://cdn.example.com/video.mp4');
+    app()->call([new CheckVideoCreation($prompt, $alternative), 'handle']);
+    expect($prompt->refresh()->video_url)->toBe('https://cdn.example.com/video.mp4');
     Event::assertDispatched(VideoGenerated::class, fn(VideoGenerated $event) => $event->getPrompt()->is($prompt));
 })->with([false, true]);
 
@@ -38,10 +39,10 @@ test('неготовое видео возвращается в очередь',
     Event::fake([VideoGenerated::class]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
     mock(VideoGenerator::class)->shouldReceive('check')->with('video-1')->once()->andReturnNull();
-    $job = (new CheckVideoCreation($prompt))->withFakeQueueInteractions();
-    $job->handle();
+    $job = new CheckVideoCreation($prompt)->withFakeQueueInteractions();
+    app()->call($job->handle(...));
     $job->assertReleased(60);
-    expect($prompt->fresh()->video_url)->toBeNull();
+    expect($prompt->refresh()->video_url)->toBeNull();
     Event::assertNotDispatched(VideoGenerated::class);
 });
 
@@ -49,8 +50,8 @@ test('ошибка провайдера завершает проверку бе
     Event::fake([VideoGenerated::class]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
     mock(VideoGenerator::class)->shouldReceive('check')->once()->andThrow(new RuntimeException('provider failure'));
-    $job = (new CheckVideoCreation($prompt))->withFakeQueueInteractions();
-    $job->handle();
+    $job = new CheckVideoCreation($prompt)->withFakeQueueInteractions();
+    app()->call($job->handle(...));
     $job->assertFailedWith(RuntimeException::class);
     Event::assertNotDispatched(VideoGenerated::class);
 });
@@ -65,18 +66,22 @@ test('события генерации направляются в соотве
     Bus::assertDispatchedTimes(SaveVideoJob::class, 2);
 });
 
-test('уведомление о публикации направляется всем сохранённым чатам', function (): void {
-    Notification::fake();
-    $post = \App\Models\Post::factory()->create();
-    $chats = collect(['chat-1', 'chat-2'])->map(fn(string $id) => Chat::create(['chat_id' => $id]));
-    (new PostCreatedListener())->handle(new PostCreated($post));
-    Notification::assertSentTo($chats, PostCreatedNotification::class);
-    expect((new PostCreatedNotification($post))->toTelegram($chats->first())->toArray()['text'])->toContain($post->url);
-});
+test(
+    'уведомление о публикации направляется всем сохранённым чатам',
+    /** @throws Exception */
+    function (): void {
+        Notification::fake();
+        $post = Post::factory()->create();
+        $chats = collect(['chat-1', 'chat-2'])->map(fn(string $id) => Chat::query()->create(['chat_id' => $id]));
+        new PostCreatedListener()->handle(new PostCreated($post));
+        Notification::assertSentTo($chats, PostCreatedNotification::class);
+        expect(new PostCreatedNotification($post)->toTelegram()->toArray()['text'])->toContain($post->url);
+    },
+);
 
-test('незавершённые интеграции не создают публикаций', function (ChannelType $type): void {
+test('незавершённые интеграции не создают публикаций', /** @throws Exception */ function (ChannelType $type): void {
     $channel = Channel::factory()->create(['type' => $type]);
     $prompt = Prompt::factory()->create();
-    expect(PublisherFactory::make($channel, $prompt)->publish())->toBeFalse();
+    expect(app(PublisherFactory::class)->make($channel, $prompt)->publish())->toBeFalse();
     assertDatabaseCount('posts', 0);
 })->with([ChannelType::TIKTOK, ChannelType::VK]);

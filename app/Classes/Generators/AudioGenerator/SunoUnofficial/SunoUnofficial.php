@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\AudioGenerator\SunoUnofficial;
 
-use App\Classes\Generators\AudioGenerator\AbstractAudioGenerator;
-use GuzzleHttp\RequestOptions;
+use App\Classes\Generators\AudioGenerator\AudioGenerator;
+use App\Support\Integrations\Payload;
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -11,21 +14,18 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-class SunoUnofficial extends AbstractAudioGenerator
+readonly class SunoUnofficial implements AudioGenerator
 {
-    private string $baseUrl;
-    private string $token;
+    public function __construct(
+        #[Config('services.suno_unofficial.api_url')] private string $baseUrl,
+        #[Config('services.suno_unofficial.api_key')] private string $token,
+    ) {}
 
-    public function __construct()
-    {
-        $this->baseUrl = config('services.suno_unofficial.api_url');
-        $this->token = config('services.suno_unofficial.api_key');
-    }
-
+    /** @throws ConnectionException */
     public function generate(string $title, string $prompt): string
     {
         $request = $this
-            ->request('generate', parameters: [
+            ->request([
                 'prompt' => $prompt,
                 'style' => 'epic cinematic',
                 'title' => Str::limit($title, 50),
@@ -36,27 +36,27 @@ class SunoUnofficial extends AbstractAudioGenerator
                 'callBackUrl' => route('webhook.suno'),
             ]);
 
-        return $request->json('data.taskId');
+        return Payload::string($request->json('data.taskId'), 'data.taskId');
     }
 
     /**
+     * @param array<string, mixed> $parameters
      * @throws ConnectionException
      */
-    private function request(string $url, string $method = 'POST', array $parameters = []): Response
+    private function request(array $parameters): Response
     {
         $response = Http::withToken($this->token)
+            ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
                 'Content-Type' => 'application/json',
             ])
-            ->send($method, "$this->baseUrl/$url", [
-                RequestOptions::JSON => $parameters,
-            ]);
+            ->post("$this->baseUrl/generate", $parameters);
 
         if ($response->failed()) {
-            Log::error('SunoUnofficial API Error', $response->json());
+            Log::error('SunoUnofficial API Error', ['status' => $response->status()]);
 
-            throw new RuntimeException('SunoUnofficial API Error: ' . $response->body());
+            throw new RuntimeException('SunoUnofficial API request failed.');
         }
 
         return $response;

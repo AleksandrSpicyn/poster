@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\Channel;
@@ -15,6 +17,5 @@ class PostData extends Data
         public string $description,
         public ?string $url = null,
         public ?string $externalId = null,
-    ) {
-    }
+    ) {}
 }

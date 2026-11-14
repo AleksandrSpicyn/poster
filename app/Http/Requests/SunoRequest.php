@@ -1,12 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Classes\Generators\AudioGenerator\SunoUnofficial\Data\SunoData;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SunoRequest extends FormRequest
 {
+    /** @return array<string, list<string|ValidationRule>|string> */
     public function rules(): array
     {
         return [

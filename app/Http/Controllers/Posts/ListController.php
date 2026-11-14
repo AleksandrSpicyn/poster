@@ -1,19 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Posts;
 
+use App\Actions\Posts\GetPostsListAction;
 use App\Enums\ChannelType;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Posts\GetPostsListRequest;
 use App\Http\Resources\PostResource;
-use App\Tasks\Posts\GetPostsList;
-use Inertia\Inertia;
 use Inertia\Response;
 
-class ListController extends Controller
+class ListController
 {
     /**
      * Список публикаций
+     *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      * Все публикации доступны любому вошедшему пользователю: индивидуального project/tenant scope в текущей схеме нет.
@@ -24,6 +25,7 @@ class ListController extends Controller
      * @header X-Inertia true
      * @header X-Inertia-Version {ASSET_VERSION}
      * @responseFile 200 docs/responses/posts.json
+     * @response 403 {"message":"Your email address is not verified."}
      * @response 401 {"message":"Unauthenticated."}
      * @queryParam type string Канал: All, youtube, tiktok, instagram, vk. Example: youtube
      * @queryParam perPage integer Размер страницы, от 1 до 100, по умолчанию 10. Example: 10
@@ -86,13 +88,13 @@ class ListController extends Controller
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPostsListRequest $request, GetPostsList $getPostsList): Response
+    public function __invoke(GetPostsListRequest $request, GetPostsListAction $getPostsList): Response
     {
         $posts = $getPostsList->run(
             $request->toDto(),
         );
 
-        return Inertia::render('Posts', [
+        return inertia('Posts', [
             'posts' => PostResource::collection($posts),
             'filters' => $request->only(['type', 'sort']),
             'types' => ChannelType::labels(),

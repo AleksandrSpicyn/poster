@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\AudioGenerator\SunoUnofficial\Data;
 
 use Illuminate\Support\Collection;
@@ -9,6 +11,7 @@ use Spatie\LaravelData\Data;
 
 class CallbackData extends Data
 {
+    /** @param Collection<int, TaskData> $tasks */
     public function __construct(
         public string $callbackType,
         #[MapInputName('task_id')]
@@ -16,6 +19,5 @@ class CallbackData extends Data
         #[MapInputName('data')]
         #[DataCollectionOf(TaskData::class)]
         public Collection $tasks,
-    ) {
-    }
+    ) {}
 }

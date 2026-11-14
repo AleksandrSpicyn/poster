@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\Post;
@@ -15,19 +17,18 @@ class PostCreatedNotification extends Notification implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct(private readonly Post $post)
-    {
-    }
+    public function __construct(private readonly Post $post) {}
 
+    /** @return list<string> */
     public function via(): array
     {
         return ['telegram'];
     }
 
-    public function toTelegram(object $notifiable): TelegramMessage
+    public function toTelegram(): TelegramMessage
     {
         Log::info("Post Created Notification: {$this->post->id} for channel {$this->post->channel_id}");
 
-        return TelegramMessage::create()->line($this->post->url);
+        return TelegramMessage::create()->line($this->post->url ?? '');
     }
 }

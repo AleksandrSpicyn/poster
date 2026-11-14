@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
-
+use Inertia\Testing\AssertableInertia;
 use function Pest\Laravel\actingAs;
-
 use function Pest\Laravel\get;
 
 test('гость перенаправляется на вход', function (): void {
@@ -16,5 +17,5 @@ test('пользователь видит кабинет', function (): void {
     actingAs($user);
 
     $response = get('/dashboard');
-    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('Dashboard'));
+    $response->assertOk()->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->component('Dashboard'));
 });

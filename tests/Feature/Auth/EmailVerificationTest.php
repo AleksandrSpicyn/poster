@@ -1,11 +1,12 @@
 <?php
 
-use App\Models\User;
+declare(strict_types=1);
 
+use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
-
+use Inertia\Testing\AssertableInertia;
 use function Pest\Laravel\actingAs;
 
 test('неподтверждённый пользователь видит проверку email', function (): void {
@@ -13,7 +14,7 @@ test('неподтверждённый пользователь видит пр�
 
     $response = actingAs($user)->get('/verify-email');
 
-    $response->assertOk()->assertInertia(fn(\Inertia\Testing\AssertableInertia $page) => $page->component('auth/VerifyEmail'));
+    $response->assertOk()->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->component('auth/VerifyEmail'));
 });
 
 test('подписанная ссылка подтверждает email', function (): void {
@@ -30,7 +31,7 @@ test('подписанная ссылка подтверждает email', funct
     $response = actingAs($user)->get($verificationUrl);
 
     Event::assertDispatched(Verified::class);
-    expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
+    expect($user->refresh()->hasVerifiedEmail())->toBeTrue();
     $response->assertRedirect(route('dashboard', absolute: false) . '?verified=1');
 });
 
@@ -45,5 +46,5 @@ test('неверный hash не подтверждает email', function (): v
 
     actingAs($user)->get($verificationUrl);
 
-    expect($user->fresh()->hasVerifiedEmail())->toBeFalse();
+    expect($user->refresh()->hasVerifiedEmail())->toBeFalse();
 });

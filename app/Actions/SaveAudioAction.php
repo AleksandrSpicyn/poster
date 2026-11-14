@@ -1,18 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
 use App\Classes\Generators\AudioGenerator\SunoUnofficial\Data\CallbackData;
+use App\Classes\Generators\AudioGenerator\SunoUnofficial\Enums\GenerationStatus;
 use App\Tasks\SaveAudio;
 
-class SaveAudioAction extends Action
+readonly class SaveAudioAction
 {
-    public function __construct(private readonly SaveAudio $saveAudio)
-    {
-    }
+    public function __construct(private SaveAudio $saveAudio) {}
 
     public function run(CallbackData $dto): void
     {
-        $this->saveAudio->run($dto->taskId, $dto->tasks->first());
+        if ($dto->callbackType !== GenerationStatus::COMPLETE->value) {
+            return;
+        }
+
+        $task = $dto->tasks->first();
+
+        if ($task === null) {
+            return;
+        }
+
+        $this->saveAudio->run($dto->taskId, $task);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use Spatie\LaravelData\Data;
@@ -7,7 +9,7 @@ use Spatie\LaravelData\Data;
 class HomepageData extends Data
 {
     /**
-     * @param  list<array{label: string, href: string}>  $navigation
+     * @param list<array{label: string, href: string}> $navigation
      * @param  array{
      *     kicker: string,
      *     title: string,
@@ -27,15 +29,15 @@ class HomepageData extends Data
      *     work_model: string,
      *     registration_authority: string
      * }  $identity
-     * @param  array{title: string, items: list<string>}  $services
-     * @param  array{title: string, items: list<string>}  $process
-     * @param  array{title: string, items: list<string>}  $stack
-     * @param  array{title: string, items: list<string>}  $achievements
+     * @param array{title: string, items: list<string>} $services
+     * @param array{title: string, items: list<string>} $process
+     * @param array{title: string, items: list<string>} $stack
+     * @param array{title: string, items: list<string>} $achievements
      * @param  array{
      *     title: string,
      *     items: list<array{name: string, href: string, period: string, summary: string}>
      * }  $selected_clients
-     * @param  array{title: string, items: list<string>}  $official_status
+     * @param array{title: string, items: list<string>} $official_status
      * @param  array{
      *     title: string,
      *     email: string,
@@ -44,7 +46,7 @@ class HomepageData extends Data
      *     note: string,
      *     links: list<array{label: string, href: string}>
      * }  $contact
-     * @param  array{legal_name: string, label: string, note: string}  $footer
+     * @param array{legal_name: string, label: string, note: string} $footer
      */
     public function __construct(
         public array $navigation,
@@ -58,8 +60,7 @@ class HomepageData extends Data
         public array $official_status,
         public array $contact,
         public array $footer,
-    ) {
-    }
+    ) {}
 
     public static function fromApprovedContent(): self
     {

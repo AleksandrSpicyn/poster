@@ -1,17 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
+use App\Actions\Auth\GetEmailVerificationStatusAction;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Inertia\Response;
 
-class EmailVerificationPromptController extends Controller
+class EmailVerificationPromptController
 {
     /**
      * Форма проверки email
+     *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      *
@@ -49,10 +53,10 @@ class EmailVerificationPromptController extends Controller
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(Request $request): RedirectResponse|Response
+    public function __invoke(Request $request, #[CurrentUser] User $user, GetEmailVerificationStatusAction $action): RedirectResponse|Response
     {
-        return $request->user()->hasVerifiedEmail()
+        return $action->run($user)
                     ? redirect()->intended(route('dashboard', absolute: false))
-                    : Inertia::render('auth/VerifyEmail', ['status' => $request->session()->get('status')]);
+                    : inertia('auth/VerifyEmail', ['status' => $request->session()->get('status')]);
     }
 }

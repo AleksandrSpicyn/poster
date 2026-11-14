@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
 use App\Models\Prompt;
@@ -11,9 +13,7 @@ class AudioGenerated
     use Dispatchable;
     use SerializesModels;
 
-    public function __construct(private readonly Prompt $prompt)
-    {
-    }
+    public function __construct(private readonly Prompt $prompt) {}
 
     public function getPrompt(): Prompt
     {

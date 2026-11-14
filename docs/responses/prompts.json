@@ -567,7 +567,7 @@
                     "title": "Example idea",
                     "url": "",
                     "project": "dolores",
-                    "generated": 0,
+                    "generated": false,
                     "created_at": "Nov 14, 2026"
                 },
                 {
@@ -575,7 +575,7 @@
                     "title": "Facere et voluptas ex.",
                     "url": "",
                     "project": "molestias",
-                    "generated": 0,
+                    "generated": false,
                     "created_at": "Nov 14, 2026"
                 }
             ],

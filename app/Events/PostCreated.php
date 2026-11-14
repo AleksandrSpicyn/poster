@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
 use App\Models\Post;
@@ -13,9 +15,7 @@ class PostCreated
     use InteractsWithSockets;
     use SerializesModels;
 
-    public function __construct(private readonly Post $post)
-    {
-    }
+    public function __construct(private readonly Post $post) {}
 
     public function post(): Post
     {

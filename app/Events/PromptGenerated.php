@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
@@ -10,9 +12,7 @@ class PromptGenerated
     use Dispatchable;
     use SerializesModels;
 
-    public function __construct(private readonly string $prompt)
-    {
-    }
+    public function __construct(private readonly string $prompt) {}
 
     public function getPrompt(): string
     {

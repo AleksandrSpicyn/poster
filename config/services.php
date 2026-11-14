@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
 
     /*
@@ -36,19 +38,19 @@ return [
     ],
 
     'runway' => [
-        'api_key' => env('RUNWAY_API_KEY'),
+        'api_key' => env('RUNWAY_API_KEY', ''),
         'api_url' => env('RUNWAY_API_URL', 'https://api.dev.runwayml.com/v1'),
         'version' => env('RUNWAY_API_VERSION', '2024-11-06'),
     ],
 
     'hailuo' => [
-        'api_key' => env('HAILUO_API_KEY'),
-        'group_id' => env('HAILUO_GROUP_ID'),
+        'api_key' => env('HAILUO_API_KEY', ''),
+        'group_id' => env('HAILUO_GROUP_ID', ''),
         'api_url' => 'https://api.minimax.io/v1',
     ],
 
     'suno_unofficial' => [
-        'api_key' => env('SUNO_UNOFFICIAL_API_KEY'),
+        'api_key' => env('SUNO_UNOFFICIAL_API_KEY', ''),
         'api_url' => env('SUNO_UNOFFICIAL_API_URL', 'https://apibox.erweima.ai/api/v1'),
     ],
 
@@ -66,6 +68,11 @@ return [
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'token' => env('INSTAGRAM_TOKEN'),
         'version' => 'v21.0',
+    ],
+
+    'admin' => [
+        'email' => env('ADMIN_EMAIL', ''),
+        'password' => env('ADMIN_PASSWORD', ''),
     ],
 
     'tiktok' => [

@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\PromptGenerator\ChatGpt;
 
-use App\Classes\Generators\PromptGenerator\AbstractPromptGenerator;
+use App\Classes\Generators\PromptGenerator\PromptGenerator;
+use App\Support\Integrations\Payload;
 use OpenAI\Laravel\Facades\OpenAI;
 
-class ChatGpt extends AbstractPromptGenerator
+class ChatGpt implements PromptGenerator
 {
     public function generate(string $prompt): string
     {
@@ -16,6 +19,6 @@ class ChatGpt extends AbstractPromptGenerator
             ],
         ]);
 
-        return trim($result->choices[0]->message->content);
+        return trim(Payload::string($result->choices[0]->message->content, 'choices.0.message.content'));
     }
 }

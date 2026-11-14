@@ -1,18 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Support\Documentation\OpenApiGenerator;
 use Knuckles\Scribe\Config\AuthIn;
-
 use Knuckles\Scribe\Config\Defaults;
-
+use Knuckles\Scribe\Extracting\Strategies\Responses\ResponseCalls;
+use Knuckles\Scribe\Extracting\Strategies\StaticData;
 use function Knuckles\Scribe\Config\removeStrategies;
-
-use Knuckles\Scribe\Extracting\Strategies;
 
 // Only the most common configs are shown. See the https://scribe.knuckles.wtf/laravel/reference/config for all.
 
 return [
     // The HTML <title> for the generated documentation.
-    'title' => config('app.name') . ' API Documentation',
+    'title' => config()->string('app.name') . ' API Documentation',
 
     // A short description of your API. Will be included in the docs webpage, Postman collection and OpenAPI spec.
     'description' => '',
@@ -124,7 +125,7 @@ return [
 
         // Placeholder your users will see for the auth parameter in the example requests.
         // Set this to null if you want Scribe to use a random value as placeholder instead.
-        'placeholder' => 'poster-session={SESSION_COOKIE}',
+        'placeholder' => '{SESSION_COOKIE_NAME}={SESSION_COOKIE_VALUE}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
         'extra_info' => 'Сессионная cookie после входа. Web-записи требуют X-XSRF-TOKEN; публичные API webhooks работают без сессии.',
@@ -169,7 +170,7 @@ return [
 
         // Additional generators to use when generating the OpenAPI spec.
         // Should extend `Knuckles\Scribe\Writing\OpenApiSpecGenerators\OpenApiGenerator`.
-        'generators' => [\App\Support\Documentation\OpenApiGenerator::class],
+        'generators' => [OpenApiGenerator::class],
     ],
 
     'groups' => [
@@ -219,7 +220,7 @@ return [
         ],
         'headers' => [
             ...Defaults::HEADERS_STRATEGIES,
-            Strategies\StaticData::withSettings(data: [
+            StaticData::withSettings(data: [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
             ]),
@@ -233,7 +234,7 @@ return [
         'bodyParameters' => [
             ...Defaults::BODY_PARAMETERS_STRATEGIES,
         ],
-        'responses' => removeStrategies(Defaults::RESPONSES_STRATEGIES, [Strategies\Responses\ResponseCalls::class]),
+        'responses' => removeStrategies(Defaults::RESPONSES_STRATEGIES, [ResponseCalls::class]),
         'responseFields' => [
             ...Defaults::RESPONSE_FIELDS_STRATEGIES,
         ],

@@ -560,7 +560,7 @@
             "location": "http://localhost:8088/settings/profile"
         },
         "sidebarOpen": true,
-        "mustVerifyEmail": false,
+        "mustVerifyEmail": true,
         "status": null
     },
     "url": "/settings/profile",

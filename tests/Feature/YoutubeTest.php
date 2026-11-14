@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Classes\Publishers\PublisherFactory;
+use App\Enums\ChannelType;
+use App\Events\PostCreated;
+use App\Models\Channel;
+use App\Models\Prompt;
+use Carbon\Carbon;
+use Google\Client;
+use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\assertDatabaseHas;
+
+test('YouTube загружает файл и сохраняет публикацию', /** @throws Exception */ function (): void {
+    Storage::fake('public');
+    Event::fake([PostCreated::class]);
+    Storage::disk('public')->put('clip.mp4', 'test-video-bytes');
+    $prompt = Prompt::factory()->create();
+    $prompt->addMedia(Storage::disk('public')->path('clip.mp4'))->toMediaCollection();
+    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
+        'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
+    ]]);
+    $handler = new MockHandler([
+        new Response(200, ['location' => 'https://upload.example.com/session']),
+        new Response(200, ['content-type' => 'application/json'], '{"id":"uploaded-video"}'),
+    ]);
+    $client = new Client();
+    $client->setHttpClient(new HttpClient(['handler' => HandlerStack::create($handler), 'http_errors' => false]));
+
+    app()->instance(Client::class, $client);
+
+    expect(app(PublisherFactory::class)->make($channel, $prompt)->publish())->toBeTrue();
+
+    assertDatabaseHas('posts', ['channel_id' => $channel->id, 'prompt_id' => $prompt->id,
+        'external_id' => 'uploaded-video', 'url' => 'https://www.youtube.com/shorts/uploaded-video']);
+    Event::assertDispatched(PostCreated::class);
+    expect($handler->count())->toBe(0);
+});
+
+test('YouTube не создаёт публикацию без медиафайла', /** @throws Exception */ function (): void {
+    Event::fake([PostCreated::class]);
+    $prompt = Prompt::factory()->create();
+    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
+        'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
+    ]]);
+    $handler = new MockHandler();
+    $client = new Client();
+    $client->setHttpClient(new HttpClient(['handler' => HandlerStack::create($handler)]));
+
+    app()->instance(Client::class, $client);
+
+    expect(app(PublisherFactory::class)->make($channel, $prompt)->publish())->toBeFalse();
+
+    assertDatabaseCount('posts', 0);
+    Event::assertNotDispatched(PostCreated::class);
+    expect($handler->count())->toBe(0);
+});

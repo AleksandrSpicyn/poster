@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Publishers\Instagram;
 
 use App\Classes\Publishers\AbstractPublisher;
 use App\Jobs\PublishInstagramJob;
+use App\Support\Integrations\Payload;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +18,7 @@ use Throwable;
 
 class Instagram extends AbstractPublisher
 {
-    private const GRAPH_URL = 'https://graph.instagram.com';
+    private const string GRAPH_URL = 'https://graph.instagram.com';
 
     public function publish(): bool
     {
@@ -30,17 +34,17 @@ class Instagram extends AbstractPublisher
 
             $containerId = $containerRes->json('id');
 
-            if (!$containerId) {
-                Log::error('Instagram cannot create container context', $containerRes->json());
+            if (! $containerId) {
+                Log::error('Instagram cannot create container', ['status' => $containerRes->status()]);
 
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
-            PublishInstagramJob::dispatch($this, $containerId)
+            PublishInstagramJob::dispatch($this, Payload::string($containerId, 'id'))
                 ->delay(now()->addMinutes(5));
         } catch (Throwable $e) {
-            Log::error('Instagram Publish Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
+            Log::error('Instagram publish failed.', [
+                'exception' => $e::class,
                 'channel' => $this->channel->id,
                 'prompt' => $this->prompt->id,
             ]);
@@ -53,12 +57,14 @@ class Instagram extends AbstractPublisher
 
     protected function getClient(?string $id = null): PendingRequest|Factory
     {
-        return Http::withToken($this->channel->credentials['access_token'])
+        return Http::withToken(Payload::string($this->channel->credentials['access_token'] ?? null, 'access_token'))
+            ->connectTimeout(10)
+            ->timeout(60)
             ->baseUrl(
                 sprintf(
                     '%s/%s',
                     self::GRAPH_URL,
-                    $id ?? $this->channel->credentials['channel_id'],
+                    $id ?? Payload::string($this->channel->credentials['channel_id'] ?? null, 'channel_id'),
                 ),
             )
             ->withHeaders([
@@ -66,6 +72,7 @@ class Instagram extends AbstractPublisher
             ]);
     }
 
+    /** @throws ConnectionException */
     public function publishContainer(string $containerId): void
     {
         $client = $this->getClient();
@@ -76,25 +83,27 @@ class Instagram extends AbstractPublisher
 
         $mediaId = $publishRes->json('id');
 
-        if (!$mediaId) {
-            Log::error('Instagram Publish Error Context', $publishRes->json());
+        if (! $mediaId) {
+            Log::error('Instagram publish failed', ['status' => $publishRes->status()]);
 
             throw new RuntimeException('Instagram cannot publish video.');
         }
 
+        $mediaId = Payload::string($mediaId, 'id');
         $this->savePost($mediaId, $this->getUrl($mediaId));
     }
 
-    public function getUrl(string $id): string
+    protected function getUrl(string $id): string
     {
         try {
-            return $this
+            $url = $this
                 ->getClient($id)
-                ->post('', [
+                ->get('', [
                     'fields' => 'permalink',
-                    'comment_enabled' => true,
                 ])
                 ->json('permalink');
+
+            return Payload::string($url, 'permalink');
         } catch (Exception) {
             return '';
         }

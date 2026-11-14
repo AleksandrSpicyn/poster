@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'ffmpeg' => [
         'binaries' => env('FFMPEG_BINARIES', 'ffmpeg'),
@@ -11,7 +13,7 @@ return [
         'binaries' => env('FFPROBE_BINARIES', 'ffprobe'),
     ],
 
-    'timeout' => 3600,
+    'timeout' => 3540,
 
     'log_channel' => env('LOG_CHANNEL', 'stack'),   // set to false to completely disable logging
 

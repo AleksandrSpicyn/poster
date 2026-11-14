@@ -1,15 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Data\HomepageData;
-use Inertia\Inertia;
 use Inertia\Response;
 
-class HomeController extends Controller
+class HomeController
 {
     /**
      * Публичный профиль
+     *
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      *
      * @group Публичные страницы
@@ -100,7 +102,7 @@ class HomeController extends Controller
      */
     public function __invoke(): Response
     {
-        return Inertia::render('Welcome', [
+        return inertia('Welcome', [
             'homepage' => HomepageData::fromApprovedContent()->toArray(),
         ]);
     }

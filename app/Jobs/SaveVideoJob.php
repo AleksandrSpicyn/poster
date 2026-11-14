@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Actions\SaveVideoAction;
@@ -13,9 +15,9 @@ class SaveVideoJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private readonly Prompt $prompt)
-    {
-    }
+    public int $timeout = 3600;
+
+    public function __construct(private readonly Prompt $prompt) {}
 
     /**
      * @throws FileIsTooBig

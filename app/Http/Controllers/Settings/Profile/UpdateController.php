@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Settings\Profile;
+
+use App\Actions\Settings\UpdateProfileAction;
+use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Http\RedirectResponse;
+
+class UpdateController
+{
+    /**
+     * Изменение имени и email
+     *
+     * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
+     * Redirect после операции. Для Inertia PUT/PATCH/DELETE возвращается 303, для обычного form submit — 302.
+     * Web-валидация возвращает redirect назад и session errors; JSON-вариант — 422.
+     *
+     * @group Настройки
+     * @authenticated
+     * @header Accept application/json
+     * @response 302
+     * @response 303
+     * @bodyParam name string required Имя до 255 символов. Example: Demo User
+     * @bodyParam email string required Уникальный email в нижнем регистре до 255 символов. Example: demo@example.com
+     * @response 422 scenario="Validation error (JSON)" {"message": "The name field is required.", "errors": {"name": ["The name field is required."]}}
+     * @header X-XSRF-TOKEN {CSRF_TOKEN}
+     * @response 401 {"message":"Unauthenticated."}
+     */
+    public function __invoke(ProfileUpdateRequest $request, #[CurrentUser] User $user, UpdateProfileAction $action): RedirectResponse
+    {
+        $action->run($user, $request->toDto());
+
+        return to_route('profile.edit');
+    }
+}

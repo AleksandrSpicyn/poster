@@ -1,12 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
-
 use Illuminate\Support\Facades\Hash;
-
 use function Pest\Laravel\actingAs;
 
-test('владелец меняет пароль', function (): void {
+test('владелец меняет пароль', /** @throws Exception */ function (): void {
     $user = User::factory()->create();
 
     $response = actingAs($user)

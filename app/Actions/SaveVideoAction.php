@@ -1,18 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
-use App\Events\VideoBuiled;
+use App\Events\VideoBuilt;
 use App\Models\Prompt;
 use App\Tasks\BuildVideo;
+use App\Tasks\Prompts\RefreshPrompt;
+use App\Tasks\Prompts\SaveGeneratedVideo;
+use Illuminate\Support\Facades\Cache;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
-class SaveVideoAction extends Action
+readonly class SaveVideoAction
 {
-    public function __construct(private readonly BuildVideo $buildVideo)
-    {
-    }
+    public function __construct(
+        private BuildVideo $buildVideo,
+        private RefreshPrompt $refreshPrompt,
+        private SaveGeneratedVideo $saveGeneratedVideo,
+    ) {}
 
     /**
      * @throws FileIsTooBig
@@ -20,16 +27,16 @@ class SaveVideoAction extends Action
      */
     public function run(Prompt $prompt): void
     {
-        if (!$prompt->video_url || !$prompt->audio_url) {
-            return;
-        }
+        Cache::lock('prompt-build:' . $prompt->id, 3720)->get(function () use ($prompt): void {
+            $this->refreshPrompt->run($prompt);
 
-        $path = $this->buildVideo->run($prompt);
+            if ($prompt->generated || ! $prompt->video_url || ! $prompt->audio_url) {
+                return;
+            }
 
-        $prompt->addMedia($path)->toMediaCollection();
+            $this->saveGeneratedVideo->run($prompt, $this->buildVideo->run($prompt));
 
-        $prompt->update(['generated' => true]);
-
-        event(new VideoBuiled($prompt));
+            event(new VideoBuilt($prompt));
+        });
     }
 }

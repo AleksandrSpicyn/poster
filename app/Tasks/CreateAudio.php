@@ -1,17 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
 use App\Classes\Generators\AudioGenerator\AudioGenerator;
 use App\Settings\GeneralSettings;
 
-class CreateAudio extends Task
+readonly class CreateAudio
 {
     public function __construct(
-        private readonly AudioGenerator $audioGenerator,
-        private readonly GeneralSettings $generalSettings,
-    ) {
-    }
+        private AudioGenerator $audioGenerator,
+        private GeneralSettings $generalSettings,
+    ) {}
 
     public function run(string $title): string
     {

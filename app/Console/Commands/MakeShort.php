@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Actions\MakeShortAction;
@@ -12,6 +14,6 @@ class MakeShort extends Command
 
     public function handle(MakeShortAction $action): void
     {
-        Project::all()->each(fn(Project $project) => $action->run($project));
+        Project::query()->lazyById()->each(fn(Project $project) => $action->run($project));
     }
 }

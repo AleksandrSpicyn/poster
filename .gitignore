@@ -35,3 +35,5 @@ _ide_helper_models.php
 /public/vendor/scribe/
 /resources/views/scribe/
 /boost.cache.json
+
+/.playwright-mcp/

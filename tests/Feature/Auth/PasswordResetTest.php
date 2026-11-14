@@ -1,10 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
-
 use Illuminate\Support\Facades\Notification;
-
 use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 
@@ -14,7 +14,7 @@ test('форма восстановления доступна гостю', func
     $response->assertOk();
 });
 
-test('восстановление отправляет уведомление владельцу', function (): void {
+test('восстановление отправляет уведомление владельцу', /** @throws Exception */ function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
@@ -24,14 +24,14 @@ test('восстановление отправляет уведомление �
     Notification::assertSentTo($user, ResetPassword::class);
 });
 
-test('ссылка восстановления открывает форму', function (): void {
+test('ссылка восстановления открывает форму', /** @throws Exception */ function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
 
     post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function (\Illuminate\Auth\Notifications\ResetPassword $notification) {
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification): true {
         $response = get('/reset-password/' . $notification->token);
 
         $response->assertOk();
@@ -40,14 +40,14 @@ test('ссылка восстановления открывает форму', 
     });
 });
 
-test('верный токен позволяет сменить пароль', function (): void {
+test('верный токен позволяет сменить пароль', /** @throws Exception */ function (): void {
     Notification::fake();
 
     $user = User::factory()->create();
 
     post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function (\Illuminate\Auth\Notifications\ResetPassword $notification) use ($user) {
+    Notification::assertSentTo($user, ResetPassword::class, /** @throws Exception */ function (ResetPassword $notification) use ($user): true {
         $response = post('/reset-password', [
             'token' => $notification->token,
             'email' => $user->email,

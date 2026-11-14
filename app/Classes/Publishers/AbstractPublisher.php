@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Publishers;
 
 use App\Data\PostData;
@@ -12,8 +14,8 @@ abstract class AbstractPublisher implements Publisher
     public function __construct(
         protected readonly Channel $channel,
         protected readonly Prompt $prompt,
-    ) {
-    }
+        private readonly SavePost $savePost,
+    ) {}
 
     protected function getPath(): ?string
     {
@@ -32,7 +34,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function savePost(?string $externalId, ?string $url): void
     {
-        app(SavePost::class)->run(
+        $this->savePost->run(
             new PostData(
                 $this->channel,
                 $this->prompt,

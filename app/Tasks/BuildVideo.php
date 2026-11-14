@@ -1,39 +1,42 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks;
 
 use App\Models\Prompt;
 use App\Settings\GeneralSettings;
 use FFMpeg\Format\Video\X264;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Container\Attributes\Storage;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Str;
 use ProtoneMedia\LaravelFFMpeg\Filesystem\Media;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
-class BuildVideo extends Task
+readonly class BuildVideo
 {
-    public function __construct(private readonly GeneralSettings $settings)
-    {
-    }
+    public function __construct(
+        private GeneralSettings $settings,
+        #[Storage('public')] private FilesystemAdapter $disk,
+    ) {}
 
     /** TODO Watermark */
     public function run(Prompt $prompt): string
     {
         $outputFile = 'final/short_' . Str::uuid() . '.mp4';
 
-        $format = (new X264())
-            ->setAudioCodec('aac')
-            ->setAdditionalParameters(['-t', $this->settings->duration]);
+        $format = new X264();
+        $format->setAudioCodec('aac');
+        $format->setAdditionalParameters(['-t', (string) $this->settings->duration]);
 
-        FFMpeg::openUrl([$prompt->video_url, $prompt->audio_url])
-            ->export()
-            ->addFormatOutputMapping(
-                $format,
-                Media::make('public', $outputFile),
-                ['0:v', '1:a'],
-            )
-            ->save($outputFile);
+        $exporter = FFMpeg::openUrl([$prompt->video_url, $prompt->audio_url])->export();
+        $exporter->addFormatOutputMapping(
+            $format,
+            Media::make('public', $outputFile),
+            ['0:v', '1:a'],
+        );
+        $exporter->save($outputFile);
 
-        return Storage::disk('public')->path($outputFile);
+        return $this->disk->path($outputFile);
     }
 }

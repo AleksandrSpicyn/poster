@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\ImageGenerator\ChatGpt;
 
-use App\Classes\Generators\ImageGenerator\AbstractImageGenerator;
+use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use OpenAI\Laravel\Facades\OpenAI;
 
-class ChatGpt extends AbstractImageGenerator
+class ChatGpt implements ImageGenerator
 {
     public function generate(string $prompt): string
     {

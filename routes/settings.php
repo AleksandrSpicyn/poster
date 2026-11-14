@@ -1,21 +1,27 @@
 <?php
 
-use App\Http\Controllers\Settings\PasswordController;
-use App\Http\Controllers\Settings\ProfileController;
+declare(strict_types=1);
+
+use App\Http\Controllers\Settings\Password\EditController as EditPasswordController;
+use App\Http\Controllers\Settings\Password\UpdateController as UpdatePasswordController;
+use App\Http\Controllers\Settings\Profile\DestroyController as DestroyProfileController;
+use App\Http\Controllers\Settings\Profile\EditController as EditProfileController;
+use App\Http\Controllers\Settings\Profile\UpdateController as UpdateProfileController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::middleware('auth')->group(function (): void {
-    Route::redirect('settings', '/settings/profile');
+Route::middleware('auth')->prefix('settings')->group(function (): void {
+    Route::redirect('/', '/settings/profile');
 
-    Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::prefix('profile')->name('profile.')->group(function (): void {
+        Route::get('/', EditProfileController::class)->name('edit');
+        Route::patch('/', UpdateProfileController::class)->name('update');
+        Route::delete('/', DestroyProfileController::class)->name('destroy');
+    });
 
-    Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
-    Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
+    Route::prefix('password')->name('password.')->group(function (): void {
+        Route::get('/', EditPasswordController::class)->name('edit');
+        Route::put('/', UpdatePasswordController::class)->name('update');
+    });
 
-    Route::get('settings/appearance', function () {
-        return Inertia::render('settings/Appearance');
-    })->name('appearance');
+    Route::get('appearance', fn() => inertia('settings/Appearance'))->name('appearance');
 });

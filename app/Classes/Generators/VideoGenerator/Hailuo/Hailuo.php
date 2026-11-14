@@ -1,43 +1,45 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\VideoGenerator\Hailuo;
 
-use App\Classes\Generators\VideoGenerator\AbstractVideoGenerator;
+use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
+use App\Support\Integrations\Payload;
 use GuzzleHttp\RequestOptions;
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-class Hailuo extends AbstractVideoGenerator
+readonly class Hailuo implements AlternativeVideoGenerator
 {
-    private string $baseUrl;
-    private string $token;
-    private string $groupId;
-
-    public function __construct()
-    {
-        $this->baseUrl = config('services.hailuo.api_url');
-        $this->token = config('services.hailuo.api_key');
-        $this->groupId = config('services.hailuo.group_id');
-    }
+    public function __construct(
+        #[Config('services.hailuo.api_url')] private string $baseUrl,
+        #[Config('services.hailuo.api_key')] private string $token,
+        #[Config('services.hailuo.group_id')] private string $groupId,
+        private GeneralSettings $settings,
+    ) {}
 
     /**
      * @throws ConnectionException
      */
     public function generate(string $imageUrl, string $prompt): string
     {
-        return $this
+        $response = $this
             ->request('video_generation', parameters: [
                 'model' => 'MiniMax-Hailuo-02',
                 'first_frame_image' => $imageUrl,
                 'prompt' => $prompt,
-                'duration' => app(GeneralSettings::class)->duration,
+                'duration' => $this->settings->duration,
             ])
             ->json('task_id');
+
+        return Payload::string($response, 'task_id');
     }
 
     /**
@@ -50,13 +52,13 @@ class Hailuo extends AbstractVideoGenerator
             ->request("query/video_generation/?task_id=$id", 'GET')
             ->json('file_id');
 
-        if (!$fileId) {
+        if (! $fileId) {
             return null;
         }
 
-        $url = $this->get($fileId);
+        $url = $this->get(Payload::string($fileId, 'file_id'));
 
-        if (!$url) {
+        if (! $url) {
             Log::error('Video url generation failed:', [
                 'fileId' => $fileId,
             ]);
@@ -72,17 +74,19 @@ class Hailuo extends AbstractVideoGenerator
      */
     public function get(string $fileId): ?string
     {
-        return $this
-            ->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", 'GET')
-            ->json('file.download_url');
+        $url = $this->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", 'GET')->json('file.download_url');
+
+        return $url === null ? null : Payload::string($url, 'file.download_url');
     }
 
     /**
+     * @param array<string, mixed> $parameters
      * @throws ConnectionException
      */
     private function request(string $url, string $method = 'POST', array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
+            ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
                 'Content-Type' => 'application/json',
@@ -90,15 +94,15 @@ class Hailuo extends AbstractVideoGenerator
             ->send(
                 $method,
                 "$this->baseUrl/$url",
-                $parameters
+                $parameters !== []
                     ? [RequestOptions::JSON => $parameters]
                     : [],
             );
 
         if ($response->failed()) {
-            Log::error($response->json());
+            Log::error('Hailuo API Error', ['status' => $response->status()]);
 
-            throw new RuntimeException('Hailuo API Error: ' . $response->body());
+            throw new RuntimeException('Hailuo API request failed.');
         }
 
         return $response;

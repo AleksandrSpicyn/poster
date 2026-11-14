@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
 use App\Events\AudioGenerating;
@@ -7,66 +9,38 @@ use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
 use App\Events\VideoGenerating;
 use App\Models\Project;
-use App\Models\Prompt;
 use App\Tasks\CreateAudio;
 use App\Tasks\CreateBasePrompt;
 use App\Tasks\CreateImage;
 use App\Tasks\CreateVideo;
+use App\Tasks\Prompts\CreatePrompt;
+use App\Tasks\Prompts\UpdatePrompt;
 
-class MakeShortAction extends Action
+readonly class MakeShortAction
 {
     public function __construct(
-        private readonly CreateBasePrompt $createBasePrompt,
-        private readonly CreateImage $createImage,
-        private readonly CreateVideo $createVideo,
-        private readonly CreateAudio $createAudio,
-    ) {
-    }
+        private CreateBasePrompt $createBasePrompt,
+        private CreatePrompt $createPrompt,
+        private UpdatePrompt $updatePrompt,
+        private CreateImage $createImage,
+        private CreateVideo $createVideo,
+        private CreateAudio $createAudio,
+    ) {}
 
     public function run(Project $project): void
     {
-        $prompt = $this->generatePrompt($project);
+        $prompt = $this->createPrompt->run($project, $this->createBasePrompt->run($project));
+        event(new PromptGenerated($prompt->prompt));
 
-        $this->generateImage($prompt);
-        $this->generateVideo($prompt);
-        $this->generateAudio($prompt);
-    }
-
-    private function generatePrompt(Project $project): Prompt
-    {
-        $idea = $this->createBasePrompt->run($project);
-
-        $prompt = $project->prompts()->create(['prompt' => $idea]);
-
-        event(new PromptGenerated($prompt));
-
-        return $prompt;
-    }
-
-    private function generateImage(Prompt $prompt): void
-    {
         $imageUrl = $this->createImage->run($prompt->prompt);
-
-        $prompt->update(['image_url' => $imageUrl]);
-
+        $this->updatePrompt->run($prompt, ['image_url' => $imageUrl]);
         event(new ImageGenerated($imageUrl));
-    }
 
-    private function generateVideo(Prompt $prompt): void
-    {
-        [$videoId, $alternative] = $this->createVideo->run($prompt->image_url, $prompt->prompt);
+        $video = $this->createVideo->run($imageUrl, $prompt->prompt);
+        $this->updatePrompt->run($prompt, ['video_id' => $video->id]);
+        event(new VideoGenerating($prompt, $video->alternative));
 
-        $prompt->update(['video_id' => $videoId]);
-
-        event(new VideoGenerating($prompt, $alternative));
-    }
-
-    private function generateAudio(Prompt $prompt): void
-    {
-        $audioId = $this->createAudio->run($prompt->prompt);
-
-        $prompt->update(['audio_id' => $audioId]);
-
+        $this->updatePrompt->run($prompt, ['audio_id' => $this->createAudio->run($prompt->prompt)]);
         event(new AudioGenerating($prompt));
     }
 }

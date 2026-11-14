@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tasks\Posts;
 
 use App\Data\PostData;
 use App\Events\PostCreated;
-use App\Tasks\Task;
 
-class SavePost extends Task
+class SavePost
 {
     public function run(PostData $dto): void
     {

@@ -115,3 +115,29 @@ ResponseCalls удалена из списка strategies: пустой only в 
 Проверены summaries/responses всех операций, query bounds/enums, MCP search/get
 с реальным артефактом и ошибка отсутствующего артефакта. 71 passed / 357 assertions.
 Схема OpenAPI проверена структурно; отдельный внешний schema validator не установлен.
+
+### PHPStan max и полный рефакторинг — локально на ревью
+
+PHPStan max достигнут без baseline/ignoreErrors. Удалены пустые базовые классы,
+уточнены типы и внешние границы, исправлены повторная сборка, validated input
+списков, email verification, nullable channel, OAuth/file handling.
+Подробности и изменения поведения: [refactor-review.md](refactor-review.md).
+Внешний OpenAPI validator установлен во временной среде и подтвердил OpenAPI 3.0.3;
+найденные duplicate operationId исправлены стабильным method/path ID.
+Первичная и повторная инициализация APP_KEY проверены на отдельном env fixture.
+
+Пользователь подтвердил commit и push этого пакета после ревью.
+
+Финальный локальный прогон: make pipe успешен, 113 tests / 540 assertions,
+PHPStan max без ошибок, TypeScript без ошибок, OpenAPI 3.0.3 validator успешен,
+24 уникальных operationId, stdio MCP search/get успешны.
+
+По замечаниям ревью полные имена классов перенесены в use, исправлены PHPDoc,
+readonly/типизированные constants, Eloquent builders и настройки Pint. Добавлены
+`make ide-helper` и правило импортов в инструкции. Проверки IDE описаны в refactor-review.
+
+После архитектурного ревью auth/settings перенесены в Actions и Form Requests,
+контроллеры используют только __invoke, current actor — CurrentUser DI. Добавлены
+Config/Auth/Bind/Storage/RouteParameter, сгруппированы route prefixes. Settings
+Rector/Pint перенесены из B2B с адаптацией путей и правил импортов; повторный
+make pipe, TypeScript и client/SSR build успешны. 113 tests / 540 assertions.

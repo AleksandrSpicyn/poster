@@ -1,16 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Auth\Events\Verified;
+use App\Actions\Auth\VerifyEmailAction;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 
-class VerifyEmailController extends Controller
+class VerifyEmailController
 {
     /**
      * Подтверждение email по ссылке
+     *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * Redirect после операции: HTTP 302, Location указывает кабинет, login или предыдущую страницу согласно сценарию.
      *
@@ -26,17 +30,9 @@ class VerifyEmailController extends Controller
      * @response 403 {"message":"Invalid signature."}
      * @response 429 {"message":"Too Many Attempts."}
      */
-    public function __invoke(EmailVerificationRequest $request): RedirectResponse
+    public function __invoke(EmailVerificationRequest $request, #[CurrentUser] User $user, VerifyEmailAction $action): RedirectResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('dashboard', absolute: false) . '?verified=1');
-        }
-
-        if ($request->user()->markEmailAsVerified()) {
-            /** @var \Illuminate\Contracts\Auth\MustVerifyEmail $user */
-            $user = $request->user();
-            event(new Verified($user));
-        }
+        $action->run($user);
 
         return redirect()->intended(route('dashboard', absolute: false) . '?verified=1');
     }

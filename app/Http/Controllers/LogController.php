@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\RecordPaymentWebhookAction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
-class LogController extends Controller
+class LogController
 {
     /**
      * Приём уведомления UKassa
+     *
      * Публичный callback без валидации и подписи. Только журналирование payload; оплаты и статусы заказов не изменяются.
      *
      * @group Webhooks
@@ -16,8 +19,8 @@ class LogController extends Controller
      * @header Accept application/json
      * @response 200
      */
-    public function __invoke(Request $request): void
+    public function __invoke(Request $request, RecordPaymentWebhookAction $action): void
     {
-        Log::info('Webhook UKassa received', $request->all());
+        $action->run($request->all());
     }
 }

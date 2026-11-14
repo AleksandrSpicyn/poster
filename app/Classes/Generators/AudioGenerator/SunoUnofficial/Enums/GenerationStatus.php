@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Classes\Generators\AudioGenerator\SunoUnofficial\Enums;
 
 use App\Traits\EnumTrait;

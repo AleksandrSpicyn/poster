@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "62675686f100597233552b4fcaf7a9fc",
+    "content-hash": "7b520bd83ac08972844e1e33b538e122",
     "packages": [
         {
             "name": "aleksandrspicyn/scribe-mcp",
@@ -14629,7 +14629,8 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.4"
+        "php": "^8.4",
+        "ext-pdo": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.11.0"

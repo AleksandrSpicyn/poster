@@ -1,65 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Project;
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Database\Seeder;
 
 class ProjectSeeder extends Seeder
 {
-    public function run(): void
-    {
-        $project = Project::firstOrCreate(
+    public function run(
+        #[Config('services.youtube.client_id')] ?string $youtubeClientId,
+        #[Config('services.youtube.client_secret')] ?string $youtubeClientSecret,
+        #[Config('services.instagram.client_id')] ?string $instagramClientId,
+        #[Config('services.instagram.client_secret')] ?string $instagramClientSecret,
+        #[Config('services.instagram.token')] ?string $instagramToken,
+        #[Config('services.tiktok.client_id')] ?string $tiktokClientId,
+        #[Config('services.tiktok.client_secret')] ?string $tiktokClientSecret,
+    ): void {
+        $project = Project::query()->firstOrCreate(
             ['name' => 'Midjourney Shorts'],
             ['prompt' => $this->prompt()],
         );
 
-        Channel::firstOrCreate(
+        Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::YOUTUBE,
             ],
             [
                 'name' => 'AI Fakes X',
-                'client_id' => config('services.youtube.client_id'),
-                'client_secret' => config('services.youtube.client_secret'),
+                'client_id' => $youtubeClientId,
+                'client_secret' => $youtubeClientSecret,
             ],
         );
 
-        Channel::firstOrCreate(
+        Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::INSTAGRAM,
             ],
             [
                 'name' => 'AI Fakes X',
-                'client_id' => config('services.instagram.client_id'),
-                'client_secret' => config('services.instagram.client_secret'),
+                'client_id' => $instagramClientId,
+                'client_secret' => $instagramClientSecret,
                 'credentials' => [
-                    'access_token' => config('services.instagram.token'),
+                    'access_token' => $instagramToken,
                     'channel_id' => '17841402123695030',
                 ],
             ],
         );
 
-        Channel::firstOrCreate(
+        Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::TIKTOK,
             ],
             [
                 'name' => 'AI Fakes X',
-                'client_id' => config('services.tiktok.client_id'),
-                'client_secret' => config('services.tiktok.client_secret'),
+                'client_id' => $tiktokClientId,
+                'client_secret' => $tiktokClientSecret,
             ],
         );
     }
 
     private function prompt(): string
     {
-        return <<<TEXT
+        return <<<'TEXT'
 You are a creative assistant who comes up with visual ideas for short videos on a daily basis. The target audience is young people aged 12-25. Videos are created based on a visual prompt to generate an image using DALL E.
 
 The project is called “Midjourney Shorts”. Every day, one visually rich and funny prompt is published.

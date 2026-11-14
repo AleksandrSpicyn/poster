@@ -1,18 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Prompts;
 
-use App\Http\Controllers\Controller;
+use App\Actions\Prompts\GetPromptsListAction;
 use App\Http\Requests\Prompts\GetPromptsListRequest;
 use App\Http\Resources\PromptResource;
-use App\Tasks\Prompts\GetPromptsList;
-use Inertia\Inertia;
 use Inertia\Response;
 
-class ListController extends Controller
+class ListController
 {
     /**
      * Список идей
+     *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      * Все проекты доступны любому вошедшему пользователю; индивидуального tenant scope нет.
@@ -23,6 +24,7 @@ class ListController extends Controller
      * @header X-Inertia true
      * @header X-Inertia-Version {ASSET_VERSION}
      * @responseFile 200 docs/responses/prompts.json
+     * @response 403 {"message":"Your email address is not verified."}
      * @response 401 {"message":"Unauthenticated."}
      * @queryParam perPage integer Размер страницы, от 1 до 100, по умолчанию 10. Example: 10
      * @queryParam sort string Порядок created_at: asc или desc, по умолчанию desc. Example: desc
@@ -56,7 +58,7 @@ class ListController extends Controller
      * @responseField props.prompts.data[].title string props.prompts.data[].title.
      * @responseField props.prompts.data[].url string props.prompts.data[].url.
      * @responseField props.prompts.data[].project string props.prompts.data[].project.
-     * @responseField props.prompts.data[].generated integer props.prompts.data[].generated.
+     * @responseField props.prompts.data[].generated boolean props.prompts.data[].generated.
      * @responseField props.prompts.data[].created_at string props.prompts.data[].created_at.
      * @responseField props.prompts.links object props.prompts.links.
      * @responseField props.prompts.links.first string props.prompts.links.first.
@@ -81,13 +83,13 @@ class ListController extends Controller
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPromptsListRequest $request, GetPromptsList $getPromptsList): Response
+    public function __invoke(GetPromptsListRequest $request, GetPromptsListAction $getPromptsList): Response
     {
         $prompts = $getPromptsList->run(
             $request->toDto(),
         );
 
-        return Inertia::render('Prompts', [
+        return inertia('Prompts', [
             'prompts' => PromptResource::collection($prompts),
             'filters' => $request->only(['sort']),
         ]);
