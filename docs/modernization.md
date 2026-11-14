@@ -37,4 +37,10 @@ TikTok/VK пока заглушки. Внешние API в автоматиче�
 - Созданы README.md и AGENTS.md, сохранён стандартный профиль приложения
 - Добавлены изолированный Compose и команды Make; проверен compose config
 
+- Docker image собран; PHP-FPM работает от appuser, FFmpeg доступен
+- Compose app/web/db/redis запущен, healthchecks БД и Redis успешны
+- Frontend до обновления собран; GET / через Nginx вернул HTTP 200
+- Тестовая среда: удалён env_file из Compose, чтобы `.env` не перекрывал phpunit
+  через process environment; 43 Pest-сценария прошли на SQLite in-memory
+
 Остальные этапы находятся в работе; итоги проверок дополняются по мере выполнения.
