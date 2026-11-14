@@ -1,22 +1,14 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Tests\TestCase;
 
-class HomepageTest extends TestCase
-{
-    use RefreshDatabase;
+test('guests can open the homepage with the approved content', function (): void {
+    $response = $this->get('/');
 
-    public function test_guests_can_open_the_homepage_with_the_approved_content(): void
-    {
-        $response = $this->get('/');
-
-        $response->assertOk();
-        $response->assertInertia(fn (Assert $page) => $page
+    $response->assertOk();
+    $response->assertInertia(
+        fn(Assert $page) => $page
             ->component('Welcome')
             ->where('homepage.navigation', [
                 ['label' => 'Services', 'href' => '#services'],
@@ -165,20 +157,19 @@ class HomepageTest extends TestCase
                 'legal_name' => 'Aleksandr Olegovich Spitsyn',
                 'label' => 'Independent backend software developer',
                 'note' => 'Public business profile, client history, and official review information.',
-            ])
-        );
-    }
+            ]),
+    );
+});
 
-    public function test_authenticated_users_can_open_the_homepage_and_receive_their_auth_data(): void
-    {
-        $user = User::factory()->create();
+test('authenticated users can open the homepage and receive their auth data', function (): void {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/');
+    $response = $this->actingAs($user)->get('/');
 
-        $response->assertOk();
-        $response->assertInertia(fn (Assert $page) => $page
+    $response->assertOk();
+    $response->assertInertia(
+        fn(Assert $page) => $page
             ->component('Welcome')
-            ->where('auth.user.email', $user->email)
-        );
-    }
-}
+            ->where('auth.user.email', $user->email),
+    );
+});

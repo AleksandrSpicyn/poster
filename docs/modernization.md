@@ -44,3 +44,12 @@ TikTok/VK пока заглушки. Внешние API в автоматиче�
   через process environment; 43 Pest-сценария прошли на SQLite in-memory
 
 Остальные этапы находятся в работе; итоги проверок дополняются по мере выполнения.
+
+### Тестовая база до обновления Laravel
+
+69 сценариев / 304 assertions на Laravel 12, Pest 4: auth/settings/homepage,
+фильтры/пагинация, Suno callbacks, генерация и fallback, polling/jobs/listeners,
+Telegram payload, Instagram success/failure, реальная сборка FFmpeg с проверкой
+видео- и аудиопотока через ffprobe. Исходные PHPUnit-тесты переведены на Pest.
+Дополнительные edge cases и команды проверяются далее; это не заявление о
+100% покрытии строк. HTTP stray requests запрещены, БД — SQLite in-memory.
