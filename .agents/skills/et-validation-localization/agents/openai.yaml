@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validation Localization"
+  short_description: "Project target language validation triggers"
+  default_prompt: "Use $et-validation-localization when changing validation rules, project target language messages, attributes, custom rules, nested fields, or documented 422 validation contracts."

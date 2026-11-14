@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel PR Review"
+  short_description: "Laravel PR and branch-diff review triggers"
+  default_prompt: "Use $et-github-pr-review when reviewing a standard or modular Laravel PR or current-branch diff."

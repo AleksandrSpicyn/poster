@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apidoc Documentation"
+  short_description: "Scribe endpoint contracts and response schemas"
+  default_prompt: "Use $et-apidoc-documentation for Scribe/apidoc endpoint contracts, complete successful response-field schemas, real response scenarios, and route-level response checks; exclude package docs."

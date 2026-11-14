@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Pest Testing"
+  short_description: "Pest tests for standard and modular Laravel apps"
+  default_prompt: "Use $et-pest-testing to write or review Pest tests for a standard or modular Laravel project, using local docs, references, and project target language test descriptions."

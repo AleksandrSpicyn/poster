@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spatie Conventions"
+  short_description: "Spatie package convention triggers"
+  default_prompt: "Use $et-spatie-package-conventions when changing Spatie Data DTOs, Media Library, Laravel Settings, or Laravel Permission conventions; consult package docs only when explicitly scoped."

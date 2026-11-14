@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel PHP Style Quality"
+  short_description: "PHP style and repository quality gates"
+  default_prompt: "Use $et-php-style-quality to apply PHP style and repository quality gates for a standard or modular Laravel project, using local docs and references."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Architecture"
+  short_description: "Standard and modular Laravel architecture profiles"
+  default_prompt: "Use $et-module-architecture for standard or modular Laravel structure, administrative code, resources, and layer boundaries; keep package mechanics in package-specific guidance."

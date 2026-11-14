@@ -1,0 +1,679 @@
+# Архитектура Laravel-приложения
+
+## Область применения
+
+Документ поддерживает два профиля организации кода: стандартный Laravel и
+модульный Laravel. Профиль выбирается для приложения и фиксируется в его
+инструкциях. Существующие пути, пространства имён и правила регистрации нужно
+проверить до изменений; эти примеры не требуют переноса работающего приложения.
+
+Расположение файлов и количество слоёв — разные решения. Модульная структура
+сама по себе не требует репозиториев, Tasks или собственного базового класса.
+Дополнительные слои вводятся для понятной ответственности и повторного
+использования, а не ради одинакового количества каталогов.
+
+## 1. Стандартный профиль
+
+Классы одного назначения располагаются в общих каталогах приложения. Домен или
+функциональная область может уточняться подкаталогом, но полное дерево слоёв
+для каждой области не дублируется.
+
+```text
+app/
+  Http/
+    Controllers/
+    Middleware/
+    Requests/
+    Resources/
+  Models/
+  Policies/
+  Providers/
+  Events/
+  Listeners/
+  Jobs/
+  Notifications/
+  Console/Commands/
+database/
+  factories/
+  migrations/
+  seeders/
+routes/
+  web.php
+  api.php
+tests/
+  Feature/
+  Unit/
+```
+
+Это схема размещения, а не список обязательных каталогов. Состав начального
+приложения и регистрация маршрутов зависят от версии и установленных компонентов;
+например, API-маршруты могут потребовать отдельного включения.
+
+Типичный путь HTTP-запроса:
+
+```text
+Route → Controller → валидация / авторизация → операция → Resource / Response
+```
+
+Операцией может быть простой Eloquent-вызов или существующий сервис/use case.
+Сложный бизнес-сценарий выносится из контроллера. Если приняты Actions, DTO или
+Repositories, их размещают, например, в `app/Actions`, `app/Dto` и
+`app/Repositories`; это дополнительные каталоги приложения, не требования Laravel.
+
+## 2. Модульный профиль
+
+Каждый модуль владеет своей функциональностью и повторяет необходимые каталоги
+слоёв. Ниже приведён рекомендуемый вариант; названия корня и каталогов могут
+отличаться в существующем приложении.
+
+```text
+app/
+  Modules/
+    {Module}/
+      Controllers/
+      Requests/             # Form Requests, если используются
+      Dto/                  # DTO, если используются
+      Actions/              # при выбранной модели use cases
+      Tasks/                # при выбранном атомарном слое
+      Repositories/         # при наличии слоя persistence
+      Processors/           # при наличии обработки query-условий
+      Models/
+      Policies/
+      Resources/
+      Routes/
+        api.php
+        web.php
+      Database/
+        Factories/
+        Migrations/
+        Seeders/
+      Providers/
+      Events/
+      Listeners/
+      Jobs/
+      Notifications/
+      Exceptions/
+      Integrations/
+      Tests/
+        Feature/
+        Unit/
+        Fixtures/
+  Admin/                    # отдельная проекция, если нужна
+    {Module}/
+      Controllers/
+      Requests/
+      Resources/
+      Routes/
+      Tests/
+  Support/                  # переиспользуемая инфраструктура, если нужна
+```
+
+Не нужно создавать пустые каталоги или копировать весь список в каждый модуль.
+Общий каталог может называться `Shared`, `Support` или иначе. Размещайте в нём
+реально общие примитивы; бизнес-правила остаются у владельца домена.
+
+Для явно выбранной схемы Action–Task–Repository поток выглядит так:
+
+```text
+Route → Controller → Action → Task → Repository
+Результат операции → Controller → Resource → Response
+```
+
+Валидированный Form Request или DTO поступает на границе HTTP. Action
+координирует один бизнес-сценарий, Task выполняет атомарную операцию, Repository
+отвечает за запросы и сохранение. При выборе этого варианта контроллер не
+обходит Action, Action обращается к Repository через Task, а Tasks не вызывают
+Actions и не превращаются во второй слой оркестрации. Между use cases избегают
+циклов; общие шаги извлекают в подходящую операцию или явно локальный sub-action.
+
+Имена entrypoint-методов и правила наследования закрепляются локально; `run()`
+можно выбрать соглашением, но Laravel не требует такого метода или base class.
+В проекте без Task-слоя допустим путь Controller → Action → Eloquent/Repository.
+Не добавляйте недостающие слои механически.
+
+## 3. Соответствие путей
+
+| Ответственность | Стандартный профиль | Модульный профиль |
+|---|---|---|
+| Контроллер | `app/Http/Controllers` | `app/Modules/{Module}/Controllers` |
+| Form Request | `app/Http/Requests` | `app/Modules/{Module}/Requests` |
+| Модель | `app/Models` | `app/Modules/{Module}/Models` |
+| Resource | `app/Http/Resources` | `app/Modules/{Module}/Resources` |
+| Миграция | `database/migrations` | `app/Modules/{Module}/Database/Migrations` |
+| Фабрика | `database/factories` | `app/Modules/{Module}/Database/Factories` |
+| Feature-тест | `tests/Feature` | `app/Modules/{Module}/Tests/Feature` |
+| Unit-тест | `tests/Unit` | `app/Modules/{Module}/Tests/Unit` |
+
+Таблица задаёт примеры профилей, а не гарантии автоматического обнаружения.
+
+## 4. Регистрация и обнаружение
+
+Стандартный профиль использует bootstrap и конфигурацию установленной версии
+Laravel. Модульному профилю дополнительно нужно проверить:
+
+- PSR-4/autoload для классов, фабрик, сидеров и тестовых fixtures
+- загрузку маршрутов и отсутствие повторной регистрации
+- обнаружение миграций, включая работу в тестовой среде
+- соответствие моделей фабрикам вне стандартного namespace
+- регистрацию providers, policies, events/listeners и console-команд
+- PHPUnit suites, Pest paths, базовый TestCase и DB traits для модульных тестов
+- пути сканирования DTO, настроек и API-документации, если пакеты их используют
+
+Сначала используйте существующий loader/provider. Не добавляйте параллельный
+механизм регистрации и не считайте каталог зарегистрированным только по его имени.
+
+## 5. Общие границы ответственности
+
+- Контроллер переводит HTTP-ввод в вызов операции и формирует HTTP-ответ.
+  Валидация применяется через принятый Form Request, DTO или validator.
+- Авторизация проверяет действие и actor/tenant scope. Route binding и `exists`
+  не заменяют эту проверку; детали — в [authorization.md](authorization.md).
+- Resource/serializer определяет ответ, работает с подготовленными данными и
+  не скрывает запись, внешние вызовы или дополнительные запросы.
+- Связи для ответа загружаются заранее. Условная сериализация должна совпадать
+  с реальными условиями загрузки и доступа.
+- Domain exceptions выражают ожидаемые ошибки сценария; HTTP-статус и envelope
+  назначаются существующим exception handler. Не скрывайте ошибки общим catch.
+- Интерфейсы полезны на внешних границах, для нескольких реализаций или реального
+  DI-контракта; единственный локальный класс не требует интерфейса по умолчанию.
+- Транзакции защищают согласованность записи. Зависимые внешние эффекты выполняют
+  после commit с учётом повторов; см. [concurrency-and-delivery.md](concurrency-and-delivery.md).
+
+## 6. Административные сценарии
+
+В стандартном профиле административные контроллеры и Resources можно выделить
+в подкаталоги `app/Http/Controllers/Admin` и `app/Http/Resources/Admin`.
+В модульном профиле допустим отдельный `app/Admin/{Module}` или административная
+часть внутри модуля. Выберите один вариант для новых файлов.
+
+Доменные модели, миграции и общие бизнес-операции сохраняют одного владельца.
+Административный интерфейс не требует их дублирования. Разделяйте serializers,
+когда права или поля отличаются; общая безопасная проекция может переиспользоваться.
+Отдельные user-модели, guards, наследование admin repositories и `__invoke`
+контроллеры — локальные решения, а не обязательные свойства административного API.
+
+## 7. Проверка изменений
+
+Проверьте регистрацию маршрута, валидацию, policy/scope, поток операции,
+транзакции, сериализацию и реальные тесты в выбранном профиле. Изменение пути
+требует проверки namespace, DI, autoload, discovery и всех потребителей.
+Не совмещайте добавление функциональности с незаказанным переходом между профилями.
+
+Связанные правила: [testing.md](testing.md), [apidoc.md](apidoc.md),
+[naming.md](naming.md), [package-integration.md](package-integration.md).
+
+Справочник стандартных каталогов: [Laravel Directory Structure](https://laravel.com/docs/13.x/structure).
+Для другой версии используйте её документацию; модульный профиль выше —
+соглашение приложения, а не встроенный стандарт фреймворка.
+
+## 8. Конкретные соглашения для новых сценариев
+
+Этот набор можно принять как готовые правила команды для обоих профилей.
+Он описывает архитектуру приложения, а не обязательные ограничения Laravel.
+При адаптации существующего проекта отличия фиксируются явно, вместо замены
+правил формулировкой «как-нибудь по местным соглашениям».
+
+| Слой | Отвечает за | Не должен делать |
+|---|---|---|
+| Controller | HTTP-ввод, один Action, Resource/Response | Вызывать Task/Repository, собирать доменную логику |
+| Form Request / DTO | Валидацию и подготовку входного контракта | Сохранять модели, запускать внешние эффекты |
+| Action | Один бизнес-сценарий, транзакцию, координацию Tasks | Обходить Task ради Repository, вызывать другой use case |
+| Task | Одну операцию, вызов Repository/интеграции | Вызывать Actions или строить цепочки других Tasks |
+| Repository | Query и persistence | Формировать HTTP-ответ, генерировать файлы, отправлять mail |
+| Processor | Переиспользуемое ограничение/преобразование query | Снимать actor/tenant scope, выполнять внешние эффекты |
+| Resource | Сериализацию подготовленных данных | Запрашивать сервис/БД, изменять состояние |
+
+У Actions и Tasks публичная точка входа — `run()`. Вспомогательные методы
+допустимы; альтернативные entrypoints `execute()`/`handle()` для этих классов
+не вводятся. Job/listener продолжает использовать entrypoint своего framework API.
+Локальный `*SubAction` допустим как часть одного сценария; общий повторяемый шаг
+не должен превращаться в неявный вызов одного бизнес-сценария из другого.
+
+Конкретный Repository инжектируется в Task напрямую. Не создавайте интерфейс и
+provider binding для единственной локальной реализации. Если приложение уже
+имеет базовые Action/Task/Repository и Process contract, используйте их; новые
+пустые base classes ради этих примеров не требуются.
+
+Для нового API рекомендуются явные routes и `__invoke` controllers. Resource
+controller остаётся допустимым осознанным вариантом; его permission/binding
+контракт должен быть не менее явным. Числовой ID ограничивается `whereNumber`,
+UUID — подходящим UUID constraint, nested child — scoped binding и policy.
+
+## 9. Сквозной пример: публикации
+
+Пример использует вымышленный ресурс Article. Это связный учебный контракт,
+не код какого-либо существующего продукта:
+
+- User создаёт собственные Article с `title` и `is_published`
+- `user_id` назначается сервером, не принимается из input
+- `POST articles.store` возвращает `201` и `data` с созданной публикацией
+- `GET articles.index` возвращает только публикации текущего User, без пагинации
+- `author` загружается операцией и сериализуется отдельным Resource
+- authentication в примере — стандартный guard middleware `auth`; для API token
+  приложения замените его на реально установленный guard
+
+Фрагменты рассчитаны на современный Laravel и PHP 8.2+. Один именованный класс
+хранится в одном файле; подписи ниже задают его размещение. Поведение зависит
+также от стандартной модели User, auth-конфигурации и включённых API routes.
+
+### 9.1. Route и Form Request: стандартный профиль
+
+`routes/api.php`; `articles.*` — route names независимо от внешнего `/api` prefix:
+
+```php
+use App\Http\Controllers\ArticleIndexController;
+use App\Http\Controllers\ArticleStoreController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('auth')->prefix('articles')->name('articles.')->group(function (): void {
+    Route::get('/', ArticleIndexController::class)->name('index');
+    Route::post('/', ArticleStoreController::class)->name('store');
+});
+```
+
+`app/Http/Requests/StoreArticleRequest.php`:
+
+```php
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class StoreArticleRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user() !== null;
+    }
+
+    /** @return array<string, list<string>> */
+    public function rules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:200'],
+            'is_published' => ['required', 'boolean'],
+            'user_id' => ['prohibited'],
+        ];
+    }
+}
+```
+
+`app/Dto/StoreArticleData.php` — обычный PHP DTO, без зависимости от Data-пакета:
+
+```php
+namespace App\Dto;
+
+final readonly class StoreArticleData
+{
+    public function __construct(
+        public string $title,
+        public bool $isPublished,
+    ) {}
+}
+```
+
+Вариант Spatie Data с validation attributes приведён в
+[package-integration.md](package-integration.md). Не смешивайте два независимых
+источника правил в одном endpoint без причины.
+
+### 9.2. Controller → Action → Task → Repository
+
+`app/Http/Controllers/ArticleStoreController.php`:
+
+```php
+namespace App\Http\Controllers;
+
+use App\Actions\StoreArticleAction;
+use App\Dto\StoreArticleData;
+use App\Http\Requests\StoreArticleRequest;
+use App\Http\Resources\ArticleResource;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+
+final class ArticleStoreController
+{
+    public function __invoke(
+        StoreArticleRequest $request,
+        StoreArticleAction $action,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $data = new StoreArticleData(
+            title: $request->validated('title'),
+            isPublished: $request->boolean('is_published'),
+        );
+        $article = $action->run($actor, $data);
+
+        return (new ArticleResource($article))->response()->setStatusCode(201);
+    }
+}
+```
+
+`app/Actions/StoreArticleAction.php`:
+
+```php
+namespace App\Actions;
+
+use App\Dto\StoreArticleData;
+use App\Models\Article;
+use App\Models\User;
+use App\Tasks\CreateArticleTask;
+
+final readonly class StoreArticleAction
+{
+    public function __construct(private CreateArticleTask $createArticle) {}
+
+    public function run(User $actor, StoreArticleData $data): Article
+    {
+        return $this->createArticle->run($actor, $data);
+    }
+}
+```
+
+`app/Tasks/CreateArticleTask.php`:
+
+```php
+namespace App\Tasks;
+
+use App\Dto\StoreArticleData;
+use App\Models\Article;
+use App\Models\User;
+use App\Repositories\ArticleRepository;
+
+final readonly class CreateArticleTask
+{
+    public function __construct(private ArticleRepository $articles) {}
+
+    public function run(User $actor, StoreArticleData $data): Article
+    {
+        return $this->articles->createFor($actor, $data);
+    }
+}
+```
+
+`app/Repositories/ArticleRepository.php`:
+
+```php
+namespace App\Repositories;
+
+use App\Dto\StoreArticleData;
+use App\Models\Article;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
+
+final class ArticleRepository
+{
+    public function createFor(User $actor, StoreArticleData $data): Article
+    {
+        $article = new Article;
+        $article->title = $data->title;
+        $article->is_published = $data->isPublished;
+        $article->user_id = $actor->getKey();
+        $article->save();
+
+        return $article->load('author');
+    }
+
+    /** @return Collection<int, Article> */
+    public function listFor(User $actor): Collection
+    {
+        return Article::query()
+            ->where('user_id', $actor->getKey())
+            ->with('author')
+            ->orderBy('id')
+            ->get();
+    }
+}
+```
+
+Пример намеренно показывает все границы принятого layered-профиля, даже когда
+операция короткая. В компактном приложении без Task/Repository-слоёв не нужно
+создавать их только ради одной записи: переносимое правило — согласованная
+архитектура, а не обязательное количество классов.
+
+### 9.3. Список без обхода слоёв
+
+`app/Tasks/ListArticlesTask.php` и `app/Actions/ListArticlesAction.php`:
+
+```php
+namespace App\Tasks;
+
+use App\Models\Article;
+use App\Models\User;
+use App\Repositories\ArticleRepository;
+use Illuminate\Database\Eloquent\Collection;
+
+final readonly class ListArticlesTask
+{
+    public function __construct(private ArticleRepository $articles) {}
+
+    /** @return Collection<int, Article> */
+    public function run(User $actor): Collection
+    {
+        return $this->articles->listFor($actor);
+    }
+}
+```
+
+```php
+namespace App\Actions;
+
+use App\Models\Article;
+use App\Models\User;
+use App\Tasks\ListArticlesTask;
+use Illuminate\Database\Eloquent\Collection;
+
+final readonly class ListArticlesAction
+{
+    public function __construct(private ListArticlesTask $listArticles) {}
+
+    /** @return Collection<int, Article> */
+    public function run(User $actor): Collection
+    {
+        return $this->listArticles->run($actor);
+    }
+}
+```
+
+`app/Http/Controllers/ArticleIndexController.php`:
+
+```php
+namespace App\Http\Controllers;
+
+use App\Actions\ListArticlesAction;
+use App\Http\Resources\ArticleResource;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+final class ArticleIndexController
+{
+    public function __invoke(Request $request, ListArticlesAction $action): AnonymousResourceCollection
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return ArticleResource::collection($action->run($actor));
+    }
+}
+```
+
+### 9.4. Model и вложенные Resources
+
+`app/Models/Article.php`:
+
+```php
+namespace App\Models;
+
+use Database\Factories\ArticleFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+final class Article extends Model
+{
+    /** @use HasFactory<ArticleFactory> */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return ['user_id' => 'integer', 'is_published' => 'boolean'];
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+}
+```
+
+`app/Http/Resources/AuthorResource.php`:
+
+```php
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+final class AuthorResource extends JsonResource
+{
+    /** @return array{id: int, name: string} */
+    public function toArray(Request $request): array
+    {
+        return ['id' => (int) $this->id, 'name' => $this->name];
+    }
+}
+```
+
+`app/Http/Resources/ArticleResource.php`:
+
+```php
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+final class ArticleResource extends JsonResource
+{
+    /** @return array<string, mixed> */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'title' => $this->title,
+            'is_published' => $this->is_published,
+            'author' => new AuthorResource($this->whenLoaded('author')),
+        ];
+    }
+}
+```
+
+Здесь `mixed` описывает контейнер сериализации с условным MissingValue, а не
+отменяет типы доменного контракта. Resource не вызывает `load()` и не ищет автора
+самостоятельно. Query-owner заранее загружает связь; `whenLoaded` сохраняет
+правильную семантику пропуска ключа для других consumers этого Resource.
+
+## 10. Тот же сценарий в модульной структуре
+
+Логика примера остаётся той же. Меняются файлы, namespace, imports и discovery:
+
+| В стандартном примере | В модульном примере |
+|---|---|
+| `App\Http\Controllers\ArticleStoreController` | `App\Modules\Publishing\Controllers\ArticleStoreController` |
+| `App\Http\Requests\StoreArticleRequest` | `App\Modules\Publishing\Requests\StoreArticleRequest` |
+| `App\Http\Resources\ArticleResource` | `App\Modules\Publishing\Resources\ArticleResource` |
+| `App\Dto\StoreArticleData` | `App\Modules\Publishing\Dto\StoreArticleData` |
+| `App\Actions\StoreArticleAction` | `App\Modules\Publishing\Actions\StoreArticleAction` |
+| `App\Tasks\CreateArticleTask` | `App\Modules\Publishing\Tasks\CreateArticleTask` |
+| `App\Repositories\ArticleRepository` | `App\Modules\Publishing\Repositories\ArticleRepository` |
+| `App\Models\Article` | `App\Modules\Publishing\Models\Article` |
+| `Database\Factories\ArticleFactory` | `App\Modules\Publishing\Database\Factories\ArticleFactory` |
+
+`User` может оставаться `App\Models\User` или принадлежать собственному identity
+модулю. Не создавайте нового User в каждом бизнес-модуле.
+
+Пример собственного provider без зависимости от module-пакета:
+
+```php
+namespace App\Modules\Publishing\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+final class PublishingServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+    }
+}
+```
+
+При отсутствии общего loader зарегистрируйте provider принятым способом
+установленной версии Laravel. Для Laravel с `bootstrap/providers.php` это запись
+класса в возвращаемом массиве. Если loader уже загружает routes/migrations,
+не регистрируйте их повторно в provider. Module route file должен явно получать
+нужные `api` middleware и prefix: `loadRoutesFrom()` не добавляет их за вас.
+
+Модульной модели с нестандартным factory namespace задайте явную связь
+`newFactory()`; пример в [testing.md](testing.md). Ни module provider, ни PSR-4
+сами по себе не настраивают Pest suites и Laravel TestCase.
+
+## 11. Processors, события и границы расширения
+
+Когда фильтр переиспользуется, его можно выделить в processor. Не вводите
+фиктивный `throughProcessors()` без реализации. Пример собственного invokable
+processor, принимающего уже scoped query:
+
+```php
+namespace App\Processors;
+
+use App\Models\Article;
+use Illuminate\Database\Eloquent\Builder;
+
+final readonly class PublishedArticles
+{
+    /**
+     * @param Builder<Article> $query
+     * @return Builder<Article>
+     */
+    public function __invoke(Builder $query): Builder
+    {
+        return $query->where('is_published', true);
+    }
+}
+```
+
+В модуле класс располагается в `Publishing/Processors`. Его вызов остаётся
+явным: processor получает query, в котором уже установлен actor/tenant scope,
+и добавляет условие, не строя новый unscoped `Article::query()`.
+
+Регистрация event/listener принадлежит владельцу события. Listener не должен
+выполнять запросы через чужой Controller. Внешняя интеграция живёт за реальной
+границей; command/HTTP/job используют один use case с явно переданным контекстом.
+Ручная загрузка routes, дополнительные providers и shared helpers не должны
+дублировать уже существующие механизмы приложения.
+
+### 11.1. Полная route registration для module provider
+
+Если `PublishingServiceProvider` выше загружает файл самостоятельно и никто
+другой не назначает prefix/middleware, содержимое модульного `Routes/api.php`:
+
+```php
+use App\Modules\Publishing\Controllers\ArticleIndexController;
+use App\Modules\Publishing\Controllers\ArticleStoreController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['api', 'auth'])
+    ->prefix('api/articles')
+    ->name('articles.')
+    ->group(function (): void {
+        Route::get('/', ArticleIndexController::class)->name('index');
+        Route::post('/', ArticleStoreController::class)->name('store');
+    });
+```
+
+Если общий loader уже назначил `/api` и middleware, не повторяйте их в этом
+файле: два prefixes дадут другой URL, а повторная registration — дубликаты.
+Это конкретный пример явного подключения, не требование написать собственный
+module loader в каждом приложении.

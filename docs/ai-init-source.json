@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/AleksandrSpicyn/ai-init",
+  "commit": "be1a28f034e5470a79c070f667cee2b6270d1cb0",
+  "docs": "docs/",
+  "skills": ".agents/skills/"
+}

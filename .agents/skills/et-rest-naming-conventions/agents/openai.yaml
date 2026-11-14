@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel REST Naming"
+  short_description: "REST naming for standard and modular Laravel apps"
+  default_prompt: "Use $et-rest-naming-conventions to name endpoints, route parameters, models, tables, columns, permissions, factories, tests, and related artifacts with one coherent vocabulary, using local docs and references."

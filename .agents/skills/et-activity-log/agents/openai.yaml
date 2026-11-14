@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Activity Log"
+  short_description: "Portable activity logging and audit semantics"
+  default_prompt: "Use $et-activity-log to inspect the installed logging integration and implement or review attribution, mutation coverage and audit semantics."

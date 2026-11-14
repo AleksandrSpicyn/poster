@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Audit"
+  short_description: "Modular Laravel security review triggers"
+  default_prompt: "Use $et-security-audit when reviewing standard or modular Laravel security risks involving auth, authorization, tenant/context scope, files/media/imports/logs, raw SQL, queues/cache, or Octane runtime state."
