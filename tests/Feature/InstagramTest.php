@@ -41,7 +41,7 @@ test('готовый контейнер создаёт запись публик
         'external_id' => 'media-1', 'url' => 'https://instagram.com/p/media-1',
     ]);
     Event::assertDispatched(PostCreated::class);
-    Http::assertSent(fn(Request $request) => $request['creation_id'] === 'container-1');
+    Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/media_publish') && $request['creation_id'] === 'container-1');
 });
 
 test('ошибка создания контейнера не ставит публикацию в очередь', function (): void {

@@ -47,9 +47,12 @@ TikTok/VK пока заглушки. Внешние API в автоматиче�
 
 ### Тестовая база до обновления Laravel
 
-69 сценариев / 304 assertions на Laravel 12, Pest 4: auth/settings/homepage,
+69 сценариев / 301 assertions на Laravel 12, Pest 4: auth/settings/homepage,
 фильтры/пагинация, Suno callbacks, генерация и fallback, polling/jobs/listeners,
 Telegram payload, Instagram success/failure, реальная сборка FFmpeg с проверкой
 видео- и аудиопотока через ffprobe. Исходные PHPUnit-тесты переведены на Pest.
 Дополнительные edge cases и команды проверяются далее; это не заявление о
 100% покрытии строк. HTTP stray requests запрещены, БД — SQLite in-memory.
+
+В первом тестовом коммите проверка Instagram HTTP callback обращалась к полю
+чужого запроса; исправлено фильтром URL, полный повторный прогон: 69 passed.
