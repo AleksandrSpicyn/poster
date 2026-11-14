@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useRoute } from 'ziggy-js';
+const route = useRoute();
+
 import { useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 

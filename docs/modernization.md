@@ -56,3 +56,22 @@ Telegram payload, Instagram success/failure, реальная сборка FFmpe
 
 В первом тестовом коммите проверка Instagram HTTP callback обращалась к полю
 чужого запроса; исправлено фильтром URL, полный повторный прогон: 69 passed.
+
+### Обновление зависимостей
+
+Laravel 13.42.0, Inertia Laravel 3.7 / Vue 3.11, OpenAI Laravel 0.22,
+Telegram 8; все прямые Composer-зависимости обновлены. Pest 5.3.5 ограничивает
+PHPUnit версией 13.4.5 (explicit conflict >13.4.5), поэтому 13.4.7 недоступен.
+Установлены также зависимости инструментов следующего этапа.
+
+Frontend обновлён до актуальных стабильных совместимых версий. TypeScript 6.0.3
+выбран вместо 7: typescript-eslint 8.72.2 требует <6.1. Deprecated lucide-vue-next
+заменён поддерживаемым @lucide/vue. Удалены ручные platform-specific optional deps.
+Inertia 3: pages config, data-inertia, shared props typing, request-scoped Ziggy
+через useRoute и ZiggyVue для SSR.
+
+Проверки: 69 passed / 291 assertions, Vue typecheck, client + SSR build,
+SSR server и реальный SSR HTML главной через Nginx HTTP 200. Composer audit: 0.
+npm audit: 7 moderate в dev toolchain typescript-eslint/minimatch; предложенное
+npm исправление откатывает typescript-eslint. Без force/отката рабочей toolchain.
+Источники: Laravel 13 upgrade guide, Inertia v3 upgrade guide, Composer/NPM metadata.

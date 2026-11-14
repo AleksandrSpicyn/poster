@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useRoute } from 'ziggy-js';
+const route = useRoute();
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,12 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { Check } from 'lucide-vue-next';
+import { Check } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 
 /* TODO Typification */
-const page = usePage<{
+const page = usePage<import('@/types').SharedData & {
     prompts: {
         data: any[];
         meta: {

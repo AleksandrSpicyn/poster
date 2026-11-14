@@ -8,7 +8,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 /* TODO Typification */
-const page = usePage<{
+const page = usePage<import('@/types').SharedData & {
     posts: {
         data: any[];
         meta: {

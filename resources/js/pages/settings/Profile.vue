@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useRoute } from 'ziggy-js';
+const route = useRoute();
+
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 
 import DeleteUser from '@/components/DeleteUser.vue';
