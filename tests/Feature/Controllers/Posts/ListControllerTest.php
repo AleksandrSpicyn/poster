@@ -81,4 +81,42 @@ test('списки отклоняют некорректные фильтры', 
     'канал' => [['type' => 'unknown'], 'type'],
     'размер страницы' => [['perPage' => 101], 'perPage'],
     'порядок' => [['sort' => 'invalid'], 'sort'],
+    'нулевая страница' => [['page' => 0], 'page'],
+    'дробная страница' => [['page' => '1.5'], 'page'],
+    'дробный размер' => [['perPage' => '1.5'], 'perPage'],
 ]);
+
+test('пустые фильтры сохраняют размер страницы и порядок по умолчанию', function (): void {
+    Post::factory()->create(['created_at' => now()->subDay()]);
+    $last = Post::factory()->create();
+
+    actingAs(User::factory()->create())
+        ->get(route('posts', ['sort' => '', 'perPage' => '', 'page' => '']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('posts.data.0.id', $last->id)
+            ->where('posts.meta.per_page', 10)
+            ->where('posts.meta.current_page', 1)
+            ->where('filters.sort', null));
+});
+
+test('отсутствующие фильтры не добавляются в ответ', function (): void {
+    actingAs(User::factory()->create())
+        ->get(route('posts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('filters', []));
+});
+
+test('публикации используют валидированные страницу и размер', function (): void {
+    $first = Post::factory()->create(['created_at' => now()->subDay()]);
+    Post::factory()->create();
+
+    actingAs(User::factory()->create())
+        ->get(route('posts', ['perPage' => 1, 'page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $first->id)
+            ->where('posts.meta.current_page', 2)
+            ->where('posts.meta.per_page', 1));
+});

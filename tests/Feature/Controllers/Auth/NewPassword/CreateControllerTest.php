@@ -31,3 +31,11 @@ test('авторизованный пользователь перенаправ
 
     assertAuthenticatedAs($user);
 });
+
+test('токен из query не подменяет токен маршрута', function (): void {
+    get(route('password.reset', ['token' => 'route-token']) . '?token=query-token')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('token', 'route-token')
+            ->where('email', null));
+});

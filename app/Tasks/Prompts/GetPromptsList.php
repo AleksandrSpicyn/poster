@@ -15,9 +15,9 @@ class GetPromptsList
     {
         return Prompt::query()
             ->with('project', 'media')
-            ->orderBy($dto->orderBy ?? 'created_at', $dto->sort === 'asc' ? 'asc' : 'desc')
+            ->orderBy('created_at', $dto->sort === 'asc' ? 'asc' : 'desc')
             ->orderBy('id', $dto->sort === 'asc' ? 'asc' : 'desc')
-            ->paginate($dto->perPage)
+            ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
             ->withQueryString();
     }
 }

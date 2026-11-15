@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth\PasswordResetLink;
 
 use App\Actions\Auth\SendPasswordResetLinkAction;
-use App\Http\Requests\Auth\PasswordResetLinkRequest;
+use App\Data\PasswordResetLinkData;
 use Illuminate\Http\RedirectResponse;
 
 class StoreController
@@ -24,9 +24,9 @@ class StoreController
      * @response 422 scenario="Validation error (JSON)" {"message": "The email field is required.", "errors": {"email": ["The email field is required."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      */
-    public function __invoke(PasswordResetLinkRequest $request, SendPasswordResetLinkAction $action): RedirectResponse
+    public function __invoke(PasswordResetLinkData $data, SendPasswordResetLinkAction $action): RedirectResponse
     {
-        $action->run($request->string('email')->toString());
+        $action->run($data);
 
         return back()->with('status', __('A reset link will be sent if the account exists.'));
     }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Actions\SaveAudioAction;
-use App\Http\Requests\SunoRequest;
+use App\Classes\Generators\AudioGenerator\SunoUnofficial\Data\SunoData;
 
 class SunoController
 {
@@ -28,8 +28,8 @@ class SunoController
      * @bodyParam data.data[].audio_url string URL аудио или null. Example: https://cdn.example.com/audio.mp3
      * @response 422 scenario="Validation error (JSON)" {"message": "The code field is required.", "errors": {"code": ["The code field is required."]}}
      */
-    public function __invoke(SunoRequest $request, SaveAudioAction $audioAction): void
+    public function __invoke(SunoData $data, SaveAudioAction $audioAction): void
     {
-        $audioAction->run($request->toDto()->data);
+        $audioAction->run($data->data);
     }
 }

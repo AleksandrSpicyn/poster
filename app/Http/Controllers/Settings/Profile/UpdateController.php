@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings\Profile;
 
 use App\Actions\Settings\UpdateProfileAction;
-use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Data\UpdateProfileData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
@@ -30,9 +30,9 @@ class UpdateController
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */
-    public function __invoke(ProfileUpdateRequest $request, #[CurrentUser] User $user, UpdateProfileAction $action): RedirectResponse
+    public function __invoke(UpdateProfileData $data, #[CurrentUser] User $user, UpdateProfileAction $action): RedirectResponse
     {
-        $action->run($user, $request->toDto());
+        $action->run($user, $data);
 
         return to_route('profile.edit');
     }

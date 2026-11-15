@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Prompts;
 
 use App\Actions\Prompts\GetPromptsListAction;
-use App\Http\Requests\Prompts\GetPromptsListRequest;
+use App\Data\GetPromptsListData;
 use App\Http\Resources\PromptResource;
 use Inertia\Response;
 
@@ -83,15 +83,15 @@ class ListController
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPromptsListRequest $request, GetPromptsListAction $getPromptsList): Response
+    public function __invoke(GetPromptsListData $data, GetPromptsListAction $getPromptsList): Response
     {
         $prompts = $getPromptsList->run(
-            $request->toDto(),
+            $data,
         );
 
         return inertia('Prompts', [
             'prompts' => PromptResource::collection($prompts),
-            'filters' => $request->only(['sort']),
+            'filters' => $data->only('sort')->toArray(),
         ]);
     }
 }

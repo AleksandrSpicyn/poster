@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth\ConfirmPassword;
 
 use App\Actions\Auth\ConfirmPasswordAction;
-use App\Http\Requests\Auth\ConfirmPasswordRequest;
+use App\Data\ConfirmPasswordData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
@@ -28,9 +28,9 @@ class StoreController
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */
-    public function __invoke(ConfirmPasswordRequest $request, #[CurrentUser] User $user, ConfirmPasswordAction $action): RedirectResponse
+    public function __invoke(ConfirmPasswordData $data, #[CurrentUser] User $user, ConfirmPasswordAction $action): RedirectResponse
     {
-        $action->run($user, $request->string('password')->toString());
+        $action->run($user, $data);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

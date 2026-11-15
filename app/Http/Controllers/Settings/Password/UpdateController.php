@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings\Password;
 
 use App\Actions\Settings\UpdatePasswordAction;
-use App\Http\Requests\Settings\UpdatePasswordRequest;
+use App\Data\UpdatePasswordData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
@@ -31,9 +31,9 @@ class UpdateController
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */
-    public function __invoke(UpdatePasswordRequest $request, #[CurrentUser] User $user, UpdatePasswordAction $action): RedirectResponse
+    public function __invoke(UpdatePasswordData $data, #[CurrentUser] User $user, UpdatePasswordAction $action): RedirectResponse
     {
-        $action->run($user, $request->string('password')->toString());
+        $action->run($user, $data);
 
         return back();
     }

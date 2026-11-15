@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings\Profile;
 
 use App\Actions\Settings\DeleteProfileAction;
-use App\Http\Requests\Settings\DeleteProfileRequest;
+use App\Data\DeleteProfileData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +29,7 @@ class DestroyController
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */
-    public function __invoke(DeleteProfileRequest $request, #[CurrentUser] User $user, DeleteProfileAction $action): RedirectResponse
+    public function __invoke(DeleteProfileData $data, #[CurrentUser] User $user, DeleteProfileAction $action): RedirectResponse
     {
         $action->run($user);
 

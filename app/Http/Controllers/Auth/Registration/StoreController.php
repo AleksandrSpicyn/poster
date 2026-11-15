@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth\Registration;
 
 use App\Actions\Auth\RegisterUserAction;
-use App\Http\Requests\Auth\RegisterUserRequest;
+use App\Data\RegisterUserData;
 use Illuminate\Http\RedirectResponse;
 
 class StoreController
@@ -27,9 +27,9 @@ class StoreController
      * @response 422 scenario="Validation error (JSON)" {"message": "The name field is required.", "errors": {"name": ["The name field is required."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      */
-    public function __invoke(RegisterUserRequest $request, RegisterUserAction $action): RedirectResponse
+    public function __invoke(RegisterUserData $data, RegisterUserAction $action): RedirectResponse
     {
-        $action->run($request->toDto());
+        $action->run($data);
 
         return to_route('dashboard');
     }

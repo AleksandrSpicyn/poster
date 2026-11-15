@@ -69,3 +69,24 @@ test('авторизованный пользователь перенаправ
 
     assertAuthenticatedAs($user);
 });
+
+test('запоминание входа создаёт cookie владельца', function (bool|int|string $remember): void {
+    $user = User::factory()->create();
+
+    post(route('login.store'), ['email' => $user->email, 'password' => 'password', 'remember' => $remember])
+        ->assertRedirect(route('dashboard'))
+        ->assertCookie(auth()->guard('web')->getRecallerName());
+
+    assertAuthenticatedAs($user);
+    expect($user->refresh()->remember_token)->not->toBeNull();
+})->with([true, 1, '1']);
+
+test('невалидное запоминание не создаёт сессию', function (): void {
+    $user = User::factory()->create();
+
+    postJson(route('login.store'), ['email' => $user->email, 'password' => 'password', 'remember' => ['invalid']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('remember');
+
+    assertGuest();
+});

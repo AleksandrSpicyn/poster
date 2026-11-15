@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth\NewPassword;
 
 use App\Actions\Auth\ResetPasswordAction;
-use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Data\ResetPasswordData;
 use Illuminate\Http\RedirectResponse;
 
 class StoreController
@@ -27,9 +27,9 @@ class StoreController
      * @response 422 scenario="Validation error (JSON)" {"message": "The email field is required.", "errors": {"email": ["The email field is required."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      */
-    public function __invoke(ResetPasswordRequest $request, ResetPasswordAction $action): RedirectResponse
+    public function __invoke(ResetPasswordData $data, ResetPasswordAction $action): RedirectResponse
     {
-        $status = $action->run($request->toDto());
+        $status = $action->run($data);
 
         return to_route('login')->with('status', __($status));
     }

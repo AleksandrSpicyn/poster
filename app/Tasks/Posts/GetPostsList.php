@@ -15,7 +15,7 @@ class GetPostsList
     /** @return LengthAwarePaginator<int, Post> */
     public function run(GetPostsListData $dto): LengthAwarePaginator
     {
-        $type = ChannelType::tryFrom($dto->type ?? '');
+        $type = ChannelType::tryFrom(is_string($dto->type) ? $dto->type : '');
 
         return Post::query()
             ->with('channel')
@@ -24,9 +24,9 @@ class GetPostsList
                     $q->where('type', $type->value);
                 });
             })
-            ->orderBy($dto->orderBy ?? 'created_at', $dto->sort === 'asc' ? 'asc' : 'desc')
+            ->orderBy('created_at', $dto->sort === 'asc' ? 'asc' : 'desc')
             ->orderBy('id', $dto->sort === 'asc' ? 'asc' : 'desc')
-            ->paginate($dto->perPage)
+            ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
             ->withQueryString();
     }
 }

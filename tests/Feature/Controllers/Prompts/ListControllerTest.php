@@ -63,4 +63,28 @@ test('списки отклоняют некорректные фильтры', 
 })->with([
     'размер страницы' => [['perPage' => 0], 'perPage'],
     'порядок' => [['sort' => 'invalid'], 'sort'],
+    'нулевая страница' => [['page' => 0], 'page'],
+    'дробная страница' => [['page' => '1.5'], 'page'],
+    'дробный размер' => [['perPage' => '1.5'], 'perPage'],
 ]);
+
+test('пустые фильтры сохраняют размер страницы и порядок по умолчанию', function (): void {
+    Prompt::factory()->create(['created_at' => now()->subDay()]);
+    $last = Prompt::factory()->create();
+
+    actingAs(User::factory()->create())
+        ->get(route('prompts', ['sort' => '', 'perPage' => '', 'page' => '']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.data.0.id', $last->id)
+            ->where('prompts.meta.per_page', 10)
+            ->where('prompts.meta.current_page', 1)
+            ->where('filters.sort', null));
+});
+
+test('отсутствующие фильтры не добавляются в ответ', function (): void {
+    actingAs(User::factory()->create())
+        ->get(route('prompts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('filters', []));
+});

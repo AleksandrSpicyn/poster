@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth\Login;
 
 use App\Actions\Auth\LoginAction;
-use App\Http\Requests\Auth\LoginRequest;
+use App\Data\LoginData;
 use Illuminate\Http\RedirectResponse;
 
 class StoreController
@@ -27,9 +27,9 @@ class StoreController
      * @response 422 scenario="Validation error (JSON)" {"message": "The email field is required.", "errors": {"email": ["The email field is required."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      */
-    public function __invoke(LoginRequest $request, LoginAction $action): RedirectResponse
+    public function __invoke(LoginData $data, LoginAction $action): RedirectResponse
     {
-        $action->run($request->toDto());
+        $action->run($data);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

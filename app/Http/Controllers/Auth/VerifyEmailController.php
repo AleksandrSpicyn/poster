@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\VerifyEmailAction;
+use App\Data\VerifyEmailData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 
 class VerifyEmailController
@@ -30,7 +30,7 @@ class VerifyEmailController
      * @response 403 {"message":"Invalid signature."}
      * @response 429 {"message":"Too Many Attempts."}
      */
-    public function __invoke(EmailVerificationRequest $request, #[CurrentUser] User $user, VerifyEmailAction $action): RedirectResponse
+    public function __invoke(VerifyEmailData $data, #[CurrentUser] User $user, VerifyEmailAction $action): RedirectResponse
     {
         $action->run($user);
 

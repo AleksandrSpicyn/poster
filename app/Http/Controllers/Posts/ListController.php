@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Posts;
 
 use App\Actions\Posts\GetPostsListAction;
+use App\Data\GetPostsListData;
 use App\Enums\ChannelType;
-use App\Http\Requests\Posts\GetPostsListRequest;
 use App\Http\Resources\PostResource;
 use Inertia\Response;
 
@@ -88,15 +88,15 @@ class ListController
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPostsListRequest $request, GetPostsListAction $getPostsList): Response
+    public function __invoke(GetPostsListData $data, GetPostsListAction $getPostsList): Response
     {
         $posts = $getPostsList->run(
-            $request->toDto(),
+            $data,
         );
 
         return inertia('Posts', [
             'posts' => PostResource::collection($posts),
-            'filters' => $request->only(['type', 'sort']),
+            'filters' => $data->only('type', 'sort')->toArray(),
             'types' => ChannelType::labels(),
         ]);
     }

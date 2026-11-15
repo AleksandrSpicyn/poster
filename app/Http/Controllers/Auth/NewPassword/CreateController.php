@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth\NewPassword;
 
-use Illuminate\Container\Attributes\RouteParameter;
-use Illuminate\Http\Request;
+use App\Data\ShowResetPasswordData;
 use Inertia\Response;
 
 class CreateController
@@ -45,11 +44,11 @@ class CreateController
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(Request $request, #[RouteParameter('token')] string $token): Response
+    public function __invoke(ShowResetPasswordData $data): Response
     {
         return inertia('auth/ResetPassword', [
-            'email' => $request->email,
-            'token' => $token,
+            'email' => $data->email,
+            'token' => $data->token,
         ]);
     }
 }

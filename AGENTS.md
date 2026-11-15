@@ -29,9 +29,11 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
 - PHP: native types, точные generics/array shapes, early return, collection-first
   для преобразований, без ведущего `_` у callback parameters. Сохраняйте контракты.
 - HTTP-сценарий: Controller → Action → Task. Контроллер не вызывает Task напрямую,
-  не валидирует inline и не меняет модели/сессии. Form Request валидирует ввод;
-  Action координирует сценарий, Task выполняет атомарную операцию. Persistence
+  не валидирует inline и не меняет модели/сессии. Laravel Data DTO валидирует ввод
+  и передаётся в Action; Action координирует сценарий, Task выполняет атомарную операцию. Persistence
   остаётся в Tasks с Eloquent; отдельный Repository-слой здесь не введён.
+- Валидация DTO преимущественно в атрибутах Laravel Data; `rules()` — только для
+  ограничений, которые нельзя выразить штатными атрибутами без custom Rule.
 - Контроллеры содержат один `__invoke`; общие URI-сегменты выносите в `Route::prefix()`.
   Текущий пользователь — `#[CurrentUser]`, выбор guard — `#[Auth]`, конфигурация —
   `#[Config]`; зависимости передавайте через DI там, где метод вызывает контейнер.
