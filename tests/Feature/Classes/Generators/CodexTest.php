@@ -52,7 +52,7 @@ test('требует отдельный вход ChatGPT', function (): void {
 test('не запускает параллельную генерацию с одной авторизацией', function (): void {
     $disk = Storage::fake('public');
     fakeCodexImages();
-    $lock = Cache::lock('codex-images:' . hash('sha256', config()->string('services.codex.home')), 330);
+    $lock = Cache::lock('codex:' . hash('sha256', rtrim(config()->string('services.codex.home'), '/')), 330);
     $lock->get();
 
     try {
@@ -133,7 +133,7 @@ test('не сохраняет ответ без изображения', functio
     $disk = Storage::fake('public');
     fakeCodexImages(fn(PendingProcess $process): ProcessResult => Process::result());
 
-    expect(fn() => app(ImageGenerator::class)->generate('A fox'))->toThrow(RuntimeException::class, 'no image result');
+    expect(fn() => app(ImageGenerator::class)->generate('A fox'))->toThrow(RuntimeException::class, 'no result');
 
     Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
     $disk->assertEmpty();

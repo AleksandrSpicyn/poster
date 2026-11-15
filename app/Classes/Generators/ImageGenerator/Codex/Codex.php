@@ -13,10 +13,16 @@ readonly class Codex implements ImageGenerator
 {
     public function generate(string $prompt): string
     {
-        $path = Image::of($prompt)
+        $response = Image::of($prompt)
             ->size('9:16')
-            ->generate(provider: 'codex')
-            ->storePublicly('generated-images', 'public');
+            ->generate(provider: 'codex');
+        $image = @getimagesizefromstring($response->firstImage()->content());
+
+        if ($image === false || $image[2] !== IMAGETYPE_PNG || $image[0] < 720 || $image[1] < 1280 || $image[0] >= $image[1]) {
+            throw new RuntimeException('Codex must return a portrait PNG of at least 720 by 1280 pixels.');
+        }
+
+        $path = $response->storePublicly('generated-images', 'public');
 
         if (! is_string($path)) {
             throw new RuntimeException('Could not store the generated image.');

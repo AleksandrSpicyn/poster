@@ -55,12 +55,18 @@ Tasks заранее загружают `channel` либо `project`/`media` д�
 
 `app:make-short` проходит по проектам и вызывает `MakeShortAction`:
 
-1. `CreateBasePrompt` добавляет последние 50 идей проекта к запросу OpenAI;
+1. `CreateBasePrompt` добавляет последние 50 идей проекта к запросу
+   `PromptGenerator/Codex`, который вызывает Agent API Laravel AI с `provider: codex`.
    `CreatePrompt` сохраняет новую идею. `CreateImage → ImageGenerator/Codex`
-   вызывает Laravel AI `Image` с провайдером `codex`. `CodexProvider` использует
-   `CodexGateway`, который запускает закреплённый Codex CLI под отдельным входом
-   ChatGPT в изолированном временном каталоге. API-ключи исключаются из окружения,
-   shell tools отключены; общий lock сериализует использование одного `CODEX_HOME`.
+   вызывает Laravel AI `Image` с тем же провайдером. Общий `CodexProvider`
+   находится в `app/Classes/Generators/Codex`; отдельные `CodexTextGateway` и
+   `CodexImageGateway` переводят соответствующие контракты Laravel AI в CLI-запросы.
+   `CodexProcess` отвечает за запуск закреплённого CLI, авторизацию ChatGPT,
+   lock, таймаут, чтение JSON и очистку временного каталога. Он не знает правил
+   генерации идей или первого кадра. API-ключи исключаются из окружения,
+   shell tools отключены; общий lock сериализует использование одного `CODEX_HOME`
+   для текста и изображений. Текст запускается в `read-only`, изображения — в
+   `workspace-write` со встроенным image tool. Текстовая модель задаётся `CODEX_MODEL`.
    Проверенный вертикальный PNG сохраняется на публичный диск, его URL становится
    `image_url`. При ошибке подписки или CLI генерация останавливается без API fallback.
 2. `CreateVideo → VideoGeneratorFactory` разрешает драйвер из регистрации

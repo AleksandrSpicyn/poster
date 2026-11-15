@@ -32,7 +32,7 @@ Idea: $idea, Styles: $style
 
 Purpose and scene: Create a single photographic opening frame for a vertical short video, just before the main action begins. Show the setup, not the completed payoff. One coherent photographic scene, one main subject, and only the object needed for the interaction. The surprising relationship between subject and setting is immediately readable at phone size.
 
-Composition: Use an eye-level medium-wide composition with clear subject separation. Keep the face and interaction in the central area, comfortably away from the top, bottom, and right edges used by social app controls. Leave room for the intended movement; keep essential anatomy and the interacting object fully inside the frame.
+Composition: Output a portrait PNG at least 720 pixels wide and 1280 pixels high. Use an eye-level medium-wide composition with clear subject separation. Keep the face and interaction in the central area, comfortably away from the top, bottom, and right edges used by social app controls. Leave room for the intended movement; keep essential anatomy and the interacting object fully inside the frame.
 
 Lighting and materials: Use a single motivated light source, believable contact shadows, and natural surface detail. Keep texture visible in highlights and shadows; avoid a plastic, oversharpened appearance.
 

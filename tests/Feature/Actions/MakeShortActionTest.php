@@ -15,15 +15,18 @@ use App\Events\VideoGenerating;
 use App\Jobs\CheckVideoCreation;
 use App\Models\Project;
 use App\Settings\GeneralSettings;
+use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Http\Client\Request;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
-use OpenAI\Laravel\Facades\OpenAI;
-use OpenAI\Responses\Chat\CreateResponse;
+use Laravel\Ai\AnonymousAgent;
 
 use function Pest\Laravel\mock;
+use function Tests\Support\fakeCodex;
 use function Tests\Support\fakeCodexImages;
 
 test('сценарий выбирает источник звука по фактическому видеопровайдеру', function (bool $fallback): void {
@@ -35,7 +38,7 @@ test('сценарий выбирает источник звука по фак�
     GeneralSettings::fake(['duration' => 10]);
     Storage::fake('public');
     fakeCodexImages();
-    OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => 'A fox jumps']]]])]);
+    AnonymousAgent::fake(['A fox jumps'])->preventStrayPrompts();
     Event::fake([PromptGenerated::class, ImageGenerated::class, VideoGenerating::class, AudioGenerating::class]);
     Http::fake([
         '*contents/generations/tasks' => $fallback ? Http::response([], 429) : Http::response(['id' => 'seedance-1']),
@@ -78,7 +81,7 @@ test('конвейер использует возможности зареги�
     GeneralSettings::fake(['duration' => 10]);
     Storage::fake('public');
     fakeCodexImages();
-    OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => 'A fox jumps']]]])]);
+    AnonymousAgent::fake(['A fox jumps'])->preventStrayPrompts();
     Event::fake([PromptGenerated::class, ImageGenerated::class, VideoGenerated::class, AudioGenerating::class]);
     Bus::fake();
     Http::fake();
@@ -102,5 +105,24 @@ test('конвейер использует возможности зареги�
     expect($prompt->refresh()->video_url)->toBe('native.mp4');
     expect($prompt->audio_url)->toBe('native.mp4');
     Event::assertDispatched(VideoGenerated::class);
+    Http::assertNothingSent();
+});
+
+test('отказ Codex останавливает конвейер до сохранения идеи и платных этапов', function (): void {
+    $project = Project::factory()->create();
+    $disk = Storage::fake('public');
+    GeneralSettings::fake(['duration' => 10]);
+    fakeCodex(fn(PendingProcess $process): ProcessResult => Process::result(errorOutput: 'Subscription limit', exitCode: 1));
+    Event::fake([PromptGenerated::class, ImageGenerated::class, VideoGenerating::class, AudioGenerating::class]);
+
+    expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(RuntimeException::class, 'Codex generation failed');
+
+    expect($project->prompts()->exists())->toBeFalse();
+    Event::assertNotDispatched(PromptGenerated::class);
+    Event::assertNotDispatched(ImageGenerated::class);
+    Event::assertNotDispatched(VideoGenerating::class);
+    Event::assertNotDispatched(AudioGenerating::class);
+    $disk->assertEmpty();
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
     Http::assertNothingSent();
 });
