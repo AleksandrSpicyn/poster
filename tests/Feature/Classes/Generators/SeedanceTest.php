@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Classes\Generators\VideoGenerator\Seedance\Seedance;
+use App\Data\VideoGenerationRequestData;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationUncertainException;
 use App\Settings\GeneralSettings;
@@ -27,7 +29,7 @@ test('Seedance отправляет первый кадр и запрашива�
     config(['services.seedance.model' => $model->value]);
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'seedance-1'])]);
 
-    $id = app(Seedance::class)->generate('https://cdn.example.com/frame.png', 'A fox jumps');
+    $id = app(Seedance::class)->generate(seedanceVideoRequest('https://cdn.example.com/frame.png', 'A fox jumps'));
 
     expect($id)->toBe('seedance-1');
     Http::assertSent(fn(Request $request): bool => $request->method() === 'POST'
@@ -43,6 +45,7 @@ test('Seedance отправляет первый кадр и запрашива�
             'ratio' => 'adaptive',
             'duration' => 10,
             'generate_audio' => true,
+            'return_last_frame' => true,
             'watermark' => false,
             'execution_expires_after' => 3600,
         ]);
@@ -80,7 +83,7 @@ test('Seedance отклоняет неполный или неизвестный
 })->with([
     'нет статуса' => [[], UnexpectedValueException::class],
     'новый статус' => [['status' => 'unknown'], ValueError::class],
-    'нет звука' => [['status' => 'succeeded', 'generate_audio' => false], VideoGeneratingException::class],
+    'нет метаданных звука' => [['status' => 'succeeded'], VideoGeneratingException::class],
     'нет URL' => [['status' => 'succeeded', 'generate_audio' => true], UnexpectedValueException::class],
 ]);
 
@@ -89,7 +92,7 @@ test('Seedance проверяет длительность и разрешени
     GeneralSettings::fake(['duration' => $duration]);
     Http::fake();
 
-    expect(fn() => app(Seedance::class)->generate('image', 'idea'))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(Seedance::class)->generate(seedanceVideoRequest()))->toThrow(InvalidArgumentException::class);
     Http::assertNothingSent();
 })->with([
     'слишком короткое' => [Model::V2_5_FLASH, '720p', 3],
@@ -106,7 +109,7 @@ test('Seedance принимает граничную длительность п
     GeneralSettings::fake(['duration' => $duration]);
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'video-1'])]);
 
-    expect(app(Seedance::class)->generate('image', 'idea'))->toBe('video-1');
+    expect(app(Seedance::class)->generate(seedanceVideoRequest()))->toBe('video-1');
     Http::assertSent(fn(Request $request): bool => $request['duration'] === $duration && $request['resolution'] === $resolution);
 })->with([
     'минимум' => [Model::V2_5_FLASH, '480p', 4],
@@ -120,14 +123,14 @@ test('Seedance принимает граничную длительность п
 test('Seedance не повторяет запуск при HTTP ошибке', function (): void {
     Http::fake(['*contents/generations/tasks' => Http::response([], 503)]);
 
-    expect(fn() => app(Seedance::class)->generate('image', 'idea'))->toThrow(VideoGenerationUncertainException::class);
+    expect(fn() => app(Seedance::class)->generate(seedanceVideoRequest()))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
 });
 
 test('Seedance отклоняет ответ запуска без ID', function (): void {
     Http::fake(['*contents/generations/tasks' => Http::response([])]);
 
-    expect(fn() => app(Seedance::class)->generate('image', 'idea'))->toThrow(VideoGenerationUncertainException::class);
+    expect(fn() => app(Seedance::class)->generate(seedanceVideoRequest()))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
 });
 
@@ -135,7 +138,7 @@ test('Seedance требует API ключ', function (): void {
     config(['services.seedance.api_key' => '']);
     Http::fake();
 
-    expect(fn() => app(Seedance::class)->generate('image', 'idea'))->toThrow(RuntimeException::class);
+    expect(fn() => app(Seedance::class)->generate(seedanceVideoRequest()))->toThrow(RuntimeException::class);
     Http::assertNothingSent();
 });
 
@@ -145,7 +148,7 @@ test('локальный первый кадр отправляется напр
     $disk->put('generated-images/frame.png', $bytes);
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'video-1'])]);
 
-    expect(app(Seedance::class)->generate($disk->url('generated-images/frame.png'), 'idea'))->toBe('video-1');
+    expect(app(Seedance::class)->generate(seedanceVideoRequest($disk->url('generated-images/frame.png'))))->toBe('video-1');
 
     Http::assertSent(fn(Request $request): bool => data_get($request->data(), 'content.1.image_url.url') === 'data:image/png;base64,' . base64_encode($bytes));
     Http::assertSentCount(1);
@@ -156,6 +159,105 @@ test('пустой локальный кадр отклоняется до пл�
     $disk->put('generated-images/empty.png', '');
     Http::fake();
 
-    expect(fn() => app(Seedance::class)->generate($disk->url('generated-images/empty.png'), 'idea'))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(Seedance::class)->generate(seedanceVideoRequest($disk->url('generated-images/empty.png'))))->toThrow(InvalidArgumentException::class);
     Http::assertNothingSent();
+});
+
+function seedanceVideoRequest(string $imageUrl = 'image', string $prompt = 'idea'): VideoGenerationRequestData
+{
+    return new VideoGenerationRequestData(
+        prompt: $prompt,
+        duration: app(GeneralSettings::class)->duration,
+        model: config()->string('services.seedance.model'),
+        firstFrameUrl: $imageUrl,
+        resolution: config()->string('services.seedance.resolution'),
+    );
+}
+
+test('Seedance передаёт референсы отдельно от первого кадра', function (): void {
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'references-1'])]);
+    $request = new VideoGenerationRequestData(
+        prompt: 'The person from Image 1 greets the person from Image 2.',
+        duration: 8,
+        model: Model::V2_5->value,
+        mode: VideoInputMode::REFERENCES,
+        referenceImageUrls: ['https://cdn.example.com/front.png', 'https://cdn.example.com/profile.png'],
+        aspectRatio: '9:16',
+    );
+
+    $id = app(Seedance::class)->generate($request);
+
+    expect($id)->toBe('references-1');
+    Http::assertSent(fn(Request $http): bool => $http['omni_reference_task_type'] === 'reference'
+        && $http['ratio'] === '9:16'
+        && data_get($http->data(), 'content.1.role') === 'reference_image'
+        && data_get($http->data(), 'content.2.image_url.url') === 'https://cdn.example.com/profile.png');
+    Http::assertSentCount(1);
+});
+
+test('Seedance продолжает видео с явным режимом и без нативного звука', function (): void {
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'extend-1'])]);
+    $request = new VideoGenerationRequestData(
+        prompt: 'Continue @Video 1: the character opens the door.',
+        duration: 8,
+        model: Model::V2_5->value,
+        mode: VideoInputMode::EXTEND,
+        referenceImageUrls: ['https://cdn.example.com/character.png'],
+        sourceVideoUrl: 'https://cdn.example.com/previous.mp4',
+        generateAudio: false,
+    );
+
+    app(Seedance::class)->generate($request);
+
+    Http::assertSent(fn(Request $http): bool => $http['omni_reference_task_type'] === 'extend'
+        && $http['ratio'] === 'adaptive'
+        && $http['generate_audio'] === false
+        && data_get($http->data(), 'content.2.role') === 'reference_video'
+        && data_get($http->data(), 'content.2.video_url.url') === 'https://cdn.example.com/previous.mp4');
+    Http::assertSentCount(1);
+});
+
+test('несовместимые референсы отклоняются без внешнего запроса', function (VideoGenerationRequestData $request): void {
+    Http::fake();
+
+    expect(fn() => app(Seedance::class)->generate($request))->toThrow(InvalidArgumentException::class);
+
+    Http::assertNothingSent();
+})->with([
+    'первый кадр вместе с референсом' => new VideoGenerationRequestData(prompt: 'idea', duration: 8, model: Model::V2_5->value, firstFrameUrl: 'frame.png', referenceImageUrls: ['face.png']),
+    'продолжение на старой модели' => new VideoGenerationRequestData(prompt: 'Continue video', duration: 8, model: Model::V2_0_MINI->value, mode: VideoInputMode::EXTEND, sourceVideoUrl: 'previous.mp4'),
+    'слишком много ракурсов' => new VideoGenerationRequestData(prompt: 'idea', duration: 8, model: Model::V2_0_MINI->value, mode: VideoInputMode::REFERENCES, referenceImageUrls: array_fill(0, 10, 'face.png')),
+    'фиксированный размер продолжения' => new VideoGenerationRequestData(prompt: 'Continue video', duration: 8, model: Model::V2_5->value, mode: VideoInputMode::EXTEND, sourceVideoUrl: 'previous.mp4', aspectRatio: '9:16'),
+]);
+
+test('Seedance использует снимок параметров после смены конфигурации', function (): void {
+    $request = new VideoGenerationRequestData(prompt: 'idea', duration: 8, model: Model::V2_0_MINI->value, firstFrameUrl: 'frame.png');
+    config(['services.seedance.model' => Model::V2_5->value, 'services.seedance.resolution' => '1080p']);
+    GeneralSettings::fake(['duration' => 30]);
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'frozen-1'])]);
+
+    app(Seedance::class)->generate($request);
+
+    Http::assertSent(fn(Request $http): bool => $http['model'] === Model::V2_0_MINI->value
+        && $http['duration'] === 8 && $http['resolution'] === '720p');
+    Http::assertSentCount(1);
+});
+
+test('Seedance возвращает последний кадр и метаданные немого результата', function (): void {
+    Http::fake(['*contents/generations/tasks/silent-1' => Http::response([
+        'status' => 'succeeded',
+        'generate_audio' => false,
+        'duration' => 8,
+        'model' => Model::V2_5->value,
+        'content' => ['video_url' => 'https://cdn.example.com/silent.mp4', 'last_frame_url' => 'https://cdn.example.com/last.jpg'],
+    ])]);
+
+    $result = app(Seedance::class)->check('silent-1');
+
+    expect($result?->videoUrl)->toBe('https://cdn.example.com/silent.mp4');
+    expect($result?->audioUrl)->toBeNull();
+    expect($result?->lastFrameUrl)->toBe('https://cdn.example.com/last.jpg');
+    expect($result?->duration)->toBe(8);
+    expect($result?->model)->toBe(Model::V2_5->value);
+    Http::assertSentCount(1);
 });

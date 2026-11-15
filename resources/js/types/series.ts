@@ -1,0 +1,70 @@
+import type { ProjectSummary } from '@/types/projects';
+
+export interface SeriesSpecification {
+    premise: string;
+    visual_style: string;
+    language: string;
+    audience: string;
+    episode_duration_seconds: number;
+    narrative_rules: string;
+    audio_mode: string;
+}
+
+export interface SeriesSummary {
+    id: number;
+    project_id: number;
+    name: string;
+    specification: SeriesSpecification;
+    specification_version: number;
+    continuity_version: number;
+    lock_version: number;
+    archived_at: string | null;
+    characters_count?: number;
+    episodes_count?: number;
+    project?: Pick<ProjectSummary, 'id' | 'name' | 'prompt'>;
+}
+
+export interface CharacterReference {
+    id: number;
+    label: string;
+    view: string;
+    checksum: string | null;
+    url: string;
+}
+
+export interface CharacterRevision {
+    id: number;
+    character_id: number;
+    number: number;
+    status: string;
+    description: string;
+    appearance: Record<string, unknown>;
+    voice: Record<string, unknown>;
+    lock_version: number;
+    approved_at: string | null;
+    references?: CharacterReference[];
+}
+
+export interface CharacterSummary {
+    id: number;
+    series_id: number;
+    name: string;
+    current_revision_id: number | null;
+    lock_version: number;
+    archived_at: string | null;
+    current_revision?: CharacterRevision | null;
+}
+
+export interface EpisodeSummary {
+    id: number;
+    series_id: number;
+    number: number;
+    title: string;
+    validity: string;
+}
+
+export interface CharacterRouteParams {
+    project: number;
+    series: number;
+    character: number;
+}

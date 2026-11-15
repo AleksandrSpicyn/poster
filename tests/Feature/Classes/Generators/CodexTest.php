@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\ImageReferenceData;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Files\Image as ReferenceImage;
 use Laravel\Ai\Image;
 use Laravel\Ai\Prompts\ImagePrompt;
 use Laravel\Ai\Responses\ImageResponse;
@@ -168,3 +170,125 @@ test('отклоняет неподходящий кадр', function (string $f
     Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
     $disk->assertEmpty();
 })->with(['горизонтальный' => 'landscape.png', 'слишком маленький' => 'small.png']);
+
+test('передаёт несколько референсов через SDK и приватные копии CLI', function (): void {
+    $disk = Storage::fake('public');
+    $workspace = '';
+    fakeCodexImages(function (PendingProcess $process) use (&$workspace): ProcessResult {
+        $workspace = $process->path ?? '';
+        expect($process->command)->toContain('--image', $workspace . '/references/reference-1.png', $workspace . '/references/reference-2.png');
+        expect($process->input)->toContain('referenced_image_paths', 'character-1.front', 'character-1.profile');
+        expect(File::get($workspace . '/references/reference-1.png'))->toBe(File::get(base_path('tests/Fixtures/portrait.png')));
+        expect(File::get($workspace . '/references/reference-2.png'))->toBe(File::get(base_path('tests/Fixtures/landscape.png')));
+        File::copy(base_path('tests/Fixtures/portrait.png'), $workspace . '/image.png');
+        File::put($workspace . '/result.json', json_encode(['image_path' => $workspace . '/image.png'], JSON_THROW_ON_ERROR));
+
+        return Process::result();
+    });
+
+    $url = app(ImageGenerator::class)->generate('Two views of the same hero', [
+        new ImageReferenceData(base_path('tests/Fixtures/portrait.png'), 'character-1.front'),
+        new ImageReferenceData(base_path('tests/Fixtures/landscape.png'), 'character-1.profile'),
+    ]);
+
+    $disk->assertCount('generated-images', 1);
+    expect($url)->toBe($disk->url($disk->allFiles('generated-images')[0]));
+    expect(File::exists($workspace))->toBeFalse();
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+});
+
+test('читает референс из приватного хранилища и удаляет временную копию', function (): void {
+    Storage::fake('public');
+    $private = Storage::fake('local');
+    $private->put('references/hero.png', File::get(base_path('tests/Fixtures/portrait.png')));
+
+    $workspace = '';
+    fakeCodexImages(function (PendingProcess $process) use (&$workspace): ProcessResult {
+        $workspace = $process->path ?? '';
+        expect(File::exists($workspace . '/references/reference-1.png'))->toBeTrue();
+        File::copy(base_path('tests/Fixtures/portrait.png'), $workspace . '/image.png');
+        File::put($workspace . '/result.json', json_encode(['image_path' => $workspace . '/image.png'], JSON_THROW_ON_ERROR));
+
+        return Process::result();
+    });
+
+    Image::of('Continue the hero')
+        ->attachments([ReferenceImage::fromStorage('references/hero.png', 'local')->as('hero.front')])
+        ->size('9:16')
+        ->generate(provider: 'codex');
+
+    expect(File::exists($workspace))->toBeFalse();
+    $private->assertExists('references/hero.png');
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+});
+
+test('не скачивает удалённый референс', function (): void {
+    fakeCodexImages();
+
+    expect(fn(): ImageResponse => Image::of('Hero')
+        ->attachments([ReferenceImage::fromUrl('https://example.com/hero.png')])
+        ->size('9:16')
+        ->generate(provider: 'codex'))->toThrow(InvalidArgumentException::class, 'local or stored');
+
+    Process::assertNothingRan();
+});
+
+test('отклоняет повреждённый локальный референс и освобождает блокировку', function (): void {
+    $disk = Storage::fake('public');
+    fakeCodexImages();
+    $disk->put('bad.png', 'not an image');
+
+    expect(fn() => app(ImageGenerator::class)->generate('Hero', [new ImageReferenceData($disk->path('bad.png'), 'front')]))
+        ->toThrow(InvalidArgumentException::class, 'valid PNG');
+
+    Process::assertNothingRan();
+
+    app(ImageGenerator::class)->generate('Hero');
+
+    $disk->assertCount('generated-images', 1);
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+});
+
+test('ограничивает число референсов до запуска CLI', function (): void {
+    fakeCodexImages();
+
+    expect(fn(): ImageResponse => Image::of('Hero')
+        ->attachments(array_fill(0, 11, ReferenceImage::fromPath(base_path('tests/Fixtures/portrait.png'))))
+        ->size('9:16')
+        ->generate(provider: 'codex'))->toThrow(InvalidArgumentException::class, 'at most ten');
+
+    Process::assertNothingRan();
+});
+
+test('отклоняет слишком большой референс до чтения и запуска CLI', function (): void {
+    $disk = Storage::fake('local');
+    fakeCodexImages();
+    $stream = fopen($disk->path('oversized.png'), 'wb');
+
+    if ($stream === false) {
+        throw new RuntimeException('Could not create the test reference image.');
+    }
+
+    ftruncate($stream, 20 * 1024 * 1024 + 1);
+    fclose($stream);
+
+    expect(fn() => app(ImageGenerator::class)->generate('Hero', [new ImageReferenceData($disk->path('oversized.png'), 'front')]))
+        ->toThrow(InvalidArgumentException::class, 'size limit');
+
+    Process::assertNothingRan();
+});
+
+test('не принимает входной референс за сгенерированный кадр', function (): void {
+    $disk = Storage::fake('public');
+    fakeCodexImages(function (PendingProcess $process): ProcessResult {
+        File::put(($process->path ?? '') . '/result.json', json_encode(['image_path' => ($process->path ?? '') . '/references/reference-1.png'], JSON_THROW_ON_ERROR));
+
+        return Process::result();
+    });
+
+    expect(fn() => app(ImageGenerator::class)->generate('Hero', [new ImageReferenceData(base_path('tests/Fixtures/portrait.png'), 'front')]))
+        ->toThrow(RuntimeException::class, 'invalid image path');
+
+    $disk->assertEmpty();
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+});

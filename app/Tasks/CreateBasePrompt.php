@@ -23,6 +23,7 @@ readonly class CreateBasePrompt
     public function run(Project $project): string
     {
         $history = $project->prompts()
+            ->whereNull('shot_id')
             ->latest()
             ->limit(50)
             ->get(['prompt'])

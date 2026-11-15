@@ -8,7 +8,7 @@ use Illuminate\Testing\PendingCommand;
 
 use function Pest\Laravel\artisan;
 
-/** @param array<string, int|string> $arguments */
+/** @param array<string, int|string|bool> $arguments */
 function consoleCommand(string $command, array $arguments = []): PendingCommand
 {
     $pending = artisan($command, $arguments);

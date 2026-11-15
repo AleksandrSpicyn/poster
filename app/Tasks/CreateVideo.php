@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tasks;
 
+use App\Classes\Generators\VideoGenerator\VideoGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Data\VideoGenerationData;
+use App\Data\VideoGenerationRequestData;
 use App\Exceptions\VideoGenerationUncertainException;
 use App\Settings\GeneralSettings;
 use Illuminate\Support\Facades\Log;
@@ -27,11 +29,12 @@ readonly class CreateVideo
         $provider = $this->generators->primary();
         $fallbackProvider = $this->generators->fallback();
         $generator = $this->generators->make($provider);
+        $duration = $this->generalSettings->duration;
 
         $prompt = <<<TEXT
 Story: $idea
 
-Duration: {$this->generalSettings->duration} seconds. Complete the entire story within this time, including the final payoff.
+Duration: $duration seconds. Complete the entire story within this time, including the final payoff.
 
 Reference role: The supplied image is the first frame and the source of subject identity, props, environment, lighting, and color. Preserve them throughout the clip.
 
@@ -44,8 +47,11 @@ Soundtrack: Generate audible instrumental background music from the first frame,
 Continuity: Consistent anatomy, prop shapes, coherent shadows, and contact with the ground. Keep the composition readable on a vertical phone screen. No cuts, morphing, extra subjects, lettering, subtitles, logos, or watermarks. The action and payoff must remain understandable with sound off.
 TEXT;
 
+        $request = $this->request($generator, $imageUrl, $prompt, $duration);
+        $generator->capabilities($request->model)->assertSupports($request);
+
         try {
-            return new VideoGenerationData($generator->generate($imageUrl, $prompt), $provider, $generator->audioSource());
+            return new VideoGenerationData($generator->generate($request), $provider, $generator->audioSource(), $request);
         } catch (VideoGenerationUncertainException $exception) {
             throw $exception;
         } catch (Throwable $throwable) {
@@ -60,8 +66,25 @@ TEXT;
             ]);
 
             $fallback = $this->generators->make($fallbackProvider);
+            $fallbackRequest = $this->request($fallback, $imageUrl, $prompt, $duration);
 
-            return new VideoGenerationData($fallback->generate($imageUrl, $prompt), $fallbackProvider, $fallback->audioSource());
+            return new VideoGenerationData($fallback->generate($fallbackRequest), $fallbackProvider, $fallback->audioSource(), $fallbackRequest);
         }
+    }
+
+    private function request(VideoGenerator $generator, string $imageUrl, string $prompt, int $duration): VideoGenerationRequestData
+    {
+        $capabilities = $generator->capabilities();
+
+        return new VideoGenerationRequestData(
+            prompt: $prompt,
+            duration: $duration,
+            model: $capabilities->model,
+            firstFrameUrl: $imageUrl,
+            resolution: $capabilities->defaultResolution,
+            aspectRatio: $capabilities->defaultAspectRatio,
+            returnLastFrame: $capabilities->supportsReturnLastFrame,
+            generateAudio: $capabilities->supportsAudioGeneration,
+        );
     }
 }

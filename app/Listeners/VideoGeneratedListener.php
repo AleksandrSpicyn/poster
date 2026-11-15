@@ -16,6 +16,10 @@ class VideoGeneratedListener
 {
     public function handle(VideoGenerated|AudioGenerated $event): void
     {
+        if ($event->getPrompt()->shot_id !== null) {
+            return;
+        }
+
         SaveVideoJob::dispatch($event->getPrompt());
     }
 }

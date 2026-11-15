@@ -8,12 +8,14 @@ use App\Classes\Generators\VideoGenerator\Seedance\Enums\GenerationStatus;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoCapabilitiesData;
+use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
 use App\Enums\VideoAudioSource;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationPendingException;
 use App\Exceptions\VideoGenerationUncertainException;
-use App\Settings\GeneralSettings;
 use App\Support\Integrations\Payload;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Storage;
@@ -26,7 +28,7 @@ use InvalidArgumentException;
 use RuntimeException;
 use UnexpectedValueException;
 
-/** Асинхронный BytePlus ModelArk: первый кадр → видео со встроенным звуком. */
+/** Асинхронный BytePlus ModelArk: кадры, референсы и продолжение видео. */
 readonly class Seedance implements VideoGenerator
 {
     public function __construct(
@@ -34,40 +36,55 @@ readonly class Seedance implements VideoGenerator
         #[Config('services.seedance.api_key')] private string $token,
         #[Config('services.seedance.model')] private string $model,
         #[Config('services.seedance.resolution')] private string $resolution,
-        private GeneralSettings $settings,
         #[Storage('public')] private FilesystemAdapter $disk,
     ) {}
 
-    public function generate(string $imageUrl, string $prompt): string
+    public function generate(VideoGenerationRequestData $request): string
     {
-        $model = Model::from($this->model);
-        $resolution = Resolution::from($this->resolution);
+        $this->capabilities($request->model)->assertSupports($request);
 
-        if ($this->settings->duration < 4 || $this->settings->duration > $model->maxDuration()) {
-            throw new InvalidArgumentException('Unsupported Seedance video duration.');
+        if ($request->mode !== VideoInputMode::REFERENCES && $request->aspectRatio !== 'adaptive') {
+            throw new InvalidArgumentException('Seedance frame and extension modes require an adaptive aspect ratio.');
         }
 
-        if (! $model->supports($resolution)) {
-            throw new InvalidArgumentException('Unsupported Seedance model resolution.');
+        $model = Model::from($request->model);
+        $content = [['type' => 'text', 'text' => $request->prompt]];
+
+        if ($request->mode === VideoInputMode::FIRST_FRAME) {
+            $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($request->firstFrameUrl ?? '')], 'role' => 'first_frame'];
+
+            if ($request->lastFrameUrl !== null) {
+                $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($request->lastFrameUrl)], 'role' => 'last_frame'];
+            }
+        } else {
+            foreach ($request->referenceImageUrls as $url) {
+                $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($url)], 'role' => 'reference_image'];
+            }
+
+            if ($request->mode === VideoInputMode::EXTEND) {
+                $content[] = ['type' => 'video_url', 'video_url' => ['url' => $request->sourceVideoUrl], 'role' => 'reference_video'];
+            }
         }
 
-        $firstFrame = $this->firstFrame($imageUrl);
+        $payload = [
+            'model' => $model->value,
+            'content' => $content,
+            'resolution' => $request->resolution,
+            'ratio' => $request->aspectRatio,
+            'duration' => $request->duration,
+            'generate_audio' => $request->generateAudio,
+            'return_last_frame' => $request->returnLastFrame,
+            'watermark' => false,
+            'execution_expires_after' => 3600,
+        ];
+
+        if ($model->supportsExtension() && $request->mode !== VideoInputMode::FIRST_FRAME) {
+            $payload['omni_reference_task_type'] = $request->mode === VideoInputMode::EXTEND ? 'extend' : 'reference';
+        }
 
         try {
             $response = $this->request()
-                ->post('contents/generations/tasks', [
-                    'model' => $model->value,
-                    'content' => [
-                        ['type' => 'text', 'text' => $prompt],
-                        ['type' => 'image_url', 'image_url' => ['url' => $firstFrame], 'role' => 'first_frame'],
-                    ],
-                    'resolution' => $resolution->value,
-                    'ratio' => 'adaptive',
-                    'duration' => $this->settings->duration,
-                    'generate_audio' => true,
-                    'watermark' => false,
-                    'execution_expires_after' => 3600,
-                ])
+                ->post('contents/generations/tasks', $payload)
                 ->throw();
 
             return Payload::string($response->json('id'), 'id');
@@ -80,6 +97,30 @@ readonly class Seedance implements VideoGenerator
 
             throw $exception;
         }
+    }
+
+    public function capabilities(?string $model = null): VideoCapabilitiesData
+    {
+        $model = Model::from($model ?? $this->model);
+        $modes = [VideoInputMode::FIRST_FRAME, VideoInputMode::REFERENCES];
+
+        if ($model->supportsExtension()) {
+            $modes[] = VideoInputMode::EXTEND;
+        }
+
+        return new VideoCapabilitiesData(
+            model: $model->value,
+            modes: $modes,
+            minDuration: 4,
+            maxDuration: $model->maxDuration(),
+            resolutions: array_values(collect(Resolution::cases())->filter($model->supports(...))->map(fn(Resolution $resolution): string => $resolution->value)->all()),
+            defaultResolution: $this->resolution,
+            aspectRatios: ['adaptive', '9:16', '16:9', '1:1', '4:3', '3:4', '21:9'],
+            maxReferenceImages: $model->maxReferenceImages(),
+            supportsLastFrame: true,
+            supportsReturnLastFrame: true,
+            supportsAudioGeneration: true,
+        );
     }
 
     public function check(string $id): ?VideoResultData
@@ -108,13 +149,28 @@ readonly class Seedance implements VideoGenerator
             throw new VideoGeneratingException('Seedance task ended with status: ' . $status->value);
         }
 
-        if ($response->json('generate_audio') !== true) {
-            throw new VideoGeneratingException('Seedance returned a video without the requested audio.');
+        $hasAudio = $response->json('generate_audio');
+
+        if (! is_bool($hasAudio)) {
+            throw new VideoGeneratingException('Seedance returned no audio-generation metadata.');
         }
 
         $url = Payload::string($response->json('content.video_url'), 'content.video_url');
+        $lastFrame = $response->json('content.last_frame_url');
+        $duration = $response->json('duration');
+        $model = $response->json('model');
 
-        return new VideoResultData($url, $url);
+        if ($duration !== null && (! is_int($duration) || $duration < 1)) {
+            throw new UnexpectedValueException('Seedance returned an invalid duration.');
+        }
+
+        return new VideoResultData(
+            $url,
+            $hasAudio ? $url : null,
+            $lastFrame === null ? null : Payload::string($lastFrame, 'content.last_frame_url'),
+            $duration,
+            $model === null ? null : Payload::string($model, 'model'),
+        );
     }
 
     public function audioSource(): VideoAudioSource
@@ -142,7 +198,7 @@ readonly class Seedance implements VideoGenerator
     }
 
     /** Передаёт сохранённый кадр напрямую: localhost и закрытые сети недоступны BytePlus. */
-    private function firstFrame(string $imageUrl): string
+    private function imageSource(string $imageUrl): string
     {
         $prefix = rtrim($this->disk->url('generated-images'), '/') . '/';
 

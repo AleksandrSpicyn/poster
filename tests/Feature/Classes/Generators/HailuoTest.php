@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Classes\Generators\VideoGenerator\Hailuo\Hailuo;
+use App\Data\VideoGenerationRequestData;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Settings\GeneralSettings;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -40,7 +43,7 @@ test('ошибка генератора не маскируется успешн
 
     $client = app(Hailuo::class);
 
-    expect(fn() => $client->generate('image', 'idea'))->toThrow(RuntimeException::class);
+    expect(fn() => $client->generate(new VideoGenerationRequestData(prompt: 'idea', duration: 10, model: 'MiniMax-Hailuo-02', firstFrameUrl: 'image', resolution: '768P', aspectRatio: 'adaptive', returnLastFrame: false, generateAudio: false)))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
 });
 
@@ -52,6 +55,15 @@ test('генератор отклоняет успешный HTTP с отсут�
 
     $client = app(Hailuo::class);
 
-    expect(fn() => $client->generate('image', 'idea'))->toThrow(UnexpectedValueException::class);
+    expect(fn() => $client->generate(new VideoGenerationRequestData(prompt: 'idea', duration: 10, model: 'MiniMax-Hailuo-02', firstFrameUrl: 'image', resolution: '768P', aspectRatio: 'adaptive', returnLastFrame: false, generateAudio: false)))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
+});
+
+test('Hailuo отклоняет неподдерживаемое продолжение до запроса', function (): void {
+    Http::fake();
+    $request = new VideoGenerationRequestData(prompt: 'Continue video', duration: 6, model: 'MiniMax-Hailuo-02', mode: VideoInputMode::EXTEND, sourceVideoUrl: 'previous.mp4', resolution: '768P', returnLastFrame: false, generateAudio: false);
+
+    expect(fn() => app(Hailuo::class)->generate($request))->toThrow(InvalidArgumentException::class);
+
+    Http::assertNothingSent();
 });

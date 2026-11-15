@@ -93,6 +93,26 @@ test('занятая блокировка не запускает вторую �
     }
 });
 
+test('сборка использует длительность запуска после изменения общих настроек', function (): void {
+    $disk = Storage::disk('public');
+    Process::run([
+        'ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:d=2',
+        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
+        '-c:v', 'libx264', '-c:a', 'aac', '-shortest', $disk->path('two-seconds.mp4'),
+    ])->throw();
+    $prompt = Prompt::factory()->create([
+        'video_url' => $disk->path('two-seconds.mp4'), 'audio_url' => $disk->path('two-seconds.mp4'),
+        'input_snapshot' => ['video_request' => ['duration' => 1]],
+    ]);
+    GeneralSettings::fake(['duration' => 2]);
+
+    app(SaveVideoAction::class)->run($prompt);
+
+    $media = $prompt->media()->firstOrFail();
+    $probe = Process::run(['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', $media->getPath()])->throw();
+    expect((float) trim($probe->output()))->toBeGreaterThan(0.8)->toBeLessThan(1.3);
+});
+
 test('сохраняет дорожку из того же файла без отдельного аудио и повторной сборки', function (): void {
     $disk = Storage::disk('public');
     Process::run([

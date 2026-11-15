@@ -13,15 +13,15 @@ class GetDashboard
 {
     public function run(): DashboardData
     {
-        $promptCount = Prompt::query()->count();
-        $readyCount = Prompt::query()->where('generated', true)->count();
+        $promptCount = Prompt::query()->whereNull('shot_id')->count();
+        $readyCount = Prompt::query()->whereNull('shot_id')->where('generated', true)->count();
 
         return new DashboardData(
             promptCount: $promptCount,
-            pendingCount: Prompt::query()->where('generated', false)->count(),
+            pendingCount: Prompt::query()->whereNull('shot_id')->where('generated', false)->count(),
             readyCount: $readyCount,
             postCount: Post::query()->count(),
-            recentPrompts: Prompt::query()->with('project', 'media')->latest()->latest('id')->limit(6)->get(),
+            recentPrompts: Prompt::query()->whereNull('shot_id')->with('project', 'media')->latest()->latest('id')->limit(6)->get(),
             recentPosts: Post::query()->with('channel')->latest()->latest('id')->limit(5)->get(),
         );
     }

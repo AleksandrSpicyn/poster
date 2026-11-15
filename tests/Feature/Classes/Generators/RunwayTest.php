@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Classes\Generators\VideoGenerator\Runway\Runway;
+use App\Data\VideoGenerationRequestData;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Settings\GeneralSettings;
 use Illuminate\Support\Facades\Http;
 
@@ -45,7 +48,7 @@ test('ошибка генератора не маскируется успешн
 
     $client = app(Runway::class);
 
-    expect(fn() => $client->generate('image', 'idea'))->toThrow(RuntimeException::class);
+    expect(fn() => $client->generate(new VideoGenerationRequestData(prompt: 'idea', duration: 10, model: 'gen4_turbo', firstFrameUrl: 'image', resolution: '720p', aspectRatio: '9:16', returnLastFrame: false, generateAudio: false)))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
 });
 
@@ -57,6 +60,15 @@ test('генератор отклоняет успешный HTTP с отсут�
 
     $client = app(Runway::class);
 
-    expect(fn() => $client->generate('image', 'idea'))->toThrow(UnexpectedValueException::class);
+    expect(fn() => $client->generate(new VideoGenerationRequestData(prompt: 'idea', duration: 10, model: 'gen4_turbo', firstFrameUrl: 'image', resolution: '720p', aspectRatio: '9:16', returnLastFrame: false, generateAudio: false)))->toThrow(VideoGenerationUncertainException::class);
     Http::assertSentCount(1);
+});
+
+test('Runway отклоняет неподдерживаемые референсы до запроса', function (): void {
+    Http::fake();
+    $request = new VideoGenerationRequestData(prompt: 'idea', duration: 10, model: 'gen4_turbo', mode: VideoInputMode::REFERENCES, referenceImageUrls: ['face.png'], aspectRatio: '9:16', returnLastFrame: false, generateAudio: false);
+
+    expect(fn() => app(Runway::class)->generate($request))->toThrow(InvalidArgumentException::class);
+
+    Http::assertNothingSent();
 });

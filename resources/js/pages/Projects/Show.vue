@@ -71,6 +71,12 @@ function destroyProject() {
         <Head :title="page.props.project.name" />
         <div class="workspace-page">
             <ProjectNotice />
+            <div v-if="page.props.auth.can_manage_series" class="flex flex-wrap justify-end gap-3">
+                <Button as-child variant="outline" class="h-11"><Link :href="route('series.index')">Series library</Link></Button>
+                <Button as-child class="h-11"
+                    ><Link :href="route('series.create', { project: page.props.project.id })">New series in this project</Link></Button
+                >
+            </div>
             <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
                 <div class="w-full min-w-0 flex-1 space-y-3 [&_h1]:break-words">
                     <Heading

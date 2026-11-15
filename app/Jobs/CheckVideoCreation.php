@@ -6,8 +6,10 @@ namespace App\Jobs;
 
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Data\VideoResultData;
+use App\Enums\VideoAudioSource;
 use App\Enums\VideoProvider;
 use App\Events\VideoGenerated;
+use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationPendingException;
 use App\Models\Prompt;
 use App\Tasks\Prompts\UpdatePrompt;
@@ -38,7 +40,7 @@ class CheckVideoCreation implements ShouldQueue
     {
         $this->prompt->refresh();
 
-        if ($this->prompt->video_url || ! $this->prompt->video_id) {
+        if ($this->prompt->shot_id !== null || $this->prompt->video_url || ! $this->prompt->video_id) {
             return;
         }
 
@@ -51,6 +53,10 @@ class CheckVideoCreation implements ShouldQueue
                 $this->release(60);
 
                 return;
+            }
+
+            if ($generator->audioSource() === VideoAudioSource::EMBEDDED && $result->audioUrl === null) {
+                throw new VideoGeneratingException('The standalone video is missing its requested embedded audio.');
             }
 
             $updatePrompt->run($this->prompt, array_filter([

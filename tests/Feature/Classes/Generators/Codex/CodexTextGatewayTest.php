@@ -17,6 +17,7 @@ use Laravel\Ai\Gateway\TextGenerationOptions;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use Laravel\Ai\Tools\LoadSkill;
 
 use function Laravel\Ai\agent;
@@ -66,9 +67,56 @@ test('отклоняет неподдерживаемые возможности
     Http::assertNothingSent();
 })->with([
     'инструменты' => fn(): AgentResponse => agent(tools: [new LoadSkill()])->prompt('Idea', provider: 'codex'),
-    'структурный ответ' => fn(): AgentResponse => agent(schema: fn(JsonSchema $schema): array => ['idea' => $schema->string()->required()])->prompt('Idea', provider: 'codex'),
     'вложения' => fn(): AgentResponse => agent()->prompt('Idea', attachments: [Image::fromPath(base_path('tests/Fixtures/portrait.png'))], provider: 'codex'),
 ]);
+
+test('передаёт вложенную схему CLI и возвращает структурированный ответ SDK', function (): void {
+    fakeCodex(function (PendingProcess $process): ProcessResult {
+        $schema = json_decode(File::get(($process->path ?? '') . '/schema.json'), true, flags: JSON_THROW_ON_ERROR);
+        expect($schema)->toMatchArray([
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['title', 'scenes'],
+        ]);
+        expect(data_get($schema, 'properties.scenes.items.additionalProperties'))->toBeFalse();
+        File::put(($process->path ?? '') . '/result.json', '{"title":"Серия","scenes":[{"action":"Входит герой","closed":false}]}');
+
+        return Process::result();
+    });
+
+    $response = agent(instructions: 'Create a serial episode.', schema: fn(JsonSchema $schema): array => [
+        'title' => $schema->string()->required(),
+        'scenes' => $schema->array()->items($schema->object([
+            'action' => $schema->string()->required(),
+            'closed' => $schema->boolean()->required(),
+        ]))->required(),
+    ])->prompt('Continue the story', provider: 'codex');
+
+    expect($response)->toBeInstanceOf(StructuredAgentResponse::class);
+    expect($response['title'])->toBe('Серия');
+    expect($response['scenes'])->toBe([['action' => 'Входит герой', 'closed' => false]]);
+    Process::assertRan(function (PendingProcess $process): bool {
+        expect($process->input)->toContain('Create a serial episode.', 'without a text wrapper');
+        expect($process->command)->toContain('features.shell_tool=false', 'read-only');
+
+        return true;
+    });
+    Http::assertNothingSent();
+});
+
+test('не подменяет повреждённый структурированный ответ обычным текстом', function (): void {
+    fakeCodex(function (PendingProcess $process): ProcessResult {
+        File::put(($process->path ?? '') . '/result.json', '```json {"title":"Серия"} ```');
+
+        return Process::result();
+    });
+
+    expect(fn(): AgentResponse => agent(schema: fn(JsonSchema $schema): array => ['title' => $schema->string()->required()])
+        ->prompt('Episode', provider: 'codex'))->toThrow(JsonException::class);
+
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+    Http::assertNothingSent();
+});
 
 test('не игнорирует неподдерживаемые параметры модели', function (TextGenerationOptions $options): void {
     Process::fake();

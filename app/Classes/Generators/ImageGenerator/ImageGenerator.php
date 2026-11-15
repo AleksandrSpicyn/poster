@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Classes\Generators\ImageGenerator;
 
 use App\Classes\Generators\ImageGenerator\Codex\Codex;
+use App\Data\ImageReferenceData;
 use Illuminate\Container\Attributes\Bind;
 
 /**
@@ -14,5 +15,6 @@ use Illuminate\Container\Attributes\Bind;
 #[Bind(Codex::class)]
 interface ImageGenerator
 {
-    public function generate(string $prompt): string;
+    /** @param list<ImageReferenceData> $references */
+    public function generate(string $prompt, array $references = []): string;
 }

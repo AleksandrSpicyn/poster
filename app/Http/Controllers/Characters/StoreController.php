@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Characters;
+
+use App\Actions\Characters\SaveCharacterAction;
+use App\Data\Characters\CharacterData;
+use App\Models\Project;
+use App\Models\Series;
+use Illuminate\Http\RedirectResponse;
+
+class StoreController
+{
+    /**
+     * Создание постоянного персонажа
+     *
+     * Требуются сессия, подтверждённый email и CSRF для изменений.
+     * Вложенные ресурсы ограничены своим родителем. Данные кабинета общие.
+     *
+     * @group Кабинет
+     * @subgroup Сериалы и персонажи
+     * @authenticated
+     * @urlParam project integer required ID проекта. Example: 1
+     * @urlParam series integer required ID сериала. Example: 1
+     * @bodyParam name string required Имя до 255 символов. Example: Mira
+     * @response 302
+     * @response 422
+     * @response 401 {"message":"Unauthenticated."}
+     * @response 403 {"message":"Your email address is not verified."}
+     * @response 404
+     */
+    public function __invoke(Project $project, Series $series, CharacterData $data, SaveCharacterAction $action): RedirectResponse
+    {
+        $character = $action->run($series, $data);
+
+        return to_route('characters.show', ['project' => $project, 'series' => $series, 'character' => $character]);
+    }
+}

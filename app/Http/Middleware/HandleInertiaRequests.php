@@ -8,6 +8,7 @@ use App\Enums\Appearance;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -59,6 +60,7 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'can_manage_series' => $request->user() !== null && Gate::forUser($request->user())->allows('manageSeries'),
             ],
             'ziggy' => [
                 ...new Ziggy()->toArray(),

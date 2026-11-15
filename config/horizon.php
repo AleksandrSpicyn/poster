@@ -218,6 +218,18 @@ return [
             'timeout' => 3660,
             'nice' => 0,
         ],
+        'supervisor-render' => [
+            'connection' => 'redis',
+            'queue' => ['render'],
+            'balance' => false,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 512,
+            'tries' => 1,
+            'timeout' => 3660,
+            'nice' => 5,
+        ],
     ],
 
     'environments' => [
@@ -227,12 +239,14 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-render' => [],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
             ],
+            'supervisor-render' => [],
         ],
     ],
 

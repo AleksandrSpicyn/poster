@@ -39,4 +39,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 });
 
 require __DIR__ . '/settings.php';
+require __DIR__ . '/publication-operations.php';
+require __DIR__ . '/shot-operations.php';
 require __DIR__ . '/auth.php';
+require __DIR__ . '/series.php';
+require __DIR__ . '/episodes.php';

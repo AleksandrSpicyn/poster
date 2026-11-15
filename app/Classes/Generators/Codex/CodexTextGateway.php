@@ -19,6 +19,7 @@ use Laravel\Ai\Gateway\TextGenerationOptions;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Messages\UserMessage;
+use Laravel\Ai\ObjectSchema;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
@@ -46,11 +47,11 @@ readonly class CodexTextGateway implements StepTextGateway
         ?int $timeout,
         StepContext $stepContext,
     ): StepResponse {
-        if ($tools !== [] || $schema !== null || $options?->maxTokens !== null
+        if ($tools !== [] || $options?->maxTokens !== null
             || $options?->temperature !== null || $options?->topP !== null || $options?->toolChoice instanceof ToolChoice
             || $options?->cacheInstructions instanceof CacheInstructions || $options?->cacheToolDefinitions instanceof CacheToolDefinitions
             || filled($options?->providerOptions($provider->name()))) {
-            throw new InvalidArgumentException('Codex supports plain text without tools, structured output, or sampling options.');
+            throw new InvalidArgumentException('Codex supports text and structured output without tools or sampling options.');
         }
 
         $conversation = collect($messages)->map(function (Message $message): array {
@@ -62,18 +63,29 @@ readonly class CodexTextGateway implements StepTextGateway
             return ['role' => $message->role->value, 'content' => $message->content];
         })->all();
 
-        $input = <<<'TEXT'
+        $generationInstructions = $schema === null ? <<<'TEXT'
 Generate a text response to the instructions and conversation in the following JSON. Do not use tools, inspect files, execute commands, or access external services. Return the final answer in the text field of the required JSON response.
-TEXT . "\n" . json_encode(['instructions' => $instructions, 'messages' => $conversation], JSON_THROW_ON_ERROR);
+TEXT : <<<'TEXT'
+Generate a structured response to the instructions and conversation in the following JSON. Do not use tools, inspect files, execute commands, or access external services. Return only the object required by the output JSON schema, without a text wrapper or Markdown fences.
+TEXT;
 
-        $text = $this->process->run($input, [
+        $outputSchema = $schema === null ? [
             'type' => 'object',
             'properties' => ['text' => ['type' => 'string']],
             'required' => ['text'],
             'additionalProperties' => false,
-        ], fn(array $response): string => trim(Payload::string(data_get($response, 'text'), 'text')), model: $model, timeout: $timeout);
+        ] : new ObjectSchema($schema)->toSchema();
 
-        return new StepResponse($text, [], FinishReason::Stop, new TextUsage(), new Meta($provider->name(), $model));
+        $input = $generationInstructions . "\n" . json_encode(['instructions' => $instructions, 'messages' => $conversation], JSON_THROW_ON_ERROR);
+
+        return $this->process->run($input, $outputSchema, function (array $response) use ($schema, $provider, $model): StepResponse {
+            if ($schema === null) {
+                return new StepResponse(trim(Payload::string(data_get($response, 'text'), 'text')), [], FinishReason::Stop, new TextUsage(), new Meta($provider->name(), $model));
+            }
+
+            /** @var array<string, mixed> $response */
+            return new StepResponse(json_encode($response, JSON_THROW_ON_ERROR), [], FinishReason::Stop, new TextUsage(), new Meta($provider->name(), $model), structured: $response);
+        }, model: $model, timeout: $timeout);
     }
 
     /**

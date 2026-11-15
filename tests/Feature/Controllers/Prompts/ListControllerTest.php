@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Prompt;
+use App\Models\Shot;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -26,6 +27,20 @@ test('список идей возвращает страницы и данны�
     get(route('prompts', ['sort' => 'desc', 'perPage' => 1, 'page' => 2]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('prompts.data.0.id', $first->id));
+});
+
+test('обычный список не раскрывает приватные сериальные дубли', function (): void {
+    $standalone = Prompt::factory()->create();
+    Prompt::factory()->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
+
+    actingAs(User::factory()->create())
+        ->get(route('prompts'))
+        ->assertOk()
+        ->assertDontSee('SERIAL_PRIVATE_SENTINEL')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.meta.total', 1)
+            ->has('prompts.data', 1)
+            ->where('prompts.data.0.id', $standalone->id));
 });
 
 test('явный null размера страницы сохраняет документированный default', function (): void {

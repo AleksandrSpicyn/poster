@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Classes\Generators\ImageGenerator\Codex;
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\ImageReferenceData;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Files\Image as ReferenceImage;
 use Laravel\Ai\Image;
 use RuntimeException;
 
 readonly class Codex implements ImageGenerator
 {
-    public function generate(string $prompt): string
+    /** @param list<ImageReferenceData> $references */
+    public function generate(string $prompt, array $references = []): string
     {
         $response = Image::of($prompt)
+            ->attachments(collect($references)->map(fn(ImageReferenceData $reference): ReferenceImage => ReferenceImage::fromPath($reference->path)->as($reference->label))->all())
             ->size('9:16')
             ->generate(provider: 'codex');
         $image = @getimagesizefromstring($response->firstImage()->content());

@@ -8,8 +8,8 @@ use App\Models\User;
 use Illuminate\Container\Attributes\Config;
 
 /**
- * Разделяет доступ к логам владельца и очередям операторов.
- * Оба разрешения требуют подтверждённого email, списки берутся из конфигурации.
+ * Ограничивает логи владельцем, очереди операторами, сериалы обеими группами.
+ * Все разрешения требуют подтверждённого email, списки берутся из конфигурации.
  */
 readonly class OperationsPolicy
 {
@@ -27,5 +27,11 @@ readonly class OperationsPolicy
     public function viewQueues(User $user): bool
     {
         return $user->hasVerifiedEmail() && in_array($user->email, $this->queueOperators, true);
+    }
+
+    public function manageSeries(User $user): bool
+    {
+        return $user->hasVerifiedEmail()
+            && ($user->email === $this->ownerEmail || in_array($user->email, $this->queueOperators, true));
     }
 }

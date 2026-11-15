@@ -1,0 +1,99 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Actions\Episodes\BuildEpisodeAssemblyAction;
+use App\Actions\Episodes\RequestEpisodeAssemblyAction;
+use App\Data\Episodes\AssemblyManifestData;
+use App\Data\Episodes\AssemblyShotData;
+use App\Enums\AssemblyStatus;
+use App\Enums\SeriesAudioMode;
+use App\Jobs\BuildEpisodeAssemblyJob;
+use App\Models\EpisodeAssembly;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+
+use function Tests\Support\assemblyFixture;
+
+require_once dirname(__DIR__, 3) . '/Support/Assemblies.php';
+
+test('реальный FFmpeg собирает видео и финальные референсы один раз', function (): void {
+    $disk = Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt] = assemblyFixture();
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, 0, 1000)]));
+    $action = app(BuildEpisodeAssemblyAction::class);
+
+    $action->run($assembly);
+    $action->run($assembly);
+
+    $assembly->refresh();
+    $video = $assembly->getFirstMedia(EpisodeAssembly::VIDEO);
+    $frame = $assembly->getFirstMedia(EpisodeAssembly::CONTINUATION_FRAME);
+    $tail = $assembly->getFirstMedia(EpisodeAssembly::CONTINUATION_TAIL);
+    expect($assembly->status)->toBe(AssemblyStatus::READY);
+    expect($assembly->duration_ms)->toBeGreaterThanOrEqual(950)->toBeLessThanOrEqual(1100);
+    expect($assembly->media()->count())->toBe(3);
+    expect($video)->not->toBeNull();
+    expect($frame)->not->toBeNull();
+    expect($tail)->not->toBeNull();
+
+    $video = $assembly->media()->where('collection_name', EpisodeAssembly::VIDEO)->firstOrFail();
+    $frame = $assembly->media()->where('collection_name', EpisodeAssembly::CONTINUATION_FRAME)->firstOrFail();
+    $tail = $assembly->media()->where('collection_name', EpisodeAssembly::CONTINUATION_TAIL)->firstOrFail();
+    $disk->assertExists($video->getPathRelativeToRoot());
+    $disk->assertExists($frame->getPathRelativeToRoot());
+    $disk->assertExists($tail->getPathRelativeToRoot());
+
+    expect(getimagesize($frame->getPath()))->toMatchArray([0 => 720, 1 => 1280]);
+    expect($disk->allDirectories('episode-builds'))->toBe([]);
+
+    $probe = Process::run(['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,width,height', '-of', 'json', $video->getPath()]);
+    expect($probe->successful())->toBeTrue();
+    expect($probe->output())->toContain('"audio"')->toContain('"width": 720')->toContain('"height": 1280');
+});
+
+test('ошибка FFmpeg не создает готовое медиа', function (): void {
+    $disk = Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt] = assemblyFixture();
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, 0, 1000)]));
+    Process::preventStrayProcesses();
+    Process::fake(['*' => Process::result(exitCode: 1)]);
+
+    expect(fn() => app(BuildEpisodeAssemblyAction::class)->run($assembly))->toThrow(RuntimeException::class);
+
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::FAILED);
+    expect($assembly->getFirstMedia(EpisodeAssembly::VIDEO))->toBeNull();
+    expect($assembly->error_message)->not->toContain('/var/www');
+    expect($disk->allDirectories('episode-builds'))->toBe([]);
+});
+
+test('немой монтаж убирает фактический звук дубля по сохранённому режиму', function (): void {
+    $disk = Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt, 'media' => $media] = assemblyFixture();
+    $input = $disk->path('with-sound.mp4');
+    Process::run([
+        'ffmpeg', '-v', 'error', '-nostdin', '-y', '-i', $media->getPath(),
+        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+        '-t', '1', '-c:v', 'copy', '-c:a', 'aac', $input,
+    ])->throw();
+    $media->delete();
+    $prompt->addMedia($input)->toMediaCollection('shot-video', 'local');
+    $prompt->update(['input_snapshot' => [...($prompt->input_snapshot ?? []), 'audio_mode' => SeriesAudioMode::SILENT->value]]);
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, 0, 1000)]));
+
+    app(BuildEpisodeAssemblyAction::class)->run($assembly);
+
+    expect(data_get($assembly->manifest, 'shots.0.mute_audio'))->toBeTrue();
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
+
+    $output = $assembly->media()->where('collection_name', EpisodeAssembly::VIDEO)->firstOrFail();
+    $levels = Process::run(['ffmpeg', '-hide_banner', '-nostdin', '-i', $output->getPath(), '-af', 'volumedetect', '-vn', '-f', 'null', '-']);
+    expect($levels->successful())->toBeTrue();
+    expect($levels->errorOutput())->toContain('max_volume: -91.0 dB');
+
+    $disk->assertExists($output->getPathRelativeToRoot());
+});

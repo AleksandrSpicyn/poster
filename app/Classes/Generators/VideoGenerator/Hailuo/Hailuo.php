@@ -5,20 +5,26 @@ declare(strict_types=1);
 namespace App\Classes\Generators\VideoGenerator\Hailuo;
 
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoCapabilitiesData;
+use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
 use App\Enums\ContentType;
 use App\Enums\HttpMethod;
 use App\Enums\VideoAudioSource;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
-use App\Settings\GeneralSettings;
+use App\Exceptions\VideoGenerationPendingException;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Support\Integrations\Payload;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
+use InvalidArgumentException;
+use UnexpectedValueException;
 
 /**
  * Адаптер Hailuo: создаёт задачу, при polling получает file ID и разрешает его
@@ -30,24 +36,57 @@ readonly class Hailuo implements VideoGenerator
         #[Config('services.hailuo.api_url')] private string $baseUrl,
         #[Config('services.hailuo.api_key')] private string $token,
         #[Config('services.hailuo.group_id')] private string $groupId,
-        private GeneralSettings $settings,
     ) {}
 
     /**
      * @throws ConnectionException
      */
-    public function generate(string $imageUrl, string $prompt): string
+    public function generate(VideoGenerationRequestData $request): string
     {
-        $response = $this
-            ->request('video_generation', parameters: [
-                'model' => 'MiniMax-Hailuo-02',
-                'first_frame_image' => $imageUrl,
-                'prompt' => $prompt,
-                'duration' => $this->settings->duration,
-            ])
-            ->json('task_id');
+        $this->capabilities($request->model)->assertSupports($request);
 
-        return Payload::string($response, 'task_id');
+        if ($request->resolution === '1080P' && $request->duration !== 6) {
+            throw new InvalidArgumentException('Hailuo 1080P only supports six-second videos.');
+        }
+
+        try {
+            $response = $this
+                ->request('video_generation', parameters: [
+                    'model' => $request->model,
+                    'first_frame_image' => $request->firstFrameUrl,
+                    'prompt' => $request->prompt,
+                    'duration' => $request->duration,
+                    'resolution' => $request->resolution,
+                ])
+                ->json('task_id');
+
+            return Payload::string($response, 'task_id');
+        } catch (ConnectionException|UnexpectedValueException $exception) {
+            throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
+        } catch (RequestException $exception) {
+            if ($exception->response->serverError()) {
+                throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function capabilities(?string $model = null): VideoCapabilitiesData
+    {
+        if ($model !== null && $model !== 'MiniMax-Hailuo-02') {
+            throw new InvalidArgumentException('Unsupported Hailuo model.');
+        }
+
+        return new VideoCapabilitiesData(
+            model: 'MiniMax-Hailuo-02',
+            modes: [VideoInputMode::FIRST_FRAME],
+            minDuration: 6,
+            maxDuration: 10,
+            resolutions: ['512P', '768P', '1080P'],
+            defaultResolution: '768P',
+            durations: [6, 10],
+        );
     }
 
     /**
@@ -56,25 +95,35 @@ readonly class Hailuo implements VideoGenerator
      */
     public function check(string $id): ?VideoResultData
     {
-        $fileId = $this
-            ->request("query/video_generation/?task_id=$id", HttpMethod::GET)
-            ->json('file_id');
+        try {
+            $response = $this->request('query/video_generation/?task_id=' . rawurlencode($id), HttpMethod::GET);
 
-        if (! $fileId) {
-            return null;
+            if (in_array($response->json('status'), ['Fail', 'failed'], true)) {
+                throw new VideoGeneratingException('Hailuo video generation failed.');
+            }
+
+            $fileId = $response->json('file_id');
+
+            if (! $fileId) {
+                return null;
+            }
+
+            $url = $this->get(Payload::string($fileId, 'file_id'));
+
+            if (! $url) {
+                throw new VideoGeneratingException('Hailuo completed video has no download URL.');
+            }
+
+            return new VideoResultData($url);
+        } catch (ConnectionException $exception) {
+            throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
+        } catch (RequestException $exception) {
+            if ($exception->response->status() === 429 || $exception->response->serverError()) {
+                throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
+            }
+
+            throw $exception;
         }
-
-        $url = $this->get(Payload::string($fileId, 'file_id'));
-
-        if (! $url) {
-            Log::error('Video url generation failed:', [
-                'fileId' => $fileId,
-            ]);
-
-            throw new VideoGeneratingException();
-        }
-
-        return new VideoResultData($url);
     }
 
     public function audioSource(): VideoAudioSource
@@ -120,7 +169,7 @@ readonly class Hailuo implements VideoGenerator
         if ($response->failed()) {
             Log::error('Hailuo API Error', ['status' => $response->status()]);
 
-            throw new RuntimeException('Hailuo API request failed.');
+            $response->throw();
         }
 
         return $response;

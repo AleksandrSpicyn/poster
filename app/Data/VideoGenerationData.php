@@ -17,5 +17,6 @@ class VideoGenerationData extends Data
         public string $id,
         public VideoProvider $provider,
         public VideoAudioSource $audioSource,
+        public ?VideoGenerationRequestData $request = null,
     ) {}
 }

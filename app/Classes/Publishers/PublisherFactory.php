@@ -8,6 +8,7 @@ use App\Classes\Publishers\Instagram\Instagram;
 use App\Classes\Publishers\Tiktok\Tiktok;
 use App\Classes\Publishers\Vk\Vk;
 use App\Classes\Publishers\Youtube\Youtube;
+use App\Data\PublishVideoData;
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Prompt;
@@ -21,7 +22,7 @@ readonly class PublisherFactory
 {
     public function __construct(private Container $container) {}
 
-    public function make(Channel $channel, Prompt $prompt): Publisher
+    public function make(Channel $channel, Prompt|PublishVideoData $prompt): Publisher
     {
         $class = match ($channel->type) {
             ChannelType::YOUTUBE => Youtube::class,

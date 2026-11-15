@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\Channel;
 use App\Support\Integrations\Payload;
 use Google\Client;
+use Google\Service\YouTube;
 use Illuminate\Console\Command;
 
 /**
@@ -15,7 +16,7 @@ use Illuminate\Console\Command;
  */
 class AuthorizeYoutube extends Command
 {
-    protected $signature = 'youtube:auth {channel_id}';
+    protected $signature = 'youtube:auth {channel_id} {--with-read-verification : Also request read access to verify uncertain publications}';
 
     protected $description = 'Authorize a YouTube channel using OAuth 2.0';
 
@@ -26,7 +27,14 @@ class AuthorizeYoutube extends Command
         $client->setClientId(Payload::string($channel->client_id, 'client_id'));
         $client->setClientSecret(Payload::string($channel->client_secret, 'client_secret'));
         $client->setRedirectUri(route('home'));
-        $client->setScopes(['https://www.googleapis.com/auth/youtube.upload']);
+
+        $scopes = [YouTube::YOUTUBE_UPLOAD];
+
+        if ($this->option('with-read-verification')) {
+            $scopes[] = YouTube::YOUTUBE_READONLY;
+        }
+
+        $client->setScopes($scopes);
         $client->setAccessType('offline');
         $client->setPrompt('consent');
 

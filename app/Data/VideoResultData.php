@@ -9,5 +9,11 @@ use Spatie\LaravelData\Data;
 /** Звук может находиться в том же файле, что и видео, либо поступить отдельно. */
 class VideoResultData extends Data
 {
-    public function __construct(public string $videoUrl, public ?string $audioUrl = null) {}
+    public function __construct(
+        public string $videoUrl,
+        public ?string $audioUrl = null,
+        public ?string $lastFrameUrl = null,
+        public ?int $duration = null,
+        public ?string $model = null,
+    ) {}
 }

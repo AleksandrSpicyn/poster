@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Classes\Generators\PromptGenerator\PromptGenerator;
+use App\Exceptions\CodexBusyException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
@@ -47,7 +48,7 @@ test('ошибка результата очищает каталог и раз�
 test('изображение и текст используют одну блокировку авторизации', function (): void {
     $disk = Storage::fake('public');
     fakeCodexImages(function (PendingProcess $process): ProcessResult {
-        expect(fn() => app(PromptGenerator::class)->generate('Parallel idea'))->toThrow(RuntimeException::class, 'already running');
+        expect(fn() => app(PromptGenerator::class)->generate('Parallel idea'))->toThrow(CodexBusyException::class, 'already running');
 
         $imagePath = ($process->path ?? '') . '/image.png';
         File::copy(base_path('tests/Fixtures/portrait.png'), $imagePath);

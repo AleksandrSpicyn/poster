@@ -21,7 +21,7 @@ class GetPromptsList
     {
         $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
 
-        $query = Prompt::query()->with('project', 'media');
+        $query = Prompt::query()->whereNull('shot_id')->with('project', 'media');
 
         if ($project instanceof Project) {
             $query->whereBelongsTo($project);

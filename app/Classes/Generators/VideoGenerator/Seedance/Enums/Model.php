@@ -24,6 +24,20 @@ enum Model: string
         };
     }
 
+    public function supportsExtension(): bool
+    {
+        return in_array($this, [self::V2_5, self::V2_5_FLASH], true);
+    }
+
+    public function maxReferenceImages(): int
+    {
+        return match ($this) {
+            self::V2_5 => 30,
+            self::V2_5_FLASH => 10,
+            default => 9,
+        };
+    }
+
     public function supports(Resolution $resolution): bool
     {
         return match ($resolution) {

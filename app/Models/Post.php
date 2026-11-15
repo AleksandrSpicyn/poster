@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $url
  * @property int|null $channel_id
  * @property int|null $prompt_id
+ * @property int|null $episode_assembly_id
+ * @property int|null $publication_request_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Channel|null $channel
@@ -36,6 +38,8 @@ class Post extends Model
         'description',
         'external_id',
         'prompt_id',
+        'episode_assembly_id',
+        'publication_request_id',
         'url',
     ];
 

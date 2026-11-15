@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Classes\Publishers\Youtube;
 
 use App\Classes\Publishers\AbstractPublisher;
+use App\Classes\Publishers\VerifiablePublisher;
+use App\Data\PublishVideoData;
+use App\Data\VerifiedPublicationData;
+use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\Prompt;
 use App\Support\Integrations\Payload;
@@ -13,6 +17,8 @@ use Google\Client;
 use Google\Http\MediaFileUpload;
 use Google\Service\Exception;
 use Google\Service\YouTube as YouTubeService;
+use Google\Service\YouTube\Channel as YoutubeChannel;
+use Google\Service\YouTube\Resource\Channels;
 use Google\Service\YouTube\Resource\Videos;
 use Google\Service\YouTube\Video;
 use Google\Service\YouTube\VideoSnippet;
@@ -26,11 +32,11 @@ use Throwable;
  * Загружает готовый локальный ролик порциями через YouTube API, обновляя OAuth
  * при необходимости; после ответа Video сохраняет Post со ссылкой на Shorts.
  */
-class Youtube extends AbstractPublisher
+class Youtube extends AbstractPublisher implements VerifiablePublisher
 {
     private const int CHUNK_SIZE = 1024 * 1024;
 
-    public function __construct(Channel $channel, Prompt $prompt, private readonly Client $client, SavePost $savePost)
+    public function __construct(Channel $channel, Prompt|PublishVideoData $prompt, private readonly Client $client, SavePost $savePost)
     {
         parent::__construct($channel, $prompt, $savePost);
     }
@@ -61,7 +67,7 @@ class Youtube extends AbstractPublisher
             Log::error('YouTube publish failed.', [
                 'exception' => $e::class,
                 'channel' => $this->channel->id,
-                'prompt' => $this->prompt->id,
+                'source' => $this->getSourceId(),
             ]);
 
             return false;
@@ -70,14 +76,43 @@ class Youtube extends AbstractPublisher
         return true;
     }
 
-    private function getClient(): Client
+    public function verifyPublication(string $externalId): VerifiedPublicationData
+    {
+        if (preg_match('/\A[A-Za-z0-9_-]{1,128}\z/', $externalId) !== 1) {
+            throw new PublicationVerificationException('Enter the YouTube video ID rather than its URL.');
+        }
+
+        $client = $this->getClient(readOnly: true);
+        $client->setDefer(false);
+        $this->updateToken($client);
+        /** @var YouTubeService&object{channels: Channels, videos: Videos} $youtube */
+        $youtube = new YouTubeService($client);
+        $ownedChannels = $youtube->channels->listChannels('id', ['mine' => true, 'maxResults' => 50])->getItems();
+        $videos = $youtube->videos->listVideos('snippet', ['id' => $externalId])->getItems();
+        $video = $videos[0] ?? null;
+
+        if (! $video instanceof Video || $video->getId() !== $externalId) {
+            throw new PublicationVerificationException('YouTube did not return the selected video.');
+        }
+
+        $channelId = Payload::string($video->getSnippet()->getChannelId(), 'video.channelId');
+        $owned = collect($ownedChannels)->contains(static fn(YoutubeChannel $channel): bool => $channel->getId() === $channelId);
+
+        if (! $owned) {
+            throw new PublicationVerificationException('This YouTube video does not belong to the authorised channel.');
+        }
+
+        return new VerifiedPublicationData($externalId, $this->getUrl($externalId));
+    }
+
+    private function getClient(bool $readOnly = false): Client
     {
         $client = $this->client;
 
         $client->setApplicationName('Midjourney Shorts Uploader');
         $client->setClientId(Payload::string($this->channel->client_id, 'client_id'));
         $client->setClientSecret(Payload::string($this->channel->client_secret, 'client_secret'));
-        $client->setScopes([YouTubeService::YOUTUBE_UPLOAD]);
+        $client->setScopes([$readOnly ? YouTubeService::YOUTUBE_READONLY : YouTubeService::YOUTUBE_UPLOAD]);
         $client->setAccessType('offline');
         $client->setPrompt('consent');
         $client->setAccessToken($this->channel->credentials ?? []);
@@ -106,6 +141,10 @@ class Youtube extends AbstractPublisher
         $status = new VideoStatus();
 
         $status->privacyStatus = 'public';
+
+        if ($this->prompt instanceof PublishVideoData) {
+            $status->selfDeclaredMadeForKids = $this->prompt->madeForKids;
+        }
 
         $video->setStatus($status);
     }

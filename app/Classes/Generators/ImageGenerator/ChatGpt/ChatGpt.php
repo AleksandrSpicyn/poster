@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Classes\Generators\ImageGenerator\ChatGpt;
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\ImageReferenceData;
+use InvalidArgumentException;
 use OpenAI\Laravel\Facades\OpenAI;
 
 /**
@@ -12,8 +14,13 @@ use OpenAI\Laravel\Facades\OpenAI;
  */
 class ChatGpt implements ImageGenerator
 {
-    public function generate(string $prompt): string
+    /** @param list<ImageReferenceData> $references */
+    public function generate(string $prompt, array $references = []): string
     {
+        if ($references !== []) {
+            throw new InvalidArgumentException('The DALL-E image adapter does not support reference images.');
+        }
+
         $response = OpenAI::images()->create([
             'model' => 'dall-e-3',
             'prompt' => $prompt,

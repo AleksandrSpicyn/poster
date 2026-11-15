@@ -16,10 +16,12 @@ class PostData extends Data
 {
     public function __construct(
         public Channel $channel,
-        public Prompt $prompt,
+        public ?Prompt $prompt,
         public string $title,
         public string $description,
         public ?string $url = null,
         public ?string $externalId = null,
+        public ?int $episodeAssemblyId = null,
+        public ?int $publicationRequestId = null,
     ) {}
 }

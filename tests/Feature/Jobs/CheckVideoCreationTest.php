@@ -7,6 +7,7 @@ use App\Events\VideoGenerated;
 use App\Exceptions\VideoGeneratingException;
 use App\Jobs\CheckVideoCreation;
 use App\Models\Prompt;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 
@@ -45,18 +46,48 @@ test('неготовое видео возвращается в очередь',
     Event::assertNotDispatched(VideoGenerated::class);
 });
 
-test('ошибка провайдера завершает проверку без готового видео', function (): void {
+test('постоянная ошибка провайдера завершает проверку без готового видео', function (): void {
     Event::fake([VideoGenerated::class]);
 
     $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
 
-    Http::fake(['*query/video_generation/*' => Http::response([], 503)]);
+    Http::fake(['*query/video_generation/*' => Http::response([], 400)]);
 
     $job = new CheckVideoCreation($prompt)->withFakeQueueInteractions();
 
     app()->call($job->handle(...));
 
-    $job->assertFailedWith(RuntimeException::class);
+    $job->assertFailedWith(RequestException::class);
+    Event::assertNotDispatched(VideoGenerated::class);
+});
+
+test('временная ошибка Hailuo повторяет только опрос', function (): void {
+    Event::fake([VideoGenerated::class]);
+    $prompt = Prompt::factory()->create(['video_id' => 'video-1']);
+    Http::fake(['*query/video_generation/*' => Http::response([], 503)]);
+    $job = new CheckVideoCreation($prompt)->withFakeQueueInteractions();
+
+    app()->call($job->handle(...));
+
+    $job->assertReleased(60);
+    Http::assertSentCount(1);
+    Event::assertNotDispatched(VideoGenerated::class);
+});
+
+test('самостоятельный ролик отклоняет отсутствующий встроенный звук', function (): void {
+    Event::fake([VideoGenerated::class]);
+    config(['services.seedance.api_key' => 'test']);
+    $prompt = Prompt::factory()->create(['video_id' => 'silent-1', 'video_provider' => VideoProvider::SEEDANCE]);
+    Http::fake(['*contents/generations/tasks/silent-1' => Http::response([
+        'status' => 'succeeded', 'generate_audio' => false,
+        'content' => ['video_url' => 'https://cdn.example.com/silent.mp4'],
+    ])]);
+    $job = new CheckVideoCreation($prompt)->withFakeQueueInteractions();
+
+    app()->call($job->handle(...));
+
+    $job->assertFailedWith(VideoGeneratingException::class);
+    expect($prompt->refresh()->video_url)->toBeNull();
     Event::assertNotDispatched(VideoGenerated::class);
 });
 

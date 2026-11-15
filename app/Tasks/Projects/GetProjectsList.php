@@ -15,7 +15,11 @@ class GetProjectsList
     /** @return LengthAwarePaginator<int, Project> */
     public function run(GetProjectsListData $data): LengthAwarePaginator
     {
-        $query = Project::query()->withCount('prompts', 'readyPrompts', 'channels');
+        $query = Project::query()->withCount([
+            'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
+            'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
+            'channels', 'series',
+        ]);
 
         if ($data->search !== null && $data->search !== '') {
             $search = '%' . $data->search . '%';

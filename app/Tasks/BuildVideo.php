@@ -31,7 +31,9 @@ readonly class BuildVideo
 
         $format = new X264();
         $format->setAudioCodec('aac');
-        $format->setAdditionalParameters(['-t', (string) $this->settings->duration]);
+
+        $duration = data_get($prompt->input_snapshot, 'video_request.duration');
+        $format->setAdditionalParameters(['-t', (string) (is_int($duration) && $duration > 0 ? $duration : $this->settings->duration)]);
 
         $exporter = FFMpeg::openUrl([$prompt->video_url, $prompt->audio_url])->export();
         $exporter->addFormatOutputMapping(

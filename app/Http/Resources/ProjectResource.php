@@ -23,7 +23,7 @@ class ProjectResource extends JsonResource
             'channels_count' => $this->whenCounted('channels'),
             'can_delete' => $this->when(
                 $this->prompts_count !== null && $this->channels_count !== null,
-                fn(): bool => $this->prompts_count === 0 && $this->channels_count === 0,
+                fn(): bool => $this->prompts_count === 0 && $this->channels_count === 0 && $this->series_count === 0,
             ),
             'channels' => $this->whenLoaded('channels', fn(): array => ProjectChannelResource::collection($this->channels)->resolve($request)),
             'created_at' => $this->created_at?->toISOString(),

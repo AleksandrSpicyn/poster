@@ -19,6 +19,10 @@ readonly class VideoBuiltListener
 
     public function handle(VideoBuilt $event): void
     {
+        if ($event->getPrompt()->shot_id !== null) {
+            return;
+        }
+
         Log::info("VideoBuilt: {$event->getPrompt()->getFirstMediaUrl()}");
 
         $prompt = $event->getPrompt();

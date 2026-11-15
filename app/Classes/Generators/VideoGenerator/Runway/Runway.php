@@ -7,20 +7,26 @@ namespace App\Classes\Generators\VideoGenerator\Runway;
 use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
 use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoCapabilitiesData;
+use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
 use App\Enums\ContentType;
 use App\Enums\HttpMethod;
 use App\Enums\VideoAudioSource;
+use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
-use App\Settings\GeneralSettings;
+use App\Exceptions\VideoGenerationPendingException;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Support\Integrations\Payload;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
+use InvalidArgumentException;
+use UnexpectedValueException;
 
 /**
  * Резервный адаптер Runway: переводит статусы задачи в URL, ожидание (null)
@@ -32,25 +38,55 @@ readonly class Runway implements VideoGenerator
         #[Config('services.runway.api_url')] private string $baseUrl,
         #[Config('services.runway.api_key')] private string $token,
         #[Config('services.runway.version')] private string $version,
-        private GeneralSettings $settings,
     ) {}
 
     /**
      * @throws ConnectionException
      */
-    public function generate(string $imageUrl, string $prompt): string
+    public function generate(VideoGenerationRequestData $request): string
     {
-        $id = $this
-            ->request('image_to_video', parameters: [
-                'model' => 'gen4_turbo',
-                'promptImage' => $imageUrl,
-                'promptText' => $prompt,
-                'ratio' => '720:1280',
-                'duration' => $this->settings->duration,
-            ])
-            ->json('id');
+        $this->capabilities($request->model)->assertSupports($request);
 
-        return Payload::string($id, 'id');
+        try {
+            $id = $this
+                ->request('image_to_video', parameters: [
+                    'model' => $request->model,
+                    'promptImage' => $request->firstFrameUrl,
+                    'promptText' => $request->prompt,
+                    'ratio' => $request->aspectRatio === '16:9' ? '1280:720' : '720:1280',
+                    'duration' => $request->duration,
+                ])
+                ->json('id');
+
+            return Payload::string($id, 'id');
+        } catch (ConnectionException|UnexpectedValueException $exception) {
+            throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
+        } catch (RequestException $exception) {
+            if ($exception->response->serverError()) {
+                throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function capabilities(?string $model = null): VideoCapabilitiesData
+    {
+        if ($model !== null && $model !== 'gen4_turbo') {
+            throw new InvalidArgumentException('Unsupported Runway model.');
+        }
+
+        return new VideoCapabilitiesData(
+            model: 'gen4_turbo',
+            modes: [VideoInputMode::FIRST_FRAME],
+            minDuration: 5,
+            maxDuration: 10,
+            resolutions: ['720p'],
+            defaultResolution: '720p',
+            defaultAspectRatio: '9:16',
+            aspectRatios: ['9:16', '16:9'],
+            durations: [5, 10],
+        );
     }
 
     /**
@@ -59,7 +95,17 @@ readonly class Runway implements VideoGenerator
      */
     public function check(string $id): ?VideoResultData
     {
-        $response = $this->request("tasks/$id", HttpMethod::GET);
+        try {
+            $response = $this->request('tasks/' . rawurlencode($id), HttpMethod::GET);
+        } catch (ConnectionException $exception) {
+            throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
+        } catch (RequestException $exception) {
+            if ($exception->response->status() === 429 || $exception->response->serverError()) {
+                throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
+            }
+
+            throw $exception;
+        }
 
         $dto = CreationData::from($response->json());
 
@@ -107,7 +153,7 @@ readonly class Runway implements VideoGenerator
         if ($response->failed()) {
             Log::error('Runway API Error', ['status' => $response->status()]);
 
-            throw new RuntimeException('Runway API request failed.');
+            $response->throw();
         }
 
         return $response;

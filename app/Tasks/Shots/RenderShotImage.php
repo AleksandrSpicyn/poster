@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tasks\Shots;
+
+use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\ImageReferenceData;
+use App\Enums\TransitionMode;
+use App\Models\CharacterRevision;
+use App\Models\GenerationOperation;
+use App\Models\Prompt;
+use App\Support\Integrations\Payload;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use RuntimeException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+
+readonly class RenderShotImage
+{
+    public function __construct(private ImageGenerator $images) {}
+
+    public function run(GenerationOperation $operation): Media
+    {
+        $prompt = $operation->prompt()->firstOrFail();
+        $existing = $prompt->getFirstMedia(Prompt::SHOT_IMAGE);
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $snapshot = $operation->request_snapshot;
+        $sourceId = $snapshot['source_media_id'] ?? null;
+        $source = is_int($sourceId) ? Media::query()->findOrFail($sourceId) : null;
+        $workFile = null;
+
+        try {
+            if ($source !== null) {
+                if (hash_file('sha256', $source->getPath()) !== ($snapshot['source_sha256'] ?? null)) {
+                    throw new RuntimeException('The pinned continuation source changed.');
+                }
+
+                $workFile = Storage::disk('local')->path('shot-work/' . Str::uuid() . '.png');
+                File::ensureDirectoryExists(dirname($workFile), 0700);
+                $time = $snapshot['source_time_ms'] ?? null;
+                $seek = is_int($time) && $time > 0 ? ['-ss', (string) ($time / 1000)] : ['-sseof', '-0.1'];
+                $frames = is_int($time) && $time > 0 ? ['-frames:v', '1'] : [];
+                Process::timeout(60)->run(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov', ...$seek, '-i', $source->getPath(), ...$frames, '-update', '1', '-y', $workFile])->throw();
+
+                if (! File::isFile($workFile) || @getimagesize($workFile) === false) {
+                    throw new RuntimeException('The selected continuation point has no readable frame.');
+                }
+            }
+
+            if (($snapshot['transition_mode'] ?? null) === TransitionMode::CONTINUE_SCENE->value) {
+                if ($workFile === null) {
+                    throw new RuntimeException('The continued shot has no pinned opening frame.');
+                }
+
+                return $prompt->addMedia($workFile)->toMediaCollection(Prompt::SHOT_IMAGE, 'local');
+            }
+
+            $preparedReferences = [];
+            $characters = $snapshot['characters'] ?? null;
+
+            if (! is_array($characters)) {
+                throw new RuntimeException('The pinned character snapshot is invalid.');
+            }
+
+            foreach ($characters as $character) {
+                if (! is_array($character) || ! is_int($character['id'] ?? null) || ! is_int($character['character_id'] ?? null) || ! is_array($character['references'] ?? null)) {
+                    throw new RuntimeException('The pinned character references are invalid.');
+                }
+
+                foreach ($character['references'] as $index => $reference) {
+                    if (! is_array($reference) || ! is_int($reference['media_id'] ?? null)) {
+                        throw new RuntimeException('The pinned media reference is invalid.');
+                    }
+
+                    $media = Media::query()->where('model_type', new CharacterRevision()->getMorphClass())
+                        ->where('model_id', $character['id'])->where('collection_name', CharacterRevision::REFERENCES)
+                        ->findOrFail($reference['media_id']);
+
+                    if (hash_file('sha256', $media->getPath()) !== ($reference['sha256'] ?? null)) {
+                        throw new RuntimeException('An approved reference changed after this take was requested.');
+                    }
+
+                    $data = new ImageReferenceData($media->getPath(), 'Character ' . $character['character_id'] . ', version ' . $character['id'] . ', view ' . ($index + 1));
+
+                    $preparedReferences[$media->id] = $data;
+                }
+            }
+
+            $referenceIds = $snapshot['reference_media_ids'] ?? null;
+
+            if (! is_array($referenceIds)) {
+                throw new RuntimeException('The selected reference order is missing.');
+            }
+
+            $references = [];
+
+            foreach ($referenceIds as $referenceId) {
+                if (! is_int($referenceId) || ! isset($preparedReferences[$referenceId])) {
+                    throw new RuntimeException('The selected reference is not part of the pinned character versions.');
+                }
+
+                $references[] = $preparedReferences[$referenceId];
+            }
+
+            if ($workFile !== null) {
+                $position = $snapshot['source_reference_position'] ?? null;
+
+                if (! is_int($position) || count($references) >= 10) {
+                    throw new RuntimeException('The continuity reference position is invalid.');
+                }
+
+                array_splice($references, $position, 0, [new ImageReferenceData($workFile, 'Previous scene state; preserve clothing, props and environment while changing camera.')]);
+            }
+
+            $url = $this->images->generate(Payload::string($snapshot['image_prompt'] ?? null, 'image_prompt'), $references);
+            $disk = Storage::disk('public');
+            $prefix = rtrim($disk->url('generated-images'), '/') . '/';
+
+            if (! str_starts_with($url, $prefix) || preg_match('/\A[a-zA-Z0-9_-]+\.png\z/', substr($url, strlen($prefix))) !== 1) {
+                throw new RuntimeException('The image adapter did not return an owned generated image.');
+            }
+
+            return $prompt->addMedia($disk->path('generated-images/' . substr($url, strlen($prefix))))->toMediaCollection(Prompt::SHOT_IMAGE, 'local');
+        } finally {
+            if ($workFile !== null && File::isFile($workFile)) {
+                File::delete($workFile);
+            }
+        }
+    }
+}

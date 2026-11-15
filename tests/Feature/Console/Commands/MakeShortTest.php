@@ -7,10 +7,12 @@ use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
 use App\Events\VideoGenerating;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Settings\GeneralSettings;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -40,7 +42,7 @@ test('сценарий генерации сохраняет результат�
     Event::fake([PromptGenerated::class, ImageGenerated::class, VideoGenerating::class, AudioGenerating::class]);
     AnonymousAgent::fake(['A fox in Tokyo'])->preventStrayPrompts();
     Http::fake([
-        '*video_generation' => $fallback ? Http::response([], 503) : Http::response(['task_id' => 'video-1']),
+        '*video_generation' => $fallback ? Http::response([], 429) : Http::response(['task_id' => 'video-1']),
         '*image_to_video' => Http::response(['id' => 'video-fallback']),
         '*generate' => Http::response(['data' => ['taskId' => 'audio-1']]),
     ]);
@@ -85,11 +87,11 @@ test('отказ обоих видео-провайдеров не запуск�
     fakeCodexImages();
     Event::fake([VideoGenerating::class, AudioGenerating::class]);
     AnonymousAgent::fake(['An idea'])->preventStrayPrompts();
-    Http::fake(['*video_generation' => Http::response([], 503), '*image_to_video' => Http::response([], 503)]);
+    Http::fake(['*video_generation' => Http::response([], 429), '*image_to_video' => Http::response([], 400)]);
 
     $project = Project::factory()->create();
 
-    expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(RuntimeException::class);
+    expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(RequestException::class);
 
     $prompt = $project
         ->prompts()
@@ -121,4 +123,20 @@ test('команда генерации без проектов не выпол�
     AnonymousAgent::assertNeverPrompted();
 
     assertDatabaseCount('prompts', 0);
+});
+
+test('команда не создаёт резервную задачу после неоднозначного HTTP запуска', function (): void {
+    Storage::fake('public');
+    fakeCodexImages();
+    Event::fake([VideoGenerating::class, AudioGenerating::class]);
+    AnonymousAgent::fake(['An idea'])->preventStrayPrompts();
+    Http::fake(['*video_generation' => Http::response([], 503)]);
+    Project::factory()->create();
+
+    expect(fn() => consoleCommand('app:make-short')->run())->toThrow(VideoGenerationUncertainException::class);
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn(Request $request): bool => str_contains($request->url(), 'image_to_video'));
+    Event::assertNotDispatched(VideoGenerating::class);
+    Event::assertNotDispatched(AudioGenerating::class);
 });

@@ -11,3 +11,8 @@ Artisan::command('inspire', function (): void {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
+
+Schedule::command('app:reconcile-episode-scripts --limit=50')->everyMinute()->withoutOverlapping(5);
+Schedule::command('app:reconcile-shot-generations --limit=50')->everyMinute()->withoutOverlapping(5);
+Schedule::command('app:reconcile-episode-assemblies --limit=50')->everyMinute()->withoutOverlapping(5);
+Schedule::command('app:reconcile-publications --limit=50')->everyMinute()->withoutOverlapping(5);

@@ -18,7 +18,7 @@ const page = usePage<SharedData>();
                 <SidebarMenuButton
                     class="h-11 md:h-8"
                     as-child
-                    :is-active="item.href === page.url.split('?')[0] || page.url.split('?')[0].startsWith(item.href + '/')"
+                    :is-active="item.isActive ?? (item.href === page.url.split('?')[0] || page.url.split('?')[0].startsWith(item.href + '/'))"
                     :tooltip="item.title"
                 >
                     <Link :href="item.href">

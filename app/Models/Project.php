@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Channel> $channels
+ * @property-read Collection<int, Series> $series
  * @property-read int|null $channels_count
  * @property-read Collection<int, Prompt> $prompts
  * @property-read int|null $prompts_count
@@ -52,5 +53,11 @@ class Project extends Model
     public function channels(): HasMany
     {
         return $this->hasMany(Channel::class);
+    }
+
+    /** @return HasMany<Series, $this> */
+    public function series(): HasMany
+    {
+        return $this->hasMany(Series::class);
     }
 }

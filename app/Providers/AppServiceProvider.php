@@ -18,5 +18,6 @@ class AppServiceProvider extends ServiceProvider
         Ai::extend('codex', fn(Application $app, array $config): CodexProvider => $app->make(CodexProvider::class, ['config' => $config]));
 
         Gate::define('viewLogViewer', [OperationsPolicy::class, 'viewLogs']);
+        Gate::define('manageSeries', [OperationsPolicy::class, 'manageSeries']);
     }
 }

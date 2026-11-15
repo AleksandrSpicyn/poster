@@ -31,6 +31,10 @@ readonly class SaveVideoAction
      */
     public function run(Prompt $prompt): void
     {
+        if ($prompt->shot_id !== null) {
+            return;
+        }
+
         // TTL превышает часовой timeout SaveVideoJob; оба события готовности используют один lock.
         Cache::lock('prompt-build:' . $prompt->id, 3720)->get(function () use ($prompt): void {
             // Payload job мог устареть, пока второй исходник сохранялся другим worker.

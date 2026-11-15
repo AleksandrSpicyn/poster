@@ -32,6 +32,12 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property VideoProvider|null $video_provider
  * @property bool $generated
  * @property int $project_id
+ * @property int|null $shot_id
+ * @property int|null $take_number
+ * @property array<string, mixed>|null $input_snapshot
+ * @property string|null $input_hash
+ * @property-read Shot|null $shot
+ * @property-read Collection<int, GenerationOperation> $generationOperations
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read MediaCollection<int, Media> $media
@@ -47,7 +53,7 @@ class Prompt extends Model implements HasMedia
 
     use InteractsWithMedia;
 
-    protected $casts = ['generated' => 'boolean', 'video_provider' => VideoProvider::class];
+    protected $casts = ['generated' => 'boolean', 'video_provider' => VideoProvider::class, 'input_snapshot' => 'array'];
 
     protected $fillable = [
         'prompt',
@@ -58,6 +64,10 @@ class Prompt extends Model implements HasMedia
         'video_url',
         'video_provider',
         'generated',
+        'shot_id',
+        'take_number',
+        'input_snapshot',
+        'input_hash',
     ];
 
     /** Готовность определяется результатами; старые задачи без результата остаются ожидающими. */
@@ -84,5 +94,33 @@ class Prompt extends Model implements HasMedia
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    /** @return BelongsTo<Shot, $this> */
+    public function shot(): BelongsTo
+    {
+        return $this->belongsTo(Shot::class);
+    }
+
+    public const string SHOT_IMAGE = 'shot-image';
+
+    public const string SHOT_VIDEO = 'shot-video';
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::SHOT_IMAGE)->useDisk('local');
+        $this->addMediaCollection(self::SHOT_VIDEO)->useDisk('local');
+    }
+
+    /** @return HasMany<GenerationOperation, $this> */
+    public function generationOperations(): HasMany
+    {
+        return $this->hasMany(GenerationOperation::class);
+    }
+
+    /** @return HasMany<GenerationOperation, $this> */
+    public function operations(): HasMany
+    {
+        return $this->generationOperations();
     }
 }

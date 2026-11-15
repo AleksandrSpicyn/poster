@@ -14,7 +14,7 @@ class DeleteProject
         return DB::transaction(function () use ($project): bool {
             $project = Project::query()->lockForUpdate()->findOrFail($project->id);
 
-            if ($project->prompts()->exists() || $project->channels()->exists()) {
+            if ($project->prompts()->exists() || $project->channels()->exists() || $project->series()->exists()) {
                 return false;
             }
 

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Actions\MakeShortAction;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoCapabilitiesData;
 use App\Data\VideoResultData;
 use App\Enums\VideoAudioSource;
+use App\Enums\VideoInputMode;
 use App\Enums\VideoProvider;
 use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
@@ -86,8 +88,9 @@ test('конвейер использует возможности зареги�
     Bus::fake();
     Http::fake();
     $driver = mock(VideoGenerator::class);
+    $driver->shouldReceive('capabilities')->andReturn(new VideoCapabilitiesData(model: 'fake', modes: [VideoInputMode::FIRST_FRAME], minDuration: 1, maxDuration: 30, resolutions: ['720p'], defaultResolution: '720p', supportsAudioGeneration: true));
     $driver->shouldReceive('generate')->once()->andReturn('embedded-1');
-    $driver->shouldReceive('audioSource')->once()->andReturn(VideoAudioSource::EMBEDDED);
+    $driver->shouldReceive('audioSource')->andReturn(VideoAudioSource::EMBEDDED);
     $driver->shouldReceive('pollingAttempts')->once()->andReturn(17);
     $driver->shouldReceive('check')->with('embedded-1')->once()->andReturn(new VideoResultData('native.mp4', 'native.mp4'));
     $project = Project::factory()->create();

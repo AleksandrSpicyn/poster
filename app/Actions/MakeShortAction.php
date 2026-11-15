@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Classes\Story\Snapshot;
 use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
@@ -41,7 +42,11 @@ readonly class MakeShortAction
         event(new ImageGenerated($imageUrl));
 
         $video = $this->createVideo->run($imageUrl, $prompt->prompt);
-        $this->updatePrompt->run($prompt, ['video_id' => $video->id, 'video_provider' => $video->provider->value]);
+        $snapshot = ['video_request' => $video->request?->toArray()];
+        $this->updatePrompt->run($prompt, [
+            'video_id' => $video->id, 'video_provider' => $video->provider->value,
+            'input_snapshot' => $snapshot, 'input_hash' => Snapshot::hash($snapshot),
+        ]);
         event(new VideoGenerating($prompt));
 
         $audioId = $this->createAudio->run($prompt->prompt, $video->audioSource);

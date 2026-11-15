@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Post;
 use App\Models\Prompt;
+use App\Models\Shot;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -28,6 +29,19 @@ test('пользователь видит кабинет', function (): void {
             ->where('stats', ['prompts' => 0, 'pending' => 0, 'ready' => 0, 'posts' => 0])
             ->has('recentPrompts.data', 0)
             ->has('recentPosts.data', 0));
+});
+
+test('обзор не раскрывает приватные сериальные дубли', function (): void {
+    Prompt::factory()->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
+
+    actingAs(User::factory()->create())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertDontSee('SERIAL_PRIVATE_SENTINEL')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('stats.prompts', 0)
+            ->where('stats.pending', 0)
+            ->has('recentPrompts.data', 0));
 });
 
 test('неподтверждённый email закрывает кабинет и рабочие списки', function (): void {
