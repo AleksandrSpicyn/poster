@@ -12,6 +12,10 @@ use Knuckles\Camel\Output\OutputEndpointData;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Writing\OpenApiSpecGenerators\OpenApiGenerator as ScribeGenerator;
 
+/**
+ * Адаптирует Scribe OpenAPI к session-cookie аутентификации кабинета
+ * и реальным ограничениям query DTO; документ используется также read-only MCP.
+ */
 class OpenApiGenerator extends ScribeGenerator
 {
     public function __construct(DocumentationConfig $config, #[Config('session.cookie')] private readonly string $sessionCookie)

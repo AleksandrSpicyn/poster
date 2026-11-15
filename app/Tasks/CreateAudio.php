@@ -7,6 +7,10 @@ namespace App\Tasks;
 use App\Classes\Generators\AudioGenerator\AudioGenerator;
 use App\Settings\GeneralSettings;
 
+/**
+ * Формирует запрос инструментальной музыки с длительностью из общих настроек.
+ * Возвращает идентификатор задачи; ссылка на трек придёт через callback Suno.
+ */
 readonly class CreateAudio
 {
     public function __construct(

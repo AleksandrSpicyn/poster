@@ -9,6 +9,10 @@ use App\Enums\SortDirection;
 use App\Models\Prompt;
 use Illuminate\Pagination\LengthAwarePaginator;
 
+/**
+ * Готовит общую выборку prompts кабинета с project и media для PromptResource.
+ * Вторичная сортировка по id сохраняет порядок записей с одинаковой датой.
+ */
 class GetPromptsList
 {
     /** @return LengthAwarePaginator<int, Prompt> */

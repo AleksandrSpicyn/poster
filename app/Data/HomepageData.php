@@ -6,6 +6,10 @@ namespace App\Data;
 
 use Spatie\LaravelData\Data;
 
+/**
+ * Единый источник утверждённого публичного контента и структуры Welcome.
+ * Передаётся через HomeController в Inertia без чтения данных кабинета.
+ */
 class HomepageData extends Data
 {
     /**

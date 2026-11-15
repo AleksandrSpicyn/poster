@@ -9,6 +9,10 @@ use App\Models\Channel;
 use App\Models\Prompt;
 use App\Tasks\Posts\SavePost;
 
+/**
+ * Общий контекст канала и готового Prompt, доступ к медиа и запись Post.
+ * Адаптер вызывает savePost после подтверждения публикации внешним сервисом.
+ */
 abstract class AbstractPublisher implements Publisher
 {
     public function __construct(

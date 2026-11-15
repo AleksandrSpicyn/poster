@@ -1,5 +1,89 @@
 # Архитектура Laravel-приложения
 
+## Архитектура Poster
+
+Poster использует стандартные каталоги Laravel 13, Actions со входом `run()` и
+Tasks для отдельных операций. Persistence выполняется в Tasks через Eloquent;
+Repository-слоя нет. Примеры модульного профиля и Article ниже — общие рекомендации,
+а не описание текущих классов Poster.
+
+| Область | Владелец и граница ответственности |
+|---|---|
+| HTTP | `routes/` задают доступ; `app/Http/Controllers` получают Laravel Data DTO, вызывают Action и формируют Inertia/redirect-ответ |
+| Ввод и проекции | `app/Data` валидирует HTTP-ввод и содержит внутренние DTO; `app/Http/Resources` задаёт поля списков, без credentials интеграций |
+| Сценарии | `app/Actions` связывает шаги генерации, сборки, входа и настроек |
+| Операции | `app/Tasks` готовит запросы к генераторам, выполняет выборки и записи, собирает медиа |
+| Интеграции | `app/Classes/Generators` адаптирует протоколы генерации; `app/Classes/Publishers` публикует готовое медиа |
+| Фон и события | `app/Events`, `app/Listeners`, `app/Jobs` продолжают конвейер при готовности внешних результатов |
+| Данные | `Project` объединяет `Prompt` и `Channel`; `Post` хранит результат публикации, `Chat` — получателя Telegram |
+| Интерфейс | `resources/js/pages` отображает Inertia props; layouts/components формируют кабинет, composables управляют клиентским состоянием |
+| Инфраструктура | `bootstrap/app.php`, providers и `config/` связывают HTTP, DI, доступ к операционным панелям, queues и интеграции |
+
+### Точки входа и данные кабинета
+
+`HomeController → HomepageData → Welcome.vue` публикует утверждённый контент профиля.
+Аутентификация и настройки проходят через DTO и Actions; хеширование пароля
+выполняет cast модели User. Middleware `auth` и `verified` защищают dashboard,
+prompts и posts; настройки профиля доступны под `auth`, включая повторное
+подтверждение email после его смены. `OperationsPolicy` отдельно ограничивает
+Logs и Queues подтверждёнными адресами из конфигурации.
+
+Списки `Posts` и `Prompts` выполняют фильтрацию/сортировку/пагинацию на сервере.
+Tasks заранее загружают `channel` либо `project`/`media` для Resources.
+Проекты и каналы сейчас не принадлежат User: списки общие для допущенных
+пользователей, пользовательского tenant scope в модели данных нет.
+`HandleInertiaRequests` задаёт shared props, `app.ts` разрешает имя страницы в Vue,
+`ssr.ts` служит отдельной SSR-точкой. `HandleAppearance`, Blade и `useAppearance`
+согласуют тему через cookie/localStorage; sidebar хранит состояние в cookie.
+
+### Конвейер генерации и публикации
+
+`app:make-short` проходит по проектам и вызывает `MakeShortAction`:
+
+1. `CreateBasePrompt` добавляет последние 50 идей проекта к запросу OpenAI;
+   `CreatePrompt` сохраняет новую идею. `CreateImage` получает первый кадр.
+2. `CreateVideo` запускает Hailuo и при исключении запуска пробует Runway.
+   `VideoGenerationData.alternative` передаёт выбор провайдера polling job.
+   Стандартные адаптеры задаются `#[Bind]` на интерфейсах генераторов.
+3. `VideoGenerating → VideoGeneratingListener → CheckVideoCreation` опрашивает
+   выбранного провайдера. `null` откладывает job на 60 секунд (до 10 попыток);
+   исключение завершает job ошибкой. Успех сохраняет `video_url` и отправляет
+   `VideoGenerated`.
+4. `CreateAudio` запускает Suno и сохраняет `audio_id`. Независимый
+   `POST webhook.suno → SunoController → SaveAudioAction → SaveAudio` принимает
+   стадию `complete`, берёт первый трек и находит Prompt по task ID. Новый
+   `audio_url` вызывает `AudioGenerated`; тот же URL повторно событие не отправляет.
+5. `VideoGeneratedListener` принимает и `VideoGenerated`, и `AudioGenerated`,
+   ставя `SaveVideoJob`. `SaveVideoAction` под cache lock перечитывает Prompt:
+   сборка возможна только с обоими URL и `generated=false`. Lock живёт 3720 секунд,
+   timeout job — 3600 секунд. `BuildVideo` соединяет видео и звук Suno в FFmpeg;
+   `SaveGeneratedVideo` прикрепляет файл через Media Library и ставит `generated=true`.
+6. `VideoBuilt → VideoBuiltListener → PublisherFactory` отправляет готовый ролик
+   каналам проекта. YouTube загружает локальный файл порциями и сохраняет Post.
+   Instagram создаёт контейнер, а через пять минут `PublishInstagramJob`
+   выполняет `media_publish` и сохраняет Post. TikTok и VK пока возвращают `false`.
+7. `SavePost → PostCreated → PostCreatedListener` ставит Telegram-уведомления
+   всем Chat. Слушатель и сами notifications выполняются в очереди.
+
+`generated` означает готовый ролик, а не успешную публикацию во всех каналах.
+Блокировка сборки и проверка повторного audio URL не дают общей гарантии
+exactly-once для внешних публикаций. Резервный провайдер выбирается при ошибке
+запуска, а не при последующей ошибке polling. `app:save-video` повторно проверяет
+незавершённые сборки через тот же Action. Автозапуск генерации в
+`bootstrap/app.php` сейчас закомментирован; `routes/console.php` планирует
+только снимки метрик Horizon. События связываются с listeners через обнаружение
+Laravel; актуальную регистрацию показывает `php artisan event:list`.
+
+### Навигация и проверки
+
+Локальный [граф Graphify](project-graph.md) находится в `graphify-out/` и
+обновляется через `make graph-update`. Его связи помогают найти код, но
+динамические маршруты, DI и события проверяются по исходникам и тестам.
+Pest использует SQLite in-memory и fakes внешних границ; проверки лежат в
+`tests/Feature` по HTTP-точкам, CLI, jobs, listeners и адаптерам.
+Docker Compose изолирует Poster от остальных проектов; workers запускаются
+отдельным профилем. Детали доставки и runtime — в [deployment.md](deployment.md).
+
 ## Область применения
 
 Документ поддерживает два профиля организации кода: стандартный Laravel и

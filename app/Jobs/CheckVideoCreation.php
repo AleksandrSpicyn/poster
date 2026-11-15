@@ -12,6 +12,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
 
+/**
+ * Опрашивает провайдера, выбранного при запуске видео, до получения URL.
+ * Не готовый результат откладывает job на минуту; исключение завершает её ошибкой.
+ */
 class CheckVideoCreation implements ShouldQueue
 {
     use Queueable;
@@ -45,6 +49,7 @@ class CheckVideoCreation implements ShouldQueue
 
             event(new VideoGenerated($this->prompt));
         } catch (Throwable $e) {
+            // Повторы через release предназначены для ожидания; ошибка провайдера терминальна для этой job.
             $this->fail($e);
         }
     }

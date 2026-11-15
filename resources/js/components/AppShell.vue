@@ -9,6 +9,7 @@ interface Props {
 
 defineProps<Props>();
 
+// Laravel читает sidebar_state cookie, чтобы первый рендер совпал с сохранённым состоянием панели.
 const isOpen = usePage<SharedData>().props.sidebarOpen;
 </script>
 

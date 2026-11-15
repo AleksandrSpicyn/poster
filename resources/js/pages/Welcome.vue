@@ -10,6 +10,7 @@ type WelcomePageProps = Omit<SharedData, 'auth'> & {
     };
 };
 
+// Публичный контент задаёт HomepageData в Laravel; Vue отвечает за его представление.
 defineProps<{ homepage: HomepageProps }>();
 
 const page = usePage<WelcomePageProps>();

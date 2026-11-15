@@ -16,6 +16,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Владеет сценарием входа: ограничивает попытки по email/IP, проверяет guard
+ * и обновляет идентификатор сессии после успешной аутентификации.
+ */
 readonly class LoginAction
 {
     public function __construct(

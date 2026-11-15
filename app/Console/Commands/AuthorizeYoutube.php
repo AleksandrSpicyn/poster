@@ -9,6 +9,10 @@ use App\Support\Integrations\Payload;
 use Google\Client;
 use Illuminate\Console\Command;
 
+/**
+ * Интерактивно обменивает OAuth-код на credentials выбранного YouTube-канала.
+ * Это подготовка канала, загрузку роликов выполняет Youtube Publisher.
+ */
 class AuthorizeYoutube extends Command
 {
     protected $signature = 'youtube:auth {channel_id}';

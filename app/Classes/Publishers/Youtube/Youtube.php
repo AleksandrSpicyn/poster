@@ -22,6 +22,10 @@ use Psr\Http\Message\RequestInterface;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Загружает готовый локальный ролик порциями через YouTube API, обновляя OAuth
+ * при необходимости; после ответа Video сохраняет Post со ссылкой на Shorts.
+ */
 class Youtube extends AbstractPublisher
 {
     private const int CHUNK_SIZE = 1024 * 1024;

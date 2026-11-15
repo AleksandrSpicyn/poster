@@ -8,6 +8,10 @@ use App\Models\Prompt;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
+/**
+ * Прикрепляет собранный файл к Prompt через Media Library, затем отмечает
+ * сборку завершённой; generated описывает сборку, а не публикацию во всех каналах.
+ */
 class SaveGeneratedVideo
 {
     /**

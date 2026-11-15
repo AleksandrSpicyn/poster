@@ -11,6 +11,10 @@ use Illuminate\Foundation\Queue\Queueable;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
+/**
+ * Переносит длительную FFmpeg-сборку в очередь; решение о готовности исходников
+ * и защита от повторной сборки принадлежат SaveVideoAction.
+ */
 class SaveVideoJob implements ShouldQueue
 {
     use Queueable;

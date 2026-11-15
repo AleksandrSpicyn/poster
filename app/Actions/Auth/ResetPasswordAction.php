@@ -13,6 +13,10 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Делегирует проверку токена PasswordBroker, затем сохраняет новый пароль
+ * и remember token и сообщает об успешном сбросе через событие Laravel.
+ */
 readonly class ResetPasswordAction
 {
     public function __construct(private PasswordBroker $passwords, private SaveUser $saveUser, private Dispatcher $events) {}

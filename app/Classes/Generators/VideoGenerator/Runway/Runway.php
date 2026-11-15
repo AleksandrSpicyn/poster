@@ -20,6 +20,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
+/**
+ * Резервный адаптер Runway: переводит статусы задачи в URL, ожидание (null)
+ * или VideoGeneratingException, с которой polling job завершается ошибкой.
+ */
 readonly class Runway implements AlternativeVideoGenerator
 {
     public function __construct(

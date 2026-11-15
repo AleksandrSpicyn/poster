@@ -11,6 +11,10 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use UnexpectedValueException;
 
+/**
+ * Интерактивно сохраняет OAuth-credentials TikTok; наличие токена не означает,
+ * что публикация реализована в адаптере Tiktok.
+ */
 class AuthorizeTiktok extends Command
 {
     protected $signature = 'tiktok:auth  {channel_id}';

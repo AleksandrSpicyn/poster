@@ -13,6 +13,10 @@ use App\Models\Channel;
 use App\Models\Prompt;
 use Illuminate\Contracts\Container\Container;
 
+/**
+ * Выбирает адаптер по типу канала и создаёт его с контекстом Channel/Prompt.
+ * Остальные зависимости адаптера разрешает Laravel-контейнер.
+ */
 readonly class PublisherFactory
 {
     public function __construct(private Container $container) {}

@@ -38,3 +38,5 @@ _ide_helper_models.php
 /boost.cache.json
 
 /.playwright-mcp/
+
+/graphify-out/

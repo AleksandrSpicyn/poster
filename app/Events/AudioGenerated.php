@@ -8,6 +8,9 @@ use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сигнализирует о сохранённом audio_url и запускает проверку готовности к сборке.
+ */
 class AudioGenerated
 {
     use Dispatchable;

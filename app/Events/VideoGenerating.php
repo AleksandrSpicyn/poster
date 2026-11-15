@@ -8,6 +8,9 @@ use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Передаёт Prompt и выбранного провайдера слушателю, запускающему polling.
+ */
 class VideoGenerating
 {
     use Dispatchable;

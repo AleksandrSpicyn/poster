@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
+/**
+ * Адаптер Suno: создаёт внешнюю аудиозадачу с callback на webhook.suno.
+ * HTTP-ошибки прерывают запуск; готовые файлы этот адаптер не ожидает.
+ */
 readonly class SunoUnofficial implements AudioGenerator
 {
     public function __construct(

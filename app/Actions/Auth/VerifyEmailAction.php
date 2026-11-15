@@ -9,6 +9,10 @@ use App\Tasks\Users\VerifyUserEmail;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Contracts\Events\Dispatcher;
 
+/**
+ * Меняет статус email и отправляет Verified только при первом подтверждении.
+ * Проверка подписанной ссылки и принадлежности пользователю выполняется на HTTP-границе.
+ */
 readonly class VerifyEmailAction
 {
     public function __construct(private VerifyUserEmail $verifyUserEmail, private Dispatcher $events) {}

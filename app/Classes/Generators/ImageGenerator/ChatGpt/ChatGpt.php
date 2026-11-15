@@ -7,6 +7,9 @@ namespace App\Classes\Generators\ImageGenerator\ChatGpt;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use OpenAI\Laravel\Facades\OpenAI;
 
+/**
+ * Адаптер OpenAI Images: получает URL вертикального изображения для первого кадра.
+ */
 class ChatGpt implements ImageGenerator
 {
     public function generate(string $prompt): string

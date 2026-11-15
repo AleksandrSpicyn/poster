@@ -8,6 +8,10 @@ use App\Classes\Generators\PromptGenerator\PromptGenerator;
 use App\Models\Project;
 use App\Models\Prompt;
 
+/**
+ * Формирует контекст новой идеи из описания проекта и последних 50 prompts.
+ * История помогает генератору избегать повторов, но не гарантирует уникальность.
+ */
 readonly class CreateBasePrompt
 {
     public function __construct(private PromptGenerator $promptGenerator) {}

@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * Проекция генерации для списка Inertia; ожидает project и media из GetPromptsList.
+ * URL ведёт на итоговое медиа, а не на исходный video_url провайдера.
+ *
  * @mixin Prompt
  */
 class PromptResource extends JsonResource

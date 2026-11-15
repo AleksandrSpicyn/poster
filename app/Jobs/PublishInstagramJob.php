@@ -9,6 +9,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
 
+/**
+ * Выполняет отложенный второй этап Instagram после создания Reels-контейнера.
+ */
 class PublishInstagramJob implements ShouldQueue
 {
     use Queueable;

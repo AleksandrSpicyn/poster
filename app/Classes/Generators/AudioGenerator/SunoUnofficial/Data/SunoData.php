@@ -8,6 +8,10 @@ use Spatie\LaravelData\Attributes\Validation\IntegerType;
 use Spatie\LaravelData\Attributes\Validation\Required;
 use Spatie\LaravelData\Data;
 
+/**
+ * HTTP-конверт callback Suno; вложенные Data-классы валидируют структуру
+ * и преобразуют имена полей провайдера до передачи в SaveAudioAction.
+ */
 class SunoData extends Data
 {
     public function __construct(

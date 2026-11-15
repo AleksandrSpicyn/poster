@@ -12,6 +12,10 @@ use Illuminate\Container\Attributes\Auth;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Events\Dispatcher;
 
+/**
+ * Связывает создание учётной записи, событие отправки подтверждения email
+ * и вход через web guard; проверка ввода остаётся в DTO.
+ */
 readonly class RegisterUserAction
 {
     public function __construct(

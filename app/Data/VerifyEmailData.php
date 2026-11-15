@@ -11,6 +11,10 @@ use Spatie\LaravelData\Attributes\FromRouteParameter;
 use Spatie\LaravelData\Attributes\Validation\Required;
 use Spatie\LaravelData\Data;
 
+/**
+ * Проверяет принадлежность id/hash текущему пользователю; срок действия
+ * и подпись ссылки отдельно проверяет middleware signed.
+ */
 class VerifyEmailData extends Data
 {
     public function __construct(

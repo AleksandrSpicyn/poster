@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
+/**
+ * Формирует общие props кабинета и публичных Inertia-страниц: auth, Ziggy,
+ * значения темы и состояние sidebar; данные конкретного списка задаёт контроллер.
+ */
 class HandleInertiaRequests extends Middleware
 {
     public function __construct(#[Config('app.name')] private readonly string $appName) {}

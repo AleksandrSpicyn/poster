@@ -10,6 +10,10 @@ use App\Data\VideoGenerationData;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Запускает видео у основного провайдера и при ошибке запуска пробует резервный.
+ * Признак alternative сохраняет выбор провайдера для дальнейшего polling.
+ */
 readonly class CreateVideo
 {
     public function __construct(

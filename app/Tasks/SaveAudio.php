@@ -9,6 +9,10 @@ use App\Events\AudioGenerated;
 use App\Models\Prompt;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Сопоставляет callback с Prompt по идентификатору аудиозадачи и сохраняет URL.
+ * Повтор того же URL не порождает ещё одно событие готовности.
+ */
 class SaveAudio
 {
     public function run(string $taskId, TaskData $task): void

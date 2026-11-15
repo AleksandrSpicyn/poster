@@ -28,6 +28,13 @@
 
 ## Изменение и проверка
 
+В Poster доступен локальный граф Graphify: `graphify-out/graph.json`,
+`graphify-out/graph.html` и `graphify-out/GRAPH_REPORT.md`. Перед поиском
+зависимостей можно использовать `graphify explain`, `query` и `affected`;
+создание и обновление — `make graph` / `make graph-update`.
+Команды, исключения и ограничения описаны в [project-graph.md](project-graph.md).
+Граф не заменяет чтение исходников и проверку динамических связей Laravel.
+
 AI-генерация не доказывает правильность кода, теста или документации.
 Проверяйте зависимости, API установленных версий, реальные ветки выполнения,
 authorization, response contracts и эффекты. Не принимайте тест, который

@@ -12,6 +12,9 @@ use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
+/**
+ * Ограничивает пагинацию и сортировку на HTTP-границе списка prompts.
+ */
 class GetPromptsListData extends Data
 {
     public function __construct(

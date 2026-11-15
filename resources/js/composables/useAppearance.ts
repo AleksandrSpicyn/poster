@@ -49,6 +49,7 @@ const handleSystemThemeChange = (values: AppearanceValues) => {
     updateTheme(currentAppearance || values.SYSTEM, values);
 };
 
+/** Значения темы приходят из PHP enum через shared props, до первого mount Vue. */
 export function initializeTheme(values: AppearanceValues) {
     if (typeof window === 'undefined') {
         return;
@@ -62,6 +63,7 @@ export function initializeTheme(values: AppearanceValues) {
     mediaQuery()?.addEventListener('change', () => handleSystemThemeChange(values));
 }
 
+/** Синхронизирует настройку темы между Vue, localStorage и cookie корневого Blade-шаблона. */
 export function useAppearance() {
     const values = usePage<SharedData>().props.appearanceValues;
     const appearance = ref<Appearance>(values.SYSTEM);
@@ -77,10 +79,9 @@ export function useAppearance() {
     function updateAppearance(value: Appearance) {
         appearance.value = value;
 
-        // Store in localStorage for client-side persistence...
+        // localStorage восстанавливает выбор после клиентского запуска, cookie доступна Laravel до него.
         localStorage.setItem('appearance', value);
 
-        // Store in cookie for SSR...
         setCookie('appearance', value);
 
         updateTheme(value, values);

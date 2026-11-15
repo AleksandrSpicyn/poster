@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tasks;
 
+/**
+ * Задаёт единый стиль вертикального изображения для конвейера коротких видео.
+ */
 class CreateImagePrompt
 {
     public const array DALLE_STYLE_TAGS = [

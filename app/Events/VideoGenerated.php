@@ -8,6 +8,9 @@ use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сигнализирует о сохранённом video_url; аудио может ещё ожидаться отдельно.
+ */
 class VideoGenerated
 {
     use Dispatchable;

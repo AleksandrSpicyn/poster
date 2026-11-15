@@ -26,6 +26,7 @@ export interface AppearanceValues {
     SYSTEM: Appearance;
 }
 
+/** Общий контракт HandleInertiaRequests; props конкретных страниц добавляются отдельно. */
 export interface SharedData extends PageProps {
     name: string;
     quote: { message: string; author: string };

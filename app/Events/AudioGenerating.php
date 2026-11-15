@@ -8,6 +8,9 @@ use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сообщает о запуске аудиозадачи; её завершение поступает через webhook Suno.
+ */
 class AudioGenerating
 {
     use Dispatchable;

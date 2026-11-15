@@ -7,6 +7,9 @@ namespace App\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сообщает о получении текста идеи; это промежуточная стадия до запуска медиа.
+ */
 class PromptGenerated
 {
     use Dispatchable;

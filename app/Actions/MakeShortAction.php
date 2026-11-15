@@ -16,6 +16,10 @@ use App\Tasks\CreateVideo;
 use App\Tasks\Prompts\CreatePrompt;
 use App\Tasks\Prompts\UpdatePrompt;
 
+/**
+ * Запускает конвейер для одного проекта и сохраняет идентификаторы внешних задач.
+ * Готовность видео и аудио обрабатывается отдельно через очередь и webhook.
+ */
 readonly class MakeShortAction
 {
     public function __construct(

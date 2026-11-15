@@ -11,6 +11,10 @@ use App\Tasks\Users\DeleteUser;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Contracts\Auth\StatefulGuard;
 
+/**
+ * Завершает вход, удаляет текущую учётную запись и инвалидирует сессию.
+ * Подтверждение пароля выполняет входной DTO до вызова сценария.
+ */
 readonly class DeleteProfileAction
 {
     public function __construct(

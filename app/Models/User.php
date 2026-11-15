@@ -14,6 +14,9 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 
 /**
+ * Учётная запись кабинета с обязательным подтверждением email.
+ * Пароль хешируется model cast; доступ к операционным панелям определяет OperationsPolicy.
+ *
  * @property int $id
  * @property string $name
  * @property string $email

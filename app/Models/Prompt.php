@@ -17,6 +17,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
+ * Хранит состояние одной генерации: идею, внешние task IDs и URL исходников.
+ * Итоговый ролик хранится в Media Library; generated означает завершённую сборку.
+ *
  * @property int $id
  * @property string $prompt
  * @property string|null $image_url

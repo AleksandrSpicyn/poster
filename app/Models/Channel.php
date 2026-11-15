@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
+ * Канал публикации проекта: тип выбирает адаптер, credentials содержат его
+ * OAuth/API-данные; один Prompt может породить Post в нескольких каналах.
+ *
  * @property int $id
  * @property string $name
  * @property ChannelType $type

@@ -8,6 +8,10 @@ use App\Actions\MakeShortAction;
 use App\Models\Project;
 use Illuminate\Console\Command;
 
+/**
+ * CLI-точка запуска генерации для всех проектов; каждый проект передаётся
+ * в MakeShortAction, а готовность внешних задач обрабатывается асинхронно.
+ */
 class MakeShort extends Command
 {
     protected $signature = 'app:make-short';

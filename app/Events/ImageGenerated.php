@@ -7,6 +7,9 @@ namespace App\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сообщает о готовности первого кадра; URL ещё не является собранным роликом.
+ */
 class ImageGenerated
 {
     use Dispatchable;

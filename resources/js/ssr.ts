@@ -9,6 +9,7 @@ import { ZiggyVue } from 'ziggy-js';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Poster';
 
+// Отдельная точка SSR использует те же страницы и props, без браузерной инициализации темы.
 createServer((page) =>
     createInertiaApp<SharedData>({
         page: page as Page<SharedData>,

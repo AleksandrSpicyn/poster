@@ -9,6 +9,10 @@ use App\Models\Prompt;
 use Exception;
 use Illuminate\Console\Command;
 
+/**
+ * CLI-точка повторной проверки незавершённых сборок через SaveVideoAction.
+ * Только prompts с обоими исходниками действительно будут собраны.
+ */
 class SaveVideo extends Command
 {
     protected $signature = 'app:save-video';

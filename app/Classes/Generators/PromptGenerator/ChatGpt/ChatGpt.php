@@ -8,6 +8,9 @@ use App\Classes\Generators\PromptGenerator\PromptGenerator;
 use App\Support\Integrations\Payload;
 use OpenAI\Laravel\Facades\OpenAI;
 
+/**
+ * Адаптер OpenAI Chat: извлекает непустой текст идеи из ответа модели.
+ */
 class ChatGpt implements PromptGenerator
 {
     public function generate(string $prompt): string

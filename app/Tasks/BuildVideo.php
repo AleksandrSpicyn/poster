@@ -13,6 +13,10 @@ use Illuminate\Support\Str;
 use ProtoneMedia\LaravelFFMpeg\Filesystem\Media;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
+/**
+ * Собирает видео и отдельную аудиодорожку через FFmpeg с общей длительностью
+ * из настроек; возвращает локальный путь для передачи в Media Library.
+ */
 readonly class BuildVideo
 {
     public function __construct(
@@ -30,6 +34,7 @@ readonly class BuildVideo
         $format->setAdditionalParameters(['-t', (string) $this->settings->duration]);
 
         $exporter = FFMpeg::openUrl([$prompt->video_url, $prompt->audio_url])->export();
+        // Звук берётся только из Suno: исходная дорожка видеогенератора не входит в итоговый ролик.
         $exporter->addFormatOutputMapping(
             $format,
             Media::make('public', $outputFile),

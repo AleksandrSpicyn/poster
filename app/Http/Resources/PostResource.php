@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * Проекция публикации для списка Inertia; ожидает channel из GetPostsList
+ * и не передаёт клиенту credentials канала.
+ *
  * @mixin Post
  */
 class PostResource extends JsonResource

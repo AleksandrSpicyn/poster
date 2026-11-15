@@ -52,6 +52,11 @@ make npm-build
 [ai-init](https://github.com/AleksandrSpicyn/ai-init), точная версия —
 [docs/ai-init-source.json](docs/ai-init-source.json).
 
+Ответственность классов и конвейер описаны в [docs/architecture.md](docs/architecture.md#архитектура-poster).
+Для навигации доступен [граф Graphify](docs/project-graph.md): `make graph`
+создаёт `graphify-out/graph.json`, интерактивный `graph.html` и отчёт;
+`make graph-update` обновляет их после изменений кода.
+
 ## Проверки
 
 ```sh

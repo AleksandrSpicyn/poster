@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Публикует Reels в два этапа: создаёт контейнер и откладывает media_publish
+ * в PublishInstagramJob; Post сохраняется после получения ID опубликованного media.
+ */
 class Instagram extends AbstractPublisher
 {
     private const string GRAPH_URL = 'https://graph.instagram.com';
@@ -41,6 +45,7 @@ class Instagram extends AbstractPublisher
                 throw new RuntimeException('Instagram cannot create container for video.');
             }
 
+            // Даём Instagram время обработать контейнер; true здесь ещё не означает созданный Post.
             PublishInstagramJob::dispatch($this, Payload::string($containerId, 'id'))
                 ->delay(now()->addMinutes(5));
         } catch (Throwable $e) {

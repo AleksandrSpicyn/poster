@@ -10,6 +10,10 @@ use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Attributes\Validation\Required;
 use Spatie\LaravelData\Data;
 
+/**
+ * Содержит стадию callback, общий task ID и варианты трека.
+ * Именно task ID связывает ответ Suno с Prompt.audio_id.
+ */
 class CallbackData extends Data
 {
     /** @param Collection<int, TaskData> $tasks */

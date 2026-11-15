@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
+/**
+ * Сводит независимые результаты видео и аудио в один готовый ролик.
+ * Повторные jobs проверяют актуальный Prompt под общей блокировкой сборки.
+ */
 readonly class SaveVideoAction
 {
     public function __construct(
@@ -27,7 +31,9 @@ readonly class SaveVideoAction
      */
     public function run(Prompt $prompt): void
     {
+        // TTL превышает часовой timeout SaveVideoJob; оба события готовности используют один lock.
         Cache::lock('prompt-build:' . $prompt->id, 3720)->get(function () use ($prompt): void {
+            // Payload job мог устареть, пока второй исходник сохранялся другим worker.
             $this->refreshPrompt->run($prompt);
 
             if ($prompt->generated || ! $prompt->video_url || ! $prompt->audio_url) {

@@ -13,6 +13,10 @@ use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Подтверждает пароль текущей учётной записи и отмечает время в сессии
+ * для middleware, защищающего чувствительные действия.
+ */
 readonly class ConfirmPasswordAction
 {
     public function __construct(#[Auth(AuthGuard::WEB->value)] private StatefulGuard $guard, private Session $session) {}

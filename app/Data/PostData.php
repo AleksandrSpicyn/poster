@@ -8,6 +8,10 @@ use App\Models\Channel;
 use App\Models\Prompt;
 use Spatie\LaravelData\Data;
 
+/**
+ * Внутренний результат Publisher для SavePost; это контекст записи публикации,
+ * а не входной HTTP DTO.
+ */
 class PostData extends Data
 {
     public function __construct(

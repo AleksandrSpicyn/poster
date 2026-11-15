@@ -11,6 +11,9 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 
 /**
+ * Получатель Telegram-уведомлений, независимый от web-пользователя.
+ * chat_id используется маршрутизацией Laravel Notifications.
+ *
  * @property int $id
  * @property string $chat_id
  * @property Carbon|null $created_at

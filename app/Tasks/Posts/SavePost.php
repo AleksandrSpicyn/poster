@@ -7,6 +7,10 @@ namespace App\Tasks\Posts;
 use App\Data\PostData;
 use App\Events\PostCreated;
 
+/**
+ * Записывает результат публикации через связь канала и отправляет PostCreated
+ * для запуска уведомлений; внешний upload выполняет Publisher.
+ */
 class SavePost
 {
     public function run(PostData $dto): void

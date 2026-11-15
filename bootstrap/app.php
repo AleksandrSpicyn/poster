@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
+        // Автозапуск генерации сейчас отключён; действующий horizon:snapshot задан в routes/console.php.
         //        $schedule->command(MakeShort::class)->mondays()->at('15:00');
         //        $schedule->command(MakeShort::class)->tuesdays()->at('15:00');
         //        $schedule->command(MakeShort::class)->wednesdays()->at('17:00');

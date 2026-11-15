@@ -12,6 +12,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use NotificationChannels\Telegram\TelegramMessage;
 
+/**
+ * Доставляет ссылку сохранённого Post в Telegram-чат через очередь уведомлений.
+ */
 class PostCreatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;

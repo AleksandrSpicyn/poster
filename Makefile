@@ -2,10 +2,12 @@
 EXEC = docker compose exec -T --user appuser app
 PHP = $(EXEC) php
 ARTISAN = $(PHP) artisan
+GRAPHIFY ?= graphify
 
-.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper
+.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper graph graph-update graph-html
 help:
 	@echo 'build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper'
+	@echo 'graph graph-update graph-html (Graphify CLI on host)'
 build:
 	docker compose build
 up:
@@ -43,5 +45,10 @@ ide-helper:
 	$(ARTISAN) ide-helper:generate --no-interaction
 boost:
 	$(ARTISAN) boost:install
+graph graph-update:
+	$(GRAPHIFY) extract . --code-only --max-workers 2
+	$(GRAPHIFY) cluster-only . --no-label
+graph-html:
+	$(GRAPHIFY) export html
 quality: pint rector-dry stan
 pipe: quality test docs npm-build

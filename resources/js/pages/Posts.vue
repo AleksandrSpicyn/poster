@@ -44,6 +44,7 @@ const filters = ref({
 
 const types = computed(() => page.props.types);
 
+// Фильтрация и пагинация выполняются сервером; таблица отображает PostResource из Inertia props.
 const applyFilters = () => {
     router.get('/posts', filters.value, {
         preserveScroll: true,

@@ -6,6 +6,10 @@ namespace App\Classes\Generators\VideoGenerator\Runway\Data;
 
 use Spatie\LaravelData\Data;
 
+/**
+ * Проекция ответа polling Runway: output читается только для SUCCEEDED,
+ * а failure используется для диагностики завершившейся ошибкой задачи.
+ */
 class CreationData extends Data
 {
     /** @param list<string>|null $output */

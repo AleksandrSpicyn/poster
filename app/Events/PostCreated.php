@@ -9,6 +9,9 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сообщает о записи результата публикации в Post для фоновой рассылки уведомлений.
+ */
 class PostCreated
 {
     use Dispatchable;

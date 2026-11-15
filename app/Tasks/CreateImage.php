@@ -6,6 +6,9 @@ namespace App\Tasks;
 
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 
+/**
+ * Добавляет к идее общий визуальный стиль перед обращением к ImageGenerator.
+ */
 readonly class CreateImage
 {
     public function __construct(private ImageGenerator $imageGenerator) {}

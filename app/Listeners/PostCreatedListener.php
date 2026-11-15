@@ -9,6 +9,10 @@ use App\Models\Chat;
 use App\Notifications\PostCreatedNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
+/**
+ * В очереди рассылает уведомление о сохранённой публикации всем Chat.
+ * Каждое PostCreatedNotification также доставляется как отдельная queued notification.
+ */
 class PostCreatedListener implements ShouldQueue
 {
     public function handle(PostCreated $event): void

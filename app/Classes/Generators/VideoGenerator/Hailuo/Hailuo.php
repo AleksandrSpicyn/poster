@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
+/**
+ * Адаптер Hailuo: создаёт задачу, при polling получает file ID и разрешает его
+ * в URL загрузки; отсутствие file ID означает, что результат ещё не готов.
+ */
 readonly class Hailuo implements AlternativeVideoGenerator
 {
     public function __construct(

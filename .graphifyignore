@@ -1,0 +1,34 @@
+# Runtime, dependencies and generated output never belong to the source graph.
+.git/
+vendor/
+node_modules/
+storage/
+bootstrap/cache/
+bootstrap/ssr/
+public/
+docs/responses/
+docs/images/
+graphify-out/
+.scribe/
+.phpunit.cache/
+.playwright-mcp/
+
+# Agent/tool configuration is not application architecture.
+.agents/
+.ai/
+.codex/
+.idea/
+.vscode/
+
+# Local credentials, data exports and generated IDE helpers.
+.env*
+auth.json
+*.key
+*.pem
+*.p12
+*.sqlite*
+*.sql
+*.dump
+*.log
+_ide_helper*.php
+.phpstorm.meta.php

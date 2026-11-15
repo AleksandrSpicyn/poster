@@ -8,6 +8,9 @@ use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Сообщает о прикреплённом итоговом медиа и запускает публикацию по каналам проекта.
+ */
 class VideoBuilt
 {
     use Dispatchable;

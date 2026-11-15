@@ -7,6 +7,10 @@ namespace App\Http\Controllers;
 use App\Actions\SaveAudioAction;
 use App\Classes\Generators\AudioGenerator\SunoUnofficial\Data\SunoData;
 
+/**
+ * HTTP-граница callback Suno: валидированный конверт передаётся в SaveAudioAction.
+ * Внешний task ID, а не сессия пользователя, связывает callback с генерацией.
+ */
 class SunoController
 {
     /**

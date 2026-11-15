@@ -44,6 +44,7 @@ const filters = ref({
     page: page.props.prompts.meta.current_page,
 });
 
+// Сервер возвращает PromptResource с итоговым медиа; эта страница не запускает генерацию.
 const applyFilters = () => {
     router.get(route('prompts'), filters.value, {
         preserveScroll: true,

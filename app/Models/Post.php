@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
+ * Локальная запись результата внешней публикации с её ID и URL.
+ * Связи nullable: история сохраняется при удалении канала или Prompt.
+ *
  * @property int $id
  * @property string $title
  * @property string $description

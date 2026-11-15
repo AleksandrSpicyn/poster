@@ -15,6 +15,10 @@ use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
+/**
+ * Валидирует параметры списка; all означает отсутствие фильтра канала.
+ * Optional отличает непереданный фильтр от явно заданного значения.
+ */
 class GetPostsListData extends Data
 {
     public function __construct(

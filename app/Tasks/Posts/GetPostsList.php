@@ -11,6 +11,10 @@ use App\Models\Post;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
+/**
+ * Готовит общую выборку публикаций кабинета с фильтром канала и пагинацией.
+ * Связь channel загружается для PostResource, id стабилизирует порядок при равных датах.
+ */
 class GetPostsList
 {
     /** @return LengthAwarePaginator<int, Post> */

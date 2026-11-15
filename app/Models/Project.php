@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
+ * Группирует исходную тему, историю генераций и каналы доставки роликов.
+ * В текущей схеме не привязан к User: кабинет показывает общие данные приложения.
+ *
  * @property int $id
  * @property string $name
  * @property string $prompt

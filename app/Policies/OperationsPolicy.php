@@ -7,6 +7,10 @@ namespace App\Policies;
 use App\Models\User;
 use Illuminate\Container\Attributes\Config;
 
+/**
+ * Разделяет доступ к логам владельца и очередям операторов.
+ * Оба разрешения требуют подтверждённого email, списки берутся из конфигурации.
+ */
 readonly class OperationsPolicy
 {
     /** @param list<string> $queueOperators */

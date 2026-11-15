@@ -15,6 +15,10 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
   Commit, push, публикация, merge и deploy требуют явного поручения.
 - Читайте [docs/general.md](docs/general.md), [docs/architecture.md](docs/architecture.md),
   [docs/code-style.md](docs/code-style.md) и документы затронутой области.
+- Для навигации по зависимостям используйте локальный граф Graphify в `graphify-out/`
+  (`graph.json`, `graph.html`, `GRAPH_REPORT.md`); создание — `make graph`, обновление —
+  `make graph-update`. Команды и ограничения: [docs/project-graph.md](docs/project-graph.md).
+  Граф помогает искать код; DI, routes, events/jobs и Eloquent проверяйте по исходникам и тестам.
 - Скиллы ai-init находятся в `.agents/skills/et-*/SKILL.md`; источник и commit
   записаны в `docs/ai-init-source.json`. Читайте применимый скилл и его references.
 - Pest: отдельный Feature-файл для каждого HTTP method + named route; Unit-файл
@@ -71,6 +75,10 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
   Commit, push, публикация, merge и deploy требуют явного поручения.
 - Читайте [docs/general.md](docs/general.md), [docs/architecture.md](docs/architecture.md),
   [docs/code-style.md](docs/code-style.md) и документы затронутой области.
+- Для навигации по зависимостям используйте локальный граф Graphify в `graphify-out/`
+  (`graph.json`, `graph.html`, `GRAPH_REPORT.md`); создание — `make graph`, обновление —
+  `make graph-update`. Команды и ограничения: [docs/project-graph.md](docs/project-graph.md).
+  Граф помогает искать код; DI, routes, events/jobs и Eloquent проверяйте по исходникам и тестам.
 - Скиллы ai-init находятся в `.agents/skills/et-*/SKILL.md`; источник и commit
   записаны в `docs/ai-init-source.json`. Читайте применимый скилл и его references.
 - Pest: отдельный Feature-файл для каждого HTTP method + named route; Unit-файл

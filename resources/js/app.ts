@@ -10,6 +10,7 @@ import { initializeTheme } from './composables/useAppearance';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Имена страниц приходят из Laravel; общие props и Ziggy связывают кабинет с серверными routes.
 createInertiaApp<SharedData>({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
