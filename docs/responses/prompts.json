@@ -613,7 +613,7 @@
                 "total": 2
             }
         },
-        "filters": [],
+        "filters": {},
         "appearanceValues": {
             "LIGHT": "light",
             "DARK": "dark",

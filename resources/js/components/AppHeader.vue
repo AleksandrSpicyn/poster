@@ -19,7 +19,7 @@ const { main } = useNavigation();
 
 <template>
     <header class="bg-card border-b">
-        <div class="mx-auto flex min-h-18 max-w-7xl items-center gap-6 px-4">
+        <div class="flex min-h-18 w-full items-center gap-6 px-4">
             <Sheet>
                 <SheetTrigger as-child
                     ><Button variant="ghost" size="icon" class="lg:hidden" aria-label="Open navigation"><Menu class="size-5" /></Button
@@ -55,6 +55,6 @@ const { main } = useNavigation();
                 ><DropdownMenuContent align="end" class="w-56"><UserMenuContent :user="page.props.auth.user" /></DropdownMenuContent
             ></DropdownMenu>
         </div>
-        <div v-if="breadcrumbs.length > 1" class="mx-auto max-w-7xl border-t px-4 py-3"><Breadcrumbs :breadcrumbs="breadcrumbs" /></div>
+        <div v-if="breadcrumbs.length > 1" class="w-full border-t px-4 py-3"><Breadcrumbs :breadcrumbs="breadcrumbs" /></div>
     </header>
 </template>

@@ -89,7 +89,9 @@ class ListController
      * @responseField props.sortDirections.desc string Сначала новые.
      * @responseField props.defaultSort string Порядок сортировки по умолчанию.
      * @responseField props.allTypes string Значение фильтра всех каналов.
-     * @responseField props.filters string[] props.filters.
+     * @responseField props.filters object Переданные фильтры; без параметров возвращается пустой объект.
+     * @responseField props.filters.sort string Порядок сортировки, если был передан.
+     * @responseField props.filters.type string Тип канала, если был передан.
      * @responseField props.types object props.types.
      * @responseField props.types.youtube string props.types.youtube.
      * @responseField props.types.tiktok string props.types.tiktok.
@@ -109,7 +111,7 @@ class ListController
             'posts' => PostResource::collection($posts),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,
-            'filters' => $data->only('type', 'sort')->toArray(),
+            'filters' => (object) $data->only('type', 'sort')->toArray(),
             'allTypes' => FilterValue::ALL->value,
             'types' => ChannelType::labels(),
         ]);

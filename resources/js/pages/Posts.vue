@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ChannelIcon from '@/components/ChannelIcon.vue';
 import Heading from '@/components/Heading.vue';
 import ListControls from '@/components/ListControls.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -75,12 +76,9 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                             <TableCell class="font-medium">Post #{{ post.id }}</TableCell>
                             <TableCell
                                 ><span class="inline-flex items-center gap-2"
-                                    ><img
-                                        v-if="post.channel && page.props.types[post.channel]"
-                                        :src="`/icons/${post.channel}.svg`"
-                                        alt=""
-                                        class="size-4 dark:brightness-0 dark:invert"
-                                    />{{ post.channel ? (page.props.types[post.channel] ?? post.channel) : 'Deleted channel' }}</span
+                                    ><ChannelIcon :channel="post.channel" />{{
+                                        post.channel ? (page.props.types[post.channel] ?? post.channel) : 'Deleted channel'
+                                    }}</span
                                 ></TableCell
                             >
                             <TableCell class="text-muted-foreground">{{ post.created_at ?? '—' }}</TableCell>

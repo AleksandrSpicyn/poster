@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ChannelIcon from '@/components/ChannelIcon.vue';
 import type { PostSummary } from '@/types/content';
 import { ArrowUpRight } from '@lucide/vue';
 
@@ -8,7 +9,9 @@ defineProps<{ post: PostSummary }>();
 <template>
     <article class="flex items-center justify-between gap-4 p-4 sm:p-5">
         <div class="min-w-0">
-            <p class="text-sm font-medium capitalize">{{ post.channel ?? 'Deleted channel' }}</p>
+            <p class="flex items-center gap-2 text-sm font-medium capitalize">
+                <ChannelIcon :channel="post.channel" />{{ post.channel ?? 'Deleted channel' }}
+            </p>
             <p class="text-muted-foreground mt-1 text-xs">Post #{{ post.id }} · {{ post.created_at ?? '—' }}</p>
         </div>
         <a

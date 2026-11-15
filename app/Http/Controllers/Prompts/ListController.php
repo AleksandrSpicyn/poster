@@ -89,7 +89,8 @@ class ListController
      * @responseField props.sortDirections.asc string Сначала старые.
      * @responseField props.sortDirections.desc string Сначала новые.
      * @responseField props.defaultSort string Порядок сортировки по умолчанию.
-     * @responseField props.filters string[] props.filters.
+     * @responseField props.filters object Переданные фильтры; без параметров возвращается пустой объект.
+     * @responseField props.filters.sort string Порядок сортировки, если был передан.
      * @responseField url string url.
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
@@ -104,7 +105,7 @@ class ListController
             'prompts' => PromptResource::collection($prompts),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,
-            'filters' => $data->only('sort')->toArray(),
+            'filters' => (object) $data->only('sort')->toArray(),
         ]);
     }
 }

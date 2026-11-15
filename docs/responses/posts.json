@@ -599,7 +599,7 @@
                 "total": 1
             }
         },
-        "filters": [],
+        "filters": {},
         "types": {
             "youtube": "Youtube",
             "tiktok": "Tiktok",
