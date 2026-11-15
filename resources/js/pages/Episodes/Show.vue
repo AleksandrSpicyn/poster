@@ -189,6 +189,9 @@ function refresh() {
             <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
                 The series is archived. Previous scripts, takes and montages remain available.
             </p>
+            <p v-if="!project.is_active" role="status" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+                This project is disabled. Enable it in project settings to generate or publish content. Existing history remains available.
+            </p>
             <p
                 v-if="episode.validity === 'requires_review'"
                 role="alert"
@@ -244,6 +247,7 @@ function refresh() {
                             type="submit"
                             class="h-11"
                             :disabled="
+                                !project.is_active ||
                                 generateForm.processing ||
                                 ['queued', 'running'].includes(episode.script_generation_status ?? '') ||
                                 !characters.length
@@ -346,6 +350,7 @@ function refresh() {
                         :revision-id="revision.id"
                         :approved="revision.status === 'approved'"
                         :archived="archived"
+                        :project-enabled="project.is_active"
                         :request-key="requestKey"
                         :source-options="readySourcesFor(shot.id)"
                     />
@@ -391,7 +396,7 @@ function refresh() {
                     <InputError :message="assemblyErrors" /><Button
                         type="submit"
                         class="h-11"
-                        :disabled="assemblyForm.processing || assemblyForm.shots.some((item) => !item.prompt_id)"
+                        :disabled="!project.is_active || assemblyForm.processing || assemblyForm.shots.some((item) => !item.prompt_id)"
                         >Build selected montage</Button
                     >
                 </form>
@@ -408,6 +413,7 @@ function refresh() {
                     :publications="publications.filter((publication) => publication.episode_assembly_id === assembly.id)"
                     :current-accepted="episode.accepted_assembly_id === assembly.id && episode.validity === 'current'"
                     :archived="archived"
+                    :project-enabled="project.is_active"
                 />
             </section>
         </div>

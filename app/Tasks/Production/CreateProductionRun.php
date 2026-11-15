@@ -20,6 +20,11 @@ class CreateProductionRun
     {
         return DB::transaction(function () use ($project, $series, $actor, $requestKey, $onlyFirstRun): ?ProductionRun {
             $project = Project::query()->lockForUpdate()->findOrFail($project->id);
+
+            if (! $project->is_active) {
+                return null;
+            }
+
             $series = $series instanceof Series ? $project->series()->lockForUpdate()->findOrFail($series->id) : null;
 
             if (($project->content_mode === ProjectContentMode::SERIES) !== ($series !== null)) {

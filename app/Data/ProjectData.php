@@ -35,6 +35,7 @@ class ProjectData extends Data
         public ?int $episode_limit = null,
         #[Exists(Project::class, 'id')]
         public ?int $channel_source_project_id = null,
+        public ?bool $is_active = null,
     ) {}
 
     /** @return array<string, string> */

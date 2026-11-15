@@ -12,6 +12,7 @@ use App\Enums\SeriesAudioMode;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
+use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Scene;
 use App\Models\Series;
@@ -87,6 +88,12 @@ class SaveEpisodeAssembly
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($revision, $episode, $series, $manifest, $hash): EpisodeAssembly {
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
+
+            if (! $project->is_active) {
+                throw ValidationException::withMessages(['project' => 'Enable this project before building a montage.']);
+            }
+
             $series = Series::query()->lockForUpdate()->findOrFail($series->id);
             $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
             $revision = EpisodeRevision::query()->findOrFail($revision->id);

@@ -44,6 +44,8 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
     public function publish(): bool
     {
         try {
+            $this->assertProjectActive();
+
             $client = $this->getClient();
             $client->setDefer(true);
             $this->updateToken($client);

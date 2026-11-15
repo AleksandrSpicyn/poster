@@ -13,10 +13,26 @@ use App\Models\EpisodeAssembly;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 use function Tests\Support\assemblyFixture;
 
 require_once dirname(__DIR__, 3) . '/Support/Assemblies.php';
+
+test('выключение проекта блокирует монтаж уже стоящий в очереди', function (): void {
+    Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt] = assemblyFixture();
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, 0, 1000)]));
+    $prompt->project?->update(['is_active' => false]);
+    Process::fake();
+
+    expect(fn() => app(BuildEpisodeAssemblyAction::class)->run($assembly))->toThrow(ValidationException::class);
+
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::FAILED);
+    expect($assembly->getFirstMedia(EpisodeAssembly::VIDEO))->toBeNull();
+    Process::assertNothingRan();
+});
 
 test('реальный FFmpeg собирает видео и финальные референсы один раз', function (): void {
     $disk = Storage::fake('local');

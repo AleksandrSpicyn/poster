@@ -9,6 +9,7 @@ export interface ProjectSummary {
     prompt: string;
     content_mode: string;
     content_mode_label: string;
+    is_active: boolean;
     latest_production?: ProductionRun | null;
     prompts_count: number;
     ready_prompts_count: number;
@@ -43,7 +44,7 @@ export interface ProjectPageProps extends SharedData {
 }
 
 export interface ProjectFormProps {
-    project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode'> | null;
+    project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active'> | null;
     contentModes: Record<string, string>;
     series: SeriesSummary | null;
     channelSources: { id: number; name: string }[];

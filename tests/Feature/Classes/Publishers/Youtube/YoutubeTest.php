@@ -16,6 +16,18 @@ use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Tests\Support\fakeGoogleClient;
 
+test('выключенный проект не отправляет видео в YouTube', function (): void {
+    $prompt = Prompt::factory()->create();
+    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $channel->project?->update(['is_active' => false]);
+    $handler = fakeGoogleClient(new Response(200));
+
+    expect(app(PublisherFactory::class)->make($channel, $prompt)->publish())->toBeFalse();
+
+    assertDatabaseCount('posts', 0);
+    expect($handler->count())->toBe(1);
+});
+
 test('YouTube загружает файл и сохраняет публикацию', /** @throws Exception */ function (): void {
     Storage::fake('public');
     Event::fake([PostCreated::class]);

@@ -9,6 +9,7 @@ use App\Data\PublishVideoData;
 use App\Models\Channel;
 use App\Models\Prompt;
 use App\Tasks\Posts\SavePost;
+use RuntimeException;
 
 /**
  * Общий контекст канала и готового Prompt, доступ к медиа и запись Post.
@@ -35,6 +36,13 @@ abstract class AbstractPublisher implements Publisher
     protected function getSourceId(): int
     {
         return $this->prompt instanceof PublishVideoData ? $this->prompt->episodeAssemblyId : $this->prompt->id;
+    }
+
+    protected function assertProjectActive(): void
+    {
+        if (! $this->channel->project()->where('is_active', true)->exists()) {
+            throw new RuntimeException('The project is disabled.');
+        }
     }
 
     protected function getUrl(string $id): string

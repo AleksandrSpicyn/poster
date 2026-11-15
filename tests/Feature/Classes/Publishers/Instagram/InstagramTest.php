@@ -17,6 +17,18 @@ use Illuminate\Support\Facades\Http;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 
+test('выключение проекта блокирует отправку готового legacy контейнера', function (): void {
+    [$channel, $prompt] = instagramModels();
+    $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
+    $channel->project?->update(['is_active' => false]);
+    Http::fake();
+
+    expect(fn() => new PublishInstagramJob($publisher, 'pending-container')->handle())->toThrow(RuntimeException::class);
+
+    assertDatabaseCount('posts', 0);
+    Http::assertNothingSent();
+});
+
 /** @return array{Channel, Prompt} */
 function instagramModels(): array
 {

@@ -7,6 +7,7 @@ namespace App\Tasks\Episodes;
 use App\Enums\AssemblyStatus;
 use App\Enums\RevisionStatus;
 use App\Models\EpisodeAssembly;
+use App\Models\Project;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,6 +16,8 @@ class StartEpisodeAssembly
     public function run(EpisodeAssembly $assembly): ?EpisodeAssembly
     {
         return DB::transaction(function () use ($assembly): ?EpisodeAssembly {
+            $series = $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail()->series()->firstOrFail();
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
             $assembly = EpisodeAssembly::query()->lockForUpdate()->findOrFail($assembly->id);
 
             if (in_array($assembly->status, [AssemblyStatus::READY, AssemblyStatus::ACCEPTED], true)) {
@@ -29,7 +32,7 @@ class StartEpisodeAssembly
             $episode = $revision->episode()->firstOrFail();
             $series = $episode->series()->firstOrFail();
 
-            if ($series->archived_at !== null || $episode->current_revision_id !== $revision->id
+            if (! $project->is_active || $series->archived_at !== null || $episode->current_revision_id !== $revision->id
                 || $revision->status !== RevisionStatus::APPROVED
                 || $revision->base_continuity_version !== $series->continuity_version
                 || data_get($revision->context_snapshot, 'specification_version') !== $series->specification_version) {

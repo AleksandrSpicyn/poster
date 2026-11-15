@@ -28,6 +28,7 @@ class StoreController
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
      * @bodyParam prompt string required Базовый промпт до 10000 символов. Example: Original short stories about animals
      * @bodyParam content_mode string Тип проекта, short по умолчанию. Enum: short,series Example: short
+     * @bodyParam is_active boolean Включён ли проект, true по умолчанию. Выключенный проект не генерирует и не публикует контент. Example: true
      * @bodyParam series_specification object Паспорт, обязателен для series; premise, visual_style, language, audience, audio_mode, episode_duration_seconds, narrative_rules, story_outline.
      * @bodyParam automation_enabled boolean Автоматически подготовить и опубликовать выпуск. Example: false
      * @bodyParam episode_limit integer Число серий 1–1000, null для продолжающегося сериала. Example: 5

@@ -20,6 +20,14 @@ readonly class GetProductionTargets
     {
         $project->refresh();
 
+        if (! $project->is_active) {
+            if ($actor instanceof User) {
+                throw ValidationException::withMessages(['project' => 'Enable this project before starting production.']);
+            }
+
+            return [];
+        }
+
         if ($project->content_mode === ProjectContentMode::SHORT) {
             if ($seriesId !== null) {
                 throw ValidationException::withMessages(['series_id' => 'Select a series project before requesting an episode.']);

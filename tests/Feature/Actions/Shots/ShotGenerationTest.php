@@ -43,6 +43,24 @@ use function Pest\Laravel\travel;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
 
+test('выключение проекта блокирует ожидающий внешний этап', function (GenerationOperationStage $stage): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    Bus::fake();
+    mock(ImageGenerator::class)->shouldNotReceive('generate');
+    $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'disable-project-shot');
+    $operation = $prompt->generationOperations()->sole();
+    $operation->update(['stage' => $stage]);
+    $prompt->project?->update(['is_active' => false]);
+
+    app(SubmitShotGenerationAction::class)->run($operation->id);
+
+    expect($operation->refresh()->status)->toBe(GenerationOperationStatus::CANCELLED);
+    expect($operation->cancel_requested_at)->not->toBeNull();
+    expect($prompt->refresh()->generated)->toBeFalse();
+    expect($prompt->generationOperations()->count())->toBe(1);
+    Http::assertNothingSent();
+})->with([GenerationOperationStage::IMAGE, GenerationOperationStage::VIDEO]);
+
 test('повтор запроса возвращает тот же дубль без запуска внешних систем', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
     Bus::fake();

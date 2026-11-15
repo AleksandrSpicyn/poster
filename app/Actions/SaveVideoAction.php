@@ -40,7 +40,7 @@ readonly class SaveVideoAction
             // Payload job мог устареть, пока второй исходник сохранялся другим worker.
             $this->refreshPrompt->run($prompt);
 
-            if ($prompt->generated || ! $prompt->video_url || ! $prompt->audio_url) {
+            if ($prompt->generated || ! $prompt->video_url || ! $prompt->audio_url || $prompt->project?->is_active !== true) {
                 return;
             }
 

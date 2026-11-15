@@ -11,6 +11,7 @@ use App\Data\Series\SeriesSpecificationData;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
 use App\Models\User;
+use App\Tasks\Production\StopProductionRun;
 use App\Tasks\Projects\SaveProject;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 readonly class SaveProjectAction
 {
-    public function __construct(private SaveProject $saveProject, private SaveSeriesSubAction $saveSeries) {}
+    public function __construct(private SaveProject $saveProject, private SaveSeriesSubAction $saveSeries, private StopProductionRun $stopRun) {}
 
     public function run(ProjectData $data, ?Project $project = null, ?User $actor = null): Project
     {
@@ -30,6 +31,8 @@ readonly class SaveProjectAction
             $project = $this->saveProject->run($data, $project);
 
             if ($data->content_mode !== ProjectContentMode::SERIES) {
+                $this->stopDisabledRuns($project);
+
                 return $project;
             }
 
@@ -57,7 +60,20 @@ readonly class SaveProjectAction
                 throw $exception;
             }
 
+            $this->stopDisabledRuns($project);
+
             return $project;
         });
+    }
+
+    private function stopDisabledRuns(Project $project): void
+    {
+        if ($project->is_active) {
+            return;
+        }
+
+        foreach ($project->productionRuns as $run) {
+            $this->stopRun->run($run, 'The project is disabled.');
+        }
     }
 }

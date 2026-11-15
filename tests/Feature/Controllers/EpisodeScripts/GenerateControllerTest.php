@@ -13,6 +13,21 @@ use function Pest\Laravel\actingAs;
 use function Tests\Support\serialOperator;
 use function Tests\Support\storyFixture;
 
+test('выключенный проект не ставит сценарий в очередь', function (): void {
+    ['episode' => $episode] = storyFixture();
+    $episode->series?->project?->update(['is_active' => false]);
+    Bus::fake();
+    Process::fake();
+
+    actingAs(serialOperator())->postJson(route('episodes.scripts.generate', ['series' => $episode->series_id, 'episode' => $episode]), [
+        'brief' => 'A new adventure.', 'lock_version' => 0, 'request_key' => (string) Str::uuid(),
+    ])->assertUnprocessable()->assertJsonValidationErrors('project');
+
+    expect($episode->refresh()->script_request_key)->toBeNull();
+    Bus::assertNothingDispatched();
+    Process::assertNothingRan();
+});
+
 test('задание сценария сохраняется до фонового запуска и не вызывает CLI в HTTP', function (): void {
     $context = storyFixture();
     $episode = $context['episode'];

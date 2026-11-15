@@ -20,6 +20,7 @@ const form = useForm({
     name: props.project?.name ?? '',
     prompt: props.series?.specification.premise ?? props.project?.prompt ?? '',
     content_mode: props.project?.content_mode ?? Object.keys(props.contentModes)[0],
+    is_active: props.project?.is_active ?? true,
     series_specification: {
         premise: '',
         visual_style: 'cinematic',
@@ -131,6 +132,26 @@ function submit() {
                         </select>
                         <p class="text-muted-foreground text-xs">A series project creates the next episode at each scheduled trigger.</p>
                         <InputError :message="form.errors.content_mode" />
+                    </div>
+                    <div class="space-y-2 rounded-lg border p-4">
+                        <label for="project-active" class="flex min-h-11 cursor-pointer items-start gap-3">
+                            <input
+                                id="project-active"
+                                v-model="form.is_active"
+                                type="checkbox"
+                                class="accent-primary mt-1 size-4 shrink-0"
+                                :disabled="form.processing"
+                                aria-describedby="project-active-help"
+                            />
+                            <span class="text-sm">
+                                <span class="font-medium">Project enabled</span>
+                                <span id="project-active-help" class="text-muted-foreground mt-1 block leading-relaxed">
+                                    Disabled projects stop production and are skipped by the scheduler. Existing content, characters and channels stay
+                                    available. Submitted work may still finish.
+                                </span>
+                            </span>
+                        </label>
+                        <InputError :message="form.errors.is_active" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="project-prompt"

@@ -21,6 +21,7 @@ class ProjectResource extends JsonResource
             'prompt' => $this->prompt,
             'content_mode' => $this->content_mode->value,
             'content_mode_label' => $this->content_mode->label(),
+            'is_active' => $this->is_active,
             'prompts_count' => $this->whenCounted('prompts'),
             'ready_prompts_count' => $this->whenCounted('readyPrompts'),
             'channels_count' => $this->whenCounted('channels'),

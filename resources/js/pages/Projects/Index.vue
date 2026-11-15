@@ -117,6 +117,11 @@ function clearSearch() {
                                         >{{ project.name }}</Link
                                     >
                                 </h2>
+                                <span
+                                    v-if="!project.is_active"
+                                    class="bg-muted text-muted-foreground mt-2 inline-block rounded-full px-2.5 py-1 text-xs"
+                                    >Disabled</span
+                                >
                                 <p class="text-muted-foreground mt-1.5 line-clamp-2 max-w-2xl text-sm leading-relaxed break-words">
                                     {{ project.prompt }}
                                 </p>

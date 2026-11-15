@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\MakeShortAction;
+use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Classes\Generators\VideoGenerator\VideoGenerator;
 use App\Data\VideoCapabilitiesData;
 use App\Data\VideoResultData;
@@ -25,11 +26,44 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Laravel\Ai\AnonymousAgent;
 
 use function Pest\Laravel\mock;
 use function Tests\Support\fakeCodex;
 use function Tests\Support\fakeCodexImages;
+
+test('выключение проекта после кадра не запускает платное видео', function (): void {
+    $project = Project::factory()->create();
+    AnonymousAgent::fake(['A fox jumps'])->preventStrayPrompts();
+    Event::fake([PromptGenerated::class, ImageGenerated::class, VideoGenerating::class]);
+    Http::fake();
+    mock(ImageGenerator::class)->shouldReceive('generate')->once()->andReturnUsing(function () use ($project): string {
+        $project->update(['is_active' => false]);
+
+        return 'https://cdn.example.com/frame.png';
+    });
+
+    expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(ValidationException::class);
+
+    $prompt = $project->prompts()->sole();
+    expect($prompt->image_url)->toBe('https://cdn.example.com/frame.png');
+    expect($prompt->video_id)->toBeNull();
+    Http::assertNothingSent();
+    Event::assertNotDispatched(VideoGenerating::class);
+});
+
+test('выключенный проект не начинает одиночную генерацию', function (): void {
+    $project = Project::factory()->create(['is_active' => false]);
+    Process::fake();
+    Http::fake();
+
+    expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(ValidationException::class);
+
+    expect($project->prompts()->exists())->toBeFalse();
+    Process::assertNothingRan();
+    Http::assertNothingSent();
+});
 
 test('сценарий выбирает источник звука по фактическому видеопровайдеру', function (bool $fallback): void {
     config([

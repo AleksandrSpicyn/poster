@@ -19,15 +19,16 @@ readonly class VideoBuiltListener
 
     public function handle(VideoBuilt $event): void
     {
-        if ($event->getPrompt()->shot_id !== null) {
+        $prompt = $event->getPrompt();
+        $project = $prompt->project()->first();
+
+        if ($prompt->shot_id !== null || $project?->is_active !== true) {
             return;
         }
 
         Log::info("VideoBuilt: {$event->getPrompt()->getFirstMediaUrl()}");
 
-        $prompt = $event->getPrompt();
-
-        $prompt->project?->channels->each(function (Channel $channel) use ($prompt): void {
+        $project->channels->each(function (Channel $channel) use ($prompt): void {
             $this->publishers->make($channel, $prompt)->publish();
         });
     }

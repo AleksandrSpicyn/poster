@@ -11,6 +11,7 @@ use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\ProductionRun;
+use App\Models\Project;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
@@ -25,6 +26,8 @@ class ClaimPublication
             $assembly = EpisodeAssembly::query()->findOrFail($request->episode_assembly_id);
             $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
             $episode = Episode::query()->findOrFail($revision->episode_id);
+            $series = Series::query()->findOrFail($episode->series_id);
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
             $productionRun = $request->production_run_id !== null
                 ? ProductionRun::query()->lockForUpdate()->find($request->production_run_id) : null;
@@ -35,6 +38,12 @@ class ClaimPublication
             $expected = $container ? PublicationStatus::PROCESSING : PublicationStatus::PLANNED;
 
             if ($request->status !== $expected) {
+                return false;
+            }
+
+            if (! $project->is_active) {
+                $request->update(['status' => PublicationStatus::FAILED, 'error_message' => 'The project is disabled.']);
+
                 return false;
             }
 

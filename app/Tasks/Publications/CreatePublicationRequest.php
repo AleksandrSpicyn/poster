@@ -15,6 +15,7 @@ use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\ProductionRun;
+use App\Models\Project;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
@@ -41,7 +42,13 @@ class CreatePublicationRequest
         return DB::transaction(function () use ($assembly, $data, $actor, $productionRun): Collection {
             $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
             $episode = Episode::query()->findOrFail($revision->episode_id);
+            $series = Series::query()->findOrFail($episode->series_id);
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
+
+            if (! $project->is_active) {
+                throw ValidationException::withMessages(['project' => 'Enable this project before publishing.']);
+            }
 
             if ($productionRun instanceof ProductionRun) {
                 ProductionRun::query()->lockForUpdate()->findOrFail($productionRun->id);

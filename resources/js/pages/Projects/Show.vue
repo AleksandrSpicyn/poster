@@ -97,6 +97,10 @@ function destroyProject() {
                 >
             </div>
 
+            <p v-if="!page.props.project.is_active" role="status" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+                This project is disabled. Generation and publication are paused. Enable it in project settings to produce new content.
+            </p>
+
             <dl class="bg-card grid grid-cols-3 divide-x rounded-xl border">
                 <div class="px-4 py-4 sm:px-6">
                     <dt class="text-muted-foreground text-xs sm:text-sm">{{ page.props.series ? 'Episodes' : 'Generations' }}</dt>
@@ -120,6 +124,7 @@ function destroyProject() {
                 v-if="page.props.auth.can_manage_series && !page.props.series && page.props.project.content_mode === 'short'"
                 :project-id="page.props.project.id"
                 :run="page.props.project.latest_production"
+                :project-enabled="page.props.project.is_active"
             />
 
             <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]">

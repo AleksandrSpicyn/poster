@@ -118,7 +118,7 @@ export interface Screenplay {
     }[];
 }
 export interface EpisodeWorkspaceProps {
-    project: { id: number; name: string };
+    project: { id: number; name: string; is_active: boolean };
     series: SeriesSummary;
     episode: EpisodeSummary;
     characters: (CharacterRevision & { character_name?: string })[];

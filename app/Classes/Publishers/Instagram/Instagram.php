@@ -52,6 +52,8 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
 
     public function createContainer(): string
     {
+        $this->assertProjectActive();
+
         $response = $this->getClient()->post('media', [
             'media_type' => 'REELS',
             'video_url' => $this->getVideoUrl(),
@@ -107,6 +109,8 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
     /** @throws ConnectionException */
     public function publishContainer(string $containerId): void
     {
+        $this->assertProjectActive();
+
         $client = $this->getClient();
 
         $publishRes = $client->post('media_publish', [

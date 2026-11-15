@@ -46,6 +46,26 @@ use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
 use function Tests\Support\storyScriptPayload;
 
+test('очередь останавливает выпуск выключенного проекта', function (ProjectContentMode $mode): void {
+    Bus::fake();
+    Process::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create(['is_active' => false, 'content_mode' => $mode]);
+    $series = $mode === ProjectContentMode::SERIES
+        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+    $run = ProductionRun::factory()->for($project)->create(['series_id' => $series?->id, 'actor_id' => $actor->id]);
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::STOPPED);
+    expect($run->error_message)->toBe('The project is disabled.');
+    expect($project->prompts()->exists())->toBeFalse();
+    expect($series?->episodes()->exists())->toBe($series !== null ? false : null);
+    Bus::assertNothingDispatched();
+    Process::assertNothingRan();
+    Http::assertNothingSent();
+})->with([ProjectContentMode::SHORT, ProjectContentMode::SERIES]);
+
 test('неизвестный результат дубля останавливает конвейер без повторной оплаты', function (): void {
     $fixture = episodeHttpFixture();
     $series = $fixture['episode']->series()->firstOrFail();

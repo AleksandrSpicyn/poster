@@ -6,6 +6,7 @@ use App\Actions\SaveVideoAction;
 use App\Enums\PromptStage;
 use App\Events\VideoBuilt;
 use App\Jobs\SaveVideoJob;
+use App\Models\Project;
 use App\Models\Prompt;
 use App\Settings\GeneralSettings;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,20 @@ use Illuminate\Support\Facades\Storage;
 use ProtoneMedia\LaravelFFMpeg\Exporters\EncodingException;
 
 use function Pest\Laravel\assertDatabaseCount;
+
+test('выключенный проект не собирает ожидающий ролик', function (): void {
+    $project = Project::factory()->create(['is_active' => false]);
+    $prompt = Prompt::factory()->for($project)->create(['video_url' => 'https://cdn.example.com/video.mp4', 'audio_url' => 'https://cdn.example.com/audio.mp3']);
+    Process::fake();
+
+    app(SaveVideoAction::class)->run($prompt);
+
+    expect($prompt->refresh()->generated)->toBeFalse();
+    expect($prompt->media()->exists())->toBeFalse();
+    expect($prompt->video_url)->toBe('https://cdn.example.com/video.mp4');
+    Process::assertNothingRan();
+    Event::assertNotDispatched(VideoBuilt::class);
+});
 
 beforeEach(/** @throws Exception */ function (): void {
     Storage::fake('public');

@@ -6,6 +6,7 @@ namespace App\Tasks\Episodes;
 
 use App\Enums\ScriptGenerationStatus;
 use App\Models\Episode;
+use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,8 @@ class ClaimEpisodeScript
     public function run(Episode $episode, string $requestKey): ?Episode
     {
         return DB::transaction(function () use ($episode, $requestKey): ?Episode {
+            $series = Series::query()->findOrFail($episode->series_id);
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
             $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
 
@@ -27,7 +30,7 @@ class ClaimEpisodeScript
             $actor = $episode->script_requested_by === null ? null : User::query()->find($episode->script_requested_by);
             $actorAllowed = $actor !== null && Gate::forUser($actor)->allows('manageSeries');
 
-            if (! $actorAllowed || $payload === null || $payload['expected_version'] !== $episode->lock_version
+            if (! $project->is_active || ! $actorAllowed || $payload === null || $payload['expected_version'] !== $episode->lock_version
                 || $series->archived_at !== null || ($payload['context']['continuity_version'] ?? null) !== $series->continuity_version
                 || ($payload['context']['specification_version'] ?? null) !== $series->specification_version) {
                 $episode->update(['script_generation_status' => ScriptGenerationStatus::FAILED, 'script_generation_error' => 'The episode context or generation permission changed before execution.']);

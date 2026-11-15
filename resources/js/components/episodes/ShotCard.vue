@@ -14,6 +14,7 @@ const props = defineProps<{
     revisionId: number;
     approved: boolean;
     archived: boolean;
+    projectEnabled: boolean;
     requestKey: string;
     sourceOptions: { id: number; label: string }[];
 }>();
@@ -46,7 +47,7 @@ function stop(prompt: number) {
             <span class="text-muted-foreground text-xs">{{ shot.transition_mode.replaceAll('_', ' ') }}</span>
         </div>
         <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ shot.action }}</p>
-        <div v-if="approved && !archived" class="flex flex-wrap items-end gap-3">
+        <div v-if="approved && !archived && projectEnabled" class="flex flex-wrap items-end gap-3">
             <div v-if="shot.transition_mode !== 'new_scene'" class="grid gap-2">
                 <Label :for="'shot-source-' + shot.id">Continue from a previous take</Label
                 ><select
@@ -63,7 +64,7 @@ function stop(prompt: number) {
                 form.processing ? 'Starting…' : shot.takes.length ? 'Generate a new take' : 'Generate shot'
             }}</Button>
         </div>
-        <p v-if="approved && !archived" class="text-muted-foreground text-xs">
+        <p v-if="approved && !archived && projectEnabled" class="text-muted-foreground text-xs">
             Starts media generation using the approved screenplay and selected references. A new take can use provider credits.
         </p>
         <InputError :message="errors" />

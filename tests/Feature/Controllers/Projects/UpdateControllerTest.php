@@ -31,6 +31,47 @@ use function Tests\Support\projectPayload;
 use function Tests\Support\serialOperator;
 use function Tests\Support\seriesProjectPayload;
 
+test('выключение проекта останавливает выпуск и сохраняет историю', function (ProjectContentMode $mode): void {
+    $actor = serialOperator();
+    $project = Project::factory()->create(['content_mode' => $mode]);
+    $series = $mode === ProjectContentMode::SERIES
+        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+    $prompt = Prompt::factory()->for($project)->create();
+    $channel = Channel::factory()->for($project)->create();
+    $run = ProductionRun::factory()->for($project)->create(['series_id' => $series?->id]);
+    $payload = $series === null ? projectPayload() : [...seriesProjectPayload(), 'series_lock_version' => 0];
+    Bus::fake();
+
+    actingAs($actor)->patch(route('projects.update', $project), [...$payload, 'is_active' => false])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($project->refresh()->is_active)->toBeFalse();
+    expect($run->refresh()->status)->toBe(ProductionStatus::STOPPED);
+    expect($project->prompts()->sole()->id)->toBe($prompt->id);
+    expect($project->channels()->sole()->id)->toBe($channel->id);
+    expect($series?->refresh()->automation_enabled)->toBe($series !== null ? true : null);
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+})->with([ProjectContentMode::SHORT, ProjectContentMode::SERIES]);
+
+test('правка без флага не включает выключенный проект', function (): void {
+    $project = Project::factory()->create(['is_active' => false]);
+
+    actingAs(User::factory()->create())->patch(route('projects.update', $project), projectPayload())
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($project->refresh()->is_active)->toBeFalse();
+});
+
+test('флаг активности принимает только boolean', function (): void {
+    $project = Project::factory()->create();
+
+    actingAs(User::factory()->create())->patchJson(route('projects.update', $project), [...projectPayload(), 'is_active' => 'enabled'])
+        ->assertUnprocessable()->assertJsonValidationErrors('is_active');
+
+    expect($project->refresh()->is_active)->toBeTrue();
+});
+
 test('выключение автоматизации немедленно отменяет ещё не отправленное видео', function (): void {
     $actor = serialOperator();
     $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);

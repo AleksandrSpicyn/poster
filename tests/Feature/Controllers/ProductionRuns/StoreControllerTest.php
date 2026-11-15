@@ -15,6 +15,21 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
 
+test('выключенный проект не запускается вручную', function (ProjectContentMode $mode): void {
+    Bus::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create(['is_active' => false, 'content_mode' => $mode]);
+    $series = $mode === ProjectContentMode::SERIES
+        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+
+    actingAs($actor)->postJson(route('production_runs.store', $project), ['request_key' => 'disabled-project', 'series_id' => $series?->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('project');
+
+    expect($project->productionRuns()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+})->with([ProjectContentMode::SHORT, ProjectContentMode::SERIES]);
+
 test('запускает сериал и сохраняет один выпуск при повторном запросе', function (): void {
     Bus::fake();
     $actor = serialOperator();

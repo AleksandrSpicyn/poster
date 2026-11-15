@@ -28,6 +28,7 @@ class UpdateController
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
      * @bodyParam prompt string required Базовый промпт до 10000 символов. Example: Original short stories about animals
      * @bodyParam content_mode string Тип проекта. Проект с сериалом нельзя преобразовать в short. Enum: short,series Example: short
+     * @bodyParam is_active boolean Включён ли проект. false останавливает выпуск и блокирует новые этапы; отсутствие поля сохраняет текущий флаг. Example: false
      * @bodyParam series_specification object Паспорт, обязателен для series; premise, visual_style, language, audience, audio_mode, episode_duration_seconds, narrative_rules, story_outline.
      * @bodyParam series_lock_version integer Версия настроек существующего сериала, обязательна при их изменении. Example: 0
      * @bodyParam automation_enabled boolean Автоматически подготовить и опубликовать выпуск. Example: false

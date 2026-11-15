@@ -35,6 +35,12 @@ readonly class AdvanceProductionAction
             return;
         }
 
+        if (! $run->project->is_active) {
+            $this->stop->run($run, 'The project is disabled.');
+
+            return;
+        }
+
         $expectedMode = $run->series_id === null ? ProjectContentMode::SHORT : ProjectContentMode::SERIES;
 
         if ($run->project->content_mode !== $expectedMode) {

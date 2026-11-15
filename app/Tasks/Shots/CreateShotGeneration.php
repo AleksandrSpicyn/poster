@@ -9,6 +9,7 @@ use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
+use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\Shot;
@@ -28,7 +29,13 @@ class CreateShotGeneration
                 throw ValidationException::withMessages(['series' => 'The generation context has no series identity.']);
             }
 
+            $series = Series::query()->findOrFail($seriesId);
+            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
             $series = Series::query()->lockForUpdate()->findOrFail($seriesId);
+
+            if (! $project->is_active) {
+                throw ValidationException::withMessages(['project' => 'Enable this project before generating shots.']);
+            }
 
             if ($productionRun instanceof ProductionRun) {
                 ProductionRun::query()->lockForUpdate()->findOrFail($productionRun->id);

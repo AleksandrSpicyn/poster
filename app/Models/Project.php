@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $prompt
  * @property ProjectContentMode $content_mode
+ * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Channel> $channels
@@ -42,11 +43,12 @@ class Project extends Model
         'name',
         'prompt',
         'content_mode',
+        'is_active',
     ];
 
-    protected $casts = ['content_mode' => ProjectContentMode::class];
+    protected $casts = ['content_mode' => ProjectContentMode::class, 'is_active' => 'boolean'];
 
-    protected $attributes = ['content_mode' => ProjectContentMode::SHORT->value];
+    protected $attributes = ['content_mode' => ProjectContentMode::SHORT->value, 'is_active' => true];
 
     /** @return HasMany<ProductionRun, $this> */
     public function productionRuns(): HasMany

@@ -22,6 +22,21 @@ use function Tests\Support\serialOperator;
 use function Tests\Support\storyFixture;
 use function Tests\Support\storyScriptPayload;
 
+test('выключение проекта блокирует сценарий уже стоящий в очереди', function (): void {
+    ['episode' => $episode] = storyFixture();
+    Queue::fake([GenerateEpisodeScriptJob::class]);
+    $data = new GenerateEpisodeScriptData('An adventure.', 0, '8e061dbf-290b-49ea-8ac3-cc69ed236885');
+    app(RequestEpisodeScriptAction::class)->run($episode, $data, serialOperator());
+    $episode->series?->project?->update(['is_active' => false]);
+    Process::fake();
+
+    app(ProcessEpisodeScriptAction::class)->run($episode, $data->request_key);
+
+    expect($episode->refresh()->script_generation_status)->toBe(ScriptGenerationStatus::FAILED);
+    expect($episode->revisions()->exists())->toBeFalse();
+    Process::assertNothingRan();
+});
+
 test('ошибка генерации отправляет живой статус завершённого запроса', function (): void {
     ['episode' => $episode] = storyFixture();
     Queue::fake([GenerateEpisodeScriptJob::class]);

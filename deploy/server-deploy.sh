@@ -11,6 +11,7 @@ trap '/usr/bin/php8.4 artisan up; rm -rf "$incoming"' EXIT
 tar -xzf - -C "$incoming" --no-same-owner
 rsync -a --delete --exclude=/.env --exclude=/storage --exclude=/public/storage "$incoming/" ./
 
+/usr/bin/php8.4 artisan package:discover --no-interaction
 /usr/bin/php8.4 artisan migrate --force --no-interaction
 /usr/bin/php8.4 artisan storage:link --no-interaction
 /usr/bin/php8.4 artisan scribe:generate --no-interaction

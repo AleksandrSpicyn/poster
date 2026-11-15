@@ -15,8 +15,9 @@ const props = withDefaults(
         run?: ProductionRun | null;
         enabled?: boolean;
         archived?: boolean;
+        projectEnabled?: boolean;
     }>(),
-    { enabled: true, archived: false },
+    { enabled: true, archived: false, projectEnabled: true },
 );
 const route = useRoute();
 const page = usePage<SharedData>();
@@ -88,13 +89,21 @@ function stop() {
         </template>
         <p v-else class="text-muted-foreground text-sm">
             {{
-                seriesId && !enabled
-                    ? 'Enable automation in series settings to let new episodes run through every stage.'
-                    : 'Start one release now. Later, each scheduled trigger will create the next release.'
+                !projectEnabled
+                    ? 'Enable this project in its settings to produce new content.'
+                    : seriesId && !enabled
+                      ? 'Enable automation in series settings to let new episodes run through every stage.'
+                      : 'Start one release now. Later, each scheduled trigger will create the next release.'
             }}
         </p>
         <div class="flex flex-wrap items-center gap-3 border-t pt-4">
-            <Button v-if="!run?.blocks_next_run && enabled && !archived" type="button" class="h-11" :disabled="form.processing" @click="start">
+            <Button
+                v-if="!run?.blocks_next_run && projectEnabled && enabled && !archived"
+                type="button"
+                class="h-11"
+                :disabled="form.processing"
+                @click="start"
+            >
                 <LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Play
                     v-else
                     class="size-4"

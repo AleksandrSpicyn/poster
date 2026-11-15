@@ -21,6 +21,30 @@ use Illuminate\Support\Facades\Storage;
 
 use function Tests\Support\acceptedEpisodePublication;
 
+test('выключение проекта блокирует ожидающую публикацию', function (bool $container): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
+    $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->sole();
+
+    if ($container) {
+        $request->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'project-disabled-container']);
+    }
+
+    $channel->project?->update(['is_active' => false]);
+
+    if ($container) {
+        app(FinishEpisodePublicationAction::class)->run($request);
+    } else {
+        app(SubmitEpisodePublicationAction::class)->run($request);
+    }
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::FAILED);
+    expect($request->error_message)->toBe('The project is disabled.');
+    expect(Post::query()->exists())->toBeFalse();
+    Http::assertNothingSent();
+})->with(['отправка' => false, 'готовый контейнер' => true]);
+
 test('публикует принятую сборку двумя этапами и сохраняет точную версию', function (): void {
     Storage::fake('local');
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();

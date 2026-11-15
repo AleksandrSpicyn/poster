@@ -8,7 +8,7 @@ import { Head } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
-    project: { id: number; name: string };
+    project: { id: number; name: string; is_active: boolean };
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];

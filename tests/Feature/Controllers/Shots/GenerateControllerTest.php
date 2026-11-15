@@ -13,6 +13,20 @@ use function Pest\Laravel\actingAs;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialReferenceMedia;
 
+test('выключенный проект не создаёт новый дубль', function (): void {
+    Storage::fake('local');
+    $context = episodeHttpFixture();
+    $context['episode']->series?->project?->update(['is_active' => false]);
+    Bus::fake();
+
+    actingAs($context['user'])->postJson(route('shots.generate', $context['params']), ['request_key' => 'disabled-shot', 'new_take' => false])
+        ->assertUnprocessable();
+
+    expect($context['shot']->prompts()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+});
+
 test('запуск дубля создаёт долговечный intent до внешней генерации', function (): void {
     config([
         'services.video.provider' => VideoProvider::SEEDANCE->value,

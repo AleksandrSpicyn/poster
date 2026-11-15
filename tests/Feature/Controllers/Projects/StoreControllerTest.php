@@ -24,6 +24,20 @@ use function Tests\Support\projectPayload;
 use function Tests\Support\serialOperator;
 use function Tests\Support\seriesProjectPayload;
 
+test('выключенный сериальный проект сохраняет настройки без запуска выпуска', function (): void {
+    Bus::fake();
+
+    actingAs(serialOperator())->post(route('projects.store'), [...seriesProjectPayload(), 'is_active' => false])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    $project = Project::query()->sole();
+    expect($project->is_active)->toBeFalse();
+    expect($project->series()->sole()->automation_enabled)->toBeTrue();
+    expect($project->productionRuns()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+});
+
 test('проект сериала сохраняет настройки и начинает выпуск одним запросом', function (): void {
     Bus::fake();
     $actor = serialOperator();

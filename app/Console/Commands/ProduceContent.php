@@ -32,7 +32,7 @@ class ProduceContent extends Command
         }
 
         $key = $this->option('scheduled') ? 'schedule:' . now()->format('YmdHi') : 'manual:' . Str::uuid();
-        $projects = Project::query()->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
+        $projects = Project::query()->where('is_active', true)->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
         $count = 0;
 
         foreach ($projects as $project) {

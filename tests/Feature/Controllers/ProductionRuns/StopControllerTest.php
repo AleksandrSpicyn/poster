@@ -99,6 +99,7 @@ test('остановка сохраняет поздний оплаченный 
     ]);
 
     actingAs($user)->post(route('production_runs.stop', $run))->assertRedirect();
+    $series->project?->update(['is_active' => false]);
     app(CheckShotGenerationAction::class)->run($operation->id);
     $download = $prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->sole();
     app(SubmitShotGenerationAction::class)->run($download->id);

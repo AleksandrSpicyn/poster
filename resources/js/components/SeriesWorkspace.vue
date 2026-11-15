@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
-    project: { id: number; name: string };
+    project: { id: number; name: string; is_active: boolean };
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];
@@ -49,6 +49,7 @@ function changePage(page: number) {
             :project-id="project.id"
             :series-id="series.id"
             :enabled="series.automation_enabled"
+            :project-enabled="project.is_active"
             :archived="!!series.archived_at"
             :run="series.latest_production"
         />
