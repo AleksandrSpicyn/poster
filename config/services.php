@@ -57,7 +57,7 @@ return [
     'seedance' => [
         'api_key' => env('SEEDANCE_API_KEY', ''),
         'api_url' => env('SEEDANCE_API_URL', 'https://ark.ap-southeast.bytepluses.com/api/v3'),
-        'model' => env('SEEDANCE_MODEL', Model::V2_5_FLASH->value),
+        'model' => env('SEEDANCE_MODEL', Model::V2_0_MINI->value),
         'resolution' => env('SEEDANCE_RESOLUTION', Resolution::HD->value),
     ],
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Enums\VideoProvider;
 use App\Exceptions\VideoGenerationUncertainException;
 use App\Settings\GeneralSettings;
@@ -20,12 +21,25 @@ beforeEach(function (): void {
 });
 
 test('сохраняется фактический провайдер Seedance', function (): void {
+    GeneralSettings::fake(['duration' => 8]);
+    config(['services.seedance.model' => Model::V2_0_MINI->value]);
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'seedance-1'])]);
 
     $video = app(CreateVideo::class)->run('https://example.test/frame.png', 'A fox jumps');
 
     expect($video->id)->toBe('seedance-1');
     expect($video->provider)->toBe(VideoProvider::SEEDANCE);
+    Http::assertSent(function (Request $request): bool {
+        $prompt = data_get($request->data(), 'content.0.text');
+
+        expect($request['model'])->toBe(Model::V2_0_MINI->value);
+        expect($request['duration'])->toBe(8);
+        expect($request['generate_audio'])->toBeTrue();
+        expect($prompt)->toContain('Story: A fox jumps', 'Duration: 8 seconds', 'Visual hook:', 'Escalation:', 'Payoff:', 'instrumental background music', 'No speech, voiceover, narration');
+        expect($prompt)->not->toContain('without speech or background music');
+
+        return true;
+    });
     Http::assertSentCount(1);
 });
 

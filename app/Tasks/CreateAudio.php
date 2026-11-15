@@ -26,9 +26,10 @@ readonly class CreateAudio
         }
 
         $prompt = <<<TEXT
-Instrumental underscore for this visual concept: "$title".
-Match the scene's mood: playful curiosity and light surprise for comedy, gentle wonder for a scenic discovery. Use a small, cohesive palette of plucked instruments, warm keys, and light percussion rather than a dense trailer orchestra.
-Start immediately with a clear, memorable rhythmic motif; make the opening {$this->generalSettings->duration} seconds usable as a complete short cue, with a small lift and a tidy musical resolution within that window. Keep the arrangement clear on phone speakers. No vocals, spoken words, long intro, or imitation of an existing song or artist.
+Create instrumental background music for this action-driven visual story: "$title".
+Start on the first beat with a catchy, propulsive rhythmic hook. Use a cohesive groove of percussion, bass, plucked strings, and short brass or keyboard accents, clearly audible on phone speakers.
+Shape the opening {$this->generalSettings->duration} seconds as a complete musical arc: an immediate hook, rising rhythmic tension through the action, a sharp accent for the final reversal, and a short resolved musical button. Keep playful comic urgency and a satisfying payoff; avoid a slow ambient introduction or a static loop.
+Music is the main audio bed. No vocals, spoken words, voiceover, narration, dialogue, lyrics, singing, or imitation of an existing song or artist.
 Target duration: {$this->generalSettings->duration} seconds.
 TEXT;
 

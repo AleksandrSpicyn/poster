@@ -23,7 +23,8 @@ beforeEach(function (): void {
     GeneralSettings::fake(['duration' => 10]);
 });
 
-test('Seedance отправляет первый кадр и запрашивает видео со звуком', function (): void {
+test('Seedance отправляет первый кадр и запрашивает видео со звуком', function (Model $model): void {
+    config(['services.seedance.model' => $model->value]);
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'seedance-1'])]);
 
     $id = app(Seedance::class)->generate('https://cdn.example.com/frame.png', 'A fox jumps');
@@ -33,7 +34,7 @@ test('Seedance отправляет первый кадр и запрашива�
         && $request->url() === 'https://ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks'
         && $request->hasHeader('Authorization', 'Bearer test-seedance')
         && $request->data() === [
-            'model' => 'dreamina-seedance-2-5-flash-261115',
+            'model' => $model->value,
             'content' => [
                 ['type' => 'text', 'text' => 'A fox jumps'],
                 ['type' => 'image_url', 'image_url' => ['url' => 'https://cdn.example.com/frame.png'], 'role' => 'first_frame'],
@@ -46,7 +47,7 @@ test('Seedance отправляет первый кадр и запрашива�
             'execution_expires_after' => 3600,
         ]);
     Http::assertSentCount(1);
-});
+})->with(['2.5 Flash' => Model::V2_5_FLASH, '2.0 Mini' => Model::V2_0_MINI]);
 
 test('Seedance возвращает URL только готового видео со звуком', function (string $status, ?string $expected): void {
     Http::fake(['*contents/generations/tasks/seedance-1' => Http::response([

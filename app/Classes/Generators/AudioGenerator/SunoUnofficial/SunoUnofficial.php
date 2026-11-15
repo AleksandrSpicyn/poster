@@ -32,7 +32,7 @@ readonly class SunoUnofficial implements AudioGenerator
         $request = $this
             ->request([
                 'prompt' => $prompt,
-                'style' => 'epic cinematic',
+                'style' => 'playful cinematic instrumental, rhythmic groove, percussion, bass, plucked strings',
                 'title' => Str::limit($title, 50),
                 'customMode' => true,
                 'instrumental' => true,
