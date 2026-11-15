@@ -169,7 +169,9 @@ media ID и checksums. Для отправки видео кадр кодиру�
 Локальный [граф Graphify](project-graph.md) находится в `graphify-out/` и
 обновляется через `make graph-update`. Его связи помогают найти код, но
 динамические маршруты, DI и события проверяются по исходникам и тестам.
-Pest использует SQLite in-memory и fakes внешних границ; проверки лежат в
+Основной Pest-прогон использует отдельную MySQL-базу `poster_test`, быстрый
+дополнительный прогон — SQLite in-memory; внешние границы закрыты fakes.
+Проверки лежат в
 `tests/Feature` по HTTP-точкам, CLI, jobs, listeners и адаптерам.
 Docker Compose изолирует Poster от остальных проектов; workers запускаются
 отдельным профилем. Детали доставки и runtime — в [deployment.md](deployment.md).

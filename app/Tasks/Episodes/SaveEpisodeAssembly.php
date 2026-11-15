@@ -113,6 +113,7 @@ class SaveEpisodeAssembly
             return $revision->assemblies()->create([
                 'number' => ($revision->assemblies()->orderByDesc('number')->first()->number ?? 0) + 1,
                 'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
+                'continuity_snapshot' => [],
             ])->refresh();
         });
     }

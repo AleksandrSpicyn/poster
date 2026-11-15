@@ -317,8 +317,8 @@ test('немой дубль фиксирует звук до очереди и �
 
     expect(data_get($snapshot, 'audio_mode'))->toBe('silent');
     expect(data_get($snapshot, 'video.generate_audio'))->toBeFalse();
-    expect($prompt->refresh()->input_snapshot)->toBe($snapshot);
-    expect($video->refresh()->request_snapshot)->toBe($snapshot);
+    expect($prompt->refresh()->input_snapshot)->toEqual($snapshot);
+    expect($video->refresh()->request_snapshot)->toEqual($snapshot);
     expect($video->status)->toBe(GenerationOperationStatus::SUBMITTED);
     Http::assertSentCount(1);
     Http::assertSent(function (Request $request) use ($snapshot): bool {

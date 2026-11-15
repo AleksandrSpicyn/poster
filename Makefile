@@ -5,11 +5,12 @@ ARTISAN = $(PHP) artisan
 GRAPHIFY ?= graphify
 CODEX = $(EXEC) env CODEX_HOME=/var/www/storage/app/private/codex /usr/local/bin/codex -c 'cli_auth_credentials_store="file"'
 
-.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper graph graph-update graph-html codex-login codex-status
+.PHONY: help build up down status init migrate npm-build npm-dev test test-mysql test-sqlite pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper graph graph-update graph-html codex-login codex-status
 help:
 	@echo 'build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper'
 	@echo 'graph graph-update graph-html (Graphify CLI on host)'
 	@echo 'codex-login codex-status (ChatGPT subscription, separate login for this installation)'
+	@echo 'test / test-mysql (isolated MySQL poster_test), test-sqlite (fast in-memory checks)'
 build:
 	docker compose build
 up:
@@ -29,7 +30,10 @@ npm-build:
 	$(EXEC) npm run build
 npm-dev:
 	$(EXEC) npm run dev -- --host 0.0.0.0 --port 5178
-test:
+test: test-mysql
+test-mysql:
+	$(PHP) -d memory_limit=512M vendor/bin/pest --configuration phpunit.mysql.xml --compact
+test-sqlite:
 	$(PHP) -d memory_limit=512M vendor/bin/pest --compact
 pint:
 	$(PHP) vendor/bin/pint --test

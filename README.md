@@ -103,7 +103,7 @@ Hailuo/Runway сохраняется сборка с Suno. Резерв зада
 
 ## Локальная работа
 
-Docker Compose использует собственные PostgreSQL и Redis, PHP с FFmpeg,
+Docker Compose использует собственные MySQL 8.4 и Redis, PHP с FFmpeg,
 Nginx и Node. Рабочий `.env` с ключами не перезаписывается. Для локального
 запуска используется отдельный `.env.docker` по примеру `.env.docker.example`.
 
@@ -115,6 +115,12 @@ make init # зависимости, APP_KEY при пустом значении
 make migrate
 make npm-build
 ```
+
+Внутри Docker база доступна как `db:3306`, с хоста/IDE —
+`127.0.0.1:3308`. При первом создании MySQL volume создаются базы `poster`
+для приложения и отдельная `poster_test` для проверок. Реквизиты локальной БД
+есть в `.env.docker.example`; production `.env` развёртывание сохраняет.
+Для запуска PHP/Artisan с хоста `.env.example` использует MySQL на порту 3308.
 
 Образ включает Codex CLI 0.169.0. Отдельный вход в подписку для Poster:
 
@@ -169,10 +175,14 @@ Hailuo/Runway нужен внешний HTTPS URL: для локальной г�
 ```sh
 make pipe # Pint, Rector dry-run, PHPStan max, Pest, Scribe, frontend build
 docker compose exec -T --user appuser app npm run typecheck
+make test-sqlite # дополнительный быстрый SQLite in-memory прогон
 ```
 
 PHPStan анализирует app, bootstrap, public/index.php, config, database, routes и tests на уровне
-`max`, без baseline. Pest использует SQLite in-memory и fakes внешних интеграций.
+`max`, без baseline. `make test` использует `phpunit.mysql.xml` с принудительным
+подключением к изолированной MySQL-базе `poster_test`; `make test-sqlite` —
+`phpunit.xml` и SQLite in-memory. Оба прогона используют fakes внешних интеграций.
+CI проверяет оба варианта, включая реальные миграции MySQL до упаковки и deploy.
 Документация: `make docs`, затем `/docs` после входа. MCP Scribe читает
 `storage/app/private/scribe/openapi.yaml`, подключение — `.codex/config.toml`.
 Неподтверждённый email не даёт доступа к кабинету и рабочим спискам.

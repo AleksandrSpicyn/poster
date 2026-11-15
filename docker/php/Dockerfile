@@ -1,8 +1,8 @@
 FROM php:8.4-fpm-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg git unzip libpq-dev libzip-dev libicu-dev libonig-dev libsqlite3-dev curl \
-    && docker-php-ext-install pdo_pgsql pdo_mysql pdo_sqlite bcmath intl zip pcntl exif \
+    ffmpeg git unzip libzip-dev libicu-dev libonig-dev libsqlite3-dev curl \
+    && docker-php-ext-install pdo_mysql pdo_sqlite bcmath intl zip pcntl exif \
     && pecl install redis && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer

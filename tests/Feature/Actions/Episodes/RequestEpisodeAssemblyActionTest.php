@@ -32,6 +32,7 @@ test('фиксирует точный дубль и trim без повторно
     expect(data_get($assembly->manifest, 'shots.0.media_id'))->toBe($media->id);
     expect(data_get($assembly->manifest, 'shots.0.trim_end_ms'))->toBe(1000);
     expect($assembly->manifest['duration_ms'])->toBe(1000);
+    expect($assembly->refresh()->continuity_snapshot)->toBe([]);
     expect(EpisodeAssembly::query()->count())->toBe(1);
     Queue::assertPushed(BuildEpisodeAssemblyJob::class, 1);
 });

@@ -24,7 +24,7 @@ test('создание сохраняет паспорт без генераци
     $series = Series::query()->firstOrFail();
     $response->assertRedirect(route('series.show', ['project' => $project, 'series' => $series]));
     expect($series->project_id)->toBe($project->id);
-    expect($series->specification)->toBe(serialSeriesPayload()['specification']);
+    expect($series->specification)->toEqual(serialSeriesPayload()['specification']);
     expect($series->specification_version)->toBe(1);
     Http::assertNothingSent();
     Process::assertNothingRan();

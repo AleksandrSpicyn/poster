@@ -28,3 +28,15 @@ test('утвержденная версия не редактируется ка
     expect(fn() => app(SaveCharacterRevisionAction::class)->run($character, new CharacterRevisionData('Changed', lock_version: 0), $revision))
         ->toThrow(ValidationException::class);
 });
+
+test('описание без внешности и голоса сохраняет пустые наборы свойств', function (): void {
+    $character = Character::factory()->create();
+    $data = CharacterRevisionData::validateAndCreate(['description' => 'A new character without detailed appearance or voice.']);
+
+    $revision = app(SaveCharacterRevisionAction::class)->run($character, $data);
+
+    expect($revision->refresh()->appearance)->toBe([]);
+    expect($revision->voice)->toBe([]);
+    expect($revision->status)->toBe(RevisionStatus::DRAFT);
+    expect($character->refresh()->current_revision_id)->toBeNull();
+});
