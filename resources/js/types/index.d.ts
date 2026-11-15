@@ -52,31 +52,8 @@ export interface Channel {
     type: ChannelType;
 }
 
-export interface Post {
-    id: number;
-    url: string;
-    channel: Channel;
-}
-
-export interface LaravelPagination<T> {
-    current_page: number;
-    data: T[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: {
-        url: string | null;
-        label: string;
-        active: boolean;
-    }[];
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
+export type { PostSummary as Post } from './content';
+export type LaravelPagination<T> = import('./content').PaginatedResource<T>;
 
 export type BreadcrumbItemType = BreadcrumbItem;
 export type ChannelType = 'youtube' | 'instagram' | 'tiktok' | 'vk';

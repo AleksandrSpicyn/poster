@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppFeedback from '@/components/AppFeedback.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Link } from '@inertiajs/vue3';
 
@@ -24,6 +25,7 @@ defineProps<{
                         <p class="text-muted-foreground text-center text-sm">{{ description }}</p>
                     </div>
                 </div>
+                <AppFeedback />
                 <slot />
             </div>
         </div>

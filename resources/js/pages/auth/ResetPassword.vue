@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { useRoute } from 'ziggy-js';
-const route = useRoute();
-
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +6,9 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from '@lucide/vue';
+import { useRoute } from 'ziggy-js';
+
+const route = useRoute();
 
 interface Props {
     token: string;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PromptStage;
 use Database\Factories\PromptFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -55,6 +56,20 @@ class Prompt extends Model implements HasMedia
         'video_url',
         'generated',
     ];
+
+    /** Готовность определяется результатами; старые задачи без результата остаются ожидающими. */
+    public function stage(): PromptStage
+    {
+        return match (true) {
+            $this->generated => PromptStage::READY,
+            (bool) $this->video_url && (bool) $this->audio_url => PromptStage::ASSEMBLY,
+            (bool) $this->video_url => PromptStage::AUDIO,
+            (bool) $this->audio_url => PromptStage::VIDEO,
+            (bool) $this->video_id || (bool) $this->audio_id => PromptStage::MEDIA,
+            (bool) $this->image_url => PromptStage::STARTING_MEDIA,
+            default => PromptStage::IMAGE,
+        };
+    }
 
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo

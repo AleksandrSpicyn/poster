@@ -562,7 +562,9 @@
                     "url": "",
                     "project": "dolores",
                     "generated": false,
-                    "created_at": "Nov 14, 2026"
+                    "created_at": "Nov 14, 2026",
+                    "stage": "image",
+                    "stage_label": "Awaiting image"
                 },
                 {
                     "id": 2,
@@ -570,7 +572,9 @@
                     "url": "",
                     "project": "molestias",
                     "generated": false,
-                    "created_at": "Nov 14, 2026"
+                    "created_at": "Nov 14, 2026",
+                    "stage": "image",
+                    "stage_label": "Awaiting image"
                 }
             ],
             "links": {

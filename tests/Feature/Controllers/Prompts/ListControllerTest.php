@@ -110,3 +110,28 @@ test('идеи сортируются от старых к новым', function
             ->where('prompts.data.1.id', $last->id)
             ->where('filters.sort', 'asc'));
 });
+
+test('список показывает этап по сохранённым результатам', function (array $attributes, string $stage, string $label): void {
+    /** @var array<string, bool|string> $attributes */
+    $prompt = Prompt::factory()
+        ->create($attributes);
+
+    actingAs(User::factory()
+        ->create());
+
+    get(route('prompts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.data.0.id', $prompt->id)
+            ->where('prompts.data.0.stage', $stage)
+            ->where('prompts.data.0.stage_label', $label));
+})->with([
+    'ожидается изображение' => [[], 'image', 'Awaiting image'],
+    'изображение готово' => [['image_url' => 'https://example.test/image.png'], 'starting_media', 'Starting media'],
+    'видео запущено' => [['video_id' => 'video-task'], 'media', 'Awaiting video & audio'],
+    'аудио запущено' => [['audio_id' => 'audio-task'], 'media', 'Awaiting video & audio'],
+    'ожидается видео' => [['audio_url' => 'https://example.test/audio.mp3'], 'video', 'Awaiting video'],
+    'ожидается аудио' => [['video_url' => 'https://example.test/video.mp4'], 'audio', 'Awaiting audio'],
+    'ожидается сборка' => [['video_url' => 'https://example.test/video.mp4', 'audio_url' => 'https://example.test/audio.mp3'], 'assembly', 'Awaiting assembly'],
+    'сборка завершена' => [['generated' => true], 'ready', 'Video ready'],
+]);

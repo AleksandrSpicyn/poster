@@ -29,6 +29,8 @@ class PromptResource extends JsonResource
             'url' => $this->getFirstMediaUrl(),
             'project' => $this->project?->name,
             'generated' => $this->generated,
+            'stage' => $this->stage()->value,
+            'stage_label' => $this->stage()->label(),
             'created_at' => $this->created_at?->toFormattedDateString(),
         ];
     }

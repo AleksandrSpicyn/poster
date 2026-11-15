@@ -4,29 +4,33 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { useRoute } from 'ziggy-js';
+
+const route = useRoute();
 
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
-        href: '/settings/profile',
+        href: route('profile.edit', undefined, false),
     },
     {
         title: 'Password',
-        href: '/settings/password',
+        href: route('password.edit', undefined, false),
     },
     {
         title: 'Appearance',
-        href: '/settings/appearance',
+        href: route('appearance', undefined, false),
     },
 ];
 
 const page = usePage();
 
-const currentPath = page.props.ziggy?.location ? new URL(page.props.ziggy.location).pathname : '';
+const currentPath = computed(() => page.url.split('?')[0]);
 </script>
 
 <template>
-    <div class="px-4 py-6">
+    <div class="workspace-page">
         <Heading title="Settings" description="Manage your profile and account settings" />
 
         <div class="flex flex-col space-y-8 md:space-y-0 lg:flex-row lg:space-y-0 lg:space-x-12">
@@ -49,7 +53,7 @@ const currentPath = page.props.ziggy?.location ? new URL(page.props.ziggy.locati
             <Separator class="my-6 md:hidden" />
 
             <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-xl space-y-12">
+                <section class="bg-card max-w-xl space-y-10 rounded-xl border p-5 sm:p-7">
                     <slot />
                 </section>
             </div>

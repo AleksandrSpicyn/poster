@@ -558,6 +558,18 @@
             "LIGHT": "light",
             "DARK": "dark",
             "SYSTEM": "system"
+        },
+        "stats": {
+            "prompts": 0,
+            "pending": 0,
+            "ready": 0,
+            "posts": 0
+        },
+        "recentPrompts": {
+            "data": []
+        },
+        "recentPosts": {
+            "data": []
         }
     },
     "url": "/dashboard",

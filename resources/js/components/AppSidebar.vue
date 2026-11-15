@@ -1,56 +1,16 @@
 <script setup lang="ts">
-import { useRoute } from 'ziggy-js';
+import AppLogo from './AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
+import { useNavigation } from '@/composables/useNavigation';
 import { Link } from '@inertiajs/vue3';
-import { GlobeLock, Handshake, LayoutGrid, List, ListOrdered, Logs, Notebook} from '@lucide/vue';
-import AppLogo from './AppLogo.vue';
+import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: route('dashboard'),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Prompts',
-        href: route('prompts'),
-        icon: Notebook,
-    },
-    {
-        title: 'Posts',
-        href: route('posts'),
-        icon: List,
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Logs',
-        href: route('log-viewer.index'),
-        icon: Logs,
-    },
-    {
-        title: 'Queues',
-        href: route('horizon.index'),
-        icon: ListOrdered,
-    },
-    {
-        title: 'Privacy Policy',
-        href: route('policy'),
-        icon: GlobeLock,
-    },
-    {
-        title: 'Terms of Service',
-        href: route('terms'),
-        icon: Handshake,
-    },
-];
+const { main: mainNavItems, footer: footerNavItems } = useNavigation();
 </script>
 
 <template>
@@ -76,5 +36,4 @@ const footerNavItems: NavItem[] = [
             <NavUser />
         </SidebarFooter>
     </Sidebar>
-    <slot />
 </template>

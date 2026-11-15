@@ -64,6 +64,8 @@ class ListController
      * @responseField props.prompts.data[].url string props.prompts.data[].url.
      * @responseField props.prompts.data[].project string props.prompts.data[].project.
      * @responseField props.prompts.data[].generated boolean props.prompts.data[].generated.
+     * @responseField props.prompts.data[].stage string Этап по сохранённым результатам: image, starting_media, media, video, audio, assembly, ready.
+     * @responseField props.prompts.data[].stage_label string Человекочитаемая подпись этапа.
      * @responseField props.prompts.data[].created_at string props.prompts.data[].created_at.
      * @responseField props.prompts.links object props.prompts.links.
      * @responseField props.prompts.links.first string props.prompts.links.first.
