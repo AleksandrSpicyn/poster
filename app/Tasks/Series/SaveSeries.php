@@ -5,14 +5,21 @@ declare(strict_types=1);
 namespace App\Tasks\Series;
 
 use App\Data\Series\SeriesData;
+use App\Enums\ProjectContentMode;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Validation\ValidationException;
 
 class SaveSeries
 {
-    public function run(Project $project, SeriesData $data, ?Series $series = null): Series
+    public function run(Project $project, SeriesData $data, ?Series $series = null, ?int $actorId = null): Series
     {
+        $project = Project::query()->lockForUpdate()->findOrFail($project->id);
+
+        if (! $series instanceof Series && $project->series()->exists()) {
+            throw ValidationException::withMessages(['series' => 'This project already has a series. Edit its project settings.']);
+        }
+
         if ($series instanceof Series) {
             $series = Series::query()
                 ->where('project_id', $project->id)
@@ -29,9 +36,27 @@ class SaveSeries
         }
 
         $series ??= new Series(['project_id' => $project->id]);
-        $series->fill(['name' => $data->name, 'specification' => $data->specification->toArray()]);
 
-        if ($series->exists && $series->isDirty(['name', 'specification'])) {
+        if ($data->automation_enabled && $actorId === null && $series->automation_user_id === null) {
+            throw ValidationException::withMessages(['automation_enabled' => 'Save automation settings while signed in as a series operator.']);
+        }
+
+        $specification = $data->specification->toArray();
+        $specification['narrative_rules'] = $data->specification->narrative_rules ?? '';
+
+        if ($data->specification->story_outline === null) {
+            unset($specification['story_outline']);
+        }
+
+        $series->fill([
+            'name' => $data->name,
+            'specification' => $specification,
+            'automation_enabled' => $data->automation_enabled,
+            'episode_limit' => $data->episode_limit,
+            'automation_user_id' => $data->automation_enabled ? ($actorId ?? $series->automation_user_id) : $series->automation_user_id,
+        ]);
+
+        if ($series->exists && $series->isDirty()) {
             $series->lock_version++;
 
             if ($series->isDirty('specification')) {
@@ -40,7 +65,8 @@ class SaveSeries
         }
 
         $series->save();
+        $project->update(['content_mode' => ProjectContentMode::SERIES]);
 
-        return $series->refresh();
+        return $series->refresh()->load('activeProductionRun');
     }
 }

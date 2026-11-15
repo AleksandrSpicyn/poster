@@ -9,6 +9,7 @@ use App\Actions\Publications\ReconcilePublicationsAction;
 use App\Data\Episodes\PublishEpisodeData;
 use App\Enums\PublicationStatus;
 use App\Events\PostCreated;
+use App\Events\WorkspaceUpdated;
 use App\Jobs\FinishEpisodePublicationJob;
 use App\Jobs\PublishEpisodeJob;
 use App\Models\Post;
@@ -57,6 +58,7 @@ test('неизвестная отправка не повторяется при
     Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
     Http::fake(['*/ig-episode/media' => Http::response([], 503)]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
+    Event::fake([WorkspaceUpdated::class]);
 
     app(SubmitEpisodePublicationAction::class)->run($request);
     app(SubmitEpisodePublicationAction::class)->run($request);
@@ -65,6 +67,7 @@ test('неизвестная отправка не повторяется при
     expect(Post::query()->exists())->toBeFalse();
     Http::assertSentCount(1);
     Queue::assertNotPushed(FinishEpisodePublicationJob::class);
+    Event::assertDispatchedTimes(WorkspaceUpdated::class, 2);
 });
 
 test('reconciler восстанавливает доставку только безопасных запросов', function (): void {

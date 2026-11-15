@@ -25,7 +25,7 @@ class CharacterReferenceData extends Data
         public UploadedFile $file,
         public ReferenceView $view,
         #[Max(255)]
-        public string $label = '',
+        public ?string $label = null,
         #[Min(0)]
         public int $lock_version = 0,
     ) {}

@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class ApproveEpisodeScript
 {
-    public function run(EpisodeRevision $revision, User $actor): EpisodeRevision
+    public function run(EpisodeRevision $revision, User $actor, bool $useGeneratedTitle = false): EpisodeRevision
     {
         $actor = $actor->fresh();
 
@@ -26,7 +26,7 @@ class ApproveEpisodeScript
 
         Gate::forUser($actor)->authorize('manageSeries');
 
-        return DB::transaction(function () use ($revision, $actor): EpisodeRevision {
+        return DB::transaction(function () use ($revision, $actor, $useGeneratedTitle): EpisodeRevision {
             $episode = Episode::query()->findOrFail($revision->episode_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
             $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
@@ -43,6 +43,10 @@ class ApproveEpisodeScript
             }
 
             $revision->update(['status' => RevisionStatus::APPROVED, 'approved_at' => now(), 'approved_by' => $actor->id]);
+
+            if ($useGeneratedTitle) {
+                $episode->update(['title' => $revision->title]);
+            }
 
             return $revision;
         });

@@ -7,8 +7,11 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\GetProjectAction;
 use App\Data\GetPromptsListData;
 use App\Enums\SortDirection;
+use App\Http\Resources\CharacterResource;
+use App\Http\Resources\EpisodeSummaryResource;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\PromptResource;
+use App\Http\Resources\SeriesResource;
 use App\Models\Project;
 use Inertia\Response;
 
@@ -42,6 +45,9 @@ class ShowController
         return inertia('Projects/Show', [
             'project' => ProjectResource::make($data['project'])->resolve(),
             'prompts' => PromptResource::collection($data['prompts']),
+            'series' => $data['series'] === null ? null : SeriesResource::make($data['series'])->resolve(),
+            'characters' => $data['characters'] === null ? null : CharacterResource::collection($data['characters']),
+            'episodes' => EpisodeSummaryResource::collection($data['episodes'])->resolve(),
             'sortDirections' => SortDirection::labels(),
             'filters' => ['sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
         ]);

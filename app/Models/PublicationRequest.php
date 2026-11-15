@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $episode_assembly_id
  * @property int $channel_id
  * @property int $created_by
+ * @property int|null $production_run_id
  * @property PublicationStatus $status
  * @property array{title: string, description: string, made_for_kids: bool} $payload
  * @property string|null $container_id
@@ -25,7 +26,7 @@ use Illuminate\Support\Carbon;
  */
 class PublicationRequest extends Model
 {
-    protected $fillable = ['episode_assembly_id', 'channel_id', 'created_by', 'status', 'payload', 'container_id', 'error_message', 'submitted_at', 'published_at'];
+    protected $fillable = ['episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'submitted_at', 'published_at'];
 
     protected $casts = ['status' => PublicationStatus::class, 'payload' => 'array', 'submitted_at' => 'datetime', 'published_at' => 'datetime'];
 

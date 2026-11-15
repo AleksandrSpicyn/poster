@@ -14,6 +14,7 @@ use App\Models\Channel;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
+use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
@@ -27,7 +28,7 @@ use Illuminate\Validation\ValidationException;
 class CreatePublicationRequest
 {
     /** @return Collection<int, PublicationRequest> */
-    public function run(EpisodeAssembly $assembly, PublishEpisodeData $data, User $actor): Collection
+    public function run(EpisodeAssembly $assembly, PublishEpisodeData $data, User $actor, ?ProductionRun $productionRun = null): Collection
     {
         $actor = $actor->fresh();
 
@@ -37,10 +38,15 @@ class CreatePublicationRequest
 
         Gate::forUser($actor)->authorize('manageSeries');
 
-        return DB::transaction(function () use ($assembly, $data, $actor): Collection {
+        return DB::transaction(function () use ($assembly, $data, $actor, $productionRun): Collection {
             $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
             $episode = Episode::query()->findOrFail($revision->episode_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
+
+            if ($productionRun instanceof ProductionRun) {
+                ProductionRun::query()->lockForUpdate()->findOrFail($productionRun->id);
+            }
+
             $episode->refresh();
             $assembly->refresh();
 
@@ -63,7 +69,7 @@ class CreatePublicationRequest
             foreach ($channels as $channel) {
                 $requests->push(PublicationRequest::query()->firstOrCreate(
                     ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
-                    ['created_by' => $actor->id, 'status' => PublicationStatus::PLANNED, 'payload' => [
+                    ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'status' => PublicationStatus::PLANNED, 'payload' => [
                         'title' => Str::limit($series->name . ' · ' . $episode->number . ' · ' . $revision->title, 97),
                         'description' => $revision->objective,
                         'made_for_kids' => ($series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value,

@@ -7,6 +7,7 @@ namespace App\Tasks\Shots;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
+use App\Models\ProductionRun;
 use App\Models\Prompt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +18,10 @@ class UpdateGenerationOperation
     public function run(GenerationOperation $operation, GenerationOperationStatus $status, array $attributes = [], ?GenerationOperationStatus $expectedStatus = null): ?GenerationOperation
     {
         return DB::transaction(function () use ($operation, $status, $attributes, $expectedStatus): ?GenerationOperation {
+            if ($operation->production_run_id !== null) {
+                ProductionRun::query()->lockForUpdate()->findOrFail($operation->production_run_id);
+            }
+
             $prompt = Prompt::query()->lockForUpdate()->findOrFail($operation->prompt_id);
             $operation = GenerationOperation::query()->lockForUpdate()->findOrFail($operation->id);
 
@@ -59,6 +64,7 @@ class UpdateGenerationOperation
             $nextStage = $operation->stage === GenerationOperationStage::IMAGE ? GenerationOperationStage::VIDEO : GenerationOperationStage::DOWNLOAD;
 
             return $prompt->generationOperations()->firstOrCreate(['stage' => $nextStage], [
+                'production_run_id' => $operation->production_run_id,
                 'status' => GenerationOperationStatus::PLANNED,
                 'request_key' => $operation->request_key,
                 'idempotency_key' => hash('sha256', $operation->request_key . ':' . $nextStage->value),

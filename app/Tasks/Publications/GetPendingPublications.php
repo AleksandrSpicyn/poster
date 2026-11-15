@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Publications;
 
 use App\Enums\PublicationStatus;
+use App\Events\WorkspaceUpdated;
 use App\Models\PublicationRequest;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -17,10 +18,14 @@ class GetPendingPublications
         $expiredIds = PublicationRequest::query()->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->orderBy('id')->limit($limit)->pluck('id');
-        PublicationRequest::query()->whereKey($expiredIds)
+        $updated = PublicationRequest::query()->whereKey($expiredIds)
             ->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN, 'error_message' => 'A worker stopped before confirming the external result. Inspect its receipt before retrying.']);
+
+        if ($updated > 0) {
+            WorkspaceUpdated::dispatch(true);
+        }
 
         return PublicationRequest::query()->where(function ($query): void {
             $query->where('status', PublicationStatus::PLANNED)

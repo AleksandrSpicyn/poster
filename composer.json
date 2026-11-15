@@ -19,6 +19,7 @@
         "laravel/ai": "^1.4",
         "laravel/framework": "^13.42",
         "laravel/horizon": "^5.51",
+        "laravel/reverb": "^1.13",
         "laravel/tinker": "^3.1",
         "opcodesio/log-viewer": "^3.17",
         "openai-php/laravel": "^0.22",
@@ -75,12 +76,12 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --queue=default,render --tries=1 --timeout=3660\" \"php artisan queue:listen --queue=broadcasts --tries=1 --timeout=30\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,broadcasts,logs,vite"
         ],
         "dev:ssr": [
             "npm run build:ssr",
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,logs,ssr"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --queue=default,render --tries=1 --timeout=3660\" \"php artisan queue:listen --queue=broadcasts --tries=1 --timeout=30\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,broadcasts,logs,ssr"
         ],
         "test": [
             "@php artisan config:clear --ansi",

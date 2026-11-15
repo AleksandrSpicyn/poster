@@ -10,6 +10,7 @@ use App\Enums\PublicationStatus;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
+use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
@@ -25,6 +26,8 @@ class ClaimPublication
             $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
             $episode = Episode::query()->findOrFail($revision->episode_id);
             $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
+            $productionRun = $request->production_run_id !== null
+                ? ProductionRun::query()->lockForUpdate()->find($request->production_run_id) : null;
             $request = PublicationRequest::query()->lockForUpdate()->findOrFail($request->id);
             $actor = $request->created_by;
             $user = User::query()->find($actor);
@@ -32,6 +35,13 @@ class ClaimPublication
             $expected = $container ? PublicationStatus::PROCESSING : PublicationStatus::PLANNED;
 
             if ($request->status !== $expected) {
+                return false;
+            }
+
+            if ($request->production_run_id !== null && ($productionRun === null || ! $productionRun->status->isActive()
+                || ! $series->automation_enabled || $productionRun->series_id !== $series->id)) {
+                $request->update(['status' => PublicationStatus::FAILED, 'error_message' => 'Automatic production stopped before publication.']);
+
                 return false;
             }
 

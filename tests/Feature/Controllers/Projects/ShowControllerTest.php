@@ -3,8 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\ChannelType;
+use App\Enums\ProjectContentMode;
 use App\Models\Channel;
+use App\Models\Character;
+use App\Models\Episode;
 use App\Models\Post;
+use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
@@ -12,6 +16,39 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
+use function Tests\Support\serialCharacterContext;
+use function Tests\Support\serialOperator;
+
+test('проект показывает собственных персонажей и эпизоды без отдельной карточки сериала', function (): void {
+    $context = serialCharacterContext();
+    $context['project']->update(['content_mode' => ProjectContentMode::SERIES]);
+    $episode = Episode::factory()->for($context['series'])->create();
+    Character::factory()->create(['name' => 'Foreign private character']);
+    Episode::factory()->create(['title' => 'Foreign private episode']);
+    $run = ProductionRun::factory()->for($context['project'])->for($context['series'])->create();
+
+    actingAs(serialOperator())->get(route('projects.show', $context['project']))
+        ->assertOk()->assertDontSee('Foreign private character')->assertDontSee('Foreign private episode')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('Projects/Show')
+            ->where('project.content_mode', 'series')
+            ->where('series.id', $context['series']->id)
+            ->where('series.latest_production.id', $run->id)
+            ->where('characters.data.0.id', $context['character']->id)
+            ->has('characters.data', 1)
+            ->where('episodes.0.id', $episode->id));
+});
+
+test('читатель проекта не получает приватное рабочее пространство сериала', function (): void {
+    $context = serialCharacterContext();
+    serialOperator();
+    ProductionRun::factory()->for($context['project'])->for($context['series'])->create(['error_message' => 'Private production error']);
+
+    actingAs(User::factory()->create())->get(route('projects.show', $context['project']))
+        ->assertOk()->assertDontSee($context['character']->name)->assertDontSee('Private production error')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('series', null)->where('characters', null)->where('project.latest_production', null)->has('episodes', 0));
+});
 
 test('страница показывает только историю проекта и безопасные поля каналов', function (): void {
     $project = Project::factory()->create();

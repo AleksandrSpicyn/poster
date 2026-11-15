@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\SaveProjectAction;
 use App\Data\ProjectData;
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -25,6 +27,12 @@ class UpdateController
      * @urlParam project integer required ID проекта. Example: 1
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
      * @bodyParam prompt string required Базовый промпт до 10000 символов. Example: Original short stories about animals
+     * @bodyParam content_mode string Тип проекта. Проект с сериалом нельзя преобразовать в short. Enum: short,series Example: short
+     * @bodyParam series_specification object Паспорт, обязателен для series; premise, visual_style, language, audience, audio_mode, episode_duration_seconds, narrative_rules, story_outline.
+     * @bodyParam series_lock_version integer Версия настроек существующего сериала, обязательна при их изменении. Example: 0
+     * @bodyParam automation_enabled boolean Автоматически подготовить и опубликовать выпуск. Example: false
+     * @bodyParam episode_limit integer Число серий 1–1000, null для продолжающегося сериала. Example: 5
+     * @bodyParam channel_source_project_id integer Источник авторизованных YouTube/Instagram каналов. Example: 1
      * @response 302
      * @response 303
      * @response 401 {"message":"Unauthenticated."}
@@ -32,9 +40,9 @@ class UpdateController
      * @response 404
      * @response 422 {"message":"Enter a project name.","errors":{"name":["Enter a project name."]}}
      */
-    public function __invoke(Project $project, ProjectData $data, SaveProjectAction $action): RedirectResponse
+    public function __invoke(Project $project, ProjectData $data, #[CurrentUser] User $user, SaveProjectAction $action): RedirectResponse
     {
-        $action->run($data, $project);
+        $action->run($data, $project, $user);
         Inertia::flash('success', 'Project updated.');
 
         return to_route('projects.show', $project);

@@ -7,10 +7,6 @@ import { useRoute } from 'ziggy-js';
 export function useNavigation() {
     const route = useRoute();
     const page = usePage<SharedData>();
-    const isSeriesPage = () => {
-        const path = page.url.split('?')[0];
-        return path === '/series' || path.startsWith('/series/') || /^\/projects\/\d+\/series(?:\/|$)/.test(path);
-    };
     const main = computed<NavItem[]>(() => [
         { title: 'Dashboard', href: route('dashboard', undefined, false), icon: LayoutGrid },
         {
@@ -18,21 +14,10 @@ export function useNavigation() {
             href: route('projects.index', undefined, false),
             icon: FolderOpen,
             get isActive() {
-                return page.url.split('?')[0].startsWith('/projects') && !isSeriesPage();
+                const path = page.url.split('?')[0];
+                return path.startsWith('/projects') || path === '/series' || path.startsWith('/series/');
             },
         },
-        ...(page.props.auth.can_manage_series
-            ? [
-                  {
-                      title: 'Series',
-                      href: route('series.index', undefined, false),
-                      icon: ListOrdered,
-                      get isActive() {
-                          return isSeriesPage();
-                      },
-                  },
-              ]
-            : []),
         { title: 'Prompts', href: route('prompts', undefined, false), icon: Clapperboard },
         { title: 'Posts', href: route('posts', undefined, false), icon: Send },
     ]);

@@ -13,6 +13,7 @@ use Laravel\Ai\Attributes\CacheToolDefinitions;
 use Laravel\Ai\Contracts\Gateway\StepTextGateway;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Files\Image;
 use Laravel\Ai\Gateway\StepContext;
 use Laravel\Ai\Gateway\StepResponse;
 use Laravel\Ai\Gateway\TextGenerationOptions;
@@ -54,10 +55,25 @@ readonly class CodexTextGateway implements StepTextGateway
             throw new InvalidArgumentException('Codex supports text and structured output without tools or sampling options.');
         }
 
+        $references = [];
+
+        foreach ($messages as $message) {
+            if (! $message instanceof UserMessage) {
+                continue;
+            }
+
+            foreach ($message->attachments as $attachment) {
+                if (! $attachment instanceof Image) {
+                    throw new InvalidArgumentException('Codex text prompts accept only image attachments.');
+                }
+
+                $references[] = $attachment;
+            }
+        }
+
         $conversation = collect($messages)->map(function (Message $message): array {
-            if (($message instanceof UserMessage && $message->attachments->isNotEmpty())
-                || ($message instanceof AssistantMessage && $message->toolCalls->isNotEmpty())) {
-                throw new InvalidArgumentException('Codex supports text messages without attachments or tool calls.');
+            if ($message instanceof AssistantMessage && $message->toolCalls->isNotEmpty()) {
+                throw new InvalidArgumentException('Codex text prompts do not support tool calls.');
             }
 
             return ['role' => $message->role->value, 'content' => $message->content];
@@ -85,7 +101,7 @@ TEXT;
 
             /** @var array<string, mixed> $response */
             return new StepResponse(json_encode($response, JSON_THROW_ON_ERROR), [], FinishReason::Stop, new TextUsage(), new Meta($provider->name(), $model), structured: $response);
-        }, model: $model, timeout: $timeout);
+        }, model: $model, timeout: $timeout, references: $references);
     }
 
     /**

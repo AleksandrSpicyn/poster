@@ -3,28 +3,19 @@
 declare(strict_types=1);
 
 use App\Models\Project;
-use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 
-test('форма сериала возвращает паспорт проекта', function (): void {
+test('старая форма сериала ведёт к настройкам проекта', function (): void {
     $context = serialCharacterContext();
     $params = ['project' => $context['project']->id, 'series' => $context['series']->id];
 
     actingAs(serialOperator())
         ->get(route('series.edit', $params))
-        ->assertOk()
-        ->assertInertia(fn(Assert $page): Assert => $page
-            ->component('Series/Form')
-            ->where('project.id', $context['project']->id)
-            ->where('series.id', $context['series']->id)
-            ->where('audiences.children', 'Children')
-            ->where('defaultAudioMode', 'native')
-            ->where('audioModes', ['native' => 'Speech and sound', 'silent' => 'Silent video'])
-            ->where('series.specification.audio_mode', 'native'));
+        ->assertRedirect(route('projects.edit', $context['project']));
 });
 
 test('гость не открывает форму сериала', function (): void {

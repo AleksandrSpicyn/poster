@@ -58,15 +58,16 @@ class UploadCharacterReference
             IMAGETYPE_JPEG => 'jpg',
             default => 'webp',
         };
+        $label = $data->label ?? '';
         $media = null;
 
         try {
             $media = $revision->addMedia($data->file)
-                ->usingName($data->label !== '' ? $data->label : $data->view->label())
+                ->usingName($label !== '' ? $label : $data->view->label())
                 ->usingFileName(Str::uuid() . '.' . $extension)
                 ->withCustomProperties([
                     'view' => $data->view->value,
-                    'label' => $data->label,
+                    'label' => $label,
                     'checksum' => hash('sha256', $contents),
                     'width' => $dimensions[0],
                     'height' => $dimensions[1],

@@ -8,6 +8,7 @@ use App\Classes\Story\Snapshot;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
+use App\Models\ProductionRun;
 use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\Shot;
@@ -18,9 +19,9 @@ use Illuminate\Validation\ValidationException;
 class CreateShotGeneration
 {
     /** @param array<string, mixed> $snapshot */
-    public function run(Shot $shot, array $snapshot, ?string $requestKey, bool $newTake): Prompt
+    public function run(Shot $shot, array $snapshot, ?string $requestKey, bool $newTake, ?ProductionRun $productionRun = null): Prompt
     {
-        return DB::transaction(function () use ($shot, $snapshot, $requestKey, $newTake): Prompt {
+        return DB::transaction(function () use ($shot, $snapshot, $requestKey, $newTake, $productionRun): Prompt {
             $seriesId = $snapshot['series_id'] ?? null;
 
             if (! is_int($seriesId)) {
@@ -28,6 +29,11 @@ class CreateShotGeneration
             }
 
             $series = Series::query()->lockForUpdate()->findOrFail($seriesId);
+
+            if ($productionRun instanceof ProductionRun) {
+                ProductionRun::query()->lockForUpdate()->findOrFail($productionRun->id);
+            }
+
             $shot = Shot::query()->lockForUpdate()->findOrFail($shot->id);
 
             if ($series->specification_version !== $snapshot['specification_version'] || $series->continuity_version !== $snapshot['continuity_version']) {
@@ -75,6 +81,7 @@ class CreateShotGeneration
             $prompt->project_id = $projectId;
             $prompt->save();
             $prompt->generationOperations()->create([
+                'production_run_id' => $productionRun?->id,
                 'stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::PLANNED,
                 'request_key' => $requestKey, 'idempotency_key' => hash('sha256', $requestKey . ':image'),
                 'request_snapshot' => $snapshot, 'next_check_at' => now(),

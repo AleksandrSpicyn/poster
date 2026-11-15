@@ -26,6 +26,7 @@
     },
     "dependencies": {
         "@inertiajs/vue3": "^3.11.0",
+        "@lucide/vue": "^1.73.0",
         "@tailwindcss/vite": "^4.3.5",
         "@tanstack/vue-table": "^9.3.1",
         "@vitejs/plugin-vue": "^6.0.11",
@@ -33,7 +34,9 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^10.0.7",
+        "laravel-echo": "^2.6.3",
         "laravel-vite-plugin": "^3.2",
+        "pusher-js": "^8.6.0",
         "reka-ui": "^2.11.0",
         "tailwind-merge": "^3.7.0",
         "tailwindcss": "^4.3.5",
@@ -41,7 +44,6 @@
         "typescript": "~6.0.3",
         "vite": "^8.3.8",
         "vue": "^3.5.45",
-        "ziggy-js": "^2.6.5",
-        "@lucide/vue": "^1.73.0"
+        "ziggy-js": "^2.6.5"
     }
 }

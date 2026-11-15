@@ -11,6 +11,7 @@ class GetProject
 {
     public function run(Project $project): Project
     {
+        $project->load('latestProductionRun', 'seriesDefinition');
         $project->loadCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),

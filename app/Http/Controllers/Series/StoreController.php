@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Series;
 use App\Actions\Series\SaveSeriesAction;
 use App\Data\Series\SeriesData;
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -37,9 +39,9 @@ class StoreController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, SeriesData $data, SaveSeriesAction $action): RedirectResponse
+    public function __invoke(Project $project, SeriesData $data, #[CurrentUser] User $user, SaveSeriesAction $action): RedirectResponse
     {
-        $series = $action->run($project, $data);
+        $series = $action->run($project, $data, actor: $user);
         Inertia::flash('success', 'Series created.');
 
         return to_route('series.show', ['project' => $project, 'series' => $series]);

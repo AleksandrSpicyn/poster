@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use Laravel\Ai\Ai;
+use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Gateway\StepContext;
 use Laravel\Ai\Gateway\TextGenerationOptions;
@@ -67,8 +68,43 @@ test('отклоняет неподдерживаемые возможности
     Http::assertNothingSent();
 })->with([
     'инструменты' => fn(): AgentResponse => agent(tools: [new LoadSkill()])->prompt('Idea', provider: 'codex'),
-    'вложения' => fn(): AgentResponse => agent()->prompt('Idea', attachments: [Image::fromPath(base_path('tests/Fixtures/portrait.png'))], provider: 'codex'),
+    'документы' => fn(): AgentResponse => agent()->prompt('Idea', attachments: [Document::fromPath(base_path('README.md'))], provider: 'codex'),
 ]);
+
+test('передаёт кадры текстовой модели без разрешения генерации изображений', function (): void {
+    $referencePath = '';
+    fakeCodex(function (PendingProcess $process) use (&$referencePath): ProcessResult {
+        $arguments = $process->command;
+
+        if (! is_array($arguments)) {
+            throw new LogicException('The CLI command must be an argument list.');
+        }
+
+        expect($arguments)->toContain('--image', 'read-only', 'features.shell_tool=false', 'features.image_generation=false');
+        $index = array_search('--image', $arguments, true);
+
+        if (! is_int($index)) {
+            throw new LogicException('The image attachment is missing.');
+        }
+
+        $referencePath = $arguments[$index + 1];
+        expect(File::get($referencePath))->toBe(File::get(base_path('tests/Fixtures/portrait.png')));
+        File::put(($process->path ?? '') . '/result.json', '{"text":"The cat is resting."}');
+
+        return Process::result();
+    });
+
+    $response = agent()->prompt(
+        'Describe only visible events.',
+        attachments: [Image::fromPath(base_path('tests/Fixtures/portrait.png'))],
+        provider: 'codex',
+    );
+
+    expect($response->text)->toBe('The cat is resting.');
+    expect(File::exists($referencePath))->toBeFalse();
+    Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
+    Http::assertNothingSent();
+});
 
 test('передаёт вложенную схему CLI и возвращает структурированный ответ SDK', function (): void {
     fakeCodex(function (PendingProcess $process): ProcessResult {

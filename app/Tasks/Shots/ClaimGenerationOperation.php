@@ -8,6 +8,7 @@ use App\Classes\Story\Snapshot;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
+use App\Models\ProductionRun;
 use App\Models\Prompt;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,8 @@ class ClaimGenerationOperation
     {
         return DB::transaction(function () use ($operationId, $polling): ?GenerationOperation {
             $operation = GenerationOperation::query()->findOrFail($operationId);
+            $productionRun = ! $polling && $operation->stage !== GenerationOperationStage::DOWNLOAD && $operation->production_run_id !== null
+                ? ProductionRun::query()->lockForUpdate()->find($operation->production_run_id) : null;
             $prompt = Prompt::query()->lockForUpdate()->findOrFail($operation->prompt_id);
             $operation = GenerationOperation::query()->lockForUpdate()->findOrFail($operationId);
 
@@ -34,12 +37,20 @@ class ClaimGenerationOperation
             }
 
             if ($operation->status !== GenerationOperationStatus::PLANNED
-                || ($operation->next_check_at !== null && $operation->next_check_at->isFuture())
-                || ($operation->cancel_requested_at !== null && $operation->stage !== GenerationOperationStage::DOWNLOAD)) {
+                || ($operation->next_check_at !== null && $operation->next_check_at->isFuture())) {
                 return null;
             }
 
             if ($operation->stage !== GenerationOperationStage::DOWNLOAD) {
+                if ($operation->cancel_requested_at !== null || ($operation->production_run_id !== null
+                    && ($productionRun === null || ! $productionRun->status->isActive()
+                        || $productionRun->series?->automation_enabled !== true || $productionRun->series->archived_at !== null))) {
+                    $operation->update(['status' => GenerationOperationStatus::CANCELLED, 'cancel_requested_at' => now(),
+                        'completed_at' => now(), 'next_check_at' => null]);
+
+                    return null;
+                }
+
                 $actorId = $operation->request_snapshot['actor_id'] ?? null;
                 $actor = is_int($actorId) ? User::query()->find($actorId) : null;
 

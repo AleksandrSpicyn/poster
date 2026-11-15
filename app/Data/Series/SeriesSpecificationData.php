@@ -24,7 +24,9 @@ class SeriesSpecificationData extends Data
         #[Min(4), Max(300)]
         public int $episode_duration_seconds = 30,
         #[Max(20000)]
-        public string $narrative_rules = '',
+        public ?string $narrative_rules = '',
         public SeriesAudioMode $audio_mode = SeriesAudioMode::NATIVE,
+        #[Max(20000)]
+        public ?string $story_outline = null,
     ) {}
 }

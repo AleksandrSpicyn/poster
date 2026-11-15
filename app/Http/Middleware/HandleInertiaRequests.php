@@ -67,6 +67,11 @@ class HandleInertiaRequests extends Middleware
                 'location' => $request->url(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'realtime' => [
+                'enabled' => config('broadcasting.default') === 'reverb' && filled(config('broadcasting.connections.reverb.key')),
+                'key' => config('broadcasting.connections.reverb.key'),
+            ],
+            'contentScheduleEnabled' => (bool) config('production.schedule_enabled'),
         ];
     }
 }

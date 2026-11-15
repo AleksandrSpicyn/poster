@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Series;
 
-use App\Enums\ContentAudience;
-use App\Enums\SeriesAudioMode;
-use App\Http\Resources\ProjectResource;
 use App\Models\Project;
-use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class CreateController
 {
@@ -22,19 +19,13 @@ class CreateController
      * @subgroup Сериалы и персонажи
      * @authenticated
      * @urlParam project integer required ID проекта. Example: 1
-     * @response 200
+     * @response 302
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project): Response
+    public function __invoke(Project $project): RedirectResponse
     {
-        return inertia('Series/Form', [
-            'project' => ProjectResource::make($project)->resolve(),
-            'series' => null,
-            'audiences' => ContentAudience::labels(),
-            'audioModes' => SeriesAudioMode::labels(),
-            'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
-        ]);
+        return to_route('projects.edit', $project);
     }
 }

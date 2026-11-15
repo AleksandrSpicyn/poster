@@ -27,8 +27,8 @@ const revisionForm = useForm({ description: '', appearance: { notes: '' }, voice
 const revisionErrors = computed<Record<string, string | undefined>>(() => revisionForm.errors);
 const archiveForm = useForm({ lock_version: props.character.lock_version });
 const breadcrumbs = [
-    { title: 'Series', href: route('series.index') },
-    { title: props.series.name, href: route('series.show', params) },
+    { title: 'Projects', href: route('projects.index') },
+    { title: props.project.name, href: route('projects.show', props.project.id) },
     { title: props.character.name, href: route('characters.show', params) },
 ];
 function saveName() {
@@ -140,7 +140,13 @@ function changePage(page: number) {
                 </div>
                 <Button type="submit" variant="outline" class="h-11" :disabled="archiveForm.processing">Archive character</Button>
             </form>
-            <Button as-child variant="outline" class="h-11 self-start"><Link :href="route('series.show', params)">Back to series</Link></Button>
+            <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
+                Upload all reference views before leaving. Automation approves the latest appearance after two minutes without changes, then continues
+                the episode.
+            </p>
+            <Button as-child variant="outline" class="h-11 self-start"
+                ><Link :href="route('projects.show', project.id)">Back to project</Link></Button
+            >
         </div>
     </AppLayout>
 </template>

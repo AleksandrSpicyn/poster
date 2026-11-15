@@ -4,6 +4,7 @@ import AppFeedback from '@/components/AppFeedback.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
+import WorkspaceLiveStatus from '@/components/WorkspaceLiveStatus.vue';
 import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
@@ -21,6 +22,7 @@ withDefaults(defineProps<Props>(), {
         <AppContent variant="sidebar">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <AppFeedback />
+            <WorkspaceLiveStatus />
             <slot />
         </AppContent>
     </AppShell>

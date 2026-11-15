@@ -7,15 +7,14 @@ namespace App\Actions\Series;
 use App\Data\Series\SeriesData;
 use App\Models\Project;
 use App\Models\Series;
-use App\Tasks\Series\SaveSeries;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 
 readonly class SaveSeriesAction
 {
-    public function __construct(private SaveSeries $saveSeries) {}
+    public function __construct(private SaveSeriesSubAction $save) {}
 
-    public function run(Project $project, SeriesData $data, ?Series $series = null): Series
+    public function run(Project $project, SeriesData $data, ?Series $series = null, ?User $actor = null): Series
     {
-        return DB::transaction(fn(): Series => $this->saveSeries->run($project, $data, $series));
+        return $this->save->run($project, $data, $series, $actor);
     }
 }

@@ -29,7 +29,7 @@ services:
     volumes:
       - .:/var/www:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on: [app]
+    depends_on: [app, reverb]
   db:
     image: mysql:8.4
     environment:
@@ -63,6 +63,10 @@ services:
     user: '${USER_ID:-1000}:${GROUP_ID:-1000}'
     command: php artisan horizon
     profiles: [workers]
+  reverb:
+    <<: *app
+    user: '${USER_ID:-1000}:${GROUP_ID:-1000}'
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
   scheduler:
     <<: *app
     user: '${USER_ID:-1000}:${GROUP_ID:-1000}'

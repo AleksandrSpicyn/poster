@@ -8,6 +8,21 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
+use function Tests\Support\serialCharacterContext;
+use function Tests\Support\serialOperator;
+
+test('форма проекта содержит настройки существующего сериала', function (): void {
+    $context = serialCharacterContext();
+
+    actingAs(serialOperator())->get(route('projects.edit', $context['project']))
+        ->assertOk()->assertInertia(fn(Assert $page): Assert => $page
+        ->component('Projects/Form')
+        ->where('series.id', $context['series']->id)
+        ->where('series.specification.premise', $context['series']->specification['premise'])
+        ->where('audiences.children', 'Children')
+        ->where('audioModes.native', 'Speech and sound')
+        ->where('contentModes.series', 'Series'));
+});
 
 test('форма редактирования возвращает исходный промпт целиком', function (): void {
     $project = Project::factory()->create(['prompt' => "Line one\nLine two <script>not executable</script>"]);

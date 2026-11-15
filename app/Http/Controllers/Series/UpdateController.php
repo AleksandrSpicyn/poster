@@ -8,6 +8,8 @@ use App\Actions\Series\SaveSeriesAction;
 use App\Data\Series\SeriesData;
 use App\Models\Project;
 use App\Models\Series;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -40,9 +42,9 @@ class UpdateController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, Series $series, SeriesData $data, SaveSeriesAction $action): RedirectResponse
+    public function __invoke(Project $project, Series $series, SeriesData $data, #[CurrentUser] User $user, SaveSeriesAction $action): RedirectResponse
     {
-        $action->run($project, $data, $series);
+        $action->run($project, $data, $series, $user);
         Inertia::flash('success', 'Series updated.');
 
         return to_route('series.show', ['project' => $project, 'series' => $series]);

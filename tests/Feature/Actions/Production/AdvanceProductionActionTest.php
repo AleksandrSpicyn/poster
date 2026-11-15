@@ -1,0 +1,237 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Actions\Episodes\BuildEpisodeAssemblyAction;
+use App\Actions\Episodes\FinishEpisodePublicationAction;
+use App\Actions\Episodes\ProcessEpisodeScriptAction;
+use App\Actions\Episodes\SubmitEpisodePublicationAction;
+use App\Actions\Production\AdvanceProductionAction;
+use App\Actions\Production\StartProductionAction;
+use App\Actions\Shots\CheckShotGenerationAction;
+use App\Actions\Shots\SubmitShotGenerationAction;
+use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Enums\AssemblyStatus;
+use App\Enums\ChannelType;
+use App\Enums\GenerationOperationStage;
+use App\Enums\GenerationOperationStatus;
+use App\Enums\ProductionStage;
+use App\Enums\ProductionStatus;
+use App\Enums\ProjectContentMode;
+use App\Enums\RevisionStatus;
+use App\Events\PostCreated;
+use App\Jobs\GenerateEpisodeScriptJob;
+use App\Models\Channel;
+use App\Models\Character;
+use App\Models\CharacterRevision;
+use App\Models\Episode;
+use App\Models\Post;
+use App\Models\ProductionRun;
+use App\Models\Project;
+use App\Models\Prompt;
+use App\Models\Series;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Prompts\AgentPrompt;
+use Laravel\Ai\StructuredAnonymousAgent;
+
+use function Pest\Laravel\mock;
+use function Pest\Laravel\travel;
+use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\serialOperator;
+use function Tests\Support\serialReferenceMedia;
+use function Tests\Support\storyScriptPayload;
+
+test('неизвестный результат дубля останавливает конвейер без повторной оплаты', function (): void {
+    $fixture = episodeHttpFixture();
+    $series = $fixture['episode']->series()->firstOrFail();
+    $project = $series->project()->firstOrFail();
+    $project->update(['content_mode' => ProjectContentMode::SERIES]);
+
+    $series->update(['automation_enabled' => true, 'automation_user_id' => $fixture['user']->id]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $prompt = Prompt::factory()->for($project)->create(['shot_id' => $fixture['shot']->id]);
+    $operation = $prompt->generationOperations()->create([
+        'stage' => GenerationOperationStage::VIDEO, 'status' => GenerationOperationStatus::SUBMISSION_UNKNOWN,
+        'request_key' => 'unknown-production', 'idempotency_key' => 'unknown-production', 'request_snapshot' => [],
+    ]);
+    $run = ProductionRun::factory()->for($project)->for($series)->create([
+        'actor_id' => $fixture['user']->id, 'episode_id' => $fixture['episode']->id,
+        'status' => ProductionStatus::WAITING, 'stage' => ProductionStage::MEDIA,
+    ]);
+    Bus::fake();
+    Process::fake();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::NEEDS_ATTENTION);
+    expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUBMISSION_UNKNOWN);
+    expect($fixture['shot']->prompts()->count())->toBe(1);
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+    Process::assertNothingRan();
+});
+
+test('проводит выпуск до публикации и продолжает по фактической истории', function (): void {
+    $disk = Storage::fake('local');
+    Storage::fake('public');
+    Bus::fake();
+    Event::fake([PostCreated::class]);
+    config(['services.video.provider' => 'seedance', 'services.seedance.api_key' => 'test']);
+    $actor = serialOperator();
+    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->for($project)->create([
+        'automation_enabled' => true, 'automation_user_id' => $actor->id, 'episode_limit' => 1,
+        'specification' => ['premise' => 'A cat discovers everyday objects.', 'visual_style' => 'animation',
+            'language' => 'en', 'audience' => 'general', 'episode_duration_seconds' => 5,
+            'audio_mode' => 'native', 'story_outline' => 'The cat learns to rest after its adventures.'],
+    ]);
+    $character = Character::factory()->for($series)->create();
+    $appearance = CharacterRevision::factory()->for($character)->approved()->create();
+    serialReferenceMedia($appearance);
+    $character->update(['current_revision_id' => $appearance->id]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM,
+        'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-production']]);
+    $videoPath = $disk->path('provider-video.mp4');
+    Process::run(['ffmpeg', '-v', 'error', '-nostdin', '-y', '-stream_loop', '-1',
+        '-i', base_path('tests/Fixtures/shot.mp4'), '-t', '5', '-c', 'copy', $videoPath])->throw();
+    Http::fake([
+        '*contents/generations/tasks' => Http::response(['id' => 'production-video']),
+        '*contents/generations/tasks/production-video' => Http::response(['status' => 'succeeded', 'generate_audio' => true,
+            'content' => ['video_url' => 'https://cdn.example.com/production.mp4']]),
+        'https://cdn.example.com/production.mp4' => Http::response(File::get($videoPath)),
+        '*/ig-production/media' => Http::response(['id' => 'production-container']),
+        '*/ig-production/media_publish' => Http::response(['id' => 'production-published']),
+        '*/production-published*' => Http::response(['permalink' => 'https://instagram.com/p/production-published']),
+    ]);
+    mock(ImageGenerator::class)->shouldReceive('generate')->once()->andReturnUsing(function (string $prompt, array $references): string {
+        expect($references)->toHaveCount(1);
+        Storage::disk('public')->put('generated-images/production.png', File::get(base_path('tests/Fixtures/portrait.png')));
+
+        return Storage::disk('public')->url('generated-images/production.png');
+    });
+    StructuredAnonymousAgent::fake([
+        storyScriptPayload($appearance),
+        ['usable' => true, 'confirmed_events' => 'The cat rests on an opened box.',
+            'character_state' => 'The cat lies comfortably on the cardboard.', 'open_threads' => '',
+            'scene_closed' => true, 'review_notes' => 'The final pose is clear.'],
+    ])->preventStrayPrompts();
+    $run = app(StartProductionAction::class)->run($project, 'complete-workflow', $actor)->sole();
+    $advance = app(AdvanceProductionAction::class);
+
+    $advance->run($run->id);
+    $advance->run($run->id);
+
+    $episode = $series->episodes()->sole();
+    app(ProcessEpisodeScriptAction::class)->run($episode, $episode->script_request_key ?? throw new LogicException('Script request missing.'));
+    $advance->run($run->id);
+    $advance->run($run->id);
+
+    $prompt = Prompt::query()->whereNotNull('shot_id')->sole();
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->where('stage', GenerationOperationStage::IMAGE)->sole()->id);
+    $video = $prompt->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->sole();
+    app(SubmitShotGenerationAction::class)->run($video->id);
+    travel(61)->seconds();
+    app(CheckShotGenerationAction::class)->run($video->id);
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->sole()->id);
+
+    $advance->run($run->id);
+    $assembly = $episode->refresh()->currentRevision?->assemblies()->sole() ?? throw new LogicException('Montage missing.');
+    app(BuildEpisodeAssemblyAction::class)->run($assembly);
+    $advance->run($run->id);
+    $advance->run($run->id);
+    $advance->run($run->id);
+
+    $publication = $assembly->publications()->sole();
+    app(SubmitEpisodePublicationAction::class)->run($publication);
+    app(FinishEpisodePublicationAction::class)->run($publication);
+
+    $advance->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::COMPLETED);
+    expect($prompt->generationOperations()->pluck('production_run_id')->all())->toBe([$run->id, $run->id, $run->id]);
+    expect($publication->refresh()->production_run_id)->toBe($run->id);
+    expect($episode->refresh()->title)->toBe('The locked door');
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::ACCEPTED);
+    expect($assembly->continuity_snapshot['confirmed_events'])->toBe('The cat rests on an opened box.');
+    expect($assembly->continuity_snapshot['scene_closed'])->toBeTrue();
+    expect($series->refresh()->canonical_assembly_id)->toBe($assembly->id);
+    expect(Post::query()->where('publication_request_id', $publication->id)->sole()->episode_assembly_id)->toBe($assembly->id);
+    expect(app(StartProductionAction::class)->run($project, 'limit-reached', $actor))->toBeEmpty();
+    Http::assertSentCount(6);
+    Event::assertDispatchedTimes(PostCreated::class, 1);
+    StructuredAnonymousAgent::assertPromptedTimes(2);
+    StructuredAnonymousAgent::assertPrompted(fn(AgentPrompt $prompt): bool => count($prompt->attachments) === 6);
+
+    $series->update(['episode_limit' => 2]);
+    $nextRun = app(StartProductionAction::class)->run($project, 'next-episode', $actor)->sole();
+    $advance->run($nextRun->id);
+    $advance->run($nextRun->id);
+
+    $next = Episode::query()->where('series_id', $series->id)->where('number', 2)->sole();
+    expect(data_get($next->script_request_payload, 'context.continuity.confirmed_events'))->toBe('The cat rests on an opened box.');
+    expect(data_get($next->script_request_payload, 'context.source_assembly_id'))->toBe($assembly->id);
+    expect($next->predecessor_episode_id)->toBe($episode->id);
+    expect(Prompt::query()->count())->toBe(1);
+    expect($prompt->refresh()->operations->every(fn($operation): bool => $operation->status === GenerationOperationStatus::SUCCEEDED))->toBeTrue();
+});
+
+test('ожидает персонажей без запуска платной генерации', function (): void {
+    Bus::fake();
+    Http::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $run = app(StartProductionAction::class)->run($project, 'no-character', $actor, $series->id)->sole();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::WAITING);
+    expect($run->stage)->toBe(ProductionStage::PREPARING);
+    expect($series->episodes()->exists())->toBeFalse();
+    Http::assertNothingSent();
+});
+
+test('сам утверждает загруженные референсы и создаёт следующий эпизод', function (): void {
+    Storage::fake('local');
+    Bus::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $character = Character::factory()->for($series)->create();
+    $revision = CharacterRevision::factory()->for($character)->create();
+    serialReferenceMedia($revision);
+    $run = app(StartProductionAction::class)->run($project, 'characters-ready', $actor, $series->id)->sole();
+
+    travel(121)->seconds();
+    app(AdvanceProductionAction::class)->run($run->id);
+    expect($run->refresh()->stage)->toBe(ProductionStage::SCREENPLAY);
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($revision->refresh()->status)->toBe(RevisionStatus::APPROVED);
+    expect($character->refresh()->current_revision_id)->toBe($revision->id);
+    expect($series->episodes()->sole()->number)->toBe(1);
+    expect($run->refresh()->stage)->toBe(ProductionStage::SCREENPLAY);
+    Bus::assertDispatched(GenerateEpisodeScriptJob::class);
+});
+
+test('пауза сериала останавливает следующие этапы', function (): void {
+    Bus::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $run = app(StartProductionAction::class)->run($project, 'pause', $actor, $series->id)->sole();
+    $series->update(['automation_enabled' => false]);
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::STOPPED);
+    expect($series->episodes()->exists())->toBeFalse();
+});

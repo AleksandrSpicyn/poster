@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
 
 /** @mixin Project */
 class ProjectResource extends JsonResource
@@ -18,6 +19,8 @@ class ProjectResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'prompt' => $this->prompt,
+            'content_mode' => $this->content_mode->value,
+            'content_mode_label' => $this->content_mode->label(),
             'prompts_count' => $this->whenCounted('prompts'),
             'ready_prompts_count' => $this->whenCounted('readyPrompts'),
             'channels_count' => $this->whenCounted('channels'),
@@ -26,6 +29,7 @@ class ProjectResource extends JsonResource
                 fn(): bool => $this->prompts_count === 0 && $this->channels_count === 0 && $this->series_count === 0,
             ),
             'channels' => $this->whenLoaded('channels', fn(): array => ProjectChannelResource::collection($this->channels)->resolve($request)),
+            'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null || ! Gate::allows('manageSeries') ? null : ProductionRunResource::make($this->latestProductionRun)->resolve($request)),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

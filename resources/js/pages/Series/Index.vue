@@ -25,7 +25,7 @@ function changePage(page: number) {
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading title="Series" description="Recurring characters, shared story worlds and connected episodes." />
                 <Button as-child class="h-11"
-                    ><Link :href="route('projects.index')"><Plus class="size-4" aria-hidden="true" />Choose a project to start</Link></Button
+                    ><Link :href="route('projects.create')"><Plus class="size-4" aria-hidden="true" />New series project</Link></Button
                 >
             </div>
             <ListPanel
@@ -34,7 +34,7 @@ function changePage(page: number) {
                 :loading="false"
                 error=""
                 empty-title="No series yet"
-                empty-description="Open a project to create a story world and its characters."
+                empty-description="Create a project and choose the Series content type."
                 @page="changePage"
                 @refresh="router.reload()"
             >
@@ -47,9 +47,7 @@ function changePage(page: number) {
                     >
                         <div class="min-w-0 space-y-1">
                             <h2 class="font-semibold break-words">
-                                <Link :href="route('series.show', { project: item.project_id, series: item.id })" class="hover:underline">{{
-                                    item.name
-                                }}</Link>
+                                <Link :href="route('projects.show', item.project_id)" class="hover:underline">{{ item.name }}</Link>
                             </h2>
                             <p class="text-muted-foreground line-clamp-2 text-sm">{{ item.specification.premise }}</p>
                             <p class="text-muted-foreground text-xs">
@@ -61,7 +59,7 @@ function changePage(page: number) {
                             </p>
                         </div>
                         <Button as-child variant="outline" class="h-11 shrink-0"
-                            ><Link :href="route('series.show', { project: item.project_id, series: item.id })">Open series</Link></Button
+                            ><Link :href="route('projects.show', item.project_id)">Open project</Link></Button
                         >
                     </article>
                 </div>

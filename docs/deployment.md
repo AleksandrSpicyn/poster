@@ -23,8 +23,9 @@ Horizon обслуживает `default` (сценарии, генерация �
 3660, Redis `retry_after` — 3720. Генерация дубля имеет timeout 480 секунд и lock
 510 секунд; это включает извлечение кадра и стандартный `CODEX_TIMEOUT=300`.
 При увеличении внешних таймаутов согласуйте всю цепочку job → supervisor →
-`retry_after` и срок recovery. Для database queue задайте `DB_QUEUE_RETRY_AFTER=3720`
-и запустите worker для обеих очередей; Horizon работает с Redis.
+`retry_after` и срок recovery. Для database queue значение `DB_QUEUE_RETRY_AFTER`
+по умолчанию также 3720; нужны workers для `default`, `render` и `broadcasts`.
+Horizon работает с Redis.
 
 Scheduler раз в минуту запускает ограниченные reconciliation-команды:
 
@@ -33,6 +34,7 @@ php artisan app:reconcile-episode-scripts --limit=50
 php artisan app:reconcile-shot-generations --limit=50
 php artisan app:reconcile-episode-assemblies --limit=50
 php artisan app:reconcile-publications --limit=50
+php artisan app:reconcile-productions --limit=50
 ```
 
 Они доставляют пропущенные jobs и восстанавливают безопасные шаги. Зависшая
@@ -53,6 +55,59 @@ Instagram должен получать временный signed export URL п�
 и доступ только разрешённому оператору. Откат кода не должен удалять новые
 таблицы, receipts или файлы. Платный пилот и внешняя публикация выполняются
 отдельно от автоматических тестов.
+
+## Автоматическое производство и WebSocket
+
+Новые выпуски по расписанию выключены по умолчанию:
+
+```dotenv
+CONTENT_SCHEDULE_ENABLED=false
+CONTENT_SCHEDULE_CRON="0 9 * * *"
+CONTENT_SCHEDULE_TIMEZONE=Asia/Bangkok
+```
+
+Включение автоматизации в настройках сериального проекта ставит первый выпуск
+в очередь. Следующий выпуск запускается явной кнопкой/CLI либо будущим расписанием.
+Обычное редактирование включённых настроек не создаёт новые выпуски. Recovery
+команды продолжают уже начатые операции независимо от выключенного расписания.
+
+Horizon имеет отдельный `supervisor-broadcasts` с очередью `broadcasts`, чтобы
+статусы не ожидали завершения длинной генерации. Для database queue запустите
+отдельный worker `queue:work --queue=broadcasts --timeout=30 --tries=1`.
+
+Локальный Compose запускает `reverb` вместе с web/app; браузер подключается через
+Nginx `/app/` на том же origin. Нужные переменные приведены в `.env.docker.example`.
+Workers и scheduler не включаются этим сервисом.
+
+На сервере без Docker задайте в `.env`:
+
+```dotenv
+BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=poster
+REVERB_APP_KEY=<random-public-key>
+REVERB_APP_SECRET=<random-secret>
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
+REVERB_ALLOWED_ORIGINS=example.com
+```
+
+Укажите реальный домен сайта без схемы в `REVERB_ALLOWED_ORIGINS`. В браузер
+передаётся только публичный key через Inertia props; секрет не публикуется и
+дополнительные `VITE_REVERB_*` для сборки не нужны. Reverb слушает loopback,
+а публичное TLS-соединение обслуживает существующий Nginx.
+
+Готовые конфигурации — `deploy/reverb-supervisor.conf` и
+`deploy/reverb-nginx.conf`. Сверьте пользователя/пути, установите supervisor
+конфигурацию в `/etc/supervisor/conf.d/`, включите Nginx snippet внутри TLS
+server блока, выполните `nginx -t`, перечитайте Supervisor и перезагрузите Nginx.
+Изменения системных конфигураций требуют административного SSH и не выполняются
+ограниченным CI deploy-key. Скрипт deploy после обновления вызывает
+`reverb:restart`; Supervisor поднимает процесс с новой конфигурацией.
+
+Проверка: браузер показывает **Live updates** после авторизации приватного канала,
+изменение статуса приходит без полной перезагрузки, введённый текст остаётся в форме.
+При отключении Reverb показывается переподключение и включается чтение раз в 30 секунд.
 
 ## GitHub
 
@@ -160,8 +215,8 @@ CODEX_TIMEOUT=300
 `CODEX_MODEL` выбирает текстовую модель для промптов; доступ к ней определяется
 аккаунтом и подпиской. Доступные модели описаны в [документации Codex](https://learn.chatgpt.com/docs/models?surface=cli).
 Текстовый Gateway сохраняет инструкции и историю сообщений, запускается без
-инструментов и с sandbox `read-only`. Он поддерживает синхронный обычный текст;
-streaming, tools, вложения, structured output и sampling options отклоняются явно.
+инструментов и с sandbox `read-only`. Он поддерживает синхронный обычный текст,
+structured output и локальные изображения-референсы. Streaming, tools, документы и sampling options отклоняются явно.
 CLI для изображений использует `workspace-write` и встроенный image tool.
 Общий `CodexProcess` отвечает за отдельный вход, lock, таймаут, JSON-результат и
 очистку временного каталога; ограничения первого кадра проверяет драйвер Poster.

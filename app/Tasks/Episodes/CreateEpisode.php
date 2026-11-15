@@ -27,7 +27,7 @@ class CreateEpisode
                 'title' => $data->title,
                 'number' => ($previous->number ?? 0) + 1,
                 'predecessor_episode_id' => $previous?->id,
-            ]);
+            ])->refresh();
         });
     }
 }

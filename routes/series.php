@@ -8,6 +8,8 @@ use App\Http\Controllers\CharacterReferences\ShowController;
 use App\Http\Controllers\CharacterRevisions;
 use App\Http\Controllers\CharacterRevisions\ApproveController;
 use App\Http\Controllers\Characters;
+use App\Http\Controllers\ProductionRuns;
+use App\Http\Controllers\ProductionRuns\StopController;
 use App\Http\Controllers\Series;
 use App\Http\Controllers\Series\ArchiveController;
 use App\Http\Controllers\Series\CreateController;
@@ -18,6 +20,10 @@ use App\Http\Controllers\Series\UpdateController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->group(function (): void {
+    Route::post('projects/{project}/production-runs', ProductionRuns\StoreController::class)
+        ->whereNumber('project')->name('production_runs.store');
+    Route::post('production-runs/{production_run}/stop', StopController::class)
+        ->whereNumber('production_run')->name('production_runs.stop');
     Route::get('series', IndexController::class)->name('series.index');
     Route::get('character-references/{revision}/media/{media}', ShowController::class)
         ->whereNumber(['revision', 'media'])

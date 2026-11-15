@@ -6,6 +6,8 @@ import Heading from '@/components/Heading.vue';
 import ListControls from '@/components/ListControls.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import ProjectNotice from '@/components/projects/ProjectNotice.vue';
+import ProductionPanel from '@/components/ProductionPanel.vue';
+import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -71,17 +73,11 @@ function destroyProject() {
         <Head :title="page.props.project.name" />
         <div class="workspace-page">
             <ProjectNotice />
-            <div v-if="page.props.auth.can_manage_series" class="flex flex-wrap justify-end gap-3">
-                <Button as-child variant="outline" class="h-11"><Link :href="route('series.index')">Series library</Link></Button>
-                <Button as-child class="h-11"
-                    ><Link :href="route('series.create', { project: page.props.project.id })">New series in this project</Link></Button
-                >
-            </div>
             <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
                 <div class="w-full min-w-0 flex-1 space-y-3 [&_h1]:break-words">
                     <Heading
                         :title="page.props.project.name"
-                        description="Your creative brief, publishing channels and complete generation history."
+                        :description="page.props.project.content_mode_label + ' · Creative direction, publishing channels and production history.'"
                     />
                     <dl class="text-muted-foreground flex flex-wrap gap-x-6 gap-y-2 text-xs">
                         <div class="flex gap-1">
@@ -103,12 +99,16 @@ function destroyProject() {
 
             <dl class="bg-card grid grid-cols-3 divide-x rounded-xl border">
                 <div class="px-4 py-4 sm:px-6">
-                    <dt class="text-muted-foreground text-xs sm:text-sm">Generations</dt>
-                    <dd class="mt-2 text-2xl font-semibold tabular-nums">{{ page.props.project.prompts_count }}</dd>
+                    <dt class="text-muted-foreground text-xs sm:text-sm">{{ page.props.series ? 'Episodes' : 'Generations' }}</dt>
+                    <dd class="mt-2 text-2xl font-semibold tabular-nums">
+                        {{ page.props.series?.episodes_count ?? page.props.project.prompts_count }}
+                    </dd>
                 </div>
                 <div class="px-4 py-4 sm:px-6">
-                    <dt class="text-muted-foreground text-xs sm:text-sm">Ready videos</dt>
-                    <dd class="mt-2 text-2xl font-semibold tabular-nums">{{ page.props.project.ready_prompts_count }}</dd>
+                    <dt class="text-muted-foreground text-xs sm:text-sm">{{ page.props.series ? 'Characters' : 'Ready videos' }}</dt>
+                    <dd class="mt-2 text-2xl font-semibold tabular-nums">
+                        {{ page.props.series?.characters_count ?? page.props.project.ready_prompts_count }}
+                    </dd>
                 </div>
                 <div class="px-4 py-4 sm:px-6">
                     <dt class="text-muted-foreground text-xs sm:text-sm">Channels</dt>
@@ -116,19 +116,25 @@ function destroyProject() {
                 </div>
             </dl>
 
+            <ProductionPanel
+                v-if="page.props.auth.can_manage_series && !page.props.series && page.props.project.content_mode === 'short'"
+                :project-id="page.props.project.id"
+                :run="page.props.project.latest_production"
+            />
+
             <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]">
                 <section class="bg-card min-w-0 overflow-hidden rounded-xl border" aria-labelledby="project-brief-heading">
                     <div class="border-b px-5 py-4">
-                        <h2 id="project-brief-heading" class="font-semibold">Base prompt</h2>
+                        <h2 id="project-brief-heading" class="font-semibold">{{ page.props.series ? 'World and premise' : 'Base prompt' }}</h2>
                         <p class="text-muted-foreground mt-1 text-sm">The creative direction used for new ideas.</p>
                     </div>
                     <div
                         tabindex="0"
                         role="region"
-                        aria-label="Base prompt"
+                        :aria-label="page.props.series ? 'World and premise' : 'Base prompt'"
                         class="focus-visible:ring-ring/50 max-h-72 overflow-y-auto p-5 text-sm leading-7 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-inset"
                     >
-                        {{ page.props.project.prompt }}
+                        {{ page.props.series?.specification.premise ?? page.props.project.prompt }}
                     </div>
                 </section>
                 <section class="bg-card min-w-0 overflow-hidden rounded-xl border" aria-labelledby="project-channels-heading">
@@ -154,7 +160,14 @@ function destroyProject() {
                 </section>
             </div>
 
-            <section class="min-w-0 space-y-4" aria-labelledby="project-history-heading">
+            <SeriesWorkspace
+                v-if="page.props.series && page.props.characters"
+                :project="page.props.project"
+                :series="page.props.series"
+                :characters="page.props.characters"
+                :episodes="page.props.episodes"
+            />
+            <section v-else class="min-w-0 space-y-4" aria-labelledby="project-history-heading">
                 <div>
                     <h2 id="project-history-heading" class="text-lg font-semibold">Generation history</h2>
                     <p class="text-muted-foreground mt-1 text-sm">Follow each idea from its first frame to a finished video.</p>

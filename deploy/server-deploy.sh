@@ -16,3 +16,4 @@ rsync -a --delete --exclude=/.env --exclude=/storage --exclude=/public/storage "
 /usr/bin/php8.4 artisan scribe:generate --no-interaction
 /usr/bin/php8.4 artisan optimize
 /usr/bin/php8.4 artisan horizon:terminate
+/usr/bin/php8.4 artisan reverb:restart

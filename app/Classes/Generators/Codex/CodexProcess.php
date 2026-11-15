@@ -58,8 +58,8 @@ readonly class CodexProcess
             throw new InvalidArgumentException('Codex timeout must be positive.');
         }
 
-        if ((! $images && $references !== []) || count($references) > self::MAX_REFERENCE_IMAGES) {
-            throw new InvalidArgumentException('Codex image references require image generation and at most ten files.');
+        if (count($references) > self::MAX_REFERENCE_IMAGES) {
+            throw new InvalidArgumentException('Codex accepts at most ten reference images.');
         }
 
         $home = realpath($this->home);

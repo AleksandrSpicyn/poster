@@ -15,7 +15,7 @@ class GetSeries
     /** @return array{series: Series, characters: LengthAwarePaginator<int, Character>, episodes: Collection<int, Episode>} */
     public function run(Series $series, int $page): array
     {
-        $series->load('project')->loadCount('characters', 'episodes');
+        $series->load('project', 'latestProductionRun')->loadCount('characters', 'episodes');
 
         return [
             'series' => $series,

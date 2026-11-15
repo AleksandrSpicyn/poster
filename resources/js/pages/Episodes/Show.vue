@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
-import { Head, Link, router, useForm, usePoll } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
@@ -18,8 +18,8 @@ const props = defineProps<EpisodeWorkspaceProps>();
 const route = useRoute();
 const params = { series: props.series.id, episode: props.episode.id };
 const breadcrumbs = [
-    { title: 'Series', href: route('series.index') },
-    { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) },
+    { title: 'Projects', href: route('projects.index') },
+    { title: props.project.name, href: route('projects.show', props.project.id) },
     { title: props.episode.title, href: route('episodes.show', params) },
 ];
 const revision = computed(() => props.episode.current_revision);
@@ -99,19 +99,16 @@ const generateErrors = computed(() => Object.values(generateForm.errors).join(' 
 const approveErrors = computed(() => Object.values(approveForm.errors).join(' '));
 const assemblyErrors = computed(() => Object.values(assemblyForm.errors).join(' '));
 const editorStale = computed(() => scriptForm.lock_version !== props.episode.lock_version);
-const active = computed(
-    () =>
-        ['queued', 'running'].includes(props.episode.script_generation_status ?? '') ||
-        props.assemblies.some((item) => ['queued', 'building'].includes(item.status)) ||
-        props.publications.some((item) => ['planned', 'submitting', 'processing', 'publishing_container'].includes(item.status)) ||
-        shots.value.some((shot) =>
-            shot.takes.some((take) =>
-                take.operations.some((operation) => ['planned', 'submitting', 'submitted', 'running'].includes(operation.status)),
-            ),
-        ),
+watch(
+    () => props.screenplay,
+    (screenplay) => {
+        if (!screenplay || scriptForm.isDirty || scriptForm.processing || scriptText.value !== JSON.stringify(scriptForm.script, null, 2)) return;
+        const script = JSON.parse(JSON.stringify(screenplay)) as Screenplay;
+        scriptForm.defaults({ script, lock_version: props.episode.lock_version });
+        scriptForm.reset();
+        scriptText.value = JSON.stringify(script, null, 2);
+    },
 );
-const { start, stop } = usePoll(10000, { only: ['episode', 'assemblies', 'publications'] }, { autoStart: false });
-watch(active, (running) => (running ? start() : stop()), { immediate: true });
 watch(
     () => props.episode.current_revision_id,
     () => {
@@ -174,11 +171,7 @@ function buildAssembly() {
         });
 }
 function refresh() {
-    if (
-        JSON.stringify(scriptForm.script, null, 2) !== initialScriptJson &&
-        !window.confirm('Reload the current episode and discard unsaved screenplay edits?')
-    )
-        return;
+    if (scriptForm.isDirty && !window.confirm('Reload the current episode and discard unsaved screenplay edits?')) return;
     router.get(route('episodes.show', params), {}, { preserveState: false, replace: true });
 }
 </script>
@@ -265,9 +258,7 @@ function refresh() {
                 <p v-if="episode.script_generation_error" class="text-destructive text-sm">{{ episode.script_generation_error }}</p>
                 <p v-if="!characters.length" class="text-muted-foreground text-sm">
                     Approve at least one character appearance before writing an episode.
-                    <Link :href="route('series.show', { project: project.id, series: series.id })" class="text-primary underline"
-                        >Manage characters</Link
-                    >
+                    <Link :href="route('projects.show', project.id)" class="text-primary underline">Manage characters</Link>
                 </p>
             </section>
             <section class="bg-card space-y-4 rounded-xl border p-5 sm:p-7" aria-labelledby="script-editor-title">

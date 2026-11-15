@@ -1,3 +1,4 @@
+import type { ProductionRun } from '@/types/production';
 import type { ProjectSummary } from '@/types/projects';
 
 export interface SeriesSpecification {
@@ -8,6 +9,7 @@ export interface SeriesSpecification {
     episode_duration_seconds: number;
     narrative_rules: string;
     audio_mode: string;
+    story_outline?: string;
 }
 
 export interface SeriesSummary {
@@ -18,6 +20,9 @@ export interface SeriesSummary {
     specification_version: number;
     continuity_version: number;
     lock_version: number;
+    automation_enabled: boolean;
+    episode_limit: number | null;
+    latest_production?: ProductionRun | null;
     archived_at: string | null;
     characters_count?: number;
     episodes_count?: number;

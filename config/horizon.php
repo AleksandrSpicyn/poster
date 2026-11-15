@@ -230,6 +230,16 @@ return [
             'timeout' => 3660,
             'nice' => 5,
         ],
+        'supervisor-broadcasts' => [
+            'connection' => 'redis',
+            'queue' => ['broadcasts'],
+            'balance' => false,
+            'maxProcesses' => 1,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 30,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -240,6 +250,7 @@ return [
                 'balanceCooldown' => 3,
             ],
             'supervisor-render' => [],
+            'supervisor-broadcasts' => [],
         ],
 
         'local' => [
@@ -247,6 +258,7 @@ return [
                 'maxProcesses' => 3,
             ],
             'supervisor-render' => [],
+            'supervisor-broadcasts' => [],
         ],
     ],
 

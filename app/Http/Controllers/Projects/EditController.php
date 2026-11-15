@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Projects;
 
+use App\Actions\Projects\GetProjectFormAction;
 use App\Data\ProjectData;
+use App\Enums\ContentAudience;
+use App\Enums\ProjectContentMode;
+use App\Enums\SeriesAudioMode;
 use App\Http\Resources\ProjectResource;
+use App\Http\Resources\SeriesResource;
 use App\Models\Project;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Response;
 
 class EditController
@@ -27,10 +33,19 @@ class EditController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project): Response
+    public function __invoke(Project $project, GetProjectFormAction $action): Response
     {
+        $details = $action->run($project);
+        $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
+
         return inertia('Projects/Form', [
-            'project' => ProjectResource::make($project)->resolve(),
+            'project' => ProjectResource::make($details['project'])->resolve(),
+            'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
+            'series' => $series === null ? null : SeriesResource::make($series)->resolve(),
+            'channelSources' => $details['channelSources'],
+            'audiences' => ContentAudience::labels(),
+            'audioModes' => SeriesAudioMode::labels(),
+            'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
             'limits' => ['name' => ProjectData::NAME_MAX_LENGTH, 'prompt' => ProjectData::PROMPT_MAX_LENGTH],
         ]);
     }

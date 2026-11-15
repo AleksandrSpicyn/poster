@@ -7,10 +7,12 @@ use App\Actions\Episodes\ReconcileEpisodeScriptsAction;
 use App\Actions\Episodes\RequestEpisodeScriptAction;
 use App\Data\Episodes\GenerateEpisodeScriptData;
 use App\Enums\ScriptGenerationStatus;
+use App\Events\WorkspaceUpdated;
 use App\Jobs\GenerateEpisodeScriptJob;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
@@ -19,6 +21,21 @@ use function Tests\Support\fakeCodex;
 use function Tests\Support\serialOperator;
 use function Tests\Support\storyFixture;
 use function Tests\Support\storyScriptPayload;
+
+test('ошибка генерации отправляет живой статус завершённого запроса', function (): void {
+    ['episode' => $episode] = storyFixture();
+    Queue::fake([GenerateEpisodeScriptJob::class]);
+    $data = new GenerateEpisodeScriptData('An adventure.', 0, '8e061dbf-290b-49ea-8ac3-cc69ed236884');
+    app(RequestEpisodeScriptAction::class)->run($episode, $data, serialOperator());
+    fakeCodex(fn(PendingProcess $process): ProcessResult => Process::result(exitCode: 1));
+    Event::fake([WorkspaceUpdated::class]);
+
+    app(ProcessEpisodeScriptAction::class)->run($episode, $data->request_key);
+
+    expect($episode->refresh()->script_generation_status)->toBe(ScriptGenerationStatus::FAILED);
+    expect($episode->current_revision_id)->toBeNull();
+    Event::assertDispatchedTimes(WorkspaceUpdated::class, 2);
+});
 
 test('фоновый сценарий сохраняется один раз по исходному контексту', function (): void {
     ['episode' => $episode, 'character' => $character] = storyFixture();

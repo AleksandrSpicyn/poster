@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $prompt_id
+ * @property int|null $production_run_id
  * @property GenerationOperationStage $stage
  * @property GenerationOperationStatus $status
  * @property string $request_key

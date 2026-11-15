@@ -3,17 +3,22 @@
 declare(strict_types=1);
 
 use App\Actions\MakeShortAction;
+use App\Actions\Production\AdvanceProductionAction;
+use App\Enums\ChannelType;
+use App\Enums\ProductionStatus;
 use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
 use App\Events\VideoGenerating;
-use App\Exceptions\VideoGenerationUncertainException;
+use App\Jobs\AdvanceProductionJob;
+use App\Models\Channel;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Settings\GeneralSettings;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
@@ -24,6 +29,7 @@ use Laravel\Ai\Prompts\AgentPrompt;
 use function Pest\Laravel\assertDatabaseCount;
 use function Tests\Support\consoleCommand;
 use function Tests\Support\fakeCodexImages;
+use function Tests\Support\serialOperator;
 
 beforeEach(/** @throws Exception */ function (): void {
     config([
@@ -48,12 +54,17 @@ test('сценарий генерации сохраняет результат�
     ]);
 
     $project = Project::factory()->create();
+    $actor = serialOperator();
+    config(['services.admin.email' => $actor->email]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    Bus::fake([AdvanceProductionJob::class]);
 
     Prompt::factory()
         ->for($project)
         ->create(['prompt' => 'Earlier idea']);
 
     consoleCommand('app:make-short')->assertSuccessful();
+    app(AdvanceProductionAction::class)->run($project->productionRuns()->sole()->id);
 
     $prompt = $project
         ->prompts()
@@ -131,9 +142,17 @@ test('команда не создаёт резервную задачу пос�
     Event::fake([VideoGenerating::class, AudioGenerating::class]);
     AnonymousAgent::fake(['An idea'])->preventStrayPrompts();
     Http::fake(['*video_generation' => Http::response([], 503)]);
-    Project::factory()->create();
+    $project = Project::factory()->create();
+    $actor = serialOperator();
+    config(['services.admin.email' => $actor->email]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    Bus::fake([AdvanceProductionJob::class]);
 
-    expect(fn() => consoleCommand('app:make-short')->run())->toThrow(VideoGenerationUncertainException::class);
+    consoleCommand('app:make-short')->assertSuccessful();
+    $run = $project->productionRuns()->sole();
+    app()->call([new AdvanceProductionJob($run->id), 'handle']);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::NEEDS_ATTENTION);
 
     Http::assertSentCount(1);
     Http::assertNotSent(fn(Request $request): bool => str_contains($request->url(), 'image_to_video'));

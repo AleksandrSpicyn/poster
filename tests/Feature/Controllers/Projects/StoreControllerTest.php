@@ -2,8 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Enums\ChannelType;
+use App\Enums\ProjectContentMode;
+use App\Jobs\AdvanceProductionJob;
+use App\Models\Channel;
+use App\Models\ProductionRun;
 use App\Models\Project;
+use App\Models\Series;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Inertia\Inertia;
@@ -14,6 +21,70 @@ use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\post;
 use function Tests\Support\invalidProjectInputs;
 use function Tests\Support\projectPayload;
+use function Tests\Support\serialOperator;
+use function Tests\Support\seriesProjectPayload;
+
+test('проект сериала сохраняет настройки и начинает выпуск одним запросом', function (): void {
+    Bus::fake();
+    $actor = serialOperator();
+    $source = Project::factory()->create();
+    $channel = Channel::factory()->for($source)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'private-token']]);
+
+    actingAs($actor)->post(route('projects.store'), [...seriesProjectPayload(), 'channel_source_project_id' => $source->id])
+        ->assertRedirect();
+
+    $project = Project::query()->whereKeyNot($source->id)->sole();
+    $series = $project->series()->sole();
+    expect($project->content_mode)->toBe(ProjectContentMode::SERIES);
+    expect($series->name)->toBe($project->name);
+    expect($series->episode_limit)->toBe(5);
+    expect($series->specification['story_outline'])->toBe('Five small adventures with a clear ending in the last episode.');
+    expect($series->automation_user_id)->toBe($actor->id);
+    expect($series->episodes()->exists())->toBeFalse();
+    expect($project->channels()->sole()->credentials)->toBe($channel->credentials);
+    expect($channel->refresh()->project_id)->toBe($source->id);
+    expect($series->productionRuns()->sole()->actor_id)->toBe($actor->id);
+    Bus::assertDispatchedTimes(AdvanceProductionJob::class, 1);
+    Http::assertNothingSent();
+});
+
+test('пустые необязательные поля сериала не мешают созданию проекта', function (): void {
+    Bus::fake();
+    $payload = seriesProjectPayload();
+    $payload['automation_enabled'] = false;
+    $payload['series_specification']['narrative_rules'] = '';
+    $payload['series_specification']['story_outline'] = '';
+
+    actingAs(serialOperator())->post(route('projects.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
+
+    $series = Series::query()->sole();
+    expect($series->specification['narrative_rules'])->toBe('');
+    expect($series->specification['story_outline'] ?? null)->toBeNull();
+    Bus::assertNothingDispatched();
+});
+
+test('проект сериала требует настройки до сохранения', function (): void {
+    Bus::fake();
+
+    actingAs(serialOperator())->postJson(route('projects.store'), [...projectPayload(), 'content_mode' => 'series'])
+        ->assertUnprocessable()->assertJsonValidationErrors('series_specification');
+
+    expect(Project::query()->exists())->toBeFalse();
+    expect(Series::query()->exists())->toBeFalse();
+    expect(ProductionRun::query()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+});
+
+test('читатель не создаёт сериал через обычную форму проекта', function (): void {
+    serialOperator();
+    Bus::fake();
+
+    actingAs(User::factory()->create())->postJson(route('projects.store'), seriesProjectPayload())->assertForbidden();
+
+    expect(Project::query()->exists())->toBeFalse();
+    expect(Series::query()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+});
 
 test('создание сохраняет проект и не запускает генерацию', function (): void {
     $user = User::factory()->create();

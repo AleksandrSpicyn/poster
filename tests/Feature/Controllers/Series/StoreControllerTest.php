@@ -12,8 +12,20 @@ use Illuminate\Support\Facades\Process;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\post;
+use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialSeriesPayload;
+
+test('один проект не получает второй сериал', function (): void {
+    $context = serialCharacterContext();
+    Bus::fake();
+
+    actingAs(serialOperator())->postJson(route('series.store', $context['project']), serialSeriesPayload())
+        ->assertUnprocessable()->assertJsonValidationErrors('series');
+
+    expect($context['project']->series()->sole()->id)->toBe($context['series']->id);
+    Bus::assertNothingDispatched();
+});
 
 test('создание сохраняет паспорт без генерации и публикации', function (): void {
     $project = Project::factory()->create();

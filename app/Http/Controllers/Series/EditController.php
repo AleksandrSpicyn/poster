@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Series;
 
-use App\Enums\ContentAudience;
-use App\Enums\SeriesAudioMode;
-use App\Http\Resources\ProjectResource;
-use App\Http\Resources\SeriesResource;
 use App\Models\Project;
 use App\Models\Series;
-use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class EditController
 {
@@ -25,19 +21,13 @@ class EditController
      * @authenticated
      * @urlParam project integer required ID проекта. Example: 1
      * @urlParam series integer required ID сериала. Example: 1
-     * @response 200
+     * @response 302
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, Series $series): Response
+    public function __invoke(Project $project, Series $series): RedirectResponse
     {
-        return inertia('Series/Form', [
-            'project' => ProjectResource::make($project)->resolve(),
-            'series' => SeriesResource::make($series)->resolve(),
-            'audiences' => ContentAudience::labels(),
-            'audioModes' => SeriesAudioMode::labels(),
-            'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
-        ]);
+        return to_route('projects.edit', $project);
     }
 }

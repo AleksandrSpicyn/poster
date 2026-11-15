@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Projects;
 
+use App\Actions\Projects\GetProjectFormAction;
 use App\Data\ProjectData;
+use App\Enums\ContentAudience;
+use App\Enums\ProjectContentMode;
+use App\Enums\SeriesAudioMode;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Response;
 
 class CreateController
@@ -23,10 +28,16 @@ class CreateController
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}
      */
-    public function __invoke(): Response
+    public function __invoke(GetProjectFormAction $action): Response
     {
         return inertia('Projects/Form', [
             'project' => null,
+            'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
+            'series' => null,
+            'channelSources' => $action->run()['channelSources'],
+            'audiences' => ContentAudience::labels(),
+            'audioModes' => SeriesAudioMode::labels(),
+            'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
             'limits' => ['name' => ProjectData::NAME_MAX_LENGTH, 'prompt' => ProjectData::PROMPT_MAX_LENGTH],
         ]);
     }
