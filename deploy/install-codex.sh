@@ -9,11 +9,11 @@ destination=${1:-/usr/local/bin}
 case $(uname -m) in
     x86_64)
         target=x86_64-unknown-linux-musl
-        checksum=9af4d751fce183faedea629437d5252dbf458eeb04130cf4f97be844621ea985
+        checksum=3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0
         ;;
     aarch64|arm64)
         target=aarch64-unknown-linux-musl
-        checksum=97b97d87eea075c5cb7709c7f6156a451622a7667953ecda40e0276637196f3f
+        checksum=c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f
         ;;
     *) echo 'Unsupported CPU architecture.' >&2; exit 1 ;;
 esac
@@ -22,10 +22,10 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
 
 curl --fail --silent --show-error --location \
-    "https://github.com/openai/codex/releases/download/rust-v${version}/codex-${target}.tar.gz" \
+    "https://github.com/openai/codex/releases/download/rust-v${version}/codex-package-${target}.tar.gz" \
     --output "$temporary/codex.tar.gz"
 printf '%s  %s\n' "$checksum" "$temporary/codex.tar.gz" | sha256sum --check --status
-tar -xzf "$temporary/codex.tar.gz" -C "$temporary"
+tar -xzf "$temporary/codex.tar.gz" -C "$temporary" bin
 install -d "$destination"
-install -m 755 "$temporary/codex-${target}" "$destination/codex"
+install -m 755 "$temporary/bin/"* "$destination/"
 "$destination/codex" --version
