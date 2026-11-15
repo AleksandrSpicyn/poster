@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Classes\Generators\VideoGenerator\Hailuo;
 
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
+use App\Enums\ContentType;
+use App\Enums\HttpMethod;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
 use App\Support\Integrations\Payload;
@@ -49,7 +51,7 @@ readonly class Hailuo implements AlternativeVideoGenerator
     public function check(string $id): ?string
     {
         $fileId = $this
-            ->request("query/video_generation/?task_id=$id", 'GET')
+            ->request("query/video_generation/?task_id=$id", HttpMethod::GET)
             ->json('file_id');
 
         if (! $fileId) {
@@ -74,7 +76,7 @@ readonly class Hailuo implements AlternativeVideoGenerator
      */
     public function get(string $fileId): ?string
     {
-        $url = $this->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", 'GET')->json('file.download_url');
+        $url = $this->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", HttpMethod::GET)->json('file.download_url');
 
         return $url === null ? null : Payload::string($url, 'file.download_url');
     }
@@ -83,16 +85,16 @@ readonly class Hailuo implements AlternativeVideoGenerator
      * @param array<string, mixed> $parameters
      * @throws ConnectionException
      */
-    private function request(string $url, string $method = 'POST', array $parameters = []): Response
+    private function request(string $url, HttpMethod $method = HttpMethod::POST, array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
             ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
-                'Content-Type' => 'application/json',
+                'Content-Type' => ContentType::JSON->value,
             ])
             ->send(
-                $method,
+                $method->value,
                 "$this->baseUrl/$url",
                 $parameters !== []
                     ? [RequestOptions::JSON => $parameters]

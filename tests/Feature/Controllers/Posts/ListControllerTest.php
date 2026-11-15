@@ -120,3 +120,13 @@ test('публикации используют валидированные с�
             ->where('posts.meta.current_page', 2)
             ->where('posts.meta.per_page', 1));
 });
+
+test('список передаёт варианты сортировки из enum', function (): void {
+    actingAs(User::factory()->create())
+        ->get(route('posts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('sortDirections', ['desc' => 'Newest', 'asc' => 'Oldest'])
+            ->where('defaultSort', 'desc')
+            ->where('allTypes', 'All'));
+});

@@ -713,6 +713,11 @@
                 "label": "Independent backend software developer",
                 "note": "Public business profile, client history, and official review information."
             }
+        },
+        "appearanceValues": {
+            "LIGHT": "light",
+            "DARK": "dark",
+            "SYSTEM": "system"
         }
     },
     "url": "/",

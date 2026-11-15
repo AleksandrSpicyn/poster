@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Classes\Publishers\Instagram;
 
 use App\Classes\Publishers\AbstractPublisher;
+use App\Enums\ContentType;
 use App\Jobs\PublishInstagramJob;
 use App\Support\Integrations\Payload;
 use Exception;
@@ -68,7 +69,7 @@ class Instagram extends AbstractPublisher
                 ),
             )
             ->withHeaders([
-                'Content-Type' => 'application/json',
+                'Content-Type' => ContentType::JSON->value,
             ]);
     }
 

@@ -548,7 +548,12 @@
         },
         "sidebarOpen": true,
         "canResetPassword": true,
-        "status": null
+        "status": null,
+        "appearanceValues": {
+            "LIGHT": "light",
+            "DARK": "dark",
+            "SYSTEM": "system"
+        }
     },
     "url": "/login",
     "version": "8f70e140ceee70e78497be6a193c053b",

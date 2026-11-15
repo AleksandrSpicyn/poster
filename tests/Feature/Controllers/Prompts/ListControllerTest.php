@@ -88,3 +88,25 @@ test('отсутствующие фильтры не добавляются в �
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('filters', []));
 });
+
+test('список передаёт варианты сортировки из enum', function (): void {
+    actingAs(User::factory()->create())
+        ->get(route('prompts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('sortDirections', ['desc' => 'Newest', 'asc' => 'Oldest'])
+            ->where('defaultSort', 'desc'));
+});
+
+test('идеи сортируются от старых к новым', function (): void {
+    $first = Prompt::factory()->create(['created_at' => now()->subDay()]);
+    $last = Prompt::factory()->create();
+
+    actingAs(User::factory()->create())
+        ->get(route('prompts', ['sort' => 'asc']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.data.0.id', $first->id)
+            ->where('prompts.data.1.id', $last->id)
+            ->where('filters.sort', 'asc'));
+});

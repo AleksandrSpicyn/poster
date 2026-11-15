@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AuthGuard;
 use App\Models\User;
 
 return [
@@ -18,7 +19,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        'guard' => env('AUTH_GUARD', AuthGuard::WEB->value),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
@@ -40,7 +41,7 @@ return [
     */
 
     'guards' => [
-        'web' => [
+        AuthGuard::WEB->value => [
             'driver' => 'session',
             'provider' => 'users',
         ],

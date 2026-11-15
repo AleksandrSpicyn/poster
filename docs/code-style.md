@@ -22,6 +22,15 @@ PHP, static analysis и локальные инструкции. Примеры 
 - Стабильные большие payload могут потребовать DTO/Resource/value object;
   локальному массиву из нескольких значений отдельный класс нужен не всегда.
 - Backed values enum и сериализованные имена сохраняют внешний контракт.
+- Повторяющиеся наборы значений (сортировка, оформление, статусы, каналы,
+  HTTP-методы, типы содержимого, guards) оформляются enum вместо magic strings.
+- Все PHP enum, включая enum интеграций, обязаны использовать
+  `App\Traits\EnumTrait`; cases называются в `UPPER_SNAKE_CASE`.
+- DTO используют enum-типы там, где поле содержит только значения одного enum.
+  На границах SQL/HTTP/config передаются `->value`, списки берутся из `values()`
+  и `labels()`. В интерфейс значения передаются из PHP, без отдельных runtime enum.
+- Имена полей, маршрутов, config-ключей и CSS-классов сами по себе не являются
+  наборами значений; общие слова разных предметных областей не объединяются в enum.
 
 ## Импорты
 
@@ -113,13 +122,17 @@ final class PublicationSummary
 }
 ```
 
-### Enum без выдуманного helper trait
+### Enum с общим EnumTrait
 
 ```php
 namespace App\Enums;
 
+use App\Traits\EnumTrait;
+
 enum PublicationStatus: string
 {
+    use EnumTrait;
+
     case DRAFT = 'draft';
     case PUBLISHED = 'published';
 
@@ -133,7 +146,7 @@ enum PublicationStatus: string
 }
 ```
 
-Если у приложения есть shared enum helper, используйте его вместо копирования
-метода в каждом enum. Не импортируйте отсутствующий trait из другого проекта.
+В Poster используется существующий `App\Traits\EnumTrait`; свои `label()`
+допустимы для специфичных подписей при сохранении общего trait.
 Статус здесь — отдельный вариант модели; он не добавляется автоматически к
 сквозному Article с boolean `is_published`.

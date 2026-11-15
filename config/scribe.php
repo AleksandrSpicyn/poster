@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContentType;
 use App\Support\Documentation\OpenApiGenerator;
 use Knuckles\Scribe\Config\AuthIn;
 use Knuckles\Scribe\Config\Defaults;
@@ -222,8 +223,8 @@ return [
         'headers' => [
             ...Defaults::HEADERS_STRATEGIES,
             StaticData::withSettings(data: [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
+                'Content-Type' => ContentType::JSON->value,
+                'Accept' => ContentType::JSON->value,
             ]),
         ],
         'urlParameters' => [

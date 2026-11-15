@@ -18,12 +18,21 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export type Appearance = 'light' | 'dark' | 'system';
+
+export interface AppearanceValues {
+    LIGHT: Appearance;
+    DARK: Appearance;
+    SYSTEM: Appearance;
+}
+
 export interface SharedData extends PageProps {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    appearanceValues: AppearanceValues;
 }
 
 export interface User {

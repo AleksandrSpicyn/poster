@@ -605,7 +605,18 @@
             "tiktok": "Tiktok",
             "instagram": "Instagram",
             "vk": "Vk"
-        }
+        },
+        "appearanceValues": {
+            "LIGHT": "light",
+            "DARK": "dark",
+            "SYSTEM": "system"
+        },
+        "sortDirections": {
+            "asc": "Oldest",
+            "desc": "Newest"
+        },
+        "defaultSort": "desc",
+        "allTypes": "All"
     },
     "url": "/posts",
     "version": "8f70e140ceee70e78497be6a193c053b",

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Documentation;
 
+use App\Enums\ChannelType;
+use App\Enums\FilterValue;
+use App\Enums\SortDirection;
 use Illuminate\Container\Attributes\Config;
 use Knuckles\Camel\Output\OutputEndpointData;
 use Knuckles\Scribe\Tools\DocumentationConfig;
@@ -51,8 +54,8 @@ class OpenApiGenerator extends ScribeGenerator
             $parameter['schema'] = array_replace($parameter['schema'], match ($parameter['name']) {
                 'page' => ['type' => 'integer', 'minimum' => 1, 'default' => 1],
                 'perPage' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 10],
-                'sort' => ['type' => 'string', 'enum' => ['asc', 'desc'], 'default' => 'desc'],
-                'type' => ['type' => 'string', 'enum' => ['All', 'youtube', 'tiktok', 'instagram', 'vk']],
+                'sort' => ['type' => 'string', 'enum' => SortDirection::values(), 'default' => SortDirection::DESC->value],
+                'type' => ['type' => 'string', 'enum' => [FilterValue::ALL->value, ...ChannelType::values()]],
                 default => [],
             });
         }

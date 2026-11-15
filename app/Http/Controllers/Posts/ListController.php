@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Posts;
 use App\Actions\Posts\GetPostsListAction;
 use App\Data\GetPostsListData;
 use App\Enums\ChannelType;
+use App\Enums\FilterValue;
+use App\Enums\SortDirection;
 use App\Http\Resources\PostResource;
 use Inertia\Response;
 
@@ -53,6 +55,10 @@ class ListController
      * @responseField props.ziggy.defaults string[] props.ziggy.defaults.
      * @responseField props.ziggy.routes object props.ziggy.routes.
      * @responseField props.ziggy.location string props.ziggy.location.
+     * @responseField props.appearanceValues object Значения оформления из enum.
+     * @responseField props.appearanceValues.LIGHT string Светлое оформление.
+     * @responseField props.appearanceValues.DARK string Тёмное оформление.
+     * @responseField props.appearanceValues.SYSTEM string Системное оформление.
      * @responseField props.sidebarOpen boolean props.sidebarOpen.
      * @responseField props.posts object props.posts.
      * @responseField props.posts.data object[] props.posts.data.
@@ -78,6 +84,11 @@ class ListController
      * @responseField props.posts.meta.per_page integer props.posts.meta.per_page.
      * @responseField props.posts.meta.to integer props.posts.meta.to.
      * @responseField props.posts.meta.total integer props.posts.meta.total.
+     * @responseField props.sortDirections object Порядки сортировки и подписи.
+     * @responseField props.sortDirections.asc string Сначала старые.
+     * @responseField props.sortDirections.desc string Сначала новые.
+     * @responseField props.defaultSort string Порядок сортировки по умолчанию.
+     * @responseField props.allTypes string Значение фильтра всех каналов.
      * @responseField props.filters string[] props.filters.
      * @responseField props.types object props.types.
      * @responseField props.types.youtube string props.types.youtube.
@@ -96,7 +107,10 @@ class ListController
 
         return inertia('Posts', [
             'posts' => PostResource::collection($posts),
+            'sortDirections' => SortDirection::labels(),
+            'defaultSort' => SortDirection::DESC->value,
             'filters' => $data->only('type', 'sort')->toArray(),
+            'allTypes' => FilterValue::ALL->value,
             'types' => ChannelType::labels(),
         ]);
     }

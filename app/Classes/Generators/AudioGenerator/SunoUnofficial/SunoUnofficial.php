@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Classes\Generators\AudioGenerator\SunoUnofficial;
 
 use App\Classes\Generators\AudioGenerator\AudioGenerator;
+use App\Enums\ContentType;
 use App\Support\Integrations\Payload;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
@@ -49,7 +50,7 @@ readonly class SunoUnofficial implements AudioGenerator
             ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
-                'Content-Type' => 'application/json',
+                'Content-Type' => ContentType::JSON->value,
             ])
             ->post("$this->baseUrl/generate", $parameters);
 

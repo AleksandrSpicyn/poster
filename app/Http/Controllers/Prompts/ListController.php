@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Prompts;
 
 use App\Actions\Prompts\GetPromptsListAction;
 use App\Data\GetPromptsListData;
+use App\Enums\SortDirection;
 use App\Http\Resources\PromptResource;
 use Inertia\Response;
 
@@ -51,6 +52,10 @@ class ListController
      * @responseField props.ziggy.defaults string[] props.ziggy.defaults.
      * @responseField props.ziggy.routes object props.ziggy.routes.
      * @responseField props.ziggy.location string props.ziggy.location.
+     * @responseField props.appearanceValues object Значения оформления из enum.
+     * @responseField props.appearanceValues.LIGHT string Светлое оформление.
+     * @responseField props.appearanceValues.DARK string Тёмное оформление.
+     * @responseField props.appearanceValues.SYSTEM string Системное оформление.
      * @responseField props.sidebarOpen boolean props.sidebarOpen.
      * @responseField props.prompts object props.prompts.
      * @responseField props.prompts.data object[] props.prompts.data.
@@ -78,6 +83,10 @@ class ListController
      * @responseField props.prompts.meta.per_page integer props.prompts.meta.per_page.
      * @responseField props.prompts.meta.to integer props.prompts.meta.to.
      * @responseField props.prompts.meta.total integer props.prompts.meta.total.
+     * @responseField props.sortDirections object Порядки сортировки и подписи.
+     * @responseField props.sortDirections.asc string Сначала старые.
+     * @responseField props.sortDirections.desc string Сначала новые.
+     * @responseField props.defaultSort string Порядок сортировки по умолчанию.
      * @responseField props.filters string[] props.filters.
      * @responseField url string url.
      * @responseField version string version.
@@ -91,6 +100,8 @@ class ListController
 
         return inertia('Prompts', [
             'prompts' => PromptResource::collection($prompts),
+            'sortDirections' => SortDirection::labels(),
+            'defaultSort' => SortDirection::DESC->value,
             'filters' => $data->only('sort')->toArray(),
         ]);
     }

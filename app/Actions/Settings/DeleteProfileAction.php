@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Settings;
 
+use App\Enums\AuthGuard;
 use App\Models\User;
 use App\Tasks\Auth\InvalidateSession;
 use App\Tasks\Users\DeleteUser;
@@ -13,7 +14,7 @@ use Illuminate\Contracts\Auth\StatefulGuard;
 readonly class DeleteProfileAction
 {
     public function __construct(
-        #[Auth('web')] private StatefulGuard $guard,
+        #[Auth(AuthGuard::WEB->value)] private StatefulGuard $guard,
         private DeleteUser $deleteUser,
         private InvalidateSession $invalidateSession,
     ) {}

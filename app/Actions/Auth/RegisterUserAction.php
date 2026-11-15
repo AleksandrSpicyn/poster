@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Auth;
 
 use App\Data\RegisterUserData;
+use App\Enums\AuthGuard;
 use App\Tasks\Users\CreateUser;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Container\Attributes\Auth;
@@ -15,7 +16,7 @@ readonly class RegisterUserAction
 {
     public function __construct(
         private CreateUser $createUser,
-        #[Auth('web')] private StatefulGuard $guard,
+        #[Auth(AuthGuard::WEB->value)] private StatefulGuard $guard,
         private Dispatcher $events,
     ) {}
 

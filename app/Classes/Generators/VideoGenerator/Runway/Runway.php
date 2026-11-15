@@ -7,6 +7,8 @@ namespace App\Classes\Generators\VideoGenerator\Runway;
 use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
 use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
+use App\Enums\ContentType;
+use App\Enums\HttpMethod;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
 use App\Support\Integrations\Payload;
@@ -51,7 +53,7 @@ readonly class Runway implements AlternativeVideoGenerator
      */
     public function check(string $id): ?string
     {
-        $response = $this->request("tasks/$id", 'GET');
+        $response = $this->request("tasks/$id", HttpMethod::GET);
 
         $dto = CreationData::from($response->json());
 
@@ -73,16 +75,16 @@ readonly class Runway implements AlternativeVideoGenerator
      * @param array<string, mixed> $parameters
      * @throws ConnectionException
      */
-    private function request(string $url, string $method = 'POST', array $parameters = []): Response
+    private function request(string $url, HttpMethod $method = HttpMethod::POST, array $parameters = []): Response
     {
         $response = Http::withToken($this->token)
             ->connectTimeout(10)
             ->timeout(60)
             ->withHeaders([
                 'X-Runway-Version' => $this->version,
-                'Content-Type' => 'application/json',
+                'Content-Type' => ContentType::JSON->value,
             ])
-            ->send($method, "$this->baseUrl/$url", [
+            ->send($method->value, "$this->baseUrl/$url", [
                 RequestOptions::JSON => $parameters,
             ]);
 

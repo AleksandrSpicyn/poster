@@ -1,19 +1,19 @@
+import type { Appearance, AppearanceValues, SharedData } from '@/types';
+import { usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
-type Appearance = 'light' | 'dark' | 'system';
-
-export function updateTheme(value: Appearance) {
+export function updateTheme(value: Appearance, values: AppearanceValues) {
     if (typeof window === 'undefined') {
         return;
     }
 
-    if (value === 'system') {
+    if (value === values.SYSTEM) {
         const mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
-        const systemTheme = mediaQueryList.matches ? 'dark' : 'light';
+        const systemTheme = mediaQueryList.matches ? values.DARK : values.LIGHT;
 
-        document.documentElement.classList.toggle('dark', systemTheme === 'dark');
+        document.documentElement.classList.toggle('dark', systemTheme === values.DARK);
     } else {
-        document.documentElement.classList.toggle('dark', value === 'dark');
+        document.documentElement.classList.toggle('dark', value === values.DARK);
     }
 }
 
@@ -43,27 +43,28 @@ const getStoredAppearance = () => {
     return localStorage.getItem('appearance') as Appearance | null;
 };
 
-const handleSystemThemeChange = () => {
+const handleSystemThemeChange = (values: AppearanceValues) => {
     const currentAppearance = getStoredAppearance();
 
-    updateTheme(currentAppearance || 'system');
+    updateTheme(currentAppearance || values.SYSTEM, values);
 };
 
-export function initializeTheme() {
+export function initializeTheme(values: AppearanceValues) {
     if (typeof window === 'undefined') {
         return;
     }
 
     // Initialize theme from saved preference or default to system...
     const savedAppearance = getStoredAppearance();
-    updateTheme(savedAppearance || 'system');
+    updateTheme(savedAppearance || values.SYSTEM, values);
 
     // Set up system theme change listener...
-    mediaQuery()?.addEventListener('change', handleSystemThemeChange);
+    mediaQuery()?.addEventListener('change', () => handleSystemThemeChange(values));
 }
 
 export function useAppearance() {
-    const appearance = ref<Appearance>('system');
+    const values = usePage<SharedData>().props.appearanceValues;
+    const appearance = ref<Appearance>(values.SYSTEM);
 
     onMounted(() => {
         const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
@@ -82,10 +83,11 @@ export function useAppearance() {
         // Store in cookie for SSR...
         setCookie('appearance', value);
 
-        updateTheme(value);
+        updateTheme(value, values);
     }
 
     return {
+        appearanceValues: values,
         appearance,
         updateAppearance,
     };

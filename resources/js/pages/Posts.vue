@@ -8,21 +8,26 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 /* TODO Typification */
-const page = usePage<import('@/types').SharedData & {
-    posts: {
-        data: any[];
-        meta: {
-            current_page: number;
-            per_page: number;
-            total: number;
+const page = usePage<
+    import('@/types').SharedData & {
+        posts: {
+            data: any[];
+            meta: {
+                current_page: number;
+                per_page: number;
+                total: number;
+            };
         };
-    };
-    filters: {
-        type?: string;
-        sort?: string;
-    };
-    types: Record<string, string>;
-}>();
+        sortDirections: Record<string, string>;
+        defaultSort: string;
+        allTypes: string;
+        filters: {
+            type?: string;
+            sort?: string;
+        };
+        types: Record<string, string>;
+    }
+>();
 
 const pagination = computed(() => ({
     page: page.props.posts.meta.current_page,
@@ -31,8 +36,8 @@ const pagination = computed(() => ({
 }));
 
 const filters = ref({
-    type: page.props.filters.type ?? 'All',
-    sort: page.props.filters.sort ?? 'desc',
+    type: page.props.filters.type ?? page.props.allTypes,
+    sort: page.props.filters.sort ?? page.props.defaultSort,
     perPage: page.props.posts.meta.per_page ?? 10,
     page: page.props.posts.meta.current_page,
 });
@@ -66,7 +71,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="All">All Types</SelectItem>
+                        <SelectItem :value="page.props.allTypes">All Types</SelectItem>
                         <SelectItem v-for="(label, key) in types" :key="key" :value="key">
                             {{ label }}
                         </SelectItem>
@@ -89,8 +94,9 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="desc">Newest</SelectItem>
-                        <SelectItem value="asc">Oldest</SelectItem>
+                        <SelectItem v-for="(label, value) in page.props.sortDirections" :key="value" :value="value">
+                            {{ label }}
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             </div>

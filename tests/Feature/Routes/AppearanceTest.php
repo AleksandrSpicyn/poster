@@ -8,6 +8,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\withUnencryptedCookie;
 
 test('владелец видит настройки оформления', function (): void {
     actingAs(User::factory()->create())
@@ -22,3 +23,25 @@ test('гость не получает доступ к маршруту', functi
     get($url)->assertRedirect(route('login'));
     getJson($url)->assertUnauthorized();
 });
+
+test('страница получает значения оформления из enum', function (): void {
+    actingAs(User::factory()->create())
+        ->get(route('appearance'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('appearanceValues', [
+            'LIGHT' => 'light', 'DARK' => 'dark', 'SYSTEM' => 'system',
+        ]));
+});
+
+test('оформление cookie применяется к HTML', function (string $cookie, string $theme): void {
+    withUnencryptedCookie('appearance', $cookie);
+
+    get(route('home'))
+        ->assertOk()
+        ->assertSee('const appearance = "' . $theme . '";', escape: false);
+})->with([
+    'светлое' => ['light', 'light'],
+    'тёмное' => ['dark', 'dark'],
+    'системное' => ['system', 'system'],
+    'неизвестное' => ['invalid', 'system'],
+]);

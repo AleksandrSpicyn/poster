@@ -14,19 +14,23 @@ import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 
 /* TODO Typification */
-const page = usePage<import('@/types').SharedData & {
-    prompts: {
-        data: any[];
-        meta: {
-            current_page: number;
-            per_page: number;
-            total: number;
+const page = usePage<
+    import('@/types').SharedData & {
+        prompts: {
+            data: any[];
+            meta: {
+                current_page: number;
+                per_page: number;
+                total: number;
+            };
         };
-    };
-    filters: {
-        sort?: string;
-    };
-}>();
+        sortDirections: Record<string, string>;
+        defaultSort: string;
+        filters: {
+            sort?: string;
+        };
+    }
+>();
 
 const pagination = computed(() => ({
     page: page.props.prompts.meta.current_page,
@@ -35,7 +39,7 @@ const pagination = computed(() => ({
 }));
 
 const filters = ref({
-    sort: page.props.filters.sort ?? 'desc',
+    sort: page.props.filters.sort ?? page.props.defaultSort,
     perPage: page.props.prompts.meta.per_page ?? 10,
     page: page.props.prompts.meta.current_page,
 });
@@ -78,8 +82,9 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="desc">Newest</SelectItem>
-                        <SelectItem value="asc">Oldest</SelectItem>
+                        <SelectItem v-for="(label, value) in page.props.sortDirections" :key="value" :value="value">
+                            {{ label }}
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             </div>

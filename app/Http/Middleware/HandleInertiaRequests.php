@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Appearance;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -50,6 +51,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => $this->appName,
+            'appearanceValues' => array_column(Appearance::cases(), 'value', 'name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),

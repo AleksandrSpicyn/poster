@@ -36,6 +36,10 @@ class CreateController
      * @responseField props.ziggy.defaults string[] props.ziggy.defaults.
      * @responseField props.ziggy.routes object props.ziggy.routes.
      * @responseField props.ziggy.location string props.ziggy.location.
+     * @responseField props.appearanceValues object Значения оформления из enum.
+     * @responseField props.appearanceValues.LIGHT string Светлое оформление.
+     * @responseField props.appearanceValues.DARK string Тёмное оформление.
+     * @responseField props.appearanceValues.SYSTEM string Системное оформление.
      * @responseField props.sidebarOpen boolean props.sidebarOpen.
      * @responseField props.canResetPassword boolean props.canResetPassword.
      * @responseField props.status string props.status. Значение может быть null.

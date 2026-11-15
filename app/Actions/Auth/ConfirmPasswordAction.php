@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Auth;
 
 use App\Data\ConfirmPasswordData;
+use App\Enums\AuthGuard;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Container\Attributes\Auth;
@@ -14,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 readonly class ConfirmPasswordAction
 {
-    public function __construct(#[Auth('web')] private StatefulGuard $guard, private Session $session) {}
+    public function __construct(#[Auth(AuthGuard::WEB->value)] private StatefulGuard $guard, private Session $session) {}
 
     public function run(User $user, ConfirmPasswordData $data): void
     {

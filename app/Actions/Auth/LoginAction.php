@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Auth;
 
 use App\Data\LoginData;
+use App\Enums\AuthGuard;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Container\Attributes\Auth;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 readonly class LoginAction
 {
     public function __construct(
-        #[Auth('web')] private StatefulGuard $guard,
+        #[Auth(AuthGuard::WEB->value)] private StatefulGuard $guard,
         private Session $session,
         private RateLimiter $limiter,
         private Dispatcher $events,
