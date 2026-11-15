@@ -24,7 +24,7 @@ Repository-слоя нет. Примеры модульного профиля �
 `HomeController → HomepageData → Welcome.vue` публикует утверждённый контент профиля.
 Аутентификация и настройки проходят через DTO и Actions; хеширование пароля
 выполняет cast модели User. Middleware `auth` и `verified` защищают dashboard,
-prompts и posts; настройки профиля доступны под `auth`, включая повторное
+projects, prompts и posts; настройки профиля доступны под `auth`, включая повторное
 подтверждение email после его смены. `OperationsPolicy` отдельно ограничивает
 Logs и Queues подтверждёнными адресами из конфигурации.
 
@@ -32,7 +32,15 @@ Logs и Queues подтверждёнными адресами из конфиг
 и ограниченные последние выборки с заранее загруженными связями. Обзор не
 запускает генерацию или публикацию.
 
-Списки `Posts` и `Prompts` выполняют фильтрацию/сортировку/пагинацию на сервере.
+Раздел `Projects` позволяет искать, создавать и редактировать название и базовый
+промпт проекта. `Projects/*Controller → *ProjectAction → Projects/*` сохраняет
+границы HTTP, сценария и persistence; `ProjectData` задаёт правила ввода.
+Страница проекта показывает счётчики, каналы без credentials и постраничную
+историю только этого проекта. `DeleteProject` в транзакции блокирует строку
+проекта и разрешает удаление только без prompts и channels. Сохранение проекта
+не запускает генерацию или публикацию.
+
+Списки `Projects`, `Posts` и `Prompts` выполняют фильтрацию/сортировку/пагинацию на сервере.
 Tasks заранее загружают `channel` либо `project`/`media` для Resources.
 `Prompt.stage()` вычисляет этап по сохранённым ID/URL и признаку сборки;
 `PromptResource` передаёт его как `stage` и `stage_label`. Ожидание результата
@@ -48,22 +56,38 @@ Tasks заранее загружают `channel` либо `project`/`media` д�
 `app:make-short` проходит по проектам и вызывает `MakeShortAction`:
 
 1. `CreateBasePrompt` добавляет последние 50 идей проекта к запросу OpenAI;
-   `CreatePrompt` сохраняет новую идею. `CreateImage` получает первый кадр.
-2. `CreateVideo` запускает Hailuo и при исключении запуска пробует Runway.
-   `VideoGenerationData.alternative` передаёт выбор провайдера polling job.
-   Стандартные адаптеры задаются `#[Bind]` на интерфейсах генераторов.
+   `CreatePrompt` сохраняет новую идею. `CreateImage → ImageGenerator/Codex`
+   вызывает Laravel AI `Image` с провайдером `codex`. `CodexProvider` использует
+   `CodexGateway`, который запускает закреплённый Codex CLI под отдельным входом
+   ChatGPT в изолированном временном каталоге. API-ключи исключаются из окружения,
+   shell tools отключены; общий lock сериализует использование одного `CODEX_HOME`.
+   Проверенный вертикальный PNG сохраняется на публичный диск, его URL становится
+   `image_url`. При ошибке подписки или CLI генерация останавливается без API fallback.
+2. `CreateVideo → VideoGeneratorFactory` разрешает драйвер из регистрации
+   `services.video.drivers`; основной и резерв задаются конфигурацией. Все
+   адаптеры реализуют один `VideoGenerator`: запуск, нормализованный результат,
+   источник звука и лимит опроса. Неопределённый результат запуска выражается
+   `VideoGenerationUncertainException` и не вызывает резервную платную задачу.
+   `VideoGenerationData.provider` сохраняется в `Prompt.video_provider` вместе
+   с task ID. Boolean в старых payload переводится через `VideoProvider::fromLegacy`.
 3. `VideoGenerating → VideoGeneratingListener → CheckVideoCreation` опрашивает
-   выбранного провайдера. `null` откладывает job на 60 секунд (до 10 попыток);
-   исключение завершает job ошибкой. Успех сохраняет `video_url` и отправляет
-   `VideoGenerated`.
-4. `CreateAudio` запускает Suno и сохраняет `audio_id`. Независимый
+   сохранённого провайдера. Listener берёт лимит попыток из контракта драйвера;
+   `null` и `VideoGenerationPendingException` откладывают job на 60 секунд.
+   Адаптер сам переводит ошибки внешнего API в общие состояния. Успех возвращает
+   `VideoResultData`: `videoUrl` и необязательный `audioUrl`; Task сохраняет их
+   и отправляется `VideoGenerated`. Пустой audio URL не затирает готовый Suno.
+4. `CreateAudio` использует `VideoAudioSource`, возвращённый фактически выбранным
+   драйвером: `EMBEDDED` не запускает отдельное аудио, `SEPARATE` запускает Suno
+   и сохраняет `audio_id`. Seedance возвращает ссылку на один файл в обоих полях
+   результата: видеопоток и аудиопоток берутся из него. Независимый
    `POST webhook.suno → SunoController → SaveAudioAction → SaveAudio` принимает
    стадию `complete`, берёт первый трек и находит Prompt по task ID. Новый
    `audio_url` вызывает `AudioGenerated`; тот же URL повторно событие не отправляет.
 5. `VideoGeneratedListener` принимает и `VideoGenerated`, и `AudioGenerated`,
    ставя `SaveVideoJob`. `SaveVideoAction` под cache lock перечитывает Prompt:
-   сборка возможна только с обоими URL и `generated=false`. Lock живёт 3720 секунд,
-   timeout job — 3600 секунд. `BuildVideo` соединяет видео и звук Suno в FFmpeg;
+   сборка требует `video_url`, `audio_url` и `generated=false` для любого драйвера.
+   Lock живёт 3720 секунд, timeout job — 3600 секунд. `BuildVideo` одним способом
+   сопоставляет видеопоток первого источника и аудиопоток второго в FFmpeg;
    `SaveGeneratedVideo` прикрепляет файл через Media Library и ставит `generated=true`.
 6. `VideoBuilt → VideoBuiltListener → PublisherFactory` отправляет готовый ролик
    каналам проекта. YouTube загружает локальный файл порциями и сохраняет Post.

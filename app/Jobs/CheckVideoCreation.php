@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
-use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
+use App\Data\VideoResultData;
+use App\Enums\VideoProvider;
 use App\Events\VideoGenerated;
+use App\Exceptions\VideoGenerationPendingException;
 use App\Models\Prompt;
+use App\Tasks\Prompts\UpdatePrompt;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -20,14 +23,18 @@ class CheckVideoCreation implements ShouldQueue
 {
     use Queueable;
 
+    /** Значение по умолчанию нужно старым payload, где оно не сериализовалось. */
     public int $tries = 10;
 
     public function __construct(
         private readonly Prompt $prompt,
         private readonly bool $alternative = false,
-    ) {}
+        int $maxAttempts = 10,
+    ) {
+        $this->tries = max(1, $maxAttempts);
+    }
 
-    public function handle(VideoGenerator $videoGenerator, AlternativeVideoGenerator $alternativeVideoGenerator): void
+    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt): void
     {
         $this->prompt->refresh();
 
@@ -36,20 +43,25 @@ class CheckVideoCreation implements ShouldQueue
         }
 
         try {
-            $generator = $this->alternative ? $alternativeVideoGenerator : $videoGenerator;
+            $provider = $this->prompt->video_provider ?? VideoProvider::fromLegacy($this->alternative);
+            $generator = $generators->make($provider);
             $result = $generator->check($this->prompt->video_id);
 
-            if (! $result) {
+            if (! $result instanceof VideoResultData) {
                 $this->release(60);
 
                 return;
             }
 
-            $this->prompt->update(['video_url' => $result]);
+            $updatePrompt->run($this->prompt, array_filter([
+                'video_url' => $result->videoUrl,
+                'audio_url' => $result->audioUrl,
+            ], static fn(?string $value): bool => $value !== null));
 
             event(new VideoGenerated($this->prompt));
+        } catch (VideoGenerationPendingException) {
+            $this->release(60);
         } catch (Throwable $e) {
-            // Повторы через release предназначены для ожидания; ошибка провайдера терминальна для этой job.
             $this->fail($e);
         }
     }

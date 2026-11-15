@@ -4,7 +4,11 @@ import { reactive, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 /** Keeps filters in sync with server props, including browser back/forward navigation. */
-export function useListFilters(name: 'posts' | 'prompts', serverFilters: () => ListFilters) {
+export function useListFilters(
+    name: 'posts' | 'prompts' | 'projects.index' | 'projects.show',
+    serverFilters: () => ListFilters,
+    routeParameters?: () => Record<string, string | number>,
+) {
     const route = useRoute();
     const filters = reactive(serverFilters());
     const loading = ref(false);
@@ -14,7 +18,7 @@ export function useListFilters(name: 'posts' | 'prompts', serverFilters: () => L
 
     function refresh() {
         router.get(
-            route(name),
+            route(name, routeParameters?.()),
             { ...filters },
             {
                 preserveScroll: true,

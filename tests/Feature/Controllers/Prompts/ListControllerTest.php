@@ -132,6 +132,8 @@ test('список показывает этап по сохранённым р�
     'аудио запущено' => [['audio_id' => 'audio-task'], 'media', 'Awaiting video & audio'],
     'ожидается видео' => [['audio_url' => 'https://example.test/audio.mp3'], 'video', 'Awaiting video'],
     'ожидается аудио' => [['video_url' => 'https://example.test/video.mp4'], 'audio', 'Awaiting audio'],
+    'генерируется Seedance' => [['video_provider' => 'seedance', 'video_id' => 'seedance-task'], 'media', 'Awaiting video & audio'],
+    'Seedance готов к сборке без Suno' => [['video_provider' => 'seedance', 'video_url' => 'https://example.test/native.mp4', 'audio_url' => 'https://example.test/native.mp4'], 'assembly', 'Awaiting assembly'],
     'ожидается сборка' => [['video_url' => 'https://example.test/video.mp4', 'audio_url' => 'https://example.test/audio.mp3'], 'assembly', 'Awaiting assembly'],
     'сборка завершена' => [['generated' => true], 'ready', 'Video ready'],
 ]);

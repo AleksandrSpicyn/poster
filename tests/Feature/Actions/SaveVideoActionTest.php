@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\SaveVideoAction;
+use App\Enums\PromptStage;
 use App\Events\VideoBuilt;
 use App\Jobs\SaveVideoJob;
 use App\Models\Prompt;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use ProtoneMedia\LaravelFFMpeg\Exporters\EncodingException;
 
 use function Pest\Laravel\assertDatabaseCount;
 
@@ -89,4 +91,50 @@ test('занятая блокировка не запускает вторую �
     } finally {
         $lock->release();
     }
+});
+
+test('сохраняет дорожку из того же файла без отдельного аудио и повторной сборки', function (): void {
+    $disk = Storage::disk('public');
+    Process::run([
+        'ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:d=1',
+        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+        '-c:v', 'libx264', '-c:a', 'aac', '-shortest', $disk->path('native.mp4'),
+    ])->throw();
+    $prompt = Prompt::factory()->create([
+        'video_url' => $disk->path('native.mp4'),
+        'audio_url' => $disk->path('native.mp4'),
+    ]);
+    expect($prompt->stage())->toBe(PromptStage::ASSEMBLY);
+
+    app(SaveVideoAction::class)->run($prompt);
+
+    $prompt->refresh();
+    $media = $prompt->media()->firstOrFail();
+    $probe = Process::run(['ffprobe', '-v', 'quiet', '-show_streams', '-of', 'json', $media->getPath()])->throw();
+    /** @var array{streams: list<array{codec_type: string}>} $streams */
+    $streams = json_decode($probe->output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect(array_column($streams['streams'], 'codec_type'))->toBe(['video', 'audio']);
+    expect($prompt->stage())->toBe(PromptStage::READY);
+    expect($prompt->audio_url)->toBe($disk->path('native.mp4'));
+
+    app(SaveVideoAction::class)->run($prompt);
+
+    expect($prompt->media()->count())->toBe(1);
+    Event::assertDispatchedTimes(VideoBuilt::class, 1);
+});
+
+test('файл без реальной аудиодорожки не становится готовым роликом', function (): void {
+    $disk = Storage::disk('public');
+    Process::run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:d=1', '-c:v', 'libx264', $disk->path('silent.mp4')])->throw();
+    $prompt = Prompt::factory()->create([
+        'video_url' => $disk->path('silent.mp4'),
+        'audio_url' => $disk->path('silent.mp4'),
+    ]);
+
+    expect(fn() => app(SaveVideoAction::class)->run($prompt))->toThrow(EncodingException::class);
+
+    expect($prompt->refresh()->generated)->toBeFalse();
+    expect($prompt->media()->count())->toBe(0);
+    Event::assertNotDispatched(VideoBuilt::class);
 });

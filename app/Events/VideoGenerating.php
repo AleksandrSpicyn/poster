@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events;
 
+use App\Enums\VideoProvider;
 use App\Models\Prompt;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -28,6 +29,11 @@ class VideoGenerating
 
     public function getAlternative(): bool
     {
-        return $this->alternative;
+        return $this->getProvider() === VideoProvider::RUNWAY;
+    }
+
+    public function getProvider(): VideoProvider
+    {
+        return $this->prompt->video_provider ?? VideoProvider::fromLegacy($this->alternative);
     }
 }

@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $channels_count
  * @property-read Collection<int, Prompt> $prompts
  * @property-read int|null $prompts_count
+ * @property-read int|null $ready_prompts_count
  */
 class Project extends Model
 {
@@ -39,6 +40,12 @@ class Project extends Model
     public function prompts(): HasMany
     {
         return $this->hasMany(Prompt::class);
+    }
+
+    /** @return HasMany<Prompt, $this> */
+    public function readyPrompts(): HasMany
+    {
+        return $this->prompts()->where('generated', true);
     }
 
     /** @return HasMany<Channel, $this> */

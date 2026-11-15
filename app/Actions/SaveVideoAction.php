@@ -14,7 +14,7 @@ use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
 /**
- * Сводит независимые результаты видео и аудио в один готовый ролик.
+ * Собирает готовый ролик из нормализованных видео- и аудиоисточников.
  * Повторные jobs проверяют актуальный Prompt под общей блокировкой сборки.
  */
 readonly class SaveVideoAction

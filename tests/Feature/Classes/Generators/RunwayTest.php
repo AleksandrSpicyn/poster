@@ -20,7 +20,7 @@ beforeEach(/** @throws Exception */ function (): void {
 test('Runway возвращает результат только завершённого задания', /** @throws Exception */ function (string $status, ?string $expected): void {
     Http::fake(['*tasks/video-1' => Http::response(['id' => 'video-1', 'status' => $status, 'output' => ['https://cdn.example.com/video.mp4']])]);
 
-    expect(app(Runway::class)->check('video-1'))->toBe($expected);
+    expect(app(Runway::class)->check('video-1')?->videoUrl)->toBe($expected);
 
     Http::assertSentCount(1);
 })->with(['ожидание' => ['PENDING', null], 'готово' => ['SUCCEEDED', 'https://cdn.example.com/video.mp4']]);

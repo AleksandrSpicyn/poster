@@ -40,6 +40,7 @@ export interface ListFilters {
     perPage: number;
     page: number;
     type?: string;
+    search?: string;
 }
 
 export interface ListPageProps extends SharedData {

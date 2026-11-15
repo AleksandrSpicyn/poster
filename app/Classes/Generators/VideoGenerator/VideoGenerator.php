@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 namespace App\Classes\Generators\VideoGenerator;
 
-use App\Classes\Generators\VideoGenerator\Hailuo\Hailuo;
-use Illuminate\Container\Attributes\Bind;
+use App\Data\VideoResultData;
+use App\Enums\VideoAudioSource;
+use App\Exceptions\VideoGenerationPendingException;
+use App\Exceptions\VideoGenerationUncertainException;
 
 /**
- * Граница асинхронного видео: generate возвращает task ID, check — готовый URL
- * или null, пока результат не готов; Bind выбирает основной адаптер Hailuo.
+ * Драйвер нормализует результат, возможности и ошибки своего внешнего API.
+ * Общий конвейер не зависит от протокола конкретного провайдера.
  */
-#[Bind(Hailuo::class)]
 interface VideoGenerator
 {
+    /** @throws VideoGenerationUncertainException Если повторный запуск может создать дубликат. */
     public function generate(string $imageUrl, string $prompt): string;
 
-    public function check(string $id): ?string;
+    /** @throws VideoGenerationPendingException При временной ошибке опроса. */
+    public function check(string $id): ?VideoResultData;
+
+    public function audioSource(): VideoAudioSource;
+
+    public function pollingAttempts(): int;
 }

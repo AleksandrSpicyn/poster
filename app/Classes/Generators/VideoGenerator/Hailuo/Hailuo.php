@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Classes\Generators\VideoGenerator\Hailuo;
 
-use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
+use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoResultData;
 use App\Enums\ContentType;
 use App\Enums\HttpMethod;
+use App\Enums\VideoAudioSource;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
 use App\Support\Integrations\Payload;
@@ -22,7 +24,7 @@ use RuntimeException;
  * Адаптер Hailuo: создаёт задачу, при polling получает file ID и разрешает его
  * в URL загрузки; отсутствие file ID означает, что результат ещё не готов.
  */
-readonly class Hailuo implements AlternativeVideoGenerator
+readonly class Hailuo implements VideoGenerator
 {
     public function __construct(
         #[Config('services.hailuo.api_url')] private string $baseUrl,
@@ -52,7 +54,7 @@ readonly class Hailuo implements AlternativeVideoGenerator
      * @throws VideoGeneratingException
      * @throws ConnectionException
      */
-    public function check(string $id): ?string
+    public function check(string $id): ?VideoResultData
     {
         $fileId = $this
             ->request("query/video_generation/?task_id=$id", HttpMethod::GET)
@@ -72,7 +74,17 @@ readonly class Hailuo implements AlternativeVideoGenerator
             throw new VideoGeneratingException();
         }
 
-        return $url;
+        return new VideoResultData($url);
+    }
+
+    public function audioSource(): VideoAudioSource
+    {
+        return VideoAudioSource::SEPARATE;
+    }
+
+    public function pollingAttempts(): int
+    {
+        return 10;
     }
 
     /**

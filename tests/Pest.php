@@ -10,7 +10,9 @@ use Tests\TestCase;
 use function Pest\Laravel\withoutVite;
 
 require_once __DIR__ . '/Support/Console.php';
+require_once __DIR__ . '/Support/Codex.php';
 require_once __DIR__ . '/Support/Google.php';
+require_once __DIR__ . '/Support/Projects.php';
 
 pest()
     ->extend(TestCase::class)

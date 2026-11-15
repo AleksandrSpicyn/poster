@@ -13,14 +13,12 @@ class CreateImagePrompt
         'photo-realistic',
         'natural lighting',
         'sharp focus',
-        '8k resolution',
         'realistic shadows',
         'depth of field',
-        'ultra detailed',
+        'lifelike surface textures',
         'cinematic lighting',
         'highly aesthetic',
-        'vibrant colors',
-        'fantasy',
+        'restrained natural colors',
         'vertical composition',
         '9:16 aspect ratio',
     ];
@@ -29,6 +27,16 @@ class CreateImagePrompt
     {
         $style = implode(', ', self::DALLE_STYLE_TAGS);
 
-        return "Idea: $idea, Styles: $style";
+        return <<<TEXT
+Idea: $idea, Styles: $style
+
+Purpose and scene: Create a single photographic opening frame for a vertical short video, just before the main action begins. Show the setup, not the completed payoff. One coherent photographic scene, one main subject, and only the object needed for the interaction. The surprising relationship between subject and setting is immediately readable at phone size.
+
+Composition: Use an eye-level medium-wide composition with clear subject separation. Keep the face and interaction in the central area, comfortably away from the top, bottom, and right edges used by social app controls. Leave room for the intended movement; keep essential anatomy and the interacting object fully inside the frame.
+
+Lighting and materials: Use a single motivated light source, believable contact shadows, and natural surface detail. Keep texture visible in highlights and shadows; avoid a plastic, oversharpened appearance.
+
+Constraints: Preserve coherent anatomy and believable scale. The location is recognizable through a few specific environmental cues rather than clutter. A clean photographic frame without lettering, captions, logos, borders, or watermarks.
+TEXT;
     }
 }

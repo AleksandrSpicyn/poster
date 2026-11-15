@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PromptStage;
+use App\Enums\VideoProvider;
 use Database\Factories\PromptFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +29,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property string|null $audio_url
  * @property string|null $video_id
  * @property string|null $video_url
+ * @property VideoProvider|null $video_provider
  * @property bool $generated
  * @property int $project_id
  * @property Carbon|null $created_at
@@ -45,7 +47,7 @@ class Prompt extends Model implements HasMedia
 
     use InteractsWithMedia;
 
-    protected $casts = ['generated' => 'boolean'];
+    protected $casts = ['generated' => 'boolean', 'video_provider' => VideoProvider::class];
 
     protected $fillable = [
         'prompt',
@@ -54,6 +56,7 @@ class Prompt extends Model implements HasMedia
         'audio_url',
         'video_id',
         'video_url',
+        'video_provider',
         'generated',
     ];
 

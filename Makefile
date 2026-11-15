@@ -3,11 +3,13 @@ EXEC = docker compose exec -T --user appuser app
 PHP = $(EXEC) php
 ARTISAN = $(PHP) artisan
 GRAPHIFY ?= graphify
+CODEX = $(EXEC) env CODEX_HOME=/var/www/storage/app/private/codex /usr/local/bin/codex -c 'cli_auth_credentials_store="file"'
 
-.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper graph graph-update graph-html
+.PHONY: help build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper graph graph-update graph-html codex-login codex-status
 help:
 	@echo 'build up down status init migrate npm-build npm-dev test pint pint-fix stan rector rector-dry docs quality pipe boost ide-helper'
 	@echo 'graph graph-update graph-html (Graphify CLI on host)'
+	@echo 'codex-login codex-status (ChatGPT subscription, separate login for this installation)'
 build:
 	docker compose build
 up:
@@ -28,7 +30,7 @@ npm-build:
 npm-dev:
 	$(EXEC) npm run dev -- --host 0.0.0.0 --port 5178
 test:
-	$(PHP) vendor/bin/pest --compact
+	$(PHP) -d memory_limit=512M vendor/bin/pest --compact
 pint:
 	$(PHP) vendor/bin/pint --test
 pint-fix:
@@ -50,5 +52,10 @@ graph graph-update:
 	$(GRAPHIFY) cluster-only . --no-label
 graph-html:
 	$(GRAPHIFY) export html
+codex-login:
+	$(EXEC) install -d -m 700 /var/www/storage/app/private/codex
+	$(CODEX) login --device-auth
+codex-status:
+	$(CODEX) login status
 quality: pint rector-dry stan
 pipe: quality test docs npm-build

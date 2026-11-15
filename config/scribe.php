@@ -37,7 +37,7 @@ return [
         [
             'match' => [
                 // Match only routes whose paths match this pattern (use * as a wildcard to match any characters). Example: 'users/*'.
-                'prefixes' => ['api/*', '/', 'dashboard', 'posts', 'prompts', 'register', 'login', 'forgot-password', 'reset-password*', 'verify-email*', 'email/verification-notification', 'confirm-password', 'logout', 'settings/profile', 'settings/password'],
+                'prefixes' => ['api/*', '/', 'dashboard', 'posts', 'prompts', 'projects*', 'register', 'login', 'forgot-password', 'reset-password*', 'verify-email*', 'email/verification-notification', 'confirm-password', 'logout', 'settings/profile', 'settings/password'],
 
                 // Match only routes whose domains match this pattern (use * as a wildcard to match any characters). Example: 'api.*'.
                 'domains' => ['*'],

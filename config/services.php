@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Classes\Generators\VideoGenerator\Hailuo\Hailuo;
+use App\Classes\Generators\VideoGenerator\Runway\Runway;
+use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
+use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
+use App\Classes\Generators\VideoGenerator\Seedance\Seedance;
+use App\Enums\VideoProvider;
+
 return [
 
     /*
@@ -35,6 +42,29 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'video' => [
+        'provider' => env('VIDEO_GENERATOR', VideoProvider::HAILUO->value),
+        'fallback_provider' => env('VIDEO_FALLBACK_GENERATOR', VideoProvider::RUNWAY->value),
+        'drivers' => [
+            VideoProvider::HAILUO->value => Hailuo::class,
+            VideoProvider::RUNWAY->value => Runway::class,
+            VideoProvider::SEEDANCE->value => Seedance::class,
+        ],
+    ],
+
+    'seedance' => [
+        'api_key' => env('SEEDANCE_API_KEY', ''),
+        'api_url' => env('SEEDANCE_API_URL', 'https://ark.ap-southeast.bytepluses.com/api/v3'),
+        'model' => env('SEEDANCE_MODEL', Model::V2_5_FLASH->value),
+        'resolution' => env('SEEDANCE_RESOLUTION', Resolution::HD->value),
+    ],
+
+    'codex' => [
+        'binary' => env('CODEX_BINARY', '/usr/local/bin/codex'),
+        'home' => env('CODEX_HOME', storage_path('app/private/codex')),
+        'timeout' => (int) env('CODEX_TIMEOUT', 300),
     ],
 
     'runway' => [

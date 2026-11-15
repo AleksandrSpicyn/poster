@@ -41,10 +41,11 @@ readonly class MakeShortAction
         event(new ImageGenerated($imageUrl));
 
         $video = $this->createVideo->run($imageUrl, $prompt->prompt);
-        $this->updatePrompt->run($prompt, ['video_id' => $video->id]);
-        event(new VideoGenerating($prompt, $video->alternative));
+        $this->updatePrompt->run($prompt, ['video_id' => $video->id, 'video_provider' => $video->provider->value]);
+        event(new VideoGenerating($prompt));
 
-        $this->updatePrompt->run($prompt, ['audio_id' => $this->createAudio->run($prompt->prompt)]);
-        event(new AudioGenerating($prompt));
+        $audioId = $this->createAudio->run($prompt->prompt, $video->audioSource);
+        $this->updatePrompt->run($prompt, ['audio_id' => $audioId]);
+        AudioGenerating::dispatchIf($audioId !== null, $prompt);
     }
 }

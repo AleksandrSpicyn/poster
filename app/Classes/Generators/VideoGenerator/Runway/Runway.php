@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Classes\Generators\VideoGenerator\Runway;
 
-use App\Classes\Generators\VideoGenerator\AlternativeVideoGenerator;
 use App\Classes\Generators\VideoGenerator\Runway\Data\CreationData;
 use App\Classes\Generators\VideoGenerator\Runway\Enums\GenerationStatus;
+use App\Classes\Generators\VideoGenerator\VideoGenerator;
+use App\Data\VideoResultData;
 use App\Enums\ContentType;
 use App\Enums\HttpMethod;
+use App\Enums\VideoAudioSource;
 use App\Exceptions\VideoGeneratingException;
 use App\Settings\GeneralSettings;
 use App\Support\Integrations\Payload;
@@ -24,7 +26,7 @@ use RuntimeException;
  * Резервный адаптер Runway: переводит статусы задачи в URL, ожидание (null)
  * или VideoGeneratingException, с которой polling job завершается ошибкой.
  */
-readonly class Runway implements AlternativeVideoGenerator
+readonly class Runway implements VideoGenerator
 {
     public function __construct(
         #[Config('services.runway.api_url')] private string $baseUrl,
@@ -55,7 +57,7 @@ readonly class Runway implements AlternativeVideoGenerator
      * @throws ConnectionException
      * @throws VideoGeneratingException
      */
-    public function check(string $id): ?string
+    public function check(string $id): ?VideoResultData
     {
         $response = $this->request("tasks/$id", HttpMethod::GET);
 
@@ -71,8 +73,18 @@ readonly class Runway implements AlternativeVideoGenerator
         }
 
         return $dto->status === GenerationStatus::SUCCEEDED->value
-            ? ($dto->output[0] ?? throw new VideoGeneratingException('Completed video has no output.'))
+            ? new VideoResultData($dto->output[0] ?? throw new VideoGeneratingException('Completed video has no output.'))
             : null;
+    }
+
+    public function audioSource(): VideoAudioSource
+    {
+        return VideoAudioSource::SEPARATE;
+    }
+
+    public function pollingAttempts(): int
+    {
+        return 10;
     }
 
     /**

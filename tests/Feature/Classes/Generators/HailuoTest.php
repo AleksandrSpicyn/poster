@@ -24,7 +24,7 @@ test('Hailuo возвращает только готовое видео', /** @
         '*files/retrieve*' => Http::response(['file' => ['download_url' => 'https://cdn.example.com/video.mp4']]),
     ]);
 
-    expect(app(Hailuo::class)->check('video-1'))->toBe($expected);
+    expect(app(Hailuo::class)->check('video-1')?->videoUrl)->toBe($expected);
     Http::assertSent(fn(Request $request): bool => str_contains($request->url(), 'task_id=video-1'));
 })->with([[[], null], [['file_id' => 'file-1'], 'https://cdn.example.com/video.mp4']]);
 

@@ -32,8 +32,12 @@ readonly class CreateBasePrompt
 Here are the previously used prompts:
 $history
 
-Generate **one new** “What if...” visual query in the style of Midjourney Shorts.
-Just the result, no explanation.
+Create one original visual micro-story consistent with the project topic above, designed for a single short vertical image-to-video shot.
+Start with "What if..." and name the subject and specific setting. Use 2 compact English sentences, at most 60 words total.
+The opening must show an immediately readable, surprising contrast. Describe one simple physical action and its visible, playful consequence; both must be achievable in a few seconds in the same location. Put the action and payoff in the second sentence as direct present-tense visual descriptions.
+Use one main subject and at most one interacting object. Make the humor understandable with sound off, without captions, dialogue, national stereotypes, danger, or distress. Favor curiosity, harmless surprise, or a satisfying physical interaction over a passive scenic portrait.
+Vary the action, setting, contrast, and payoff from the history, not just the animal or country. Avoid transformations, scene changes, elaborate choreography, and ideas that require text to explain them.
+Before answering, silently check that the first frame can establish the setup and that the action has a clear visual payoff. Return only the two sentences, with no headings, hashtags, camera directions, or quality tags.
 TEXT;
 
         return $this->promptGenerator->generate($fullPrompt);
