@@ -5,6 +5,7 @@ import type { Config } from 'ziggy-js';
 export interface Auth {
     user: User;
     can_manage_series: boolean;
+    can_manage_channels: boolean;
 }
 
 export interface BreadcrumbItem {

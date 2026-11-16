@@ -135,3 +135,22 @@ test('отзыв доступа блокирует отправку и публ�
     Event::assertNotDispatched(PostCreated::class);
     Queue::assertNotPushed(FinishEpisodePublicationJob::class);
 })->with(['отправка видео' => false, 'публикация контейнера' => true]);
+
+test('изменение общего канала блокирует уже поставленную публикацию', function (bool $disconnect): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    Queue::fake([PublishEpisodeJob::class]);
+    $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->sole();
+
+    if ($disconnect) {
+        $channel->update(['credentials' => null]);
+    } else {
+        $channel->projects()->detach();
+    }
+
+    app(SubmitEpisodePublicationAction::class)->run($request);
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::FAILED);
+    expect(Post::query()->exists())->toBeFalse();
+    Http::assertNothingSent();
+})->with([true, false]);

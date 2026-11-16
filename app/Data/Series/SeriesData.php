@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Data\Series;
 
-use App\Models\Project;
-use Spatie\LaravelData\Attributes\Validation\Exists;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Attributes\Validation\Required;
@@ -23,7 +21,5 @@ class SeriesData extends Data
         public bool $automation_enabled = false,
         #[Min(1), Max(1000)]
         public ?int $episode_limit = null,
-        #[Exists(Project::class, 'id')]
-        public ?int $channel_source_project_id = null,
     ) {}
 }

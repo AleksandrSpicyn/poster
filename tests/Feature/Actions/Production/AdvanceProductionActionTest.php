@@ -255,3 +255,23 @@ test('пауза сериала останавливает следующие э
     expect($run->refresh()->status)->toBe(ProductionStatus::STOPPED);
     expect($series->episodes()->exists())->toBeFalse();
 });
+
+test('неподключённый или выключенный канал задерживает производство', function (bool $enabled, array $credentials): void {
+    Bus::fake();
+    Process::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->create();
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'is_active' => $enabled, 'credentials' => $credentials]);
+    $run = ProductionRun::factory()->for($project)->create(['actor_id' => $actor->id]);
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::WAITING);
+    expect($project->prompts()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Process::assertNothingRan();
+    Http::assertNothingSent();
+})->with([
+    'выключен' => [false, ['access_token' => 'test']],
+    'без токена' => [true, ['channel_id' => 'account-only']],
+]);

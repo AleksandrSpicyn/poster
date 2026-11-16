@@ -14,6 +14,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class ChannelFactory extends Factory
 {
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Channel $channel): void {
+            if ($channel->project_id !== null) {
+                $channel->projects()->syncWithoutDetaching([$channel->project_id]);
+            }
+        });
+    }
+
     public function definition(): array
     {
         return [

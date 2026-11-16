@@ -135,8 +135,7 @@ test('проверяет scope канала до обращения к пров�
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
     $request->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN]);
 
-    $channel->project_id = Project::factory()->create()->id;
-    $channel->save();
+    $channel->projects()->sync([Project::factory()->create()->id]);
     Http::fake();
 
     expect(fn() => app(ResolveEpisodePublicationAction::class)->run($request, $user, '123'))

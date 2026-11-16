@@ -29,7 +29,7 @@ readonly class VideoBuiltListener
 
         Log::info("VideoBuilt: {$event->getPrompt()->getFirstMediaUrl()}");
 
-        $project->channels->each(function (Channel $channel) use ($prompt): void {
+        $project->channels->filter(fn(Channel $channel): bool => $channel->is_active && filled($channel->credentials['access_token'] ?? null))->each(function (Channel $channel) use ($prompt): void {
             $this->publishers->make($channel, $prompt)->publish();
         });
     }

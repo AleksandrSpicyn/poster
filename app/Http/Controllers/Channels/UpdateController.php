@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Channels;
+
+use App\Actions\Channels\SaveChannelAction;
+use App\Data\Channels\ChannelData;
+use App\Models\Channel;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class UpdateController
+{
+    /**
+     * Изменение канала
+     *
+     * Доступно владельцу и операторам с подтверждённым email (manageChannels).
+     * Секреты и токены никогда не возвращаются в props; публикация не запускается.
+     *
+     * @group Кабинет
+     * @subgroup Каналы
+     * @authenticated
+     * @urlParam channel integer required ID канала. Example: 1
+     * @header X-XSRF-TOKEN {CSRF_TOKEN}
+     * @bodyParam name string required Название до 255 символов. Example: Wildlife
+     * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,tiktok,vk Example: youtube
+     * @bodyParam client_id string OAuth client ID, до 255 символов. Example: app-client
+     * @bodyParam client_secret string OAuth client secret, до 2048 символов. Пустое значение сохраняет прежний секрет. No-example
+     * @bodyParam is_active boolean Разрешить публикацию; отсутствие сохраняет текущий флаг. Example: true
+     * @response 302
+     * @response 401 {"message":"Unauthenticated."}
+     * @response 403 {"message":"This action is unauthorized."}
+     * @response 404
+     * @response 422 {"message":"The given data was invalid.","errors":{}}
+     */
+    public function __invoke(Channel $channel, ChannelData $data, SaveChannelAction $action): RedirectResponse
+    {
+        $action->run($data, $channel);
+        Inertia::flash('success', 'Channel settings saved.');
+
+        return to_route('channels.edit', $channel);
+    }
+}

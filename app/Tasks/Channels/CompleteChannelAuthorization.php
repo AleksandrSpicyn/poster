@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tasks\Channels;
+
+use App\Classes\Channels\ChannelOAuth;
+use App\Data\Channels\OAuthCallbackData;
+use App\Models\Channel;
+use App\Models\User;
+use App\Repositories\ChannelRepository;
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
+
+readonly class CompleteChannelAuthorization
+{
+    public function __construct(private ChannelOAuth $oauth, private ChannelRepository $channels, private Session $session) {}
+
+    public function run(Channel $channel, User $actor, OAuthCallbackData $data): void
+    {
+        $pending = $this->session->pull('channel_oauth.' . hash('sha256', $data->state));
+        $channel = $this->channels->findOrFail($channel->id);
+
+        if (! is_array($pending) || ($pending['channel_id'] ?? null) !== $channel->id || ($pending['user_id'] ?? null) !== $actor->id
+            || ! is_int($pending['expires_at'] ?? null) || $pending['expires_at'] < now()->timestamp
+            || ($pending['fingerprint'] ?? null) !== $this->oauth->fingerprint($channel)
+            || $data->error !== null || $data->code === null) {
+            throw new RuntimeException('Invalid or cancelled authorization.');
+        }
+
+        $fingerprint = $this->oauth->fingerprint($channel);
+        $credentials = $this->oauth->exchange($channel, $data->code);
+        DB::transaction(function () use ($channel, $fingerprint, $credentials): void {
+            $current = $this->channels->findLockedOrFail($channel->id);
+
+            if ($fingerprint !== $this->oauth->fingerprint($current)) {
+                throw new RuntimeException('Application settings changed during authorization.');
+            }
+
+            $this->channels->update($current, ['credentials' => $credentials]);
+        });
+    }
+}

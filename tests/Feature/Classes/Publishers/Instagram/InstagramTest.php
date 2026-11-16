@@ -7,6 +7,7 @@ use App\Enums\ChannelType;
 use App\Events\PostCreated;
 use App\Jobs\PublishInstagramJob;
 use App\Models\Channel;
+use App\Models\Project;
 use App\Models\Prompt;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\Request;
@@ -36,7 +37,7 @@ function instagramModels(): array
         'type' => ChannelType::INSTAGRAM,
         'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1'],
     ]);
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
 
     return [$channel, $prompt];
 }
@@ -108,3 +109,23 @@ test('отказ публикации контейнера не создаёт �
 
     Event::assertNotDispatched(PostCreated::class);
 });
+
+test('общий канал проверяет фактический проект и текущее подключение', function (string $change): void {
+    [$channel, $prompt] = instagramModels();
+    $channel->projects()->attach(Project::factory()->create());
+    $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
+    Http::fake();
+
+    match ($change) {
+        'project' => $prompt->project()->update(['is_active' => false]),
+        'detach' => $channel->projects()->detach($prompt->project_id),
+        'channel' => $channel->update(['is_active' => false]),
+        'disconnect' => $channel->update(['credentials' => null]),
+        default => throw new InvalidArgumentException('Unknown fixture change.'),
+    };
+
+    expect(fn() => $publisher->publishContainer('pending'))->toThrow(RuntimeException::class);
+
+    assertDatabaseCount('posts', 0);
+    Http::assertNothingSent();
+})->with(['project', 'detach', 'channel', 'disconnect']);

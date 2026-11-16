@@ -136,7 +136,7 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
             throw new RuntimeException('YouTube token refresh failed.');
         }
 
-        $this->saveCredentials->run($this->channel, $token);
+        $this->saveCredentials->run($this->channel, $token, preserveMetadata: true);
     }
 
     private function setStatus(Video $video): void

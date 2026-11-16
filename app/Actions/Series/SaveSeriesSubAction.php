@@ -11,7 +11,6 @@ use App\Models\Series;
 use App\Models\User;
 use App\Tasks\Production\CreateProductionRun;
 use App\Tasks\Production\StopProductionRun;
-use App\Tasks\Projects\CopyPublishingChannels;
 use App\Tasks\Series\SaveSeries;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,7 +19,6 @@ readonly class SaveSeriesSubAction
 {
     public function __construct(
         private SaveSeries $saveSeries,
-        private CopyPublishingChannels $copyChannels,
         private CreateProductionRun $createRun,
         private StopProductionRun $stopRun,
     ) {}
@@ -33,10 +31,6 @@ readonly class SaveSeriesSubAction
 
             if (! $series->automation_enabled && $series->activeProductionRun !== null) {
                 $this->stopRun->run($series->activeProductionRun, 'Series automation is paused.');
-            }
-
-            if ($data->channel_source_project_id !== null) {
-                $this->copyChannels->run($project, $data->channel_source_project_id);
             }
 
             if ($series->automation_enabled && $actor instanceof User) {

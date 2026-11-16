@@ -29,6 +29,11 @@ readonly class OperationsPolicy
         return $user->hasVerifiedEmail() && in_array($user->email, $this->queueOperators, true);
     }
 
+    public function manageChannels(User $user): bool
+    {
+        return $this->manageSeries($user);
+    }
+
     public function manageSeries(User $user): bool
     {
         return $user->hasVerifiedEmail()

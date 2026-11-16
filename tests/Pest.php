@@ -13,6 +13,7 @@ require_once __DIR__ . '/Support/Console.php';
 require_once __DIR__ . '/Support/Codex.php';
 require_once __DIR__ . '/Support/Google.php';
 require_once __DIR__ . '/Support/Projects.php';
+require_once __DIR__ . '/Support/Channels.php';
 require_once __DIR__ . '/Support/SeriesOperators.php';
 require_once __DIR__ . '/Support/Series.php';
 require_once __DIR__ . '/Support/EpisodeHttp.php';

@@ -7,13 +7,11 @@ import type { SeriesSpecification } from '@/types/series';
 const specification = defineModel<SeriesSpecification & { story_outline: string }>('specification', { required: true });
 const automationEnabled = defineModel<boolean>('automationEnabled', { required: true });
 const episodeLimit = defineModel<number | string>('episodeLimit', { required: true });
-const channelSourceProjectId = defineModel<number | null>('channelSourceProjectId', { required: true });
 defineProps<{
     processing: boolean;
     errors: Record<string, string | undefined>;
     audiences: Record<string, string>;
     audioModes: Record<string, string>;
-    channelSources: { id: number; name: string }[];
 }>();
 </script>
 
@@ -128,22 +126,6 @@ defineProps<{
                 />
                 <p class="text-muted-foreground text-xs">Leave empty for an ongoing series. Production stops after the last planned episode.</p>
                 <InputError :message="errors.episode_limit" />
-            </div>
-            <div v-if="channelSources.length" class="grid gap-2">
-                <Label for="series-channels">Publishing channels</Label>
-                <select
-                    id="series-channels"
-                    v-model="channelSourceProjectId"
-                    :disabled="processing"
-                    class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
-                >
-                    <option :value="null">Keep this project's channels</option>
-                    <option v-for="source in channelSources" :key="source.id" :value="source.id">Use channels from {{ source.name }}</option>
-                </select>
-                <p class="text-muted-foreground text-xs">
-                    Reuse authorised YouTube and Instagram connections. Existing project channels stay connected.
-                </p>
-                <InputError :message="errors.channel_source_project_id" />
             </div>
         </fieldset>
     </div>

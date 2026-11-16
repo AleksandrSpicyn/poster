@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Channel;
 use App\Models\Project;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,4 +57,13 @@ test('неподтверждённый пользователь не откры�
     actingAs(User::factory()->unverified()->create())
         ->get(route('projects.edit', $project))
         ->assertRedirect(route('verification.notice'));
+});
+
+test('оператор получает все каналы и точный выбранный набор', function (): void {
+    $project = Project::factory()->create();
+    $attached = Channel::factory()->for($project)->create(['name' => 'Attached']);
+    Channel::factory()->create(['name' => 'Available']);
+
+    actingAs(serialOperator())->get(route('projects.edit', $project))->assertInertia(fn(Assert $page): Assert => $page
+        ->has('channels', 2)->where('selectedChannelIds', [$attached->id])->missing('channels.0.credentials')->missing('channels.0.client_secret'));
 });

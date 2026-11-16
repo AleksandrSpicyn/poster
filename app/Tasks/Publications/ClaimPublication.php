@@ -10,6 +10,7 @@ use App\Enums\PublicationStatus;
 use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
 use App\Models\User;
+use App\Repositories\ChannelRepository;
 use App\Repositories\EpisodeRepository;
 use App\Repositories\PublicationRequestRepository;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Gate;
 
 class ClaimPublication
 {
-    public function __construct(private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes) {}
+    public function __construct(private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes, private readonly ChannelRepository $channels) {}
 
     public function run(PublicationRequest $request, bool $container = false): bool
     {
@@ -39,6 +40,12 @@ class ClaimPublication
 
             if (! $project->is_active) {
                 $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => 'The project is disabled.']);
+
+                return false;
+            }
+
+            if (! $this->channels->readyForProject($request->channel_id, $project->id)) {
+                $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => 'The publishing channel is disabled, disconnected or no longer attached to this project.']);
 
                 return false;
             }

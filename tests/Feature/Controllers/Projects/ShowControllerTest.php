@@ -54,13 +54,15 @@ test('страница показывает только историю прое
     $project = Project::factory()->create();
     $older = Prompt::factory()->for($project)->create(['created_at' => now()->subDay()]);
     $latest = Prompt::factory()->for($project)->create(['generated' => true]);
-    Prompt::factory()->create(['prompt' => 'Foreign generation']);
+    $foreign = Prompt::factory()->create(['prompt' => 'Foreign generation']);
     $channel = Channel::factory()->for($project)->create([
         'type' => ChannelType::YOUTUBE,
         'client_secret' => 'private-channel-secret',
         'credentials' => ['access_token' => 'private-access-token'],
     ]);
-    Post::factory()->for($channel)->create();
+    Post::factory()->for($channel)->for($latest)->create();
+    Post::factory()->for($channel)->for($foreign)->create();
+    $channel->projects()->attach($foreign->project_id);
 
     actingAs(User::factory()->create())
         ->get(route('projects.show', ['project' => $project->id, 'perPage' => 1]))

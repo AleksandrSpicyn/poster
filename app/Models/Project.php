@@ -9,6 +9,7 @@ use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -74,10 +75,10 @@ class Project extends Model
         return $this->prompts()->where('generated', true);
     }
 
-    /** @return HasMany<Channel, $this> */
-    public function channels(): HasMany
+    /** @return BelongsToMany<Channel, $this> */
+    public function channels(): BelongsToMany
     {
-        return $this->hasMany(Channel::class);
+        return $this->belongsToMany(Channel::class);
     }
 
     /** @return HasMany<Series, $this> */

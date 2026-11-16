@@ -26,7 +26,7 @@ class ProjectSeeder extends Seeder
             ['prompt' => $this->prompt()],
         );
 
-        Channel::query()->firstOrCreate(
+        $channel = Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::YOUTUBE,
@@ -37,8 +37,9 @@ class ProjectSeeder extends Seeder
                 'client_secret' => $youtubeClientSecret,
             ],
         );
+        $project->channels()->syncWithoutDetaching([$channel->id]);
 
-        Channel::query()->firstOrCreate(
+        $channel = Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::INSTAGRAM,
@@ -53,8 +54,9 @@ class ProjectSeeder extends Seeder
                 ],
             ],
         );
+        $project->channels()->syncWithoutDetaching([$channel->id]);
 
-        Channel::query()->firstOrCreate(
+        $channel = Channel::query()->firstOrCreate(
             [
                 'project_id' => $project->id,
                 'type' => ChannelType::TIKTOK,
@@ -65,6 +67,7 @@ class ProjectSeeder extends Seeder
                 'client_secret' => $tiktokClientSecret,
             ],
         );
+        $project->channels()->syncWithoutDetaching([$channel->id]);
     }
 
     private function prompt(): string

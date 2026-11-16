@@ -52,7 +52,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function assertProjectActive(): void
     {
-        if (! $this->projectActive->run($this->channel)) {
+        if (! $this->projectActive->run($this->channel, $this->prompt)) {
             throw new RuntimeException('The project is disabled.');
         }
     }

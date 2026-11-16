@@ -20,6 +20,7 @@ test('выключенный проект не отправляет видео �
     $prompt = Prompt::factory()->create();
     $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
     $channel->project?->update(['is_active' => false]);
+    $channel->projects()->syncWithoutDetaching([$prompt->project_id]);
     $handler = fakeGoogleClient(new Response(200));
 
     expect(app(PublisherFactory::class)->make($channel, $prompt)->publish())->toBeFalse();
@@ -43,6 +44,7 @@ test('YouTube загружает файл и сохраняет публикац
     $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
         'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
     ]]);
+    $channel->projects()->syncWithoutDetaching([$prompt->project_id]);
     $handler = fakeGoogleClient(
         new Response(200, ['location' => 'https://upload.example.com/session']),
         new Response(200, ['content-type' => 'application/json'], '{"id":"uploaded-video"}'),
@@ -66,6 +68,7 @@ test('YouTube не создаёт публикацию без медиафайл
     $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
         'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
     ]]);
+    $channel->projects()->syncWithoutDetaching([$prompt->project_id]);
     $handler = fakeGoogleClient(new Response(200));
 
     expect(app(PublisherFactory::class)

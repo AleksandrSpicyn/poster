@@ -19,7 +19,7 @@ test('публикация создаёт receipt для выбранного к
     $series = $context['episode']->series()->firstOrFail();
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->create(['status' => AssemblyStatus::ACCEPTED]);
     $context['episode']->update(['accepted_assembly_id' => $assembly->id]);
-    $channel = Channel::factory()->create(['project_id' => $series->project_id, 'type' => ChannelType::YOUTUBE]);
+    $channel = Channel::factory()->create(['project_id' => $series->project_id, 'type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test-token']]);
     Bus::fake();
 
     actingAs($context['user'])

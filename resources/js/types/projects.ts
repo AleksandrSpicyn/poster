@@ -1,4 +1,5 @@
 import type { ChannelType, SharedData } from '@/types';
+import type { ManagedChannel } from '@/types/channels';
 import type { PaginatedResource, PromptSummary } from '@/types/content';
 import type { ProductionRun } from '@/types/production';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
@@ -43,11 +44,12 @@ export interface ProjectPageProps extends SharedData {
     episodes: EpisodeSummary[];
 }
 
-export interface ProjectFormProps {
+export interface ProjectFormProps extends SharedData {
     project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active'> | null;
     contentModes: Record<string, string>;
     series: SeriesSummary | null;
-    channelSources: { id: number; name: string }[];
+    channels: ManagedChannel[];
+    selectedChannelIds: number[];
     audiences: Record<string, string>;
     audioModes: Record<string, string>;
     defaultAudioMode: string;

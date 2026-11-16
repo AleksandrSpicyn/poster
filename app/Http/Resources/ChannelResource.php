@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+use App\Models\Channel;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/** @mixin Channel */
+class ChannelResource extends JsonResource
+{
+    /** @return array<string, mixed> */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id, 'name' => $this->name, 'type' => $this->type->value,
+            'type_label' => $this->type->label(), 'is_active' => $this->is_active,
+            'connected' => filled($this->credentials['access_token'] ?? null),
+            'account_name' => is_string($this->credentials['account_name'] ?? null) ? $this->credentials['account_name'] : null,
+            'expires_at' => is_string($this->credentials['expires_at'] ?? null) ? $this->credentials['expires_at'] : null,
+            'client_id' => $this->client_id, 'has_client_secret' => filled($this->client_secret),
+            'can_delete' => $this->relationLoaded('projects') && $this->projects->isEmpty() && $this->posts_count === 0 && $this->publication_requests_count === 0,
+            'posts_count' => $this->whenCounted('posts'),
+            'projects' => $this->whenLoaded('projects', fn() => $this->projects->map(fn($project): array => ['id' => $project->id, 'name' => $project->name])->all()),
+        ];
+    }
+}

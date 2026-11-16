@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ChannelIcon from '@/components/ChannelIcon.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -36,7 +37,7 @@ const form = useForm({
     series_lock_version: props.series?.lock_version ?? null,
     automation_enabled: props.series?.automation_enabled ?? true,
     episode_limit: props.series?.episode_limit ?? '',
-    channel_source_project_id: null as number | null,
+    channel_ids: props.auth.can_manage_channels ? [...props.selectedChannelIds] : null,
 });
 const isSeries = computed(() => form.content_mode === 'series');
 const formErrors = computed<Record<string, string | undefined>>(() => form.errors);
@@ -185,13 +186,61 @@ function submit() {
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
                         v-model:episode-limit="form.episode_limit"
-                        v-model:channel-source-project-id="form.channel_source_project_id"
                         :processing="form.processing"
                         :errors="formErrors"
                         :audiences="audiences"
                         :audio-modes="audioModes"
-                        :channel-sources="channelSources"
                     />
+                    <fieldset v-if="auth.can_manage_channels" class="space-y-3 rounded-lg border p-4 sm:p-5">
+                        <legend class="px-2 text-sm font-semibold">Publishing channels</legend>
+                        <p class="text-muted-foreground text-sm">Select where this project publishes. A channel can be shared by several projects.</p>
+                        <div v-if="channels.length" class="grid gap-2">
+                            <label
+                                v-for="channel in channels"
+                                :key="channel.id"
+                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3"
+                            >
+                                <input
+                                    v-model="form.channel_ids"
+                                    type="checkbox"
+                                    :value="channel.id"
+                                    :disabled="form.processing"
+                                    class="accent-primary size-4 shrink-0"
+                                />
+                                <ChannelIcon :channel="channel.type" />
+                                <span class="min-w-0 flex-1 text-sm"
+                                    ><span class="block font-medium break-words">{{ channel.name }}</span
+                                    ><span class="text-muted-foreground block text-xs"
+                                        >{{ channel.type_label }} ·
+                                        {{
+                                            !channel.is_active
+                                                ? 'Disabled'
+                                                : channel.connected
+                                                  ? (channel.account_name ?? 'Connected')
+                                                  : 'Connection needed'
+                                        }}</span
+                                    ></span
+                                >
+                            </label>
+                        </div>
+                        <p v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                            No channels yet. Create a connection, then select it here.
+                        </p>
+                        <InputError :message="form.errors.channel_ids" />
+                        <InputError
+                            v-for="(error, key) in formErrors"
+                            :key="key"
+                            :message="String(key).startsWith('channel_ids.') ? error : undefined"
+                        />
+                        <Link
+                            :href="route('channels.index')"
+                            class="text-primary inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+                            >Manage channels</Link
+                        >
+                        <p class="text-muted-foreground text-xs">
+                            Disabled or disconnected channels remain selected but cannot publish until they are ready.
+                        </p>
+                    </fieldset>
                     <div class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
                         <Button as-child variant="outline" class="h-11"><Link :href="cancelUrl">Cancel</Link></Button>
                         <Button type="submit" class="h-11" :disabled="form.processing"

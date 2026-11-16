@@ -44,7 +44,7 @@ test('проект сериала сохраняет настройки и на�
     $source = Project::factory()->create();
     $channel = Channel::factory()->for($source)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'private-token']]);
 
-    actingAs($actor)->post(route('projects.store'), [...seriesProjectPayload(), 'channel_source_project_id' => $source->id])
+    actingAs($actor)->post(route('projects.store'), [...seriesProjectPayload(), 'channel_ids' => [$channel->id]])
         ->assertRedirect();
 
     $project = Project::query()->whereKeyNot($source->id)->sole();
@@ -55,7 +55,8 @@ test('проект сериала сохраняет настройки и на�
     expect($series->specification['story_outline'])->toBe('Five small adventures with a clear ending in the last episode.');
     expect($series->automation_user_id)->toBe($actor->id);
     expect($series->episodes()->exists())->toBeFalse();
-    expect($project->channels()->sole()->credentials)->toBe($channel->credentials);
+    expect($project->channels()->sole()->id)->toBe($channel->id);
+    expect($channel->refresh()->projects()->count())->toBe(2);
     expect($channel->refresh()->project_id)->toBe($source->id);
     expect($series->productionRuns()->sole()->actor_id)->toBe($actor->id);
     Bus::assertDispatchedTimes(AdvanceProductionJob::class, 1);

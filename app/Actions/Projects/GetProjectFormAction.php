@@ -6,19 +6,23 @@ namespace App\Actions\Projects;
 
 use App\Data\Projects\ProjectFormData;
 use App\Models\Project;
+use App\Tasks\Channels\GetChannels;
 use App\Tasks\Projects\GetProjectSettings;
-use App\Tasks\Series\GetChannelSources;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
 
 readonly class GetProjectFormAction
 {
-    public function __construct(private GetProjectSettings $getProject, private GetChannelSources $sources) {}
+    public function __construct(private GetProjectSettings $getProject, private GetChannels $channels) {}
 
     public function run(?Project $project = null): ProjectFormData
     {
+        $canManage = Gate::allows('manageChannels');
+
         return new ProjectFormData(
             project: $project instanceof Project ? $this->getProject->run($project) : null,
-            channelSources: Gate::allows('manageSeries') ? $this->sources->run($project) : [],
+            channels: $canManage ? $this->channels->selection() : new Collection(),
+            selectedChannelIds: $canManage && $project instanceof Project ? $this->channels->selectedIds($project) : [],
         );
     }
 }

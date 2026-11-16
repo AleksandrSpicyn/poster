@@ -5,7 +5,7 @@ import { useRoute } from 'ziggy-js';
 
 /** Keeps filters in sync with server props, including browser back/forward navigation. */
 export function useListFilters(
-    name: 'posts' | 'prompts' | 'projects.index' | 'projects.show',
+    name: 'posts' | 'prompts' | 'projects.index' | 'projects.show' | 'channels.index',
     serverFilters: () => ListFilters,
     routeParameters?: () => Record<string, string | number>,
 ) {

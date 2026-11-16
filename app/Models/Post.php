@@ -27,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Channel|null $channel
  * @property-read Prompt|null $prompt
+ * @property-read EpisodeAssembly|null $episodeAssembly
  */
 class Post extends Model
 {
@@ -47,6 +48,12 @@ class Post extends Model
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class);
+    }
+
+    /** @return BelongsTo<EpisodeAssembly, $this> */
+    public function episodeAssembly(): BelongsTo
+    {
+        return $this->belongsTo(EpisodeAssembly::class);
     }
 
     /** @return BelongsTo<Prompt, $this> */

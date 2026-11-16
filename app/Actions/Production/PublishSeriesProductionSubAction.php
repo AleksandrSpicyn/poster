@@ -26,7 +26,7 @@ readonly class PublishSeriesProductionSubAction
     public function run(ProductionRun $run, User $actor): void
     {
         $assembly = $run->assembly ?? throw new RuntimeException('The accepted montage is unavailable.');
-        $channels = $run->project->channels->filter(fn(Channel $channel): bool => in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true));
+        $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true));
         $ids = array_values($channels->map(fn(Channel $channel): int => $channel->id)->all());
         $requests = $this->publish->run($assembly, new PublishEpisodeData($ids), $actor, $run);
 

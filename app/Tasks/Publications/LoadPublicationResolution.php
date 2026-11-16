@@ -9,6 +9,7 @@ use App\Data\PublishVideoData;
 use App\Enums\PublicationStatus;
 use App\Models\PublicationRequest;
 use App\Models\User;
+use App\Repositories\ChannelRepository;
 use App\Repositories\PostRepository;
 use App\Repositories\PublicationRequestRepository;
 use App\Repositories\UserRepository;
@@ -20,6 +21,7 @@ class LoadPublicationResolution
 {
     public function __construct(
         private readonly UserRepository $users,
+        private readonly ChannelRepository $channels,
         private readonly PublicationRequestRepository $publications,
         private readonly PostRepository $posts,
     ) {}
@@ -40,7 +42,7 @@ class LoadPublicationResolution
         $assembly = $context->assembly;
         $series = $context->series;
 
-        if (! $this->users->isVerified($actor->id) || $channel->project_id !== $series->project_id) {
+        if (! $this->users->isVerified($actor->id) || ! $this->channels->belongsToProject($channel, $series->project_id)) {
             throw ValidationException::withMessages(['publication' => 'A verified operator and a channel from this project are required.']);
         }
 

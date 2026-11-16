@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Data\GetProjectsListData;
-use App\Data\Projects\PublishingSourceData;
-use App\Enums\ChannelType;
 use App\Enums\ProductionStatus;
 use App\Enums\SortDirection;
 use App\Models\Project;
@@ -58,8 +56,10 @@ readonly class ProjectRepository extends EloquentRepository
         ]);
         $project->setRelation('channels', $project
             ->channels()
-            ->select('id', 'project_id', 'name', 'type')
-            ->withCount('posts')
+            ->select('channels.id', 'name', 'type', 'is_active', 'credentials')
+            ->withCount(['posts' => static fn(Builder $query) => $query
+                ->where(fn(Builder $query) => $query->whereHas('prompt', fn(Builder $query) => $query->where('project_id', $project->id))
+                    ->orWhereHas('episodeAssembly.episodeRevision.episode.series', fn(Builder $query) => $query->where('project_id', $project->id)))])
             ->orderBy('name')
             ->orderBy('id')
             ->get());
@@ -70,15 +70,6 @@ readonly class ProjectRepository extends EloquentRepository
     public function forSettings(Project $project): Project
     {
         return $project->load('seriesDefinition');
-    }
-
-    /** @return list<PublishingSourceData> */
-    public function publishingSources(?Project $project = null): array
-    {
-        return array_values(Project::query()->when($project?->id, fn(Builder $query, int $projectId) => $query->whereKeyNot($projectId))
-            ->whereHas('channels', fn(Builder $query) => $query->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM])->whereNotNull('credentials'))
-            ->orderBy('name')->limit(100)->get(['id', 'name'])
-            ->map(fn(Project $source): PublishingSourceData => new PublishingSourceData($source->id, $source->name))->all());
     }
 
     public function hasSeries(Project $project): bool

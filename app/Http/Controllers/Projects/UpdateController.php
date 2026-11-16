@@ -33,7 +33,7 @@ class UpdateController
      * @bodyParam series_lock_version integer Версия настроек существующего сериала, обязательна при их изменении. Example: 0
      * @bodyParam automation_enabled boolean Автоматически подготовить и опубликовать выпуск. Example: false
      * @bodyParam episode_limit integer Число серий 1–1000, null для продолжающегося сериала. Example: 5
-     * @bodyParam channel_source_project_id integer Источник авторизованных YouTube/Instagram каналов. Example: 1
+     * @bodyParam channel_ids integer[] Каналы проекта; [] отключает все, отсутствие сохраняет связи. Только оператор manageChannels. Example: [1,2]
      * @response 302
      * @response 303
      * @response 401 {"message":"Unauthenticated."}

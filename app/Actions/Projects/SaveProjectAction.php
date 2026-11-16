@@ -13,13 +13,14 @@ use App\Models\Project;
 use App\Models\User;
 use App\Tasks\Production\StopProductionRun;
 use App\Tasks\Projects\SaveProject;
+use App\Tasks\Projects\SyncProjectChannels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 readonly class SaveProjectAction
 {
-    public function __construct(private SaveProject $saveProject, private SaveSeriesSubAction $saveSeries, private StopProductionRun $stopRun) {}
+    public function __construct(private SaveProject $saveProject, private SyncProjectChannels $syncChannels, private SaveSeriesSubAction $saveSeries, private StopProductionRun $stopRun) {}
 
     public function run(ProjectData $data, ?Project $project = null, ?User $actor = null): Project
     {
@@ -27,8 +28,16 @@ readonly class SaveProjectAction
             Gate::forUser($actor)->authorize('manageSeries');
         }
 
+        if ($data->channel_ids !== null) {
+            Gate::forUser($actor)->authorize('manageChannels');
+        }
+
         return DB::transaction(function () use ($data, $project, $actor): Project {
             $project = $this->saveProject->run($data, $project);
+
+            if ($data->channel_ids !== null) {
+                $this->syncChannels->run($project, $data->channel_ids);
+            }
 
             if ($data->content_mode !== ProjectContentMode::SERIES) {
                 $this->stopDisabledRuns($project);
@@ -47,7 +56,6 @@ readonly class SaveProjectAction
                 lock_version: $data->series_lock_version,
                 automation_enabled: $data->automation_enabled,
                 episode_limit: $data->episode_limit,
-                channel_source_project_id: $data->channel_source_project_id,
             );
 
             try {

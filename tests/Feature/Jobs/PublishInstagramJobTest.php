@@ -19,7 +19,7 @@ use function Pest\Laravel\assertDatabaseHas;
 
 test('новый payload восстанавливает публикацию без сериализации зависимостей', function (): void {
     $channel = Channel::factory()->create(['type' => ChannelType::INSTAGRAM, 'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1']]);
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
     $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
     Event::fake([PostCreated::class]);
     Http::fake([
@@ -43,7 +43,7 @@ test('новый payload восстанавливает публикацию б�
 
 test('исторический payload публикует контейнер с восстановленными зависимостями', function (): void {
     $channel = Channel::factory()->create(['type' => ChannelType::INSTAGRAM, 'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1']]);
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
     $job = legacyInstagramJob($channel, $prompt);
     Event::fake([PostCreated::class]);
     Http::fake([
@@ -60,7 +60,7 @@ test('исторический payload публикует контейнер с 
 
 test('исторический payload не отправляет контейнер выключенного проекта', function (): void {
     $channel = Channel::factory()->for(Project::factory()->state(['is_active' => false]))->create(['type' => ChannelType::INSTAGRAM]);
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
     $job = legacyInstagramJob($channel, $prompt);
     Http::fake();
 
@@ -72,7 +72,7 @@ test('исторический payload не отправляет контейн�
 
 test('смена типа канала останавливает отложенную публикацию', function (): void {
     $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
     $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
     $job = new PublishInstagramJob($publisher, 'container-1');
     Http::fake();

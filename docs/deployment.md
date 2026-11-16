@@ -46,9 +46,11 @@ php artisan app:reconcile-productions --limit=50
 это не подтверждает отмену задачи у провайдера и не запускает новый дубль.
 
 Для проверки неизвестной публикации YouTube нужен read scope владельца канала.
-Его можно запросить отдельным входом
-`php artisan youtube:auth {channel_id} --with-read-verification`;
-существующие токены автоматически не расширяются.
+Его запрашивает **Connect / Reconnect Youtube** в разделе **Channels**
+(вместе с правом загрузки); альтернативный CLI-вход —
+`php artisan youtube:auth {channel_id} --with-read-verification`.
+Существующие токены автоматически не расширяются. Для browser OAuth добавьте
+показанный в форме callback URI в allowed redirects приложения провайдера.
 Instagram должен получать временный signed export URL по публичному HTTPS.
 
 Резервная копия содержит БД и приватные media. Проверяйте восстановление в

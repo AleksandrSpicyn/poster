@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Process;
 use Inertia\Inertia;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\patch;
 use function Tests\Support\invalidProjectInputs;
@@ -216,3 +217,60 @@ test('неподтверждённый пользователь не меняе�
 
     assertDatabaseHas('projects', ['id' => $project->id, 'name' => 'Original']);
 });
+
+test('галочки заменяют связи без копирования каналов и токенов', function (): void {
+    $project = Project::factory()->create();
+    $old = Channel::factory()->for($project)->create();
+    $shared = Channel::factory()->create(['credentials' => ['access_token' => 'shared-token']]);
+    $otherProjectIds = $shared->projects()->allRelatedIds()->all();
+
+    actingAs(serialOperator())->patch(route('projects.update', $project), [...projectPayload(), 'channel_ids' => [$shared->id]])
+        ->assertSessionHasNoErrors();
+
+    expect($project->channels()->sole()->id)->toBe($shared->id);
+    expect($shared->refresh()->credentials)->toBe(['access_token' => 'shared-token']);
+    expect($shared->projects()->count())->toBe(count($otherProjectIds) + 1);
+    expect($old->fresh())->not->toBeNull();
+    assertDatabaseCount('channels', 2);
+    Http::assertNothingSent();
+
+    actingAs(serialOperator())->patch(route('projects.update', $project), [...projectPayload(), 'channel_ids' => []])->assertSessionHasNoErrors();
+
+    expect($project->channels()->exists())->toBeFalse();
+    expect($shared->projects()->allRelatedIds()->all())->toBe($otherProjectIds);
+});
+
+test('отсутствие галочек в запросе сохраняет подключения', function (): void {
+    $project = Project::factory()->create();
+    $channel = Channel::factory()->for($project)->create();
+
+    actingAs(User::factory()->create())->patch(route('projects.update', $project), projectPayload())->assertSessionHasNoErrors();
+
+    expect($project->channels()->sole()->id)->toBe($channel->id);
+});
+
+test('обычный пользователь не меняет подключения', function (): void {
+    $project = Project::factory()->create(['name' => 'Original']);
+    $channel = Channel::factory()->for($project)->create();
+
+    actingAs(User::factory()->create())->patchJson(route('projects.update', $project), [...projectPayload(), 'channel_ids' => []])->assertForbidden();
+
+    expect($project->channels()->sole()->id)->toBe($channel->id);
+    expect($project->refresh()->name)->toBe('Original');
+});
+
+test('неверный выбор каналов не меняет проект', function (array $ids): void {
+    $project = Project::factory()->create(['name' => 'Original']);
+    $channel = Channel::factory()->for($project)->create();
+
+    actingAs(serialOperator())->patchJson(route('projects.update', $project), [...projectPayload(), 'channel_ids' => $ids])->assertUnprocessable();
+
+    expect($project->channels()->sole()->id)->toBe($channel->id);
+    expect($project->refresh()->name)->toBe('Original');
+})->with([
+    'несуществующий канал' => [[999999]],
+    'дубликат' => [[1, 1]],
+    'boolean' => [[true]],
+    'массив' => [[['id' => 1]]],
+    'объект вместо списка' => [['first' => 1]],
+]);
