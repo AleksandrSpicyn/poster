@@ -8,23 +8,27 @@ use App\Data\Series\SeriesData;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
 use App\Models\Series;
+use App\Repositories\ProjectRepository;
+use App\Repositories\SeriesRepository;
 use Illuminate\Validation\ValidationException;
 
 class SaveSeries
 {
+    public function __construct(
+        private readonly ProjectRepository $projects,
+        private readonly SeriesRepository $series,
+    ) {}
+
     public function run(Project $project, SeriesData $data, ?Series $series = null, ?int $actorId = null): Series
     {
-        $project = Project::query()->lockForUpdate()->findOrFail($project->id);
+        $project = $this->projects->findLockedOrFail($project->id);
 
-        if (! $series instanceof Series && $project->series()->exists()) {
+        if (! $series instanceof Series && $this->projects->hasSeries($project)) {
             throw ValidationException::withMessages(['series' => 'This project already has a series. Edit its project settings.']);
         }
 
         if ($series instanceof Series) {
-            $series = Series::query()
-                ->where('project_id', $project->id)
-                ->lockForUpdate()
-                ->findOrFail($series->id);
+            $series = $this->series->lockedForProject($project->id, $series->id);
 
             if ($data->lock_version !== $series->lock_version) {
                 throw ValidationException::withMessages(['lock_version' => 'The series was changed. Refresh it before saving.']);
@@ -64,9 +68,9 @@ class SaveSeries
             }
         }
 
-        $series->save();
-        $project->update(['content_mode' => ProjectContentMode::SERIES]);
+        $this->series->save($series);
+        $this->projects->update($project, ['content_mode' => ProjectContentMode::SERIES]);
 
-        return $series->refresh()->load('activeProductionRun');
+        return $this->series->refreshWithActiveRun($series);
     }
 }

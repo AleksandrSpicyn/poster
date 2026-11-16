@@ -6,7 +6,7 @@ namespace App\Tasks;
 
 use App\Classes\Generators\PromptGenerator\PromptGenerator;
 use App\Models\Project;
-use App\Models\Prompt;
+use App\Repositories\PromptRepository;
 use App\Settings\GeneralSettings;
 
 /**
@@ -18,17 +18,13 @@ readonly class CreateBasePrompt
     public function __construct(
         private PromptGenerator $promptGenerator,
         private GeneralSettings $generalSettings,
+        private PromptRepository $prompts,
     ) {}
 
     public function run(Project $project): string
     {
-        $history = $project->prompts()
-            ->whereNull('shot_id')
-            ->latest()
-            ->limit(50)
-            ->get(['prompt'])
-            ->map(fn(Prompt $prompt): string => $prompt->prompt)
-            ->map(fn(string $p): string => "- $p")
+        $history = $this->prompts->recentIdeas($project)
+            ->map(fn(string $prompt): string => "- $prompt")
             ->join("\n");
 
         $fullPrompt = <<<TEXT

@@ -61,6 +61,8 @@ test('FFmpeg собирает видео со звуком и сохраняет
 
     new SaveVideoJob($prompt)->handle(app(SaveVideoAction::class));
 
+    Event::assertDispatched(VideoBuilt::class, fn(VideoBuilt $event): bool => $event->getPrompt()->getFirstMediaUrl() !== '');
+
     expect($prompt->refresh()->generated)
         ->toBeTruthy()
         ->and($prompt

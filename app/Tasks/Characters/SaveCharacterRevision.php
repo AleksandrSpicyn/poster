@@ -8,23 +8,27 @@ use App\Data\Characters\CharacterRevisionData;
 use App\Enums\RevisionStatus;
 use App\Models\Character;
 use App\Models\CharacterRevision;
+use App\Repositories\CharacterRepository;
+use App\Repositories\CharacterRevisionRepository;
 use Illuminate\Validation\ValidationException;
 
 class SaveCharacterRevision
 {
+    public function __construct(
+        private readonly CharacterRepository $characters,
+        private readonly CharacterRevisionRepository $characterRevisions,
+    ) {}
+
     public function run(Character $character, CharacterRevisionData $data, ?CharacterRevision $revision = null): CharacterRevision
     {
-        $character = Character::query()->lockForUpdate()->findOrFail($character->id);
+        $character = $this->characters->lockedWithSeries($character->id);
 
         if ($character->archived_at !== null || $character->series?->archived_at !== null) {
             throw ValidationException::withMessages(['character' => 'An archived character or series cannot receive versions.']);
         }
 
         if ($revision instanceof CharacterRevision) {
-            $revision = CharacterRevision::query()
-                ->where('character_id', $character->id)
-                ->lockForUpdate()
-                ->findOrFail($revision->id);
+            $revision = $this->characterRevisions->lockedForCharacter($character->id, $revision->id);
 
             if ($revision->status !== RevisionStatus::DRAFT) {
                 throw ValidationException::withMessages(['revision' => 'Create a new version instead of changing an approved character.']);
@@ -37,7 +41,7 @@ class SaveCharacterRevision
 
         $revision ??= new CharacterRevision([
             'character_id' => $character->id,
-            'number' => ($character->revisions()->orderByDesc('number')->first()->number ?? 0) + 1,
+            'number' => $this->characterRevisions->nextNumber($character),
             'status' => RevisionStatus::DRAFT,
         ]);
         $revision->fill(['description' => $data->description, 'appearance' => $data->appearance, 'voice' => $data->voice]);
@@ -46,8 +50,8 @@ class SaveCharacterRevision
             $revision->lock_version++;
         }
 
-        $revision->save();
+        $this->characterRevisions->save($revision);
 
-        return $revision->refresh();
+        return $this->characterRevisions->refresh($revision);
     }
 }

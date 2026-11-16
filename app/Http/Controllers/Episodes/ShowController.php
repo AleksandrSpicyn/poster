@@ -43,18 +43,18 @@ class ShowController
 
         return inertia('Episodes/Show', [
             'series' => SeriesResource::make($series)->resolve(),
-            'project' => ProjectResource::make($details['episode']->series?->project)->resolve(),
-            'episode' => EpisodeResource::make($details['episode'])->resolve(),
-            'characters' => CharacterRevisionResource::collection($details['characters'])->resolve(),
-            'assemblies' => EpisodeAssemblyResource::collection($details['assemblies'])->resolve(),
-            'publications' => PublicationRequestResource::collection($details['publications'])->resolve(),
-            'channels' => ProjectChannelResource::collection($details['channels'])->resolve(),
-            'screenplay' => $details['script']?->toArray(),
+            'project' => ProjectResource::make($details->episode->series?->project)->resolve(),
+            'episode' => EpisodeResource::make($details->episode)->resolve(),
+            'characters' => CharacterRevisionResource::collection($details->characters)->resolve(),
+            'assemblies' => EpisodeAssemblyResource::collection($details->assemblies)->resolve(),
+            'publications' => PublicationRequestResource::collection($details->publications)->resolve(),
+            'channels' => ProjectChannelResource::collection($details->channels)->resolve(),
+            'screenplay' => $details->script?->toArray(),
             'requestKey' => (string) Str::uuid(),
             'transitionModes' => TransitionMode::labels(),
-            'sourceAssembly' => $details['episode']->predecessor?->acceptedAssembly === null
+            'sourceAssembly' => $details->episode->predecessor?->acceptedAssembly === null
                 ? null
-                : EpisodeAssemblyResource::make($details['episode']->predecessor->acceptedAssembly)->resolve(),
+                : EpisodeAssemblyResource::make($details->episode->predecessor->acceptedAssembly)->resolve(),
         ]);
     }
 }

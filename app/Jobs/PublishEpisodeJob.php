@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\Episodes\SubmitEpisodePublicationAction;
-use App\Models\PublicationRequest;
+use App\Tasks\Publications\LoadPublicationRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -19,8 +19,8 @@ class PublishEpisodeJob implements ShouldQueue
 
     public function __construct(public readonly int $requestId) {}
 
-    public function handle(SubmitEpisodePublicationAction $action): void
+    public function handle(SubmitEpisodePublicationAction $action, LoadPublicationRequest $load): void
     {
-        $action->run(PublicationRequest::query()->findOrFail($this->requestId));
+        $action->run($load->run($this->requestId));
     }
 }

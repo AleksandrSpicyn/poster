@@ -7,6 +7,7 @@ namespace App\Tasks\Characters;
 use App\Data\Characters\CharacterReferenceData;
 use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
+use App\Repositories\CharacterRevisionRepository;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -14,6 +15,8 @@ use Throwable;
 
 class UploadCharacterReference
 {
+    public function __construct(private readonly CharacterRevisionRepository $characterRevisions) {}
+
     public function run(CharacterRevision $revision, CharacterReferenceData $data): Media
     {
         $path = $data->file->getRealPath();
@@ -35,7 +38,7 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['file' => 'Use a static PNG, JPEG or WebP reference between 64 and 6000 pixels and at most 20 megapixels.']);
         }
 
-        $revision = CharacterRevision::query()->lockForUpdate()->findOrFail($revision->id);
+        $revision = $this->characterRevisions->lockedForReferences($revision->id);
 
         if ($revision->status !== RevisionStatus::DRAFT) {
             throw ValidationException::withMessages(['revision' => 'Create a draft version before changing character references.']);
@@ -74,7 +77,7 @@ class UploadCharacterReference
                 ])
                 ->toMediaCollection(CharacterRevision::REFERENCES);
             $revision->lock_version++;
-            $revision->save();
+            $this->characterRevisions->save($revision);
         } catch (Throwable $exception) {
             $media?->delete();
 

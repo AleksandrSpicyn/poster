@@ -7,6 +7,7 @@ namespace App\Listeners;
 use App\Classes\Publishers\PublisherFactory;
 use App\Events\VideoBuilt;
 use App\Models\Channel;
+use App\Tasks\Projects\GetPromptProject;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -15,12 +16,12 @@ use Illuminate\Support\Facades\Log;
  */
 readonly class VideoBuiltListener
 {
-    public function __construct(private PublisherFactory $publishers) {}
+    public function __construct(private PublisherFactory $publishers, private GetPromptProject $getProject) {}
 
     public function handle(VideoBuilt $event): void
     {
         $prompt = $event->getPrompt();
-        $project = $prompt->project()->first();
+        $project = $this->getProject->run($prompt);
 
         if ($prompt->shot_id !== null || $project?->is_active !== true) {
             return;

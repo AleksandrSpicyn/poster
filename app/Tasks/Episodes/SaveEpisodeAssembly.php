@@ -5,35 +5,47 @@ declare(strict_types=1);
 namespace App\Tasks\Episodes;
 
 use App\Data\Episodes\AssemblyManifestData;
-use App\Data\Episodes\AssemblyShotData;
 use App\Enums\AssemblyStatus;
 use App\Enums\RevisionStatus;
 use App\Enums\SeriesAudioMode;
-use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
-use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Scene;
-use App\Models\Series;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\MediaRepository;
+use App\Repositories\ProjectRepository;
+use App\Repositories\PromptRepository;
+use App\Repositories\SeriesRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SaveEpisodeAssembly
 {
+    public function __construct(
+        private readonly EpisodeRepository $episodes,
+        private readonly EpisodeRevisionRepository $episodeRevisions,
+        private readonly MediaRepository $media,
+        private readonly ProjectRepository $projects,
+        private readonly SeriesRepository $series,
+        private readonly PromptRepository $prompts,
+        private readonly EpisodeAssemblyRepository $assemblies,
+    ) {}
+
     public function run(EpisodeRevision $revision, AssemblyManifestData $data): EpisodeAssembly
     {
-        $revision->load('episode.series', 'scenes.shots');
-        $episode = $revision->episode()->firstOrFail();
-        $series = $episode->series()->firstOrFail();
+        $this->episodeRevisions->forAssembly($revision);
+        $episode = $this->episodes->forRevision($revision);
+        $series = $this->series->forEpisode($episode);
         $shots = $revision->scenes->flatMap(fn(Scene $scene) => $scene->shots)->values();
 
         if ($shots->isEmpty() || $shots->count() !== count($data->shots) || count($data->shots) > 100) {
             throw ValidationException::withMessages(['shots' => 'Select exactly one ready take for every screenplay shot.']);
         }
 
-        $prompts = Prompt::query()->with('media')->whereIn('id', array_map(fn(AssemblyShotData $shot): int => $shot->prompt_id, $data->shots))->get()->keyBy('id');
+        $prompts = $this->prompts->assemblySelection($data);
         $manifestShots = [];
         $selectedMedia = [];
 
@@ -77,7 +89,7 @@ class SaveEpisodeAssembly
         foreach ($data->shots as $position => $selection) {
             $prompt = $prompts->get($selection->prompt_id);
             $sourceId = data_get($prompt?->input_snapshot, 'source_media_id');
-            $source = is_int($sourceId) ? Media::query()->find($sourceId) : null;
+            $source = is_int($sourceId) ? $this->media->find($sourceId) : null;
 
             if ($source?->model_type === new Prompt()->getMorphClass() && ! in_array($source->id, $selectedMedia, true)) {
                 throw ValidationException::withMessages(['shots.' . $position => 'This take continues a different take. Select a compatible continuation or regenerate it.']);
@@ -88,19 +100,17 @@ class SaveEpisodeAssembly
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($revision, $episode, $series, $manifest, $hash): EpisodeAssembly {
-            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
+            $project = $this->projects->findLockedOrFail($series->project_id);
 
             if (! $project->is_active) {
                 throw ValidationException::withMessages(['project' => 'Enable this project before building a montage.']);
             }
 
-            $series = Series::query()->lockForUpdate()->findOrFail($series->id);
-            $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
-            $revision = EpisodeRevision::query()->findOrFail($revision->id);
+            $series = $this->series->findLockedOrFail($series->id);
+            $episode = $this->episodes->findLockedOrFail($episode->id);
+            $revision = $this->episodeRevisions->findOrFail($revision->id);
 
-            $existing = $revision->assemblies()->where('manifest_hash', $hash)
-                ->whereIn('status', [AssemblyStatus::QUEUED, AssemblyStatus::BUILDING, AssemblyStatus::READY, AssemblyStatus::ACCEPTED])
-                ->first();
+            $existing = $this->assemblies->matchingManifest($revision, $hash);
 
             if ($existing?->status === AssemblyStatus::ACCEPTED && $episode->accepted_assembly_id === $existing->id) {
                 return $existing;
@@ -113,15 +123,11 @@ class SaveEpisodeAssembly
                 throw ValidationException::withMessages(['revision' => 'Assemble the current approved screenplay with an up-to-date story context.']);
             }
 
-            if ($existing !== null) {
+            if ($existing instanceof EpisodeAssembly) {
                 return $existing;
             }
 
-            return $revision->assemblies()->create([
-                'number' => ($revision->assemblies()->orderByDesc('number')->first()->number ?? 0) + 1,
-                'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
-                'continuity_snapshot' => [],
-            ])->refresh();
+            return $this->assemblies->queueManifest($revision, $manifest, $hash);
         });
     }
 }

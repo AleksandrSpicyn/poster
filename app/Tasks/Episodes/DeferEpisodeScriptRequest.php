@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tasks\Episodes;
 
-use App\Enums\ScriptGenerationStatus;
 use App\Events\WorkspaceUpdated;
 use App\Models\Episode;
+use App\Repositories\EpisodeRepository;
 
 class DeferEpisodeScriptRequest
 {
+    public function __construct(private readonly EpisodeRepository $episodes) {}
+
     public function run(Episode $episode, string $requestKey): void
     {
-        $updated = Episode::query()->whereKey($episode->id)->where('script_request_key', $requestKey)
-            ->where('script_generation_status', ScriptGenerationStatus::RUNNING)
-            ->update(['script_generation_status' => ScriptGenerationStatus::QUEUED,
-                'script_started_at' => null, 'script_generation_error' => null]);
+        $updated = $this->episodes->deferScriptRequest($episode, $requestKey);
 
         if ($updated > 0) {
             WorkspaceUpdated::dispatch(true);

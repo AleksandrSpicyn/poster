@@ -5,20 +5,23 @@ declare(strict_types=1);
 namespace App\Tasks\Characters;
 
 use App\Enums\RevisionStatus;
-use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\User;
+use App\Repositories\CharacterRepository;
+use App\Repositories\CharacterRevisionRepository;
 use Illuminate\Validation\ValidationException;
 
 class ApproveCharacterRevision
 {
+    public function __construct(
+        private readonly CharacterRepository $characters,
+        private readonly CharacterRevisionRepository $characterRevisions,
+    ) {}
+
     public function run(CharacterRevision $revision, User $user, int $expectedVersion): CharacterRevision
     {
-        $character = Character::query()->lockForUpdate()->findOrFail($revision->character_id);
-        $revision = CharacterRevision::query()
-            ->where('character_id', $character->id)
-            ->lockForUpdate()
-            ->findOrFail($revision->id);
+        $character = $this->characters->lockedWithSeries($revision->character_id);
+        $revision = $this->characterRevisions->lockedForCharacter($character->id, $revision->id);
 
         if ($revision->status === RevisionStatus::APPROVED) {
             return $revision;
@@ -40,14 +43,14 @@ class ApproveCharacterRevision
             throw ValidationException::withMessages(['references' => 'Upload at least one reference before approving the character.']);
         }
 
-        $revision->fill([
+        $this->characterRevisions->save($revision->fill([
             'status' => RevisionStatus::APPROVED,
             'approved_at' => now(),
             'approved_by' => $user->id,
             'lock_version' => $revision->lock_version + 1,
-        ])->save();
-        $character->fill(['current_revision_id' => $revision->id, 'lock_version' => $character->lock_version + 1])->save();
+        ]));
+        $this->characters->save($character->fill(['current_revision_id' => $revision->id, 'lock_version' => $character->lock_version + 1]));
 
-        return $revision->refresh();
+        return $this->characterRevisions->refresh($revision);
     }
 }

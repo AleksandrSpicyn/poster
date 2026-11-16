@@ -6,15 +6,23 @@ namespace App\Tasks\Episodes;
 
 use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
-use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
-use App\Models\EpisodeAssembly;
-use App\Models\Series;
+use App\Repositories\CharacterRevisionRepository;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\SeriesRepository;
 use Illuminate\Validation\ValidationException;
 
 class BuildEpisodeContext
 {
+    public function __construct(
+        private readonly EpisodeAssemblyRepository $assemblies,
+        private readonly SeriesRepository $series,
+        private readonly EpisodeRepository $episodes,
+        private readonly CharacterRevisionRepository $characterRevisions,
+    ) {}
+
     /**
      * @return array{
      *     schema_version: int, series_id: int, specification_version: int,
@@ -26,7 +34,7 @@ class BuildEpisodeContext
      */
     public function run(Episode $episode): array
     {
-        $series = Series::query()->findOrFail($episode->series_id);
+        $series = $this->series->findOrFail($episode->series_id);
 
         if ($series->archived_at !== null) {
             throw ValidationException::withMessages(['series' => 'This series is archived.']);
@@ -35,13 +43,13 @@ class BuildEpisodeContext
         $source = null;
 
         if ($episode->predecessor_episode_id !== null) {
-            $previous = Episode::query()->where('series_id', $series->id)->findOrFail($episode->predecessor_episode_id);
+            $previous = $this->episodes->forSeries($series->id, $episode->predecessor_episode_id);
 
             if ($previous->validity !== EpisodeValidity::CURRENT || $previous->accepted_assembly_id === null) {
                 throw ValidationException::withMessages(['predecessor' => 'Accept the preceding episode before preparing its continuation.']);
             }
 
-            $source = EpisodeAssembly::query()->findOrFail($previous->accepted_assembly_id);
+            $source = $this->assemblies->findOrFail($previous->accepted_assembly_id);
 
             if ($source->status !== AssemblyStatus::ACCEPTED) {
                 throw ValidationException::withMessages(['predecessor' => 'The preceding assembly has not been accepted.']);
@@ -57,15 +65,7 @@ class BuildEpisodeContext
             'episode_number' => $episode->number,
             'source_assembly_id' => $source?->id,
             'continuity' => $source->continuity_snapshot ?? [],
-            'characters' => array_values(CharacterRevision::query()
-                ->with('character')
-                ->where('status', RevisionStatus::APPROVED)
-                ->whereHas('character', fn($query) => $query->where('series_id', $series->id)
-                    ->whereNull('archived_at')
-                    ->whereColumn('characters.current_revision_id', 'character_revisions.id'))
-                ->orderBy('id')
-                ->limit(10)
-                ->get()
+            'characters' => array_values($this->characterRevisions->currentForContext($series->id)
                 ->map(fn(CharacterRevision $revision): array => [
                     'id' => $revision->id, 'character_id' => $revision->character_id,
                     'name' => $revision->character->name ?? '',
@@ -74,12 +74,7 @@ class BuildEpisodeContext
                 ->all()),
         ];
 
-        $history = Episode::query()->where('series_id', $series->id)
-            ->where('number', '<', $episode->number)
-            ->where('validity', EpisodeValidity::CURRENT)
-            ->whereHas('acceptedAssembly', fn($query) => $query->where('status', AssemblyStatus::ACCEPTED))
-            ->with('acceptedAssembly')
-            ->orderByDesc('number')->limit(50)->get()->reverse()->values();
+        $history = $this->episodes->acceptedHistory($episode, $series->id);
         $snapshot['history'] = array_values($history->map(static fn(Episode $previous): array => [
             'episode_number' => $previous->number,
             'assembly_id' => $previous->accepted_assembly_id,

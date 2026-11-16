@@ -10,32 +10,44 @@ use App\Enums\EpisodeValidity;
 use App\Enums\RevisionStatus;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
-use App\Models\EpisodeRevision;
-use App\Models\Series;
 use App\Models\User;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\SeriesRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AcceptEpisode
 {
+    public function __construct(
+        private readonly EpisodeRepository $episodes,
+        private readonly EpisodeAssemblyRepository $assemblies,
+        private readonly EpisodeRevisionRepository $episodeRevisions,
+        private readonly SeriesRepository $series,
+        private readonly UserRepository $users,
+    ) {}
+
     public function run(EpisodeAssembly $assembly, AcceptEpisodeData $data, User $actor): EpisodeAssembly
     {
-        $actor = $actor->fresh();
+        $actor = $this->users->fresh($actor);
 
-        if ($actor === null) {
+        if (! $actor instanceof User) {
             throw new AuthorizationException();
         }
 
         Gate::forUser($actor)->authorize('manageSeries');
 
         return DB::transaction(function () use ($assembly, $data, $actor): EpisodeAssembly {
-            $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
-            $episode = Episode::query()->findOrFail($revision->episode_id);
-            $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
-            $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
-            $assembly = EpisodeAssembly::query()->lockForUpdate()->findOrFail($assembly->id);
+            $revision = $this->episodeRevisions->findOrFail($assembly->episode_revision_id);
+            $episode = $this->episodes->findOrFail($revision->episode_id);
+            $series = $this->series->findLockedOrFail($episode->series_id);
+            $episode = $this->episodes->findLockedOrFail($episode->id);
+            $assembly = $this->assemblies->lockedWithMedia($assembly->id);
 
             if ($assembly->status === AssemblyStatus::ACCEPTED && $episode->accepted_assembly_id === $assembly->id) {
                 return $assembly;
@@ -45,21 +57,19 @@ class AcceptEpisode
                 || $assembly->lock_version !== $data->lock_version || $episode->current_revision_id !== $revision->id
                 || $revision->status !== RevisionStatus::APPROVED || $revision->base_continuity_version !== $series->continuity_version
                 || data_get($revision->context_snapshot, 'specification_version') !== $series->specification_version
-                || $assembly->getFirstMedia(EpisodeAssembly::VIDEO) === null) {
+                || ! $assembly->getFirstMedia(EpisodeAssembly::VIDEO) instanceof Media) {
                 throw ValidationException::withMessages(['assembly' => 'Only a ready assembly of the current approved screenplay and story context can be accepted.']);
             }
 
-            $previous = $episode->predecessor_episode_id === null ? null : Episode::query()
-                ->where('series_id', $series->id)
-                ->findOrFail($episode->predecessor_episode_id);
+            $previous = $episode->predecessor_episode_id === null ? null : $this->episodes->forSeries($series->id, $episode->predecessor_episode_id);
 
-            if (($previous !== null && ($previous->validity !== EpisodeValidity::CURRENT
+            if (($previous instanceof Episode && ($previous->validity !== EpisodeValidity::CURRENT
                 || $previous->accepted_assembly_id === null || $previous->accepted_assembly_id !== $revision->source_assembly_id))
-                || ($previous === null && $revision->source_assembly_id !== null)) {
+                || (! $previous instanceof Episode && $revision->source_assembly_id !== null)) {
                 throw ValidationException::withMessages(['predecessor' => 'The preceding accepted episode changed. Prepare a new screenplay version.']);
             }
 
-            $assembly->update([
+            $this->assemblies->update($assembly, [
                 'status' => AssemblyStatus::ACCEPTED,
                 'continuity_snapshot' => [
                     'schema_version' => 1,
@@ -74,14 +84,14 @@ class AcceptEpisode
                 'accepted_at' => now(), 'accepted_by' => $actor->id,
                 'lock_version' => $assembly->lock_version + 1,
             ]);
-            $episode->update([
+            $this->episodes->update($episode, [
                 'accepted_assembly_id' => $assembly->id,
                 'validity' => EpisodeValidity::CURRENT,
                 'lock_version' => $episode->lock_version + 1,
             ]);
-            Episode::query()->where('series_id', $series->id)->where('number', '>', $episode->number)
-                ->update(['validity' => EpisodeValidity::REQUIRES_REVIEW->value, 'lock_version' => DB::raw('lock_version + 1')]);
-            $series->update([
+            $this->episodes->invalidateLater($episode, $series->id);
+
+            $this->series->update($series, [
                 'canonical_assembly_id' => $assembly->id,
                 'continuity_version' => $series->continuity_version + 1,
             ]);

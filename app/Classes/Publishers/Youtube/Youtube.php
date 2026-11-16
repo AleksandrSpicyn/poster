@@ -12,6 +12,8 @@ use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\Prompt;
 use App\Support\Integrations\Payload;
+use App\Tasks\Channels\IsChannelProjectActive;
+use App\Tasks\Channels\SaveChannelCredentials;
 use App\Tasks\Posts\SavePost;
 use Google\Client;
 use Google\Http\MediaFileUpload;
@@ -36,9 +38,9 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
 {
     private const int CHUNK_SIZE = 1024 * 1024;
 
-    public function __construct(Channel $channel, Prompt|PublishVideoData $prompt, private readonly Client $client, SavePost $savePost)
+    public function __construct(Channel $channel, Prompt|PublishVideoData $prompt, private readonly Client $client, SavePost $savePost, IsChannelProjectActive $projectActive, private readonly SaveChannelCredentials $saveCredentials)
     {
-        parent::__construct($channel, $prompt, $savePost);
+        parent::__construct($channel, $prompt, $savePost, $projectActive);
     }
 
     public function publish(): bool
@@ -134,8 +136,7 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
             throw new RuntimeException('YouTube token refresh failed.');
         }
 
-        $this->channel->credentials = $token;
-        $this->channel->save();
+        $this->saveCredentials->run($this->channel, $token);
     }
 
     private function setStatus(Video $video): void

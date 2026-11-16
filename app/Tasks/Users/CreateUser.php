@@ -6,11 +6,14 @@ namespace App\Tasks\Users;
 
 use App\Data\RegisterUserData;
 use App\Models\User;
+use App\Repositories\UserRepository;
 
 class CreateUser
 {
+    public function __construct(private readonly UserRepository $users) {}
+
     public function run(RegisterUserData $data): User
     {
-        return User::query()->create(['name' => $data->name, 'email' => $data->email, 'password' => $data->password]);
+        return $this->users->createRegistered($data);
     }
 }

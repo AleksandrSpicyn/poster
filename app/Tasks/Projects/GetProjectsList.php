@@ -5,35 +5,17 @@ declare(strict_types=1);
 namespace App\Tasks\Projects;
 
 use App\Data\GetProjectsListData;
-use App\Enums\SortDirection;
 use App\Models\Project;
-use Illuminate\Database\Eloquent\Builder;
+use App\Repositories\ProjectRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class GetProjectsList
 {
+    public function __construct(private readonly ProjectRepository $projects) {}
+
     /** @return LengthAwarePaginator<int, Project> */
     public function run(GetProjectsListData $data): LengthAwarePaginator
     {
-        $query = Project::query()->withCount([
-            'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'channels', 'series',
-        ]);
-
-        if ($data->search !== null && $data->search !== '') {
-            $search = '%' . $data->search . '%';
-            $query->where(function (Builder $query) use ($search): void {
-                $query->whereLike('name', $search)->orWhereLike('prompt', $search);
-            });
-        }
-
-        $direction = $data->sort ?? SortDirection::DESC;
-
-        return $query
-            ->orderBy('created_at', $direction->value)
-            ->orderBy('id', $direction->value)
-            ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
-            ->withQueryString();
+        return $this->projects->paginate($data);
     }
 }

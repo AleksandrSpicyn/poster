@@ -4,29 +4,39 @@ declare(strict_types=1);
 
 namespace App\Tasks\Episodes;
 
-use App\Classes\Story\Snapshot;
 use App\Data\Episodes\EpisodeScriptData;
-use App\Enums\AssemblyStatus;
-use App\Enums\RevisionStatus;
+use App\Data\Episodes\ShotData;
 use App\Enums\SeriesAudioMode;
 use App\Enums\TransitionMode;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
-use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
-use App\Models\Prompt;
-use App\Models\Series;
+use App\Repositories\CharacterRevisionRepository;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\PromptRepository;
+use App\Repositories\SeriesRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SaveEpisodeScript
 {
+    public function __construct(
+        private readonly EpisodeRepository $episodes,
+        private readonly SeriesRepository $series,
+        private readonly EpisodeRevisionRepository $episodeRevisions,
+        private readonly CharacterRevisionRepository $characterRevisions,
+        private readonly PromptRepository $prompts,
+        private readonly EpisodeAssemblyRepository $assemblies,
+    ) {}
+
     /** @param array<string, mixed> $context */
     public function run(Episode $episode, EpisodeScriptData $script, int $expectedVersion, array $context): EpisodeRevision
     {
         return DB::transaction(function () use ($episode, $script, $expectedVersion, $context): EpisodeRevision {
-            $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
-            $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
+            $series = $this->series->findLockedOrFail($episode->series_id);
+            $episode = $this->episodes->findLockedOrFail($episode->id);
 
             if ($episode->lock_version !== $expectedVersion) {
                 throw ValidationException::withMessages(['lock_version' => 'The episode changed. Reload it before saving.']);
@@ -37,11 +47,7 @@ class SaveEpisodeScript
                 throw ValidationException::withMessages(['context' => 'The story context changed. Prepare a new draft.']);
             }
 
-            $characters = CharacterRevision::query()
-                ->whereIn('id', $script->character_revision_ids)
-                ->where('status', RevisionStatus::APPROVED)
-                ->whereHas('character', fn($query) => $query->where('series_id', $series->id)->whereNull('archived_at'))
-                ->get();
+            $characters = $this->characterRevisions->approvedSelection($series, $script);
 
             if ($characters->count() !== count($script->character_revision_ids)) {
                 throw ValidationException::withMessages(['script.character_revision_ids' => 'Select approved characters from this series.']);
@@ -55,10 +61,8 @@ class SaveEpisodeScript
             }
 
             $characterIds = $characters->pluck('character_id')->all();
-            $sourceIds = collect($script->scenes)->flatMap(fn($scene): array => $scene->shots)->pluck('source_prompt_id')->filter()->unique()->values()->all();
-            $sources = Prompt::query()->whereIn('id', $sourceIds)->where('generated', true)
-                ->whereHas('shot.scene.episodeRevision', fn($query) => $query->where('episode_id', $episode->id))
-                ->with('shot.scene')->get()->keyBy('id');
+            $sourceIds = array_values(collect($script->scenes)->flatMap(fn($scene): array => $scene->shots)->map(fn(ShotData $shot): ?int => $shot->source_prompt_id)->filter()->unique()->values()->all());
+            $sources = $this->prompts->readySources($episode, $sourceIds);
 
             foreach ($script->scenes as $scenePosition => $scene) {
                 foreach ($scene->shots as $shotPosition => $shot) {
@@ -77,11 +81,7 @@ class SaveEpisodeScript
                         throw ValidationException::withMessages(['script.scenes' => 'A continuation take must be ready and belong to this episode. Use an accepted assembly to continue an earlier episode.']);
                     }
 
-                    if ($shot->source_assembly_id !== null && ! EpisodeAssembly::query()
-                        ->where('status', AssemblyStatus::ACCEPTED)
-                        ->whereHas('episodeRevision.episode', fn($query) => $query->where('series_id', $series->id)->where('number', '<=', $episode->number))
-                        ->whereKey($shot->source_assembly_id)
-                        ->exists()) {
+                    if ($shot->source_assembly_id !== null && ! $this->assemblies->isAcceptedSource($shot->source_assembly_id, $series->id, $episode->number)) {
                         throw ValidationException::withMessages(['script.scenes' => 'A continuation assembly must be accepted in this series.']);
                     }
 
@@ -109,43 +109,9 @@ class SaveEpisodeScript
                 'description' => $character->description, 'appearance' => $character->appearance, 'voice' => $character->voice,
             ])->all();
 
-            $maximumNumber = $episode->revisions()->max('number');
-            $revision = $episode->revisions()->create([
-                'number' => (is_numeric($maximumNumber) ? (int) $maximumNumber : 0) + 1,
-                'status' => RevisionStatus::DRAFT,
-                'title' => $script->title,
-                'objective' => $script->objective,
-                'context_snapshot' => $context,
-                'context_hash' => Snapshot::hash($context),
-                'source_assembly_id' => $context['source_assembly_id'] ?? null,
-                'base_continuity_version' => $series->continuity_version,
-            ]);
-            $revision->characterRevisions()->sync($script->character_revision_ids);
+            $revision = $this->episodeRevisions->createScript($episode, $script, $context, $series->continuity_version);
 
-            foreach ($script->scenes as $scenePosition => $scene) {
-                $savedScene = $revision->scenes()->create([
-                    'position' => $scenePosition + 1, 'title' => $scene->title,
-                    'setting' => ['location' => $scene->location, 'time' => $scene->time],
-                    'objective' => $scene->objective,
-                    'initial_state' => ['description' => $scene->initial_state],
-                    'expected_final_state' => ['description' => $scene->expected_final_state],
-                    'is_closed' => $scene->is_closed,
-                ]);
-
-                foreach ($scene->shots as $shotPosition => $shot) {
-                    $savedScene->shots()->create([
-                        'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
-                        'action' => $shot->action, 'camera' => ['description' => $shot->camera],
-                        'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
-                        'transition_mode' => $shot->transition_mode,
-                        'source_prompt_id' => $shot->source_prompt_id,
-                        'source_assembly_id' => $shot->source_assembly_id,
-                        'source_anchor' => ['time_ms' => $shot->source_time_ms],
-                    ]);
-                }
-            }
-
-            $episode->update(['title' => $script->title, 'current_revision_id' => $revision->id, 'lock_version' => $expectedVersion + 1]);
+            $this->episodes->update($episode, ['title' => $script->title, 'current_revision_id' => $revision->id, 'lock_version' => $expectedVersion + 1]);
 
             return $revision;
         });

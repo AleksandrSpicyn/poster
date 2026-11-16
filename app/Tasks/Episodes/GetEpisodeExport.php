@@ -7,13 +7,16 @@ namespace App\Tasks\Episodes;
 use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
 use App\Models\EpisodeAssembly;
+use App\Repositories\EpisodeAssemblyRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class GetEpisodeExport
 {
+    public function __construct(private readonly EpisodeAssemblyRepository $assemblies) {}
+
     public function run(EpisodeAssembly $assembly, Media $media): string
     {
-        $assembly->load('episodeRevision.episode');
+        $this->assemblies->forExport($assembly);
         $episode = $assembly->episodeRevision?->episode;
 
         abort_unless($assembly->status === AssemblyStatus::ACCEPTED

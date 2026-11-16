@@ -106,17 +106,28 @@ export interface Screenplay {
     title: string;
     objective: string;
     character_revision_ids: number[];
-    scenes: {
-        title: string;
-        location: string;
-        time: string;
-        objective: string;
-        initial_state: string;
-        expected_final_state: string;
-        is_closed: boolean;
-        shots: ScreenplayShot[];
-    }[];
+    scenes: ScreenplayScene[];
 }
+
+export interface ScreenplayScene {
+    title: string;
+    location: string;
+    time: string;
+    objective: string;
+    initial_state: string;
+    expected_final_state: string;
+    is_closed: boolean;
+    shots: ScreenplayShot[];
+}
+
+export interface ContinuationSource {
+    kind: 'take' | 'assembly';
+    id: number;
+    label: string;
+    scene_position: number;
+    shot_position: number;
+}
+
 export interface EpisodeWorkspaceProps {
     project: { id: number; name: string; is_active: boolean };
     series: SeriesSummary;

@@ -5,20 +5,31 @@ declare(strict_types=1);
 namespace App\Tasks\Shots;
 
 use App\Classes\Story\Snapshot;
-use App\Enums\GenerationOperationStage;
-use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
-use App\Models\Project;
 use App\Models\Prompt;
-use App\Models\Series;
 use App\Models\Shot;
+use App\Repositories\GenerationOperationRepository;
+use App\Repositories\ProductionRunRepository;
+use App\Repositories\ProjectRepository;
+use App\Repositories\PromptRepository;
+use App\Repositories\SeriesRepository;
+use App\Repositories\ShotRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateShotGeneration
 {
+    public function __construct(
+        private readonly ProjectRepository $projects,
+        private readonly SeriesRepository $series,
+        private readonly ShotRepository $shots,
+        private readonly ProductionRunRepository $runs,
+        private readonly PromptRepository $prompts,
+        private readonly GenerationOperationRepository $operations,
+    ) {}
+
     /** @param array<string, mixed> $snapshot */
     public function run(Shot $shot, array $snapshot, ?string $requestKey, bool $newTake, ?ProductionRun $productionRun = null): Prompt
     {
@@ -29,29 +40,29 @@ class CreateShotGeneration
                 throw ValidationException::withMessages(['series' => 'The generation context has no series identity.']);
             }
 
-            $series = Series::query()->findOrFail($seriesId);
-            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
-            $series = Series::query()->lockForUpdate()->findOrFail($seriesId);
+            $series = $this->series->findOrFail($seriesId);
+            $project = $this->projects->findLockedOrFail($series->project_id);
+            $series = $this->series->findLockedOrFail($seriesId);
 
             if (! $project->is_active) {
                 throw ValidationException::withMessages(['project' => 'Enable this project before generating shots.']);
             }
 
             if ($productionRun instanceof ProductionRun) {
-                ProductionRun::query()->lockForUpdate()->findOrFail($productionRun->id);
+                $this->runs->findLockedOrFail($productionRun->id);
             }
 
-            $shot = Shot::query()->lockForUpdate()->findOrFail($shot->id);
+            $shot = $this->shots->findLockedOrFail($shot->id);
 
             if ($series->specification_version !== $snapshot['specification_version'] || $series->continuity_version !== $snapshot['continuity_version']) {
                 throw ValidationException::withMessages(['shot' => 'The story changed before the generation request was saved.']);
             }
 
             if ($requestKey !== null) {
-                $existing = GenerationOperation::query()->where('request_key', $requestKey)->first();
+                $existing = $this->operations->forRequestKey($requestKey);
 
-                if ($existing !== null) {
-                    $prompt = $existing->prompt()->firstOrFail();
+                if ($existing instanceof GenerationOperation) {
+                    $prompt = $this->prompts->forOperation($existing);
 
                     if ($prompt->shot_id !== $shot->id) {
                         throw ValidationException::withMessages(['request_key' => 'The request key is already used by another shot.']);
@@ -61,17 +72,17 @@ class CreateShotGeneration
                         throw ValidationException::withMessages(['request_key' => 'This request key belongs to different generation inputs. Start a new request for changed inputs.']);
                     }
 
-                    return $prompt->load('generationOperations');
+                    return $this->prompts->withGenerationOperations($prompt);
                 }
             }
 
-            $latest = $shot->prompts()->latest('take_number')->first();
+            $latest = $this->prompts->latestForShot($shot);
 
-            if ($latest !== null && ! $newTake) {
-                return $latest->load('generationOperations');
+            if ($latest instanceof Prompt && ! $newTake) {
+                return $this->prompts->withGenerationOperations($latest);
             }
 
-            if ($latest !== null && $latest->generationOperations()->whereIn('status', [GenerationOperationStatus::PLANNED->value, GenerationOperationStatus::SUBMITTING->value, GenerationOperationStatus::SUBMITTED->value, GenerationOperationStatus::RUNNING->value, GenerationOperationStatus::SUBMISSION_UNKNOWN->value])->exists()) {
+            if ($latest instanceof Prompt && $this->operations->hasUnresolvedForPrompt($latest)) {
                 throw ValidationException::withMessages(['shot' => 'Finish or resolve the active generation before starting another paid take.']);
             }
 
@@ -86,15 +97,11 @@ class CreateShotGeneration
                 'take_number' => ($latest->take_number ?? 0) + 1, 'input_snapshot' => $snapshot,
                 'input_hash' => Snapshot::hash($snapshot)]);
             $prompt->project_id = $projectId;
-            $prompt->save();
-            $prompt->generationOperations()->create([
-                'production_run_id' => $productionRun?->id,
-                'stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::PLANNED,
-                'request_key' => $requestKey, 'idempotency_key' => hash('sha256', $requestKey . ':image'),
-                'request_snapshot' => $snapshot, 'next_check_at' => now(),
-            ]);
 
-            return $prompt->load('generationOperations');
+            $this->prompts->save($prompt);
+            $this->operations->createImageOperation($prompt, $productionRun, $requestKey, $snapshot);
+
+            return $this->prompts->withGenerationOperations($prompt);
         });
     }
 }

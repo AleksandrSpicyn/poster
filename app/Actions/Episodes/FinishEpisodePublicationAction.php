@@ -29,7 +29,7 @@ readonly class FinishEpisodePublicationAction
 
         try {
             $context = $this->prepare->run($request);
-            $this->publish->run($context['channel'], $context['video'], $request->container_id ?? '');
+            $this->publish->run($context->channel, $context->video, $request->container_id ?? '');
         } catch (Throwable $exception) {
             $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'Publishing the prepared container was not confirmed. Verify its outcome before retrying.');
             report($exception);

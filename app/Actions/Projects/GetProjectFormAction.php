@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Projects;
 
+use App\Data\Projects\ProjectFormData;
 use App\Models\Project;
 use App\Tasks\Projects\GetProjectSettings;
 use App\Tasks\Series\GetChannelSources;
@@ -13,12 +14,11 @@ readonly class GetProjectFormAction
 {
     public function __construct(private GetProjectSettings $getProject, private GetChannelSources $sources) {}
 
-    /** @return array{project: Project|null, channelSources: list<array{id: int, name: string}>} */
-    public function run(?Project $project = null): array
+    public function run(?Project $project = null): ProjectFormData
     {
-        return [
-            'project' => $project instanceof Project ? $this->getProject->run($project) : null,
-            'channelSources' => Gate::allows('manageSeries') ? $this->sources->run($project) : [],
-        ];
+        return new ProjectFormData(
+            project: $project instanceof Project ? $this->getProject->run($project) : null,
+            channelSources: Gate::allows('manageSeries') ? $this->sources->run($project) : [],
+        );
     }
 }

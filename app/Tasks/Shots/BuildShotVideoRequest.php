@@ -7,15 +7,18 @@ namespace App\Tasks\Shots;
 use App\Data\VideoGenerationRequestData;
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
+use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
 class BuildShotVideoRequest
 {
+    public function __construct(private readonly PromptRepository $prompts) {}
+
     public function run(GenerationOperation $operation): VideoGenerationRequestData
     {
-        $prompt = $operation->prompt()->firstOrFail();
+        $prompt = $this->prompts->forOperation($operation);
         $image = $prompt->getFirstMedia(Prompt::SHOT_IMAGE) ?? throw new RuntimeException('The private opening frame is missing.');
         $size = File::size($image->getPath());
 

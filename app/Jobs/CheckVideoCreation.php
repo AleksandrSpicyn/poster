@@ -12,6 +12,7 @@ use App\Events\VideoGenerated;
 use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationPendingException;
 use App\Models\Prompt;
+use App\Tasks\Prompts\RefreshPrompt;
 use App\Tasks\Prompts\UpdatePrompt;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -36,9 +37,9 @@ class CheckVideoCreation implements ShouldQueue
         $this->tries = max(1, $maxAttempts);
     }
 
-    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt): void
+    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt, RefreshPrompt $refresh): void
     {
-        $this->prompt->refresh();
+        $refresh->run($this->prompt);
 
         if ($this->prompt->shot_id !== null || $this->prompt->video_url || ! $this->prompt->video_id) {
             return;

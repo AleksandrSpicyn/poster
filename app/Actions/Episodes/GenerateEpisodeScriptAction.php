@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Tasks\Episodes\BuildEpisodeContext;
 use App\Tasks\Episodes\GenerateEpisodeScript;
 use App\Tasks\Episodes\SaveEpisodeScript;
+use App\Tasks\Users\RefreshUser;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -20,13 +21,14 @@ readonly class GenerateEpisodeScriptAction
         private BuildEpisodeContext $context,
         private GenerateEpisodeScript $generate,
         private SaveEpisodeScript $save,
+        private RefreshUser $refreshUser,
     ) {}
 
     public function run(Episode $episode, string $brief, int $expectedVersion, User $actor): EpisodeRevision
     {
-        $actor = $actor->fresh();
+        $actor = $this->refreshUser->run($actor);
 
-        if ($actor === null) {
+        if (! $actor instanceof User) {
             throw new AuthorizationException();
         }
 

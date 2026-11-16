@@ -18,7 +18,7 @@ test(
         $post = Post::factory()->create();
         $chats = collect(['chat-1', 'chat-2'])->map(fn(string $id) => Chat::query()->create(['chat_id' => $id]));
 
-        new PostCreatedListener()->handle(new PostCreated($post));
+        app(PostCreatedListener::class)->handle(new PostCreated($post));
 
         Notification::assertSentTo($chats, PostCreatedNotification::class);
         expect(new PostCreatedNotification($post)

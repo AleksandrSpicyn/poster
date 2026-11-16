@@ -4,21 +4,30 @@ declare(strict_types=1);
 
 namespace App\Tasks\Production;
 
+use App\Data\Production\ProductionTargetData;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
+use App\Repositories\ProjectRepository;
+use App\Repositories\SeriesRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Validation\ValidationException;
 
 readonly class GetProductionTargets
 {
-    public function __construct(#[Config('services.admin.email')] private string $ownerEmail) {}
+    public function __construct(
+        #[Config('services.admin.email')] private string $ownerEmail,
+        private ProjectRepository $projects,
+        private UserRepository $users,
+        private SeriesRepository $series,
+    ) {}
 
-    /** @return list<array{series: Series|null, actor: User}> */
+    /** @return list<ProductionTargetData> */
     public function run(Project $project, ?int $seriesId, ?User $actor): array
     {
-        $project->refresh();
+        $this->projects->refresh($project);
 
         if (! $project->is_active) {
             if ($actor instanceof User) {
@@ -33,23 +42,20 @@ readonly class GetProductionTargets
                 throw ValidationException::withMessages(['series_id' => 'Select a series project before requesting an episode.']);
             }
 
-            $actor ??= User::query()->where('email', $this->ownerEmail)->first();
+            $actor ??= $this->users->byEmail($this->ownerEmail);
 
-            return $actor === null ? [] : [['series' => null, 'actor' => $actor]];
+            return $actor instanceof User ? [new ProductionTargetData(null, $actor)] : [];
         }
 
-        $series = $project->series()->with('automationUser')->whereNull('archived_at');
-
-        if ($seriesId !== null) {
-            $selected = $series->findOrFail($seriesId);
-            $items = collect([$selected]);
-        } else {
-            $items = $series->where('automation_enabled', true)->orderBy('id')->get();
-        }
+        $items = $this->series->productionTargets($project, $seriesId);
 
         return array_values($items->filter(fn(Series $series): bool => $series->automation_enabled)
-            ->map(fn(Series $series): array => ['series' => $series, 'actor' => $actor ?? $series->automationUser])
-            ->filter(fn(array $target): bool => $target['actor'] instanceof User)
+            ->map(function (Series $series) use ($actor): ?ProductionTargetData {
+                $operator = $actor ?? $series->automationUser;
+
+                return $operator instanceof User ? new ProductionTargetData($series, $operator) : null;
+            })
+            ->filter()
             ->values()
             ->all());
     }

@@ -30,7 +30,7 @@ readonly class SubmitEpisodePublicationAction
 
         try {
             $context = $this->prepare->run($request);
-            $result = $this->send->run($context['channel'], $context['video']);
+            $result = $this->send->run($context->channel, $context->video);
 
             if ($result->containerId !== null) {
                 $this->update->run($request, PublicationStatus::PROCESSING, $result->containerId);

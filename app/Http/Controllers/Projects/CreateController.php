@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Projects;
 
 use App\Actions\Projects\GetProjectFormAction;
 use App\Data\ProjectData;
+use App\Data\Projects\PublishingSourceData;
 use App\Enums\ContentAudience;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesAudioMode;
@@ -34,7 +35,7 @@ class CreateController
             'project' => null,
             'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
             'series' => null,
-            'channelSources' => $action->run()['channelSources'],
+            'channelSources' => collect($action->run()->channelSources)->map(fn(PublishingSourceData $source): array => $source->toArray())->all(),
             'audiences' => ContentAudience::labels(),
             'audioModes' => SeriesAudioMode::labels(),
             'defaultAudioMode' => SeriesAudioMode::NATIVE->value,

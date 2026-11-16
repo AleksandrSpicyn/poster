@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Actions\Episodes\BuildEpisodeAssemblyAction;
 use App\Models\EpisodeAssembly;
+use App\Tasks\Episodes\FindEpisodeAssembly;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,11 +31,11 @@ class BuildEpisodeAssemblyJob implements ShouldBeUnique, ShouldQueue
         return 'episode-assembly:' . $this->assemblyId;
     }
 
-    public function handle(BuildEpisodeAssemblyAction $action): void
+    public function handle(BuildEpisodeAssemblyAction $action, FindEpisodeAssembly $find): void
     {
-        $assembly = EpisodeAssembly::query()->find($this->assemblyId);
+        $assembly = $find->run($this->assemblyId);
 
-        if ($assembly !== null) {
+        if ($assembly instanceof EpisodeAssembly) {
             $action->run($assembly);
         }
     }

@@ -8,6 +8,7 @@ use App\Data\PostData;
 use App\Data\PublishVideoData;
 use App\Models\Channel;
 use App\Models\Prompt;
+use App\Tasks\Channels\IsChannelProjectActive;
 use App\Tasks\Posts\SavePost;
 use RuntimeException;
 
@@ -21,7 +22,18 @@ abstract class AbstractPublisher implements Publisher
         protected readonly Channel $channel,
         protected readonly Prompt|PublishVideoData $prompt,
         private readonly SavePost $savePost,
+        private readonly IsChannelProjectActive $projectActive,
     ) {}
+
+    public function channel(): Channel
+    {
+        return $this->channel;
+    }
+
+    public function source(): Prompt|PublishVideoData
+    {
+        return $this->prompt;
+    }
 
     protected function getPath(): ?string
     {
@@ -40,7 +52,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function assertProjectActive(): void
     {
-        if (! $this->channel->project()->where('is_active', true)->exists()) {
+        if (! $this->projectActive->run($this->channel)) {
             throw new RuntimeException('The project is disabled.');
         }
     }

@@ -12,6 +12,7 @@ use App\Data\PublishVideoData;
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Prompt;
+use App\Tasks\Prompts\LoadPromptMedia;
 use Illuminate\Contracts\Container\Container;
 
 /**
@@ -20,10 +21,14 @@ use Illuminate\Contracts\Container\Container;
  */
 readonly class PublisherFactory
 {
-    public function __construct(private Container $container) {}
+    public function __construct(private Container $container, private LoadPromptMedia $loadMedia) {}
 
     public function make(Channel $channel, Prompt|PublishVideoData $prompt): Publisher
     {
+        if ($prompt instanceof Prompt) {
+            $this->loadMedia->run($prompt);
+        }
+
         $class = match ($channel->type) {
             ChannelType::YOUTUBE => Youtube::class,
             ChannelType::TIKTOK => Tiktok::class,

@@ -4,24 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tasks\Characters;
 
+use App\Data\Characters\CharacterWorkspaceData;
 use App\Models\Character;
-use App\Models\CharacterRevision;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Repositories\CharacterRepository;
 
 class GetCharacter
 {
-    /** @return array{character: Character, revisions: LengthAwarePaginator<int, CharacterRevision>} */
-    public function run(Character $character, int $page): array
-    {
-        $character->load('series.project', 'currentRevision');
+    public function __construct(private readonly CharacterRepository $characters) {}
 
-        return [
-            'character' => $character,
-            'revisions' => $character->revisions()
-                ->with('media')
-                ->orderByDesc('number')
-                ->paginate(5, page: $page)
-                ->withQueryString(),
-        ];
+    public function run(Character $character, int $page): CharacterWorkspaceData
+    {
+        return $this->characters->workspace($character, $page);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Tasks\Production;
 use App\Classes\Story\EpisodeOutcomeSchema;
 use App\Data\Production\EpisodeOutcomeData;
 use App\Models\EpisodeAssembly;
+use App\Repositories\EpisodeAssemblyRepository;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -24,10 +25,12 @@ readonly class InspectEpisodeOutcome
         private EpisodeOutcomeSchema $schema,
         #[Config('services.codex.timeout')] private int $timeout,
         #[Config('production.frame_count')] private int $frameCount,
+        private EpisodeAssemblyRepository $assemblies,
     ) {}
 
     public function run(EpisodeAssembly $assembly): EpisodeOutcomeData
     {
+        $this->assemblies->loadMedia($assembly);
         $media = $assembly->getFirstMedia(EpisodeAssembly::VIDEO);
         $duration = $assembly->duration_ms;
 
@@ -59,7 +62,7 @@ readonly class InspectEpisodeOutcome
                 $frames[] = Image::fromPath($path)->as('Frame ' . ($index + 1) . ' at ' . $time . ' seconds');
             }
 
-            $assembly->load('episodeRevision.characterRevisions.character');
+            $this->assemblies->withConfirmedCharacters($assembly);
             $revision = $assembly->episodeRevision;
             $input = json_encode([
                 'language' => data_get($revision?->context_snapshot, 'specification.language', 'en'),

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useEpisodeScreenplay } from '@/composables/useEpisodeScreenplay';
+import { useEpisodeMontage } from '@/composables/useEpisodeMontage';
+import { useEpisodeSources } from '@/composables/useEpisodeSources';
 import AssemblyCard from '@/components/episodes/AssemblyCard.vue';
 import ShotCard from '@/components/episodes/ShotCard.vue';
 import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
@@ -8,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import type { EpisodeWorkspaceProps } from '@/types/episodes';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<EpisodeWorkspaceProps>();
@@ -23,153 +26,32 @@ const breadcrumbs = [
     { title: props.episode.title, href: route('episodes.show', params) },
 ];
 const revision = computed(() => props.episode.current_revision);
-const shots = computed(() => revision.value?.scenes.flatMap((scene) => scene.shots) ?? []);
 const archived = computed(() => !!props.series.archived_at);
 const storyContext = computed(() => revision.value?.context ?? props.sourceAssembly?.continuity_snapshot);
-const initialScript: Screenplay = props.screenplay ?? {
-    title: props.episode.title,
-    objective: '',
-    character_revision_ids: props.characters.length ? [props.characters[0].id] : [],
-    scenes: [
-        {
-            title: '',
-            location: '',
-            time: '',
-            objective: '',
-            initial_state: '',
-            expected_final_state: '',
-            is_closed: false,
-            shots: [
-                {
-                    duration_ms: 5000,
-                    action: '',
-                    camera: 'Medium shot',
-                    transition_mode: 'new_scene',
-                    dialogue: [],
-                    source_prompt_id: null,
-                    source_assembly_id: null,
-                    source_time_ms: 0,
-                },
-            ],
-        },
-    ],
-};
-const initialScriptJson = JSON.stringify(initialScript, null, 2);
-const scriptText = ref(initialScriptJson);
-const jsonError = ref('');
-const scriptForm = useForm({ script: initialScript, lock_version: props.episode.lock_version });
-const generateForm = useForm({ brief: '', lock_version: props.episode.lock_version, request_key: props.requestKey });
-const approveForm = useForm({});
-const assemblyForm = useForm({
-    shots: shots.value.map((shot) => ({
-        prompt_id: shot.takes.find((take) => take.generated)?.id ?? 0,
-        trim_start_ms: 0,
-        trim_end_ms: shot.duration_ms,
-    })),
-});
-const scriptErrors = computed(() => Object.values(scriptForm.errors).join(' '));
-const editorErrors = computed<Record<string, string | undefined>>(() => scriptForm.errors);
-const continuationSources = computed(() => [
-    ...(props.sourceAssembly
-        ? [
-              {
-                  kind: 'assembly' as const,
-                  id: props.sourceAssembly.id,
-                  label: 'End of the previous accepted episode',
-                  scene_position: 0,
-                  shot_position: 0,
-              },
-          ]
-        : []),
-    ...(revision.value?.scenes.flatMap((scene) =>
-        scene.shots.flatMap((shot) =>
-            shot.takes
-                .filter((take) => take.generated)
-                .map((take) => ({
-                    kind: 'take' as const,
-                    id: take.id,
-                    label: scene.title + ' · shot ' + shot.position + ' · take ' + take.take_number,
-                    scene_position: scene.position,
-                    shot_position: shot.position,
-                })),
-        ),
-    ) ?? []),
-]);
-const generateErrors = computed(() => Object.values(generateForm.errors).join(' '));
-const approveErrors = computed(() => Object.values(approveForm.errors).join(' '));
-const assemblyErrors = computed(() => Object.values(assemblyForm.errors).join(' '));
-const editorStale = computed(() => scriptForm.lock_version !== props.episode.lock_version);
-watch(
-    () => props.screenplay,
-    (screenplay) => {
-        if (!screenplay || scriptForm.isDirty || scriptForm.processing || scriptText.value !== JSON.stringify(scriptForm.script, null, 2)) return;
-        const script = JSON.parse(JSON.stringify(screenplay)) as Screenplay;
-        scriptForm.defaults({ script, lock_version: props.episode.lock_version });
-        scriptForm.reset();
-        scriptText.value = JSON.stringify(script, null, 2);
-    },
-);
-watch(
-    () => props.episode.current_revision_id,
-    () => {
-        assemblyForm.shots = shots.value.map((shot) => ({ prompt_id: 0, trim_start_ms: 0, trim_end_ms: shot.duration_ms }));
-    },
-);
+const {
+    scriptForm,
+    generateForm,
+    approveForm,
+    scriptText,
+    jsonError,
+    scriptErrors,
+    editorErrors,
+    generateErrors,
+    approveErrors,
+    editorStale,
+    saveScript,
+    importScript,
+    generateScript,
+    approveScript,
+} = useEpisodeScreenplay(props);
+const { assemblyForm, assemblyErrors, shots, buildAssembly } = useEpisodeMontage(props);
+const { continuationSources, readySourcesFor } = useEpisodeSources(props);
 const allAssemblies = computed(() =>
     props.episode.accepted_assembly && !props.assemblies.some((item) => item.id === props.episode.accepted_assembly?.id)
         ? [props.episode.accepted_assembly, ...props.assemblies]
         : props.assemblies,
 );
 
-function saveScript() {
-    scriptForm.transform((data) => data).post(route('episodes.scripts.store', params), { preserveState: 'errors' });
-}
-function importScript() {
-    jsonError.value = '';
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(scriptText.value);
-        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Screenplay must be an object.');
-    } catch {
-        jsonError.value = 'Enter a valid screenplay JSON object before importing.';
-        return;
-    }
-    scriptForm
-        .transform((data) => ({ ...data, script: parsed as Screenplay }))
-        .post(route('episodes.scripts.store', params), {
-            preserveState: 'errors',
-            onFinish: () => {
-                scriptForm.transform((data) => data);
-            },
-        });
-}
-function readySourcesFor(shotId: number) {
-    const scene = revision.value?.scenes.find((item) => item.shots.some((shot) => shot.id === shotId));
-    const shot = scene?.shots.find((item) => item.id === shotId);
-    if (!scene || !shot) return [];
-    return continuationSources.value.filter(
-        (source) =>
-            source.kind === 'take' &&
-            (source.scene_position < scene.position || (source.scene_position === scene.position && source.shot_position < shot.position)),
-    );
-}
-function generateScript() {
-    generateForm.post(route('episodes.scripts.generate', params), { preserveState: 'errors' });
-}
-function approveScript() {
-    if (revision.value)
-        approveForm.post(route('episodes.scripts.approve', { ...params, revision: revision.value.id }), {
-            preserveScroll: true,
-            preserveState: 'errors',
-        });
-}
-function buildAssembly() {
-    if (revision.value)
-        assemblyForm.post(route('episodes.assemblies.store', { ...params, revision: revision.value.id }), {
-            preserveScroll: true,
-            preserveState: 'errors',
-        });
-}
 function refresh() {
     if (scriptForm.isDirty && !window.confirm('Reload the current episode and discard unsaved screenplay edits?')) return;
     router.get(route('episodes.show', params), {}, { preserveState: false, replace: true });

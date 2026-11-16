@@ -19,6 +19,7 @@ use App\Tasks\CreateAudio;
 use App\Tasks\CreateBasePrompt;
 use App\Tasks\CreateImage;
 use App\Tasks\CreateVideo;
+use App\Tasks\Production\AssertProductionActive;
 use App\Tasks\Production\UpdateProductionRun;
 use App\Tasks\Prompts\CreatePrompt;
 use App\Tasks\Prompts\UpdatePrompt;
@@ -39,11 +40,12 @@ readonly class MakeShortSubAction
         private CreateVideo $createVideo,
         private CreateAudio $createAudio,
         private UpdateProductionRun $updateRun,
+        private AssertProductionActive $assertActive,
     ) {}
 
     public function run(Project $project, ?ProductionRun $run = null): Prompt
     {
-        $this->assertActive($project, $run);
+        $this->assertActive->run($project, $run);
 
         if ($project->content_mode !== ProjectContentMode::SHORT) {
             throw ValidationException::withMessages(['project' => 'Series projects must produce episodes through automatic production.']);
@@ -61,12 +63,12 @@ readonly class MakeShortSubAction
         });
         event(new PromptGenerated($prompt->prompt));
 
-        $this->assertActive($project, $run);
+        $this->assertActive->run($project, $run);
         $imageUrl = $this->createImage->run($prompt->prompt);
         $this->updatePrompt->run($prompt, ['image_url' => $imageUrl]);
         event(new ImageGenerated($imageUrl));
 
-        $this->assertActive($project, $run);
+        $this->assertActive->run($project, $run);
         $video = $this->createVideo->run($imageUrl, $prompt->prompt);
         $snapshot = ['video_request' => $video->request?->toArray()];
         $this->updatePrompt->run($prompt, [
@@ -75,18 +77,11 @@ readonly class MakeShortSubAction
         ]);
         event(new VideoGenerating($prompt));
 
-        $this->assertActive($project, $run);
+        $this->assertActive->run($project, $run);
         $audioId = $this->createAudio->run($prompt->prompt, $video->audioSource);
         $this->updatePrompt->run($prompt, ['audio_id' => $audioId]);
         AudioGenerating::dispatchIf($audioId !== null, $prompt);
 
         return $prompt;
-    }
-
-    private function assertActive(Project $project, ?ProductionRun $run): void
-    {
-        if (! $project->refresh()->is_active || ($run instanceof ProductionRun && ! $run->refresh()->status->isActive())) {
-            throw ValidationException::withMessages(['project' => 'Enable this project and start a new production before generating content.']);
-        }
     }
 }

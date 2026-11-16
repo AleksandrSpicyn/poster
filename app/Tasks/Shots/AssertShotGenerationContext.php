@@ -7,13 +7,16 @@ namespace App\Tasks\Shots;
 use App\Enums\EpisodeValidity;
 use App\Enums\RevisionStatus;
 use App\Models\Shot;
+use App\Repositories\ShotRepository;
 use Illuminate\Validation\ValidationException;
 
 class AssertShotGenerationContext
 {
+    public function __construct(private readonly ShotRepository $shots) {}
+
     public function run(Shot $shot): Shot
     {
-        $shot = Shot::query()->with(['scene.episodeRevision.episode.series.project', 'scene.episodeRevision.characterRevisions.character', 'scene.episodeRevision.characterRevisions.media'])->findOrFail($shot->id);
+        $shot = $this->shots->forGeneration($shot->id);
         $revision = $shot->scene?->episodeRevision;
         $episode = $revision?->episode;
         $series = $episode?->series;

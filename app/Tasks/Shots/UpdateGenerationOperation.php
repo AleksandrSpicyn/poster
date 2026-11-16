@@ -7,23 +7,30 @@ namespace App\Tasks\Shots;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
-use App\Models\ProductionRun;
-use App\Models\Prompt;
+use App\Repositories\GenerationOperationRepository;
+use App\Repositories\ProductionRunRepository;
+use App\Repositories\PromptRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UpdateGenerationOperation
 {
+    public function __construct(
+        private readonly GenerationOperationRepository $operations,
+        private readonly PromptRepository $prompts,
+        private readonly ProductionRunRepository $runs,
+    ) {}
+
     /** @param array<string, mixed> $attributes */
     public function run(GenerationOperation $operation, GenerationOperationStatus $status, array $attributes = [], ?GenerationOperationStatus $expectedStatus = null): ?GenerationOperation
     {
         return DB::transaction(function () use ($operation, $status, $attributes, $expectedStatus): ?GenerationOperation {
             if ($operation->production_run_id !== null) {
-                ProductionRun::query()->lockForUpdate()->findOrFail($operation->production_run_id);
+                $this->runs->findLockedOrFail($operation->production_run_id);
             }
 
-            $prompt = Prompt::query()->lockForUpdate()->findOrFail($operation->prompt_id);
-            $operation = GenerationOperation::query()->lockForUpdate()->findOrFail($operation->id);
+            $prompt = $this->prompts->findLockedOrFail($operation->prompt_id);
+            $operation = $this->operations->findLockedOrFail($operation->id);
 
             if ($operation->status === GenerationOperationStatus::ABANDONED) {
                 return null;
@@ -43,7 +50,7 @@ class UpdateGenerationOperation
 
             $completed = in_array($status, [GenerationOperationStatus::SUCCEEDED, GenerationOperationStatus::FAILED], true);
             $cancelled = $completed && $operation->cancel_requested_at !== null;
-            $operation->update([...$attributes, 'status' => $cancelled ? GenerationOperationStatus::CANCELLED : $status,
+            $this->operations->update($operation, [...$attributes, 'status' => $cancelled ? GenerationOperationStatus::CANCELLED : $status,
                 'completed_at' => $completed ? now() : null,
                 'next_check_at' => in_array($status, [GenerationOperationStatus::PLANNED, GenerationOperationStatus::SUBMITTED, GenerationOperationStatus::RUNNING], true) ? now()->addMinute() : null]);
 
@@ -52,7 +59,7 @@ class UpdateGenerationOperation
             }
 
             if ($operation->stage === GenerationOperationStage::DOWNLOAD) {
-                $prompt->update(['generated' => ! $cancelled]);
+                $this->prompts->update($prompt, ['generated' => ! $cancelled]);
 
                 return null;
             }
@@ -63,18 +70,7 @@ class UpdateGenerationOperation
 
             $nextStage = $operation->stage === GenerationOperationStage::IMAGE ? GenerationOperationStage::VIDEO : GenerationOperationStage::DOWNLOAD;
 
-            return $prompt->generationOperations()->firstOrCreate(['stage' => $nextStage], [
-                'production_run_id' => $operation->production_run_id,
-                'status' => GenerationOperationStatus::PLANNED,
-                'request_key' => $operation->request_key,
-                'idempotency_key' => hash('sha256', $operation->request_key . ':' . $nextStage->value),
-                'provider' => $operation->provider,
-                'model' => $operation->model,
-                'request_snapshot' => $operation->request_snapshot,
-                'result_snapshot' => $operation->result_snapshot,
-                'cancel_requested_at' => $operation->cancel_requested_at,
-                'next_check_at' => now(),
-            ]);
+            return $this->operations->createNextStage($prompt, $operation, $nextStage);
         });
     }
 }

@@ -9,16 +9,23 @@ use App\Enums\GenerationOperationStatus;
 use App\Enums\VideoProvider;
 use App\Models\GenerationOperation;
 use App\Models\User;
+use App\Repositories\GenerationOperationRepository;
+use App\Repositories\UserRepository;
 use App\Support\Integrations\Payload;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class GetShotResolutionOperation
 {
+    public function __construct(
+        private readonly UserRepository $users,
+        private readonly GenerationOperationRepository $operations,
+    ) {}
+
     public function run(GenerationOperation $operation, string $externalId, User $actor): GenerationOperation
     {
-        Gate::forUser($actor->fresh())->authorize('manageSeries');
-        $operation = GenerationOperation::query()->with('prompt.shot.scene.episodeRevision.episode.series')->findOrFail($operation->id);
+        Gate::forUser($this->users->fresh($actor))->authorize('manageSeries');
+        $operation = $this->operations->forResolution($operation->id);
         $series = $operation->prompt?->shot?->scene?->episodeRevision?->episode?->series;
 
         if ($series === null || $series->archived_at !== null

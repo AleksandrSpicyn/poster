@@ -8,6 +8,7 @@ use App\Data\Episodes\BuiltEpisodeVideoData;
 use App\Data\Episodes\ContinuationMediaData;
 use App\Enums\AssemblyStatus;
 use App\Models\EpisodeAssembly;
+use App\Repositories\EpisodeAssemblyRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
@@ -16,6 +17,8 @@ use Throwable;
 
 class CompleteEpisodeAssembly
 {
+    public function __construct(private readonly EpisodeAssemblyRepository $assemblies) {}
+
     public function run(EpisodeAssembly $assembly, BuiltEpisodeVideoData $video, ContinuationMediaData $continuation): void
     {
         /** @var list<Media> $created */
@@ -24,7 +27,7 @@ class CompleteEpisodeAssembly
 
         try {
             DB::transaction(function () use ($assembly, $video, $continuation, $expectedVersion, &$created): void {
-                $assembly = EpisodeAssembly::query()->lockForUpdate()->findOrFail($assembly->id);
+                $assembly = $this->assemblies->findLockedOrFail($assembly->id);
 
                 if ($assembly->status !== AssemblyStatus::BUILDING || $assembly->lock_version !== $expectedVersion) {
                     throw new RuntimeException('The assembly is no longer being built.');
@@ -47,7 +50,7 @@ class CompleteEpisodeAssembly
                         ->toMediaCollection($collection);
                 }
 
-                $assembly->update([
+                $this->assemblies->update($assembly, [
                     'status' => AssemblyStatus::READY, 'duration_ms' => $video->durationMs,
                     'completed_at' => now(), 'error_message' => null, 'lock_version' => $assembly->lock_version + 1,
                 ]);

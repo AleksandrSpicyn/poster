@@ -5,24 +5,26 @@ declare(strict_types=1);
 namespace App\Tasks\Dashboard;
 
 use App\Data\DashboardData;
-use App\Models\Post;
-use App\Models\Prompt;
+use App\Repositories\PostRepository;
+use App\Repositories\PromptRepository;
 
 /** Читает общие данные кабинета без загрузки всей истории или вызова интеграций. */
 class GetDashboard
 {
+    public function __construct(private readonly PostRepository $posts, private readonly PromptRepository $prompts) {}
+
     public function run(): DashboardData
     {
-        $promptCount = Prompt::query()->whereNull('shot_id')->count();
-        $readyCount = Prompt::query()->whereNull('shot_id')->where('generated', true)->count();
+        $promptCount = $this->prompts->legacyCount();
+        $readyCount = $this->prompts->readyCount();
 
         return new DashboardData(
             promptCount: $promptCount,
-            pendingCount: Prompt::query()->whereNull('shot_id')->where('generated', false)->count(),
+            pendingCount: $this->prompts->pendingCount(),
             readyCount: $readyCount,
-            postCount: Post::query()->count(),
-            recentPrompts: Prompt::query()->whereNull('shot_id')->with('project', 'media')->latest()->latest('id')->limit(6)->get(),
-            recentPosts: Post::query()->with('channel')->latest()->latest('id')->limit(5)->get(),
+            postCount: $this->posts->totalCount(),
+            recentPrompts: $this->prompts->recentForDashboard(),
+            recentPosts: $this->posts->recentForDashboard(),
         );
     }
 }

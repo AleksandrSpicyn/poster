@@ -6,17 +6,24 @@ namespace App\Tasks\Episodes;
 
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\PromptRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class GetEpisodeMedia
 {
+    public function __construct(
+        private readonly PromptRepository $prompts,
+        private readonly EpisodeAssemblyRepository $assemblies,
+    ) {}
+
     public function run(Media $media): string
     {
         $allowed = match ($media->model_type) {
             new Prompt()->getMorphClass() => in_array($media->collection_name, [Prompt::SHOT_IMAGE, Prompt::SHOT_VIDEO], true)
-                && Prompt::query()->whereNotNull('shot_id')->whereKey($media->model_id)->exists(),
+                && $this->prompts->isShotTake($media->model_id),
             new EpisodeAssembly()->getMorphClass() => in_array($media->collection_name, [EpisodeAssembly::VIDEO, EpisodeAssembly::CONTINUATION_FRAME, EpisodeAssembly::CONTINUATION_TAIL], true)
-                && EpisodeAssembly::query()->whereKey($media->model_id)->exists(),
+                && $this->assemblies->exists($media->model_id),
             default => false,
         };
         abort_unless($allowed && $media->disk === 'local', 404);

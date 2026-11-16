@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\Channel;
 use App\Support\Integrations\Payload;
+use App\Tasks\Channels\LoadChannel;
+use App\Tasks\Channels\SaveChannelCredentials;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -22,9 +23,9 @@ class AuthorizeTiktok extends Command
     protected $description = 'Authenticate with TikTok to retrieve access token';
 
     /** @throws ConnectionException */
-    public function handle(): int
+    public function handle(LoadChannel $load, SaveChannelCredentials $save): int
     {
-        $channel = Channel::query()->findOrFail($this->argument('channel_id'));
+        $channel = $load->run($this->argument('channel_id'));
 
         $scopes = ['user.info.basic'];
 
@@ -64,8 +65,7 @@ class AuthorizeTiktok extends Command
         Payload::string($data['access_token'] ?? null, 'access_token');
         Payload::string($data['refresh_token'] ?? null, 'refresh_token');
 
-        $channel->credentials = $data;
-        $channel->save();
+        $save->run($channel, $data);
 
         $this->info('✅ Token saved. Channel ready for publishing.');
 

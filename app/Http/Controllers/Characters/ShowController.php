@@ -43,8 +43,8 @@ class ShowController
         return inertia('Characters/Show', [
             'project' => ProjectResource::make($project)->resolve(),
             'series' => SeriesResource::make($series)->resolve(),
-            'character' => CharacterResource::make($details['character'])->resolve(),
-            'revisions' => CharacterRevisionResource::collection($details['revisions']),
+            'character' => CharacterResource::make($details->character)->resolve(),
+            'revisions' => CharacterRevisionResource::collection($details->revisions),
             'referenceViews' => ReferenceView::labels(),
         ]);
     }

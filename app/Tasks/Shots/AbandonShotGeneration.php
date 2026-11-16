@@ -7,8 +7,10 @@ namespace App\Tasks\Shots;
 use App\Data\Shots\AbandonShotGenerationData;
 use App\Enums\GenerationOperationStatus;
 use App\Models\GenerationOperation;
-use App\Models\Prompt;
 use App\Models\User;
+use App\Repositories\GenerationOperationRepository;
+use App\Repositories\PromptRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,11 +18,17 @@ use Illuminate\Validation\ValidationException;
 
 class AbandonShotGeneration
 {
+    public function __construct(
+        private readonly PromptRepository $prompts,
+        private readonly GenerationOperationRepository $operations,
+        private readonly UserRepository $users,
+    ) {}
+
     public function run(GenerationOperation $operation, AbandonShotGenerationData $data, User $actor): GenerationOperation
     {
-        $actor = $actor->fresh();
+        $actor = $this->users->fresh($actor);
 
-        if ($actor === null) {
+        if (! $actor instanceof User) {
             throw new AuthorizationException();
         }
 
@@ -31,8 +39,8 @@ class AbandonShotGeneration
         }
 
         return DB::transaction(function () use ($operation, $data, $actor): GenerationOperation {
-            $prompt = Prompt::query()->lockForUpdate()->findOrFail($operation->prompt_id);
-            $operation = $prompt->generationOperations()->lockForUpdate()->findOrFail($operation->id);
+            $prompt = $this->prompts->findLockedOrFail($operation->prompt_id);
+            $operation = $this->operations->lockForPromptOperation($prompt, $operation->id);
 
             if ($prompt->shot_id === null) {
                 throw ValidationException::withMessages(['operation' => 'Select a generation belonging to a serial shot.']);
@@ -46,7 +54,7 @@ class AbandonShotGeneration
                 throw ValidationException::withMessages(['operation' => 'Only a submission with an unknown external outcome can be abandoned.']);
             }
 
-            $operation->update([
+            $this->operations->update($operation, [
                 'status' => GenerationOperationStatus::ABANDONED,
                 'completed_at' => now(),
                 'next_check_at' => null,

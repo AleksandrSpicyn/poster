@@ -6,6 +6,7 @@ namespace App\Actions\Episodes;
 
 use App\Classes\Story\Snapshot;
 use App\Data\PostData;
+use App\Data\Publications\PreparedPublicationData;
 use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\PublicationRequest;
@@ -33,35 +34,35 @@ readonly class ResolveEpisodePublicationAction
 
         $context = $this->load->run($request, $actor, $externalId);
 
-        if ($context === null) {
+        if (! $context instanceof PreparedPublicationData) {
             return;
         }
 
         try {
-            $verified = $this->verify->run($context['channel'], $context['video'], $externalId);
+            $verified = $this->verify->run($context->channel, $context->video, $externalId);
         } catch (PublicationVerificationException $exception) {
             throw ValidationException::withMessages(['external_id' => $exception->getMessage()]);
         } catch (Throwable) {
             throw ValidationException::withMessages(['external_id' => 'The provider could not verify this video. Check the video ID and account read permissions before trying again.']);
         }
 
-        $fingerprint = $this->channelFingerprint($context['channel']);
-        $payloadHash = Snapshot::hash($context['request']->payload);
+        $fingerprint = $this->channelFingerprint($context->channel);
+        $payloadHash = Snapshot::hash($context->request->payload);
 
         DB::transaction(function () use ($request, $actor, $externalId, $verified, $fingerprint, $payloadHash): void {
             $current = $this->load->run($request, $actor, $externalId, lock: true);
 
-            if ($current === null) {
+            if (! $current instanceof PreparedPublicationData) {
                 return;
             }
 
-            if ($fingerprint !== $this->channelFingerprint($current['channel']) || $payloadHash !== Snapshot::hash($current['request']->payload)) {
+            if ($fingerprint !== $this->channelFingerprint($current->channel) || $payloadHash !== Snapshot::hash($current->request->payload)) {
                 throw ValidationException::withMessages(['publication' => 'The publication or account changed during verification. Verify it again.']);
             }
 
-            $video = $current['video'];
+            $video = $current->video;
             $this->savePost->run(new PostData(
-                $current['channel'],
+                $current->channel,
                 null,
                 $video->title,
                 $video->description,

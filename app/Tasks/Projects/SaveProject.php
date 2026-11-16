@@ -5,31 +5,35 @@ declare(strict_types=1);
 namespace App\Tasks\Projects;
 
 use App\Data\ProjectData;
-use App\Enums\ProductionStatus;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
+use App\Repositories\ProjectRepository;
 use Illuminate\Validation\ValidationException;
 
 class SaveProject
 {
+    public function __construct(private readonly ProjectRepository $projects) {}
+
     public function run(ProjectData $data, ?Project $project = null): Project
     {
         $project ??= new Project();
 
         if ($project->exists) {
-            $project = Project::query()->lockForUpdate()->findOrFail($project->id);
+            $project = $this->projects->findLockedOrFail($project->id);
         }
 
-        if ($project->exists && $data->content_mode === ProjectContentMode::SHORT && $project->series()->exists()) {
+        if ($project->exists && $data->content_mode === ProjectContentMode::SHORT && $this->projects->hasSeries($project)) {
             throw ValidationException::withMessages(['content_mode' => 'A project with series must keep the series content type.']);
         }
 
         $project->fill(['name' => $data->name, 'prompt' => $data->prompt, 'content_mode' => $data->content_mode,
             'is_active' => $data->is_active ?? $project->is_active]);
-        $project->save();
+        $this->projects->save($project);
 
-        return $project->is_active ? $project : $project->load([
-            'productionRuns' => fn($query) => $query->whereIn('status', ProductionStatus::blockingValues())->orderBy('id'),
-        ]);
+        if ($data->content_mode === ProjectContentMode::SERIES) {
+            $this->projects->forSettings($project);
+        }
+
+        return $project->is_active ? $project : $this->projects->withBlockingProductionRuns($project);
     }
 }

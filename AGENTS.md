@@ -32,10 +32,15 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
   когда проверяете полный сценарий. Проверяйте payload, persistence и эффекты.
 - PHP: native types, точные generics/array shapes, early return, collection-first
   для преобразований, без ведущего `_` у callback parameters. Сохраняйте контракты.
-- HTTP-сценарий: Controller → Action → Task. Контроллер не вызывает Task напрямую,
+- HTTP-сценарий: Controller → Action → Task → Repository. Контроллер не вызывает Task напрямую,
   не валидирует inline и не меняет модели/сессии. Laravel Data DTO валидирует ввод
-  и передаётся в Action; Action координирует сценарий, Task выполняет атомарную операцию. Persistence
-  остаётся в Tasks с Eloquent; отдельный Repository-слой здесь не введён.
+  и передаётся в Action; Action координирует сценарий, Task выполняет атомарную операцию.
+  Запросы, блокировки, загрузка связей и запись моделей находятся в конкретных
+  `app/Repositories`; файловые операции и Media Library lifecycle остаются в Tasks.
+  Репозитории возвращают модели, коллекции или DTO, без Builder наружу.
+  Составные сценарии делятся на локальные SubActions; Tasks не вызывают друг друга.
+- Стабильные внутренние результаты передавайте DTO. Массивы сохраняются на границах
+  Eloquent, HTTP/SDK и исторических JSON snapshots; их формат не меняйте при рефакторинге.
 - Повторяющиеся наборы значений оформляйте enum; все PHP enum обязаны использовать
   `App\Traits\EnumTrait`. В DTO используйте enum-типы, на границах — backed values.
 - Валидация DTO преимущественно в атрибутах Laravel Data; `rules()` — только для

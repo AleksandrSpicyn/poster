@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tasks\Episodes;
 
 use App\Enums\RevisionStatus;
-use App\Models\Episode;
 use App\Models\EpisodeRevision;
-use App\Models\Series;
 use App\Models\User;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\SeriesRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,21 +18,28 @@ use Illuminate\Validation\ValidationException;
 
 class ApproveEpisodeScript
 {
+    public function __construct(
+        private readonly EpisodeRepository $episodes,
+        private readonly EpisodeRevisionRepository $episodeRevisions,
+        private readonly SeriesRepository $series,
+        private readonly UserRepository $users,
+    ) {}
+
     public function run(EpisodeRevision $revision, User $actor, bool $useGeneratedTitle = false): EpisodeRevision
     {
-        $actor = $actor->fresh();
+        $actor = $this->users->fresh($actor);
 
-        if ($actor === null) {
+        if (! $actor instanceof User) {
             throw new AuthorizationException();
         }
 
         Gate::forUser($actor)->authorize('manageSeries');
 
         return DB::transaction(function () use ($revision, $actor, $useGeneratedTitle): EpisodeRevision {
-            $episode = Episode::query()->findOrFail($revision->episode_id);
-            $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
-            $episode = Episode::query()->lockForUpdate()->findOrFail($episode->id);
-            $revision = EpisodeRevision::query()->lockForUpdate()->findOrFail($revision->id);
+            $episode = $this->episodes->findOrFail($revision->episode_id);
+            $series = $this->series->findLockedOrFail($episode->series_id);
+            $episode = $this->episodes->findLockedOrFail($episode->id);
+            $revision = $this->episodeRevisions->findLockedOrFail($revision->id);
 
             if ($revision->status === RevisionStatus::APPROVED) {
                 return $revision;
@@ -42,10 +51,10 @@ class ApproveEpisodeScript
                 throw ValidationException::withMessages(['script' => 'Only the current draft with an up-to-date story context can be approved.']);
             }
 
-            $revision->update(['status' => RevisionStatus::APPROVED, 'approved_at' => now(), 'approved_by' => $actor->id]);
+            $this->episodeRevisions->update($revision, ['status' => RevisionStatus::APPROVED, 'approved_at' => now(), 'approved_by' => $actor->id]);
 
             if ($useGeneratedTitle) {
-                $episode->update(['title' => $revision->title]);
+                $this->episodes->update($episode, ['title' => $revision->title]);
             }
 
             return $revision;

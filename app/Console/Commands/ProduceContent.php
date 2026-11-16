@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Production\StartProductionAction;
-use App\Models\Project;
+use App\Tasks\Projects\GetActiveProjects;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -15,7 +15,7 @@ class ProduceContent extends Command
 
     protected $description = 'Queue the next episode for series projects, or a standalone video for other projects';
 
-    public function handle(StartProductionAction $action): int
+    public function handle(StartProductionAction $action, GetActiveProjects $getProjects): int
     {
         if ($this->option('scheduled') && ! config('production.schedule_enabled')) {
             $this->info('Scheduled content production is disabled.');
@@ -32,7 +32,7 @@ class ProduceContent extends Command
         }
 
         $key = $this->option('scheduled') ? 'schedule:' . now()->format('YmdHi') : 'manual:' . Str::uuid();
-        $projects = Project::query()->where('is_active', true)->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
+        $projects = $getProjects->run($projectId);
         $count = 0;
 
         foreach ($projects as $project) {

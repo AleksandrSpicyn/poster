@@ -4,28 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tasks\Series;
 
-use App\Models\Character;
-use App\Models\Episode;
+use App\Data\Series\SeriesWorkspaceData;
 use App\Models\Series;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Repositories\SeriesRepository;
 
 class GetSeries
 {
-    /** @return array{series: Series, characters: LengthAwarePaginator<int, Character>, episodes: Collection<int, Episode>} */
-    public function run(Series $series, int $page): array
-    {
-        $series->load('project', 'latestProductionRun')->loadCount('characters', 'episodes');
+    public function __construct(private readonly SeriesRepository $seriess) {}
 
-        return [
-            'series' => $series,
-            'characters' => $series->characters()
-                ->with('currentRevision')
-                ->orderBy('name')
-                ->orderBy('id')
-                ->paginate(20, page: $page)
-                ->withQueryString(),
-            'episodes' => $series->episodes()->orderByDesc('number')->limit(20)->get(),
-        ];
+    public function run(Series $series, int $page): SeriesWorkspaceData
+    {
+        return $this->seriess->workspace($series, $page);
     }
 }

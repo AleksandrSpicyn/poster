@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Prompts;
 
 use App\Models\Prompt;
+use App\Repositories\PromptRepository;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
@@ -14,6 +15,8 @@ use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
  */
 class SaveGeneratedVideo
 {
+    public function __construct(private readonly PromptRepository $prompts) {}
+
     /**
      * @throws FileDoesNotExist
      * @throws FileIsTooBig
@@ -21,6 +24,7 @@ class SaveGeneratedVideo
     public function run(Prompt $prompt, string $path): void
     {
         $prompt->addMedia($path)->toMediaCollection();
-        $prompt->update(['generated' => true]);
+        $this->prompts->update($prompt, ['generated' => true]);
+        $this->prompts->reloadMedia($prompt);
     }
 }

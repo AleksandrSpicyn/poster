@@ -13,6 +13,8 @@ use App\Http\Resources\ProjectResource;
 use App\Http\Resources\PromptResource;
 use App\Http\Resources\SeriesResource;
 use App\Models\Project;
+use App\Models\Series;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Response;
 
 class ShowController
@@ -43,11 +45,11 @@ class ShowController
         $data = $action->run($project, $filters);
 
         return inertia('Projects/Show', [
-            'project' => ProjectResource::make($data['project'])->resolve(),
-            'prompts' => PromptResource::collection($data['prompts']),
-            'series' => $data['series'] === null ? null : SeriesResource::make($data['series'])->resolve(),
-            'characters' => $data['characters'] === null ? null : CharacterResource::collection($data['characters']),
-            'episodes' => EpisodeSummaryResource::collection($data['episodes'])->resolve(),
+            'project' => ProjectResource::make($data->project)->resolve(),
+            'prompts' => PromptResource::collection($data->prompts),
+            'series' => $data->series instanceof Series ? SeriesResource::make($data->series)->resolve() : null,
+            'characters' => $data->characters instanceof LengthAwarePaginator ? CharacterResource::collection($data->characters) : null,
+            'episodes' => EpisodeSummaryResource::collection($data->episodes)->resolve(),
             'sortDirections' => SortDirection::labels(),
             'filters' => ['sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
         ]);

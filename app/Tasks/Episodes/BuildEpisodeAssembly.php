@@ -5,29 +5,30 @@ declare(strict_types=1);
 namespace App\Tasks\Episodes;
 
 use App\Data\Episodes\BuiltEpisodeVideoData;
+use App\Data\Episodes\EpisodeAssemblyPlanData;
+use App\Data\Episodes\VideoMetadataData;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Repositories\MediaRepository;
 use Illuminate\Container\Attributes\Storage;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
 readonly class BuildEpisodeAssembly
 {
-    public function __construct(#[Storage('local')] private FilesystemAdapter $disk) {}
+    public function __construct(
+        #[Storage('local')] private FilesystemAdapter $disk,
+        private MediaRepository $media,
+    ) {}
 
     public function run(EpisodeAssembly $assembly): BuiltEpisodeVideoData
     {
-        $shots = $this->shots($assembly->manifest);
-        $duration = array_sum(array_column($shots, 'duration_ms'));
-
-        if ($duration < 100 || $duration > 600000) {
-            throw new RuntimeException('The assembly duration is outside the supported range.');
-        }
+        $plan = EpisodeAssemblyPlanData::fromManifest($assembly->manifest);
+        $duration = $plan->durationMs;
 
         $workspace = $this->disk->path('episode-builds/' . Str::uuid());
         File::makeDirectory($workspace, 0700, true);
@@ -35,27 +36,27 @@ readonly class BuildEpisodeAssembly
         $deadline = microtime(true) + 3300;
 
         try {
-            foreach ($shots as $index => $shot) {
-                $media = Media::query()->where('collection_name', Prompt::SHOT_VIDEO)->findOrFail($shot['media_id']);
+            foreach ($plan->shots as $index => $shot) {
+                $media = $this->media->shotVideo($shot->mediaId);
                 $path = $media->getPath();
 
-                if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot['prompt_id']
+                if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot->promptId
                     || ! in_array($media->disk, ['local', 'public'], true) || ! is_file($path)
-                    || filesize($path) > 500000000 || hash_file('sha256', $path) !== $shot['checksum']) {
+                    || filesize($path) > 500000000 || hash_file('sha256', $path) !== $shot->checksum) {
                     throw new RuntimeException('A selected take is unavailable or its contents changed.');
                 }
 
                 $probe = $this->probe($path);
 
-                if ($shot['trim_end_ms'] > $probe['duration_ms'] + 50) {
+                if ($shot->trimEndMs > $probe->durationMs + 50) {
                     throw new RuntimeException('A trim exceeds the actual duration of a selected take.');
                 }
 
                 $clip = 'clip-' . $index . '.mp4';
                 $command = ['ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-                    '-ss', $this->seconds($shot['trim_start_ms']), '-f', 'mov', '-i', $path];
+                    '-ss', $this->seconds($shot->trimStartMs), '-f', 'mov', '-i', $path];
 
-                $useAudio = $probe['has_audio'] && ! $shot['mute_audio'];
+                $useAudio = $probe->hasAudio && ! $shot->muteAudio;
 
                 if (! $useAudio) {
                     $command[] = '-f';
@@ -69,7 +70,7 @@ readonly class BuildEpisodeAssembly
                 $command[] = '-map';
                 $command[] = $useAudio ? '0:a:0' : '1:a:0';
                 $command[] = '-t';
-                $command[] = $this->seconds($shot['duration_ms']);
+                $command[] = $this->seconds($shot->durationMs);
                 $command[] = '-vf';
                 $command[] = 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24';
                 $command[] = '-c:v';
@@ -113,11 +114,11 @@ readonly class BuildEpisodeAssembly
 
             $probe = $this->probe($output);
 
-            if (abs($probe['duration_ms'] - $duration) > 250 || ! $probe['has_audio']) {
+            if (abs($probe->durationMs - $duration) > 250 || ! $probe->hasAudio) {
                 throw new RuntimeException('The assembled video failed its duration or audio check.');
             }
 
-            return new BuiltEpisodeVideoData($output, $probe['duration_ms'], $workspace);
+            return new BuiltEpisodeVideoData($output, $probe->durationMs, $workspace);
         } catch (Throwable $exception) {
             File::deleteDirectory($workspace);
 
@@ -125,40 +126,7 @@ readonly class BuildEpisodeAssembly
         }
     }
 
-    /**
-     * @param array<string, mixed> $manifest
-     * @return list<array{media_id: int, prompt_id: int, checksum: string, trim_start_ms: int, trim_end_ms: int, duration_ms: int, mute_audio: bool}>
-     */
-    private function shots(array $manifest): array
-    {
-        $shots = $manifest['shots'] ?? null;
-
-        if (! is_array($shots) || ! array_is_list($shots) || $shots === [] || count($shots) > 100) {
-            throw new RuntimeException('The assembly manifest is invalid.');
-        }
-
-        $result = [];
-
-        foreach ($shots as $shot) {
-            if (! is_array($shot) || ! is_int($shot['media_id'] ?? null) || ! is_int($shot['prompt_id'] ?? null)
-                || ! is_string($shot['checksum'] ?? null) || ! is_int($shot['trim_start_ms'] ?? null)
-                || ! is_int($shot['trim_end_ms'] ?? null) || ! is_int($shot['duration_ms'] ?? null)
-                || (array_key_exists('mute_audio', $shot) && ! is_bool($shot['mute_audio']))
-                || $shot['trim_start_ms'] < 0 || $shot['duration_ms'] < 100
-                || $shot['trim_end_ms'] - $shot['trim_start_ms'] !== $shot['duration_ms']) {
-                throw new RuntimeException('The assembly manifest contains an invalid trim or media reference.');
-            }
-
-            $result[] = ['media_id' => $shot['media_id'], 'prompt_id' => $shot['prompt_id'],
-                'checksum' => $shot['checksum'], 'trim_start_ms' => $shot['trim_start_ms'],
-                'trim_end_ms' => $shot['trim_end_ms'], 'duration_ms' => $shot['duration_ms'], 'mute_audio' => $shot['mute_audio'] ?? false];
-        }
-
-        return $result;
-    }
-
-    /** @return array{duration_ms: int, has_audio: bool} */
-    private function probe(string $path): array
+    private function probe(string $path): VideoMetadataData
     {
         $response = Process::timeout(30)->run([
             'ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov',
@@ -183,7 +151,7 @@ readonly class BuildEpisodeAssembly
             throw new RuntimeException('A selected file contains no video stream.');
         }
 
-        return ['duration_ms' => (int) round((float) $duration * 1000), 'has_audio' => in_array('audio', $types, true)];
+        return new VideoMetadataData((int) round((float) $duration * 1000), in_array('audio', $types, true));
     }
 
     private function seconds(int $milliseconds): string

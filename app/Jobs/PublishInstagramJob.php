@@ -5,25 +5,59 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Classes\Publishers\Instagram\Instagram;
+use App\Classes\Publishers\PublisherFactory;
+use App\Classes\Publishers\StagedPublisher;
+use App\Data\PublishVideoData;
+use App\Models\Channel;
+use App\Models\Prompt;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
+use RuntimeException;
 
-/**
- * Выполняет отложенный второй этап Instagram после создания Reels-контейнера.
- */
+/** Выполняет отложенный второй этап Instagram после создания Reels-контейнера. */
 class PublishInstagramJob implements ShouldQueue
 {
-    use Queueable;
+    use Queueable {
+        __unserialize as private restoreQueueState;
+    }
 
-    public function __construct(
-        private readonly Instagram $publisher,
-        private readonly string $containerId,
-    ) {}
+    private Channel $channel;
+
+    private Prompt|PublishVideoData $source;
+
+    public function __construct(Instagram $publisher, private readonly string $containerId)
+    {
+        $this->channel = $publisher->channel();
+        $this->source = $publisher->source();
+    }
+
+    /**
+     * Старый payload содержит Publisher с прежним набором DI-полей.
+     * Из него извлекается только контекст; зависимости создаёт текущая фабрика.
+     *
+     * @param array<string, mixed> $values
+     */
+    public function __unserialize(array $values): void
+    {
+        $this->restoreQueueState($values);
+        $publisher = $values["\0" . self::class . "\0publisher"] ?? null;
+
+        if ($publisher instanceof Instagram) {
+            $this->channel = $publisher->channel();
+            $this->source = $publisher->source();
+        }
+    }
 
     /** @throws ConnectionException */
-    public function handle(): void
+    public function handle(PublisherFactory $factory): void
     {
-        $this->publisher->publishContainer($this->containerId);
+        $publisher = $factory->make($this->channel, $this->source);
+
+        if (! $publisher instanceof StagedPublisher) {
+            throw new RuntimeException('The queued publication requires a staged publisher.');
+        }
+
+        $publisher->publishContainer($this->containerId);
     }
 }

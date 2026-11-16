@@ -7,18 +7,30 @@ namespace App\Tasks\Episodes;
 use App\Enums\AssemblyStatus;
 use App\Enums\RevisionStatus;
 use App\Models\EpisodeAssembly;
-use App\Models\Project;
+use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\EpisodeRepository;
+use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\ProjectRepository;
+use App\Repositories\SeriesRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StartEpisodeAssembly
 {
+    public function __construct(
+        private readonly EpisodeAssemblyRepository $assemblies,
+        private readonly ProjectRepository $projects,
+        private readonly EpisodeRepository $episodes,
+        private readonly SeriesRepository $series,
+        private readonly EpisodeRevisionRepository $episodeRevisions,
+    ) {}
+
     public function run(EpisodeAssembly $assembly): ?EpisodeAssembly
     {
         return DB::transaction(function () use ($assembly): ?EpisodeAssembly {
-            $series = $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail()->series()->firstOrFail();
-            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
-            $assembly = EpisodeAssembly::query()->lockForUpdate()->findOrFail($assembly->id);
+            $series = $this->series->forAssembly($assembly);
+            $project = $this->projects->findLockedOrFail($series->project_id);
+            $assembly = $this->assemblies->findLockedOrFail($assembly->id);
 
             if (in_array($assembly->status, [AssemblyStatus::READY, AssemblyStatus::ACCEPTED], true)) {
                 return null;
@@ -28,9 +40,9 @@ class StartEpisodeAssembly
                 return null;
             }
 
-            $revision = $assembly->episodeRevision()->firstOrFail();
-            $episode = $revision->episode()->firstOrFail();
-            $series = $episode->series()->firstOrFail();
+            $revision = $this->episodeRevisions->forAssemblyRecord($assembly);
+            $episode = $this->episodes->forRevision($revision);
+            $series = $this->series->forEpisode($episode);
 
             if (! $project->is_active || $series->archived_at !== null || $episode->current_revision_id !== $revision->id
                 || $revision->status !== RevisionStatus::APPROVED
@@ -39,12 +51,12 @@ class StartEpisodeAssembly
                 throw ValidationException::withMessages(['assembly' => 'The screenplay or story context changed. Prepare a new assembly.']);
             }
 
-            $assembly->update([
+            $this->assemblies->update($assembly, [
                 'status' => AssemblyStatus::BUILDING, 'started_at' => now(), 'completed_at' => null,
                 'error_message' => null, 'lock_version' => $assembly->lock_version + 1,
             ]);
 
-            return $assembly->refresh();
+            return $this->assemblies->refresh($assembly);
         });
     }
 }

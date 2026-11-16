@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Projects;
 
 use App\Actions\Projects\GetProjectFormAction;
 use App\Data\ProjectData;
+use App\Data\Projects\PublishingSourceData;
 use App\Enums\ContentAudience;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesAudioMode;
@@ -39,10 +40,10 @@ class EditController
         $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
 
         return inertia('Projects/Form', [
-            'project' => ProjectResource::make($details['project'])->resolve(),
+            'project' => ProjectResource::make($details->project)->resolve(),
             'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
             'series' => $series === null ? null : SeriesResource::make($series)->resolve(),
-            'channelSources' => $details['channelSources'],
+            'channelSources' => collect($details->channelSources)->map(fn(PublishingSourceData $source): array => $source->toArray())->all(),
             'audiences' => ContentAudience::labels(),
             'audioModes' => SeriesAudioMode::labels(),
             'defaultAudioMode' => SeriesAudioMode::NATIVE->value,

@@ -23,7 +23,7 @@ test('выключение проекта блокирует отправку г
     $channel->project?->update(['is_active' => false]);
     Http::fake();
 
-    expect(fn() => new PublishInstagramJob($publisher, 'pending-container')->handle())->toThrow(RuntimeException::class);
+    expect(fn() => app()->call([new PublishInstagramJob($publisher, 'pending-container'), 'handle']))->toThrow(RuntimeException::class);
 
     assertDatabaseCount('posts', 0);
     Http::assertNothingSent();
@@ -67,7 +67,7 @@ test('готовый контейнер создаёт запись публик
 
     $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
 
-    new PublishInstagramJob($publisher, 'container-1')->handle();
+    app()->call([new PublishInstagramJob($publisher, 'container-1'), 'handle']);
 
     assertDatabaseHas('posts', [
         'channel_id' => $channel->id, 'prompt_id' => $prompt->id,

@@ -10,19 +10,20 @@ use App\Models\Episode;
 use App\Models\User;
 use App\Tasks\Episodes\BuildEpisodeContext;
 use App\Tasks\Episodes\QueueEpisodeScript;
+use App\Tasks\Users\RefreshUser;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 readonly class RequestEpisodeScriptAction
 {
-    public function __construct(private BuildEpisodeContext $context, private QueueEpisodeScript $queue) {}
+    public function __construct(private BuildEpisodeContext $context, private QueueEpisodeScript $queue, private RefreshUser $refreshUser) {}
 
     public function run(Episode $episode, GenerateEpisodeScriptData $data, User $actor): void
     {
-        $actor = $actor->fresh();
+        $actor = $this->refreshUser->run($actor);
 
-        if ($actor === null) {
+        if (! $actor instanceof User) {
             throw new AuthorizationException();
         }
 

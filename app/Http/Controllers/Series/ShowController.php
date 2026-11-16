@@ -39,9 +39,9 @@ class ShowController
 
         return inertia('Series/Show', [
             'project' => ProjectResource::make($project)->resolve(),
-            'series' => SeriesResource::make($details['series'])->resolve(),
-            'characters' => CharacterResource::collection($details['characters']),
-            'episodes' => EpisodeSummaryResource::collection($details['episodes'])->resolve(),
+            'series' => SeriesResource::make($details->series)->resolve(),
+            'characters' => CharacterResource::collection($details->characters),
+            'episodes' => EpisodeSummaryResource::collection($details->episodes)->resolve(),
         ]);
     }
 }

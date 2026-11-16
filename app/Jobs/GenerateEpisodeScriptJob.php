@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\Episodes\ProcessEpisodeScriptAction;
-use App\Models\Episode;
+use App\Tasks\Episodes\LoadEpisode;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -19,8 +19,8 @@ class GenerateEpisodeScriptJob implements ShouldQueue
 
     public function __construct(public readonly int $episodeId, public readonly string $requestKey) {}
 
-    public function handle(ProcessEpisodeScriptAction $action): void
+    public function handle(ProcessEpisodeScriptAction $action, LoadEpisode $load): void
     {
-        $action->run(Episode::query()->findOrFail($this->episodeId), $this->requestKey);
+        $action->run($load->run($this->episodeId), $this->requestKey);
     }
 }

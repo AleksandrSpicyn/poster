@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Actions\SaveVideoAction;
 use App\Models\Prompt;
+use App\Tasks\Prompts\GetUnfinishedPrompts;
 use Exception;
 use Illuminate\Console\Command;
 
@@ -18,9 +19,8 @@ class SaveVideo extends Command
     protected $signature = 'app:save-video';
 
     /** @throws Exception */
-    public function handle(SaveVideoAction $action): void
+    public function handle(SaveVideoAction $action, GetUnfinishedPrompts $getPrompts): void
     {
-        Prompt::query()->where('generated', false)
-            ->lazyById()->each(fn(Prompt $prompt) => $action->run($prompt));
+        $getPrompts->run()->each(fn(Prompt $prompt) => $action->run($prompt));
     }
 }

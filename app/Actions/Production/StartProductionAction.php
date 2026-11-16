@@ -24,12 +24,12 @@ readonly class StartProductionAction
         $runs = collect();
 
         foreach ($this->targets->run($project, $seriesId, $actor) as $target) {
-            if (! $actor instanceof User && ! Gate::forUser($target['actor'])->allows('manageSeries')) {
+            if (! $actor instanceof User && ! Gate::forUser($target->actor)->allows('manageSeries')) {
                 continue;
             }
 
-            Gate::forUser($target['actor'])->authorize('manageSeries');
-            $run = $this->create->run($project, $target['series'], $target['actor'], $requestKey);
+            Gate::forUser($target->actor)->authorize('manageSeries');
+            $run = $this->create->run($project, $target->series, $target->actor, $requestKey);
 
             if (! $run instanceof ProductionRun) {
                 continue;

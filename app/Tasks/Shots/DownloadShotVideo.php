@@ -6,6 +6,7 @@ namespace App\Tasks\Shots;
 
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
+use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -17,12 +18,14 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DownloadShotVideo
 {
+    public function __construct(private readonly PromptRepository $prompts) {}
+
     public function run(GenerationOperation $operation): Media
     {
-        $prompt = $operation->prompt()->firstOrFail();
+        $prompt = $this->prompts->forOperation($operation);
         $existing = $prompt->getFirstMedia(Prompt::SHOT_VIDEO);
 
-        if ($existing !== null) {
+        if ($existing instanceof Media) {
             return $existing;
         }
 

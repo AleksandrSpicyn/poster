@@ -7,9 +7,10 @@ namespace App\Tasks\Shots;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Data\ImageReferenceData;
 use App\Enums\TransitionMode;
-use App\Models\CharacterRevision;
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
+use App\Repositories\MediaRepository;
+use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -20,24 +21,28 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 readonly class RenderShotImage
 {
-    public function __construct(private ImageGenerator $images) {}
+    public function __construct(
+        private ImageGenerator $images,
+        private MediaRepository $media,
+        private PromptRepository $prompts,
+    ) {}
 
     public function run(GenerationOperation $operation): Media
     {
-        $prompt = $operation->prompt()->firstOrFail();
+        $prompt = $this->prompts->forOperation($operation);
         $existing = $prompt->getFirstMedia(Prompt::SHOT_IMAGE);
 
-        if ($existing !== null) {
+        if ($existing instanceof Media) {
             return $existing;
         }
 
         $snapshot = $operation->request_snapshot;
         $sourceId = $snapshot['source_media_id'] ?? null;
-        $source = is_int($sourceId) ? Media::query()->findOrFail($sourceId) : null;
+        $source = is_int($sourceId) ? $this->media->findOrFail($sourceId) : null;
         $workFile = null;
 
         try {
-            if ($source !== null) {
+            if ($source instanceof Media) {
                 if (hash_file('sha256', $source->getPath()) !== ($snapshot['source_sha256'] ?? null)) {
                     throw new RuntimeException('The pinned continuation source changed.');
                 }
@@ -79,9 +84,7 @@ readonly class RenderShotImage
                         throw new RuntimeException('The pinned media reference is invalid.');
                     }
 
-                    $media = Media::query()->where('model_type', new CharacterRevision()->getMorphClass())
-                        ->where('model_id', $character['id'])->where('collection_name', CharacterRevision::REFERENCES)
-                        ->findOrFail($reference['media_id']);
+                    $media = $this->media->characterReference($character['id'], $reference['media_id']);
 
                     if (hash_file('sha256', $media->getPath()) !== ($reference['sha256'] ?? null)) {
                         throw new RuntimeException('An approved reference changed after this take was requested.');

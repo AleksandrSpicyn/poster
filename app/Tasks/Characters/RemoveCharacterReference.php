@@ -6,14 +6,21 @@ namespace App\Tasks\Characters;
 
 use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
+use App\Repositories\CharacterRevisionRepository;
+use App\Repositories\MediaRepository;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class RemoveCharacterReference
 {
+    public function __construct(
+        private readonly CharacterRevisionRepository $characterRevisions,
+        private readonly MediaRepository $media,
+    ) {}
+
     public function run(CharacterRevision $revision, Media $media, int $expectedVersion): void
     {
-        $revision = CharacterRevision::query()->lockForUpdate()->findOrFail($revision->id);
+        $revision = $this->characterRevisions->lockedForReferences($revision->id);
 
         if ($revision->status !== RevisionStatus::DRAFT) {
             throw ValidationException::withMessages(['revision' => 'References of an approved character version cannot be removed.']);
@@ -27,11 +34,9 @@ class RemoveCharacterReference
             throw ValidationException::withMessages(['character' => 'References of an archived character or series cannot be changed.']);
         }
 
-        $media = $revision->media()
-            ->where('collection_name', CharacterRevision::REFERENCES)
-            ->findOrFail($media->id);
+        $media = $this->media->referenceForRevision($revision, $media->id);
         $revision->lock_version++;
-        $revision->save();
+        $this->characterRevisions->save($revision);
         $media->delete();
     }
 }

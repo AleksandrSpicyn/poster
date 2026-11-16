@@ -7,15 +7,19 @@ namespace App\Tasks\Production;
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Models\EpisodeRevision;
 use App\Models\Scene;
+use App\Repositories\EpisodeRevisionRepository;
 use Illuminate\Validation\ValidationException;
 
 readonly class AssertProductionScreenplay
 {
-    public function __construct(private VideoGeneratorFactory $generators) {}
+    public function __construct(
+        private VideoGeneratorFactory $generators,
+        private EpisodeRevisionRepository $revisions,
+    ) {}
 
     public function run(EpisodeRevision $revision): void
     {
-        $revision->loadMissing('scenes.shots');
+        $this->revisions->withScreenplay($revision);
         $shots = $revision->scenes->flatMap(fn(Scene $scene) => $scene->shots);
         $duration = data_get($revision->context_snapshot, 'specification.episode_duration_seconds');
         $capabilities = $this->generators->make($this->generators->primary())->capabilities();

@@ -7,14 +7,15 @@ namespace App\Tasks\Publications;
 use App\Enums\PublicationStatus;
 use App\Events\WorkspaceUpdated;
 use App\Models\PublicationRequest;
+use App\Repositories\PublicationRequestRepository;
 
 class UpdatePublicationState
 {
+    public function __construct(private readonly PublicationRequestRepository $publications) {}
+
     public function run(PublicationRequest $request, PublicationStatus $status, ?string $containerId = null, ?string $error = null): void
     {
-        $updated = PublicationRequest::query()->whereKey($request->id)
-            ->where('status', '!=', PublicationStatus::PUBLISHED)
-            ->update(['status' => $status, 'container_id' => $containerId ?? $request->container_id, 'error_message' => $error]);
+        $updated = $this->publications->updateUnpublished($request, $status, $containerId, $error);
 
         if ($updated > 0) {
             WorkspaceUpdated::dispatch(true);

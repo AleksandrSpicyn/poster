@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Tasks\Posts;
 
 use App\Data\GetPostsListData;
-use App\Enums\ChannelType;
-use App\Enums\SortDirection;
 use App\Models\Post;
-use Illuminate\Database\Eloquent\Builder;
+use App\Repositories\PostRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -17,23 +15,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class GetPostsList
 {
+    public function __construct(private readonly PostRepository $posts) {}
+
     /** @return LengthAwarePaginator<int, Post> */
     public function run(GetPostsListData $dto): LengthAwarePaginator
     {
-        $type = ChannelType::tryFrom(is_string($dto->type) ? $dto->type : '');
-
-        $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
-
-        return Post::query()
-            ->with('channel')
-            ->when($type, function (Builder $query, ChannelType $type): void {
-                $query->whereHas('channel', function (Builder $q) use ($type): void {
-                    $q->where('type', $type->value);
-                });
-            })
-            ->orderBy('created_at', $direction->value)
-            ->orderBy('id', $direction->value)
-            ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
-            ->withQueryString();
+        return $this->posts->paginate($dto);
     }
 }

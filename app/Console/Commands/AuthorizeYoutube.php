@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\Channel;
 use App\Support\Integrations\Payload;
+use App\Tasks\Channels\LoadChannel;
+use App\Tasks\Channels\SaveChannelCredentials;
 use Google\Client;
 use Google\Service\YouTube;
 use Illuminate\Console\Command;
@@ -20,9 +21,9 @@ class AuthorizeYoutube extends Command
 
     protected $description = 'Authorize a YouTube channel using OAuth 2.0';
 
-    public function handle(Client $client): int
+    public function handle(Client $client, LoadChannel $load, SaveChannelCredentials $save): int
     {
-        $channel = Channel::query()->findOrFail($this->argument('channel_id'));
+        $channel = $load->run($this->argument('channel_id'));
 
         $client->setClientId(Payload::string($channel->client_id, 'client_id'));
         $client->setClientSecret(Payload::string($channel->client_secret, 'client_secret'));
@@ -51,8 +52,7 @@ class AuthorizeYoutube extends Command
             return self::FAILURE;
         }
 
-        $channel->credentials = $accessToken;
-        $channel->save();
+        $save->run($channel, $accessToken);
 
         $this->info('✅ Token saved. Channel ready for publishing.');
 
