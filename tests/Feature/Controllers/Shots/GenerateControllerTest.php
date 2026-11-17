@@ -68,6 +68,11 @@ test('неутверждённый сценарий не создаёт плат
 });
 
 test('дубль получает локальную цель и финал только последнего плана', function (int $position, bool $receivesFinalState): void {
+    config([
+        'services.video.provider' => VideoProvider::SEEDANCE->value,
+        'services.seedance.model' => 'dreamina-seedance-2-0-mini-260615',
+        'services.seedance.resolution' => '720p',
+    ]);
     Storage::fake('local');
     $context = episodeHttpFixture();
     serialReferenceMedia($context['revision']->characterRevisions()->firstOrFail());

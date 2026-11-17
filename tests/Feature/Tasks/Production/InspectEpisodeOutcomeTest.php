@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\EpisodeAssembly;
 use App\Models\Scene;
+use App\Models\Shot;
 use App\Support\Integrations\Payload;
 use App\Tasks\Production\InspectEpisodeOutcome;
 use Illuminate\Contracts\Process\ProcessResult;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-test('извлекает кадры готового монтажа и сохраняет только наблюдаемые события', function (): void {
+test('извлекает кадры готового монтажа и сохраняет только наблюдаемые события', function (bool $hasDialogue): void {
     $disk = Storage::fake('local');
     $home = Storage::fake('codex');
     $home->put('auth.json', '{}');
@@ -21,13 +22,17 @@ test('извлекает кадры готового монтажа и сохр�
     $assembly = EpisodeAssembly::factory()->ready()->create(['duration_ms' => 1000]);
     $revision = $assembly->episodeRevision()->firstOrFail();
     $revision->update(['objective' => 'The cat builds a bed.']);
-    Scene::factory()
+
+    $scene = Scene::factory()
         ->for($revision, 'episodeRevision')
         ->create([
             'objective' => 'The cat unfolds the box into a bed.',
             'expected_final_state' => ['description' => 'The cat is asleep inside the box.'],
             'is_closed' => true,
         ]);
+    Shot::factory()
+        ->for($scene)
+        ->create(['dialogue' => $hasDialogue ? [['character_id' => 1, 'text' => 'Let us make a bed.']] : []]);
     $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()
         ->withCustomProperties(['checksum' => hash_file('sha256', base_path('tests/Fixtures/shot.mp4'))])
         ->toMediaCollection(EpisodeAssembly::VIDEO);
@@ -44,7 +49,7 @@ test('извлекает кадры готового монтажа и сохр�
 
             return Process::result();
         },
-        '*codex*' => function (PendingProcess $process): ProcessResult {
+        '*codex*' => function (PendingProcess $process) use ($hasDialogue): ProcessResult {
             if (! is_string($process->input)) {
                 throw new LogicException('An inspection request must contain text.');
             }
@@ -57,6 +62,7 @@ test('извлекает кадры готового монтажа и сохр�
                     'objective' => 'The cat unfolds the box into a bed.',
                     'expected_final_state' => ['description' => 'The cat is asleep inside the box.'],
                     'is_closed' => true,
+                    'has_dialogue' => $hasDialogue,
                 ]],
             ]);
 
@@ -77,7 +83,7 @@ test('извлекает кадры готового монтажа и сохр�
     Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && $process->command[0] === 'ffmpeg', 6);
     Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
     expect($disk->allDirectories('episode-inspection'))->toBe([]);
-});
+})->with(['с репликой' => [true], 'без реплик' => [false]]);
 
 test('изменённый монтаж не отправляется на анализ', function (): void {
     Storage::fake('local');
