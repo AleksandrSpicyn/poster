@@ -50,7 +50,7 @@ readonly class PrepareShotGenerationInput
         }
 
         $referenceMediaIds = [...$primaryReferences, ...array_slice($secondaryReferences, 0, $availableReferences - count($primaryReferences))];
-        $specification = json_encode($series->specification, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $specification = json_encode(collect($series->specification)->except('story_outline')->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $characterPrompt = json_encode(collect($characters)->map(fn(PinnedCharacterData $character): array => [
             'id' => $character->id, 'character_id' => $character->character_id, 'description' => $character->description,
             'name' => $character->name,
@@ -60,6 +60,9 @@ readonly class PrepareShotGenerationInput
         $camera = json_encode($shot->camera, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $dialogue = json_encode($shot->dialogue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $initialState = json_encode($scene->initial_state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $finalState = $shot->position === $scene->shots->max('position')
+            ? 'This is the last shot of the scene. Reach this visible state by the end: ' . json_encode($scene->expected_final_state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            : 'This is an intermediate shot. Perform only its scripted action; do not skip forward to the scene resolution.';
         $sound = match (true) {
             $audioMode === SeriesAudioMode::SILENT => 'Completely silent video. No speech, narration, music, singing, sound effects or any other audio.',
             $hasDialogue => "Speak only these exact dialogue lines in the series language, using each character's pinned voice blueprint and delivery: $dialogue. Keep voices distinct and consistent. Do not narrate the production instructions.",
@@ -67,23 +70,28 @@ readonly class PrepareShotGenerationInput
         };
         $imagePrompt = <<<TEXT
 Create the opening frame of this scripted shot using the supplied character references.
-Series specification: $specification
+Series world, style and constraints (not additional events to depict): $specification
 Pinned character appearance and voice versions: $characterPrompt
 Scene setting: $setting
-Initial state: $initialState
+Scene objective: {$scene->objective}
+Scene opening state: $initialState
 Camera: $camera
 Action to start, not its completed outcome: {$shot->action}
-Use the series visual style, including animation when specified. Keep each referenced character recognisable. Show only characters required by the action. Output one portrait 9:16 frame, with no text, captions, logos or watermark.
+Stage only the first instant of this action. Show the character's immediate goal and the physical obstacle clearly; leave space for the scripted movement. Do not combine successive beats into one image or show the payoff already achieved. A supplied previous-scene frame is the current physical state and takes precedence over the scene opening state when continuing or changing camera.
+Use the series visual style, including animation when specified. Keep each referenced character recognisable. Character references define identity, not a requirement to repeat their pose, background or previous activity. Preserve the exact number and attachment of permanent accessories: never turn a worn detail into a second loose prop. Include only props and characters needed by this shot, without adding activities from the series premise or personality description. Output one portrait 9:16 frame, with no text, captions, logos or watermark.
 TEXT;
         $videoPrompt = <<<TEXT
 Produce this scripted {$duration}-second shot.
-Series specification: $specification
+Series world, style and constraints (not additional events to enact): $specification
 Pinned character versions: $characterPrompt
 Scene: $setting
-Initial state: $initialState
+Scene objective: {$scene->objective}
+Scene opening state (background context): $initialState
 Camera: $camera
 Action: {$shot->action}
-Transition: {$shot->transition_mode->value}. Begin directly from the supplied first frame. Preserve appearance, clothing, object positions and coherent motion. Do not resolve an unfinished scene unless the action requires it.
+Shot endpoint: $finalState
+Transition: {$shot->transition_mode->value}. Begin directly from the supplied first frame; its visible state takes precedence over an earlier scene opening state. Preserve appearance, clothing, object positions and coherent motion. Execute the scripted beats once in causal order: each action changes the situation and leads to the next. Allocate time for the specified result and hold it long enough to read. Do not loop a gesture, reset the action, undo the payoff, add a new mystery or substitute staring and smiling for the scripted events. Do not resolve an unfinished scene unless this shot's action requires it.
+Keep the exact number and identity of props through the shot. Permanent accessories stay attached unless their removal is explicitly scripted. No duplicate, vanishing or teleporting objects. The series premise and character descriptions guide style and identity; they do not authorize extra events or recurring props absent from this shot.
 Sound: $sound
 No extra dialogue, printed captions, logos or watermark. Do not replace the series style with an unrelated style.
 TEXT;

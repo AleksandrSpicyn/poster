@@ -120,7 +120,7 @@ readonly class EpisodeRepository extends EloquentRepository
             ->where('number', '<', $episode->number)
             ->where('validity', EpisodeValidity::CURRENT)
             ->whereHas('acceptedAssembly', fn($query) => $query->where('status', AssemblyStatus::ACCEPTED))
-            ->with('acceptedAssembly')
+            ->with('acceptedAssembly.episodeRevision')
             ->orderByDesc('number')->limit(50)->get()->reverse()->values();
     }
 

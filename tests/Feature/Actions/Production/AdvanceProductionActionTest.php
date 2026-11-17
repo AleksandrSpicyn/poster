@@ -25,6 +25,7 @@ use App\Models\Channel;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
+use App\Models\EpisodeAssembly;
 use App\Models\Post;
 use App\Models\ProductionRun;
 use App\Models\Project;
@@ -95,6 +96,61 @@ test('неизвестный результат дубля останавлив�
     Bus::assertNothingDispatched();
     Http::assertNothingSent();
     Process::assertNothingRan();
+});
+
+test('непригодный сюжет останавливает выпуск до принятия и публикации', function (): void {
+    $fixture = episodeHttpFixture();
+    $series = $fixture['episode']->series()->firstOrFail();
+    $project = $series->project()->firstOrFail();
+    $project->update(['content_mode' => ProjectContentMode::SERIES]);
+
+    $series->update(['automation_enabled' => true, 'automation_user_id' => $fixture['user']->id]);
+    Channel::factory()
+        ->for($project)
+        ->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $assembly = EpisodeAssembly::factory()
+        ->for($fixture['revision'], 'episodeRevision')
+        ->ready()
+        ->create();
+    $outcome = [
+        'usable' => false,
+        'confirmed_events' => 'The cat repeatedly touches its scarf.',
+        'character_state' => 'The cat remains in the same place.',
+        'open_threads' => '',
+        'scene_closed' => false,
+        'review_notes' => 'The action loops without the planned visible payoff.',
+    ];
+    $run = ProductionRun::factory()
+        ->for($project)
+        ->for($series)
+        ->create([
+            'actor_id' => $fixture['user']->id,
+            'episode_id' => $fixture['episode']->id,
+            'episode_assembly_id' => $assembly->id,
+            'status' => ProductionStatus::WAITING,
+            'stage' => ProductionStage::STORY,
+            'outcome_snapshot' => $outcome,
+        ]);
+    Bus::fake();
+    Process::fake();
+    StructuredAnonymousAgent::fake()->preventStrayPrompts();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::NEEDS_ATTENTION);
+    expect($run->stage)->toBe(ProductionStage::STORY);
+    expect($run->outcome_snapshot)->toEqual($outcome);
+    expect($run->error_message)->toContain('The action loops without the planned visible payoff.');
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
+    expect($assembly->accepted_at)->toBeNull();
+    expect($fixture['episode']->refresh()->accepted_assembly_id)->toBeNull();
+    expect($series->refresh()->canonical_assembly_id)->toBeNull();
+    expect($assembly->publications()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Process::assertNothingRan();
+    StructuredAnonymousAgent::assertNeverPrompted();
+    Http::assertNothingSent();
 });
 
 test('проводит выпуск до публикации и продолжает по фактической истории', function (): void {

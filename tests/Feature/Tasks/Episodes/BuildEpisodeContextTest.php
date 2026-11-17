@@ -16,7 +16,10 @@ use Illuminate\Validation\ValidationException;
 function acceptedContextEpisode(Series $series, int $number, string $events, EpisodeValidity $validity = EpisodeValidity::CURRENT): Episode
 {
     $episode = Episode::factory()->for($series)->create(['number' => $number, 'validity' => $validity]);
-    $revision = EpisodeRevision::factory()->for($episode)->create();
+    $revision = EpisodeRevision::factory()->for($episode)->create([
+        'title' => 'Episode ' . $number,
+        'objective' => 'Planned objective ' . $number,
+    ]);
     $assembly = EpisodeAssembly::factory()->for($revision, 'episodeRevision')->create([
         'status' => AssemblyStatus::ACCEPTED,
         'continuity_snapshot' => ['confirmed_events' => $events],
@@ -55,11 +58,40 @@ test('контекст содержит только принятые событ
     $context = app(BuildEpisodeContext::class)->run($episode);
 
     expect($context['history'])->toBe([
-        ['episode_number' => 1, 'assembly_id' => $first->accepted_assembly_id, 'confirmed_events' => 'The key was found.'],
-        ['episode_number' => 4, 'assembly_id' => $previous->accepted_assembly_id, 'confirmed_events' => 'The door stayed closed.'],
+        ['episode_number' => 1, 'assembly_id' => $first->accepted_assembly_id, 'confirmed_events' => 'The key was found.', 'previous_screenplay' => ['title' => 'Episode 1', 'objective' => 'Planned objective 1']],
+        ['episode_number' => 4, 'assembly_id' => $previous->accepted_assembly_id, 'confirmed_events' => 'The door stayed closed.', 'previous_screenplay' => ['title' => 'Episode 4', 'objective' => 'Planned objective 4']],
     ]);
     expect($context['source_assembly_id'])->toBe($previous->accepted_assembly_id);
     expect($context['continuity'])->toBe(['confirmed_events' => 'The door stayed closed.']);
+});
+
+test('прошлый замысел берётся из принятой сборки отдельно от фактов и нового черновика', function (): void {
+    $series = Series::factory()->create();
+    $previous = acceptedContextEpisode($series, 1, 'The cat watched the boat drift away.');
+    $accepted = $previous->acceptedAssembly()->firstOrFail();
+    $accepted->episodeRevision()->firstOrFail()->update([
+        'title' => 'The rescue',
+        'objective' => 'Pull the boat to shore.',
+    ]);
+    $unaccepted = EpisodeRevision::factory()->for($previous, 'episode')->create([
+        'number' => 2,
+        'title' => 'A new idea',
+        'objective' => 'Chase a reflection.',
+    ]);
+    $previous->update(['title' => 'A new idea', 'current_revision_id' => $unaccepted->id]);
+    $episode = Episode::factory()->for($series)->create(['number' => 2, 'predecessor_episode_id' => $previous->id]);
+
+    $context = app(BuildEpisodeContext::class)->run($episode);
+
+    expect($context['history'])->toBe([
+        [
+            'episode_number' => 1,
+            'assembly_id' => $accepted->id,
+            'confirmed_events' => 'The cat watched the boat drift away.',
+            'previous_screenplay' => ['title' => 'The rescue', 'objective' => 'Pull the boat to shore.'],
+        ],
+    ]);
+    expect($accepted->refresh()->continuity_snapshot)->toBe(['confirmed_events' => 'The cat watched the boat drift away.']);
 });
 
 test('история ограничена последними пятьюдесятью принятыми эпизодами в порядке событий', function (): void {
@@ -89,7 +121,7 @@ test('лимит контекста удаляет старые события �
     $context = app(BuildEpisodeContext::class)->run($episode);
 
     expect($context['history'])->toBe([
-        ['episode_number' => 3, 'assembly_id' => $previous->accepted_assembly_id, 'confirmed_events' => $events],
+        ['episode_number' => 3, 'assembly_id' => $previous->accepted_assembly_id, 'confirmed_events' => $events, 'previous_screenplay' => ['title' => 'Episode 3', 'objective' => 'Planned objective 3']],
     ]);
     expect($context['continuity'])->toBe(['confirmed_events' => $events]);
     expect(strlen(json_encode($context, JSON_THROW_ON_ERROR)))->toBeLessThanOrEqual(64000);

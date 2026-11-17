@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\VideoProvider;
 use App\Jobs\SubmitShotGenerationJob;
+use App\Models\Shot;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
@@ -65,3 +66,45 @@ test('неутверждённый сценарий не создаёт плат
     expect($context['shot']->prompts()->count())->toBe(0);
     Bus::assertNothingDispatched();
 });
+
+test('дубль получает локальную цель и финал только последнего плана', function (int $position, bool $receivesFinalState): void {
+    Storage::fake('local');
+    $context = episodeHttpFixture();
+    serialReferenceMedia($context['revision']->characterRevisions()->firstOrFail());
+    $series = $context['episode']->series()->firstOrFail();
+    $series->update(['specification' => [...$series->specification,
+        'visual_style' => 'Warm clay animation',
+        'narrative_rules' => 'No dialogue or narration.',
+        'story_outline' => 'Next season the cat chases a brass bell.',
+    ]]);
+    $context['scene']->update([
+        'objective' => 'Shelter the paper boat.',
+        'initial_state' => ['description' => 'Water flows toward a paper boat.'],
+        'expected_final_state' => ['description' => 'The paper boat reaches the tray.'],
+    ]);
+    $context['shot']->update(['action' => 'The cat tilts a leaf toward the tray.']);
+    $lastShot = Shot::factory()
+        ->for($context['scene'])
+        ->create(['position' => 2, 'action' => 'The cat guides the boat into the tray.']);
+    $shot = $position === 1 ? $context['shot'] : $lastShot;
+    Bus::fake([SubmitShotGenerationJob::class]);
+    Process::fake();
+
+    actingAs($context['user'])
+        ->postJson(route('shots.generate', [...$context['params'], 'shot' => $shot->id]), ['request_key' => 'local-story-' . $position, 'new_take' => false])
+        ->assertRedirect();
+
+    $take = $shot->prompts()->sole();
+    expect(data_get($take->input_snapshot, 'image_prompt'))
+        ->toContain('Shelter the paper boat.', 'Water flows toward a paper boat.', $shot->action, 'Warm clay animation', 'No dialogue or narration.');
+    expect(data_get($take->input_snapshot, 'image_prompt'))
+        ->not->toContain('The paper boat reaches the tray.', 'Next season the cat chases a brass bell.');
+    expect(data_get($take->input_snapshot, 'video_prompt'))
+        ->toContain('Shelter the paper boat.', $shot->action, 'No dialogue or narration.');
+    expect(data_get($take->input_snapshot, 'video_prompt'))
+        ->not->toContain('Next season the cat chases a brass bell.');
+    expect(str_contains($take->prompt, 'The paper boat reaches the tray.'))->toBe($receivesFinalState);
+    Bus::assertDispatched(SubmitShotGenerationJob::class);
+    Process::assertNothingRan();
+    Http::assertNothingSent();
+})->with(['промежуточный план' => [1, false], 'последний план' => [2, true]]);

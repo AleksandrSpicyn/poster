@@ -75,9 +75,9 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
         return $assembly->load('episodeRevision.episode', 'media');
     }
 
-    public function withConfirmedCharacters(EpisodeAssembly $assembly): EpisodeAssembly
+    public function forStoryInspection(EpisodeAssembly $assembly): EpisodeAssembly
     {
-        return $assembly->load('episodeRevision.characterRevisions.character');
+        return $assembly->load('episodeRevision.characterRevisions.character', 'episodeRevision.scenes');
     }
 
     public function lockPublishingContext(EpisodeAssembly $assembly): EpisodePublishingContextData

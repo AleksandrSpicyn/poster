@@ -29,7 +29,7 @@ class BuildEpisodeContext
      *     specification: array<string, mixed>, continuity_version: int, episode_number: int,
      *     source_assembly_id: int|null, continuity: array<string, mixed>,
      *     characters: list<array{id: int, character_id: int, name: string, description: string, appearance: array<string, mixed>, voice: array<string, mixed>}>,
-     *     history: list<array{episode_number: int, assembly_id: int|null, confirmed_events: mixed}>
+     *     history: list<array{episode_number: int, assembly_id: int|null, confirmed_events: mixed, previous_screenplay: array{title: string, objective: string}}>
      * }
      */
     public function run(Episode $episode): array
@@ -79,6 +79,10 @@ class BuildEpisodeContext
             'episode_number' => $previous->number,
             'assembly_id' => $previous->accepted_assembly_id,
             'confirmed_events' => $previous->acceptedAssembly->continuity_snapshot['confirmed_events'] ?? '',
+            'previous_screenplay' => [
+                'title' => $previous->acceptedAssembly->episodeRevision->title ?? '',
+                'objective' => $previous->acceptedAssembly->episodeRevision->objective ?? '',
+            ],
         ])->all());
 
         while (strlen(json_encode($snapshot, JSON_THROW_ON_ERROR)) > 64000 && $snapshot['history'] !== []) {

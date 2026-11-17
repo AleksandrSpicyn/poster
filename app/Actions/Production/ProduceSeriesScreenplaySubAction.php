@@ -53,10 +53,12 @@ readonly class ProduceSeriesScreenplaySubAction
             $limit = $run->series?->episode_limit;
             $brief = 'Create episode ' . $episode->number . ($limit === null ? ' of an ongoing series.' : ' of ' . $limit . '.')
                 . ' Follow specification.story_outline as the overall story, narrative_rules as constraints, and the confirmed history as facts.'
-                . ' Advance the story instead of repeating earlier events. Give this episode its own clear objective and payoff.'
-                . ($limit !== null && $episode->number === $limit ? ' This is the final episode: resolve the main story.' : '')
+                . ' Select the outline beat assigned to this episode number. Build one fresh objective, obstacle, character choice and visible payoff; do not replay a previous objective or gag with cosmetic changes.'
+                . ' Use history.previous_screenplay only to identify already-used ideas, and confirmed_events as facts. An accessory or optional open_thread is not the next episode assignment.'
+                . ($limit !== null && $episode->number === $limit ? ' This is the final episode: visibly resolve the main story and the local goal; leave no cliffhanger or new mystery.' : ' Resolve the local goal within this episode even when the larger story continues.')
                 . ' Keep the sum of all shot durations exactly equal to the requested episode duration. Use whole-second shots of 4 to 30 seconds.'
-                . ' A 10-second episode should normally have one scene and one shot. Use new_scene for a self-contained adventure; continue_scene only when continuing a visible unfinished action.';
+                . ' A 10-second episode should normally have one scene and one shot: setup 0-2s, one causal action 2-7s, visible payoff and reaction 7-10s. Encode the timed beats in shot.action.'
+                . ' Use new_scene for a self-contained adventure; continue_scene only when this episode must complete a visible unfinished action. Do not resume an old prop interaction merely because it is the latest memory.';
             $data = new GenerateEpisodeScriptData($brief, $episode->lock_version, (string) Str::uuid());
 
             if ($this->queueScript->run($episode, $data, $context, $actor->id)) {

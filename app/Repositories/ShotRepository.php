@@ -17,7 +17,7 @@ readonly class ShotRepository extends EloquentRepository
 
     public function forGeneration(int $id): Shot
     {
-        return Shot::query()->with(['scene.episodeRevision.episode.series.project', 'scene.episodeRevision.characterRevisions.character', 'scene.episodeRevision.characterRevisions.media'])->findOrFail($id);
+        return Shot::query()->with(['scene.shots', 'scene.episodeRevision.episode.series.project', 'scene.episodeRevision.characterRevisions.character', 'scene.episodeRevision.characterRevisions.media'])->findOrFail($id);
     }
 
     public function forPrompt(Prompt $prompt): ?Shot
