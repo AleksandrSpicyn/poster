@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tasks\Episodes;
 
+use App\Classes\Story\Snapshot;
+use App\Data\Series\CyclePlanData;
 use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
+use App\Enums\SeriesOutputMode;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
 use App\Repositories\CharacterRevisionRepository;
@@ -13,6 +16,7 @@ use App\Repositories\EpisodeAssemblyRepository;
 use App\Repositories\EpisodeRepository;
 use App\Repositories\SeriesRepository;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class BuildEpisodeContext
 {
@@ -25,6 +29,7 @@ class BuildEpisodeContext
 
     /**
      * @return array{
+     *     cycle?: array<string, mixed>,
      *     schema_version: int, series_id: int, specification_version: int,
      *     specification: array<string, mixed>, continuity_version: int, episode_number: int,
      *     source_assembly_id: int|null, continuity: array<string, mixed>,
@@ -73,6 +78,13 @@ class BuildEpisodeContext
                 ])
                 ->all()),
         ];
+
+        if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+            $plan = CyclePlanData::validateAndCreate($series->cycle_plan ?? []);
+            $part = $plan->parts[$episode->number - 1] ?? throw new RuntimeException('The part has no place in the cycle.');
+            $snapshot['cycle'] = ['objective' => $plan->objective, 'structure' => $plan->structure->value,
+                'part' => $part->toArray(), 'part_count' => count($plan->parts), 'plan_hash' => Snapshot::hash($series->cycle_plan ?? [])];
+        }
 
         $history = $this->episodes->acceptedHistory($episode, $series->id);
         $snapshot['history'] = array_values($history->map(static fn(Episode $previous): array => [

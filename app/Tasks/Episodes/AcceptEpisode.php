@@ -10,10 +10,13 @@ use App\Enums\EpisodeValidity;
 use App\Enums\RevisionStatus;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
+use App\Models\ProductionRun;
 use App\Models\User;
 use App\Repositories\EpisodeAssemblyRepository;
 use App\Repositories\EpisodeRepository;
 use App\Repositories\EpisodeRevisionRepository;
+use App\Repositories\ProductionRunRepository;
+use App\Repositories\ProjectRepository;
 use App\Repositories\SeriesRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -30,9 +33,11 @@ class AcceptEpisode
         private readonly EpisodeRevisionRepository $episodeRevisions,
         private readonly SeriesRepository $series,
         private readonly UserRepository $users,
+        private readonly ProjectRepository $projects,
+        private readonly ProductionRunRepository $runs,
     ) {}
 
-    public function run(EpisodeAssembly $assembly, AcceptEpisodeData $data, User $actor): EpisodeAssembly
+    public function run(EpisodeAssembly $assembly, AcceptEpisodeData $data, User $actor, ?ProductionRun $run = null): EpisodeAssembly
     {
         $actor = $this->users->fresh($actor);
 
@@ -42,10 +47,21 @@ class AcceptEpisode
 
         Gate::forUser($actor)->authorize('manageSeries');
 
-        return DB::transaction(function () use ($assembly, $data, $actor): EpisodeAssembly {
+        return DB::transaction(function () use ($assembly, $data, $actor, $run): EpisodeAssembly {
             $revision = $this->episodeRevisions->findOrFail($assembly->episode_revision_id);
             $episode = $this->episodes->findOrFail($revision->episode_id);
+            $definition = $this->series->findOrFail($episode->series_id);
+            $project = $this->projects->findLockedOrFail($definition->project_id);
             $series = $this->series->findLockedOrFail($episode->series_id);
+
+            if ($run instanceof ProductionRun) {
+                $current = $this->runs->findLockedOrFail($run->id);
+
+                if (! $current->status->isActive() || $current->episode_id !== $episode->id || $current->episode_assembly_id !== $assembly->id) {
+                    throw ValidationException::withMessages(['production' => 'The production stopped or moved to another part.']);
+                }
+            }
+
             $episode = $this->episodes->findLockedOrFail($episode->id);
             $assembly = $this->assemblies->lockedWithMedia($assembly->id);
 
@@ -53,7 +69,7 @@ class AcceptEpisode
                 return $assembly;
             }
 
-            if (! $actor->hasVerifiedEmail() || $series->archived_at !== null || $assembly->status !== AssemblyStatus::READY
+            if (! $project->is_active || $series->cycle_paused_at !== null || ! $actor->hasVerifiedEmail() || $series->archived_at !== null || $assembly->status !== AssemblyStatus::READY
                 || $assembly->lock_version !== $data->lock_version || $episode->current_revision_id !== $revision->id
                 || $revision->status !== RevisionStatus::APPROVED || $revision->base_continuity_version !== $series->continuity_version
                 || data_get($revision->context_snapshot, 'specification_version') !== $series->specification_version

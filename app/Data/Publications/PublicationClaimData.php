@@ -10,14 +10,15 @@ use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\PublicationRequest;
 use App\Models\Series;
+use App\Models\SeriesAssembly;
 use App\Models\User;
 use Spatie\LaravelData\Data;
 
 class PublicationClaimData extends Data
 {
     public function __construct(
-        public EpisodeAssembly $assembly,
-        public Episode $episode,
+        public EpisodeAssembly|SeriesAssembly $assembly,
+        public ?Episode $episode,
         public Series $series,
         public Project $project,
         public ?ProductionRun $productionRun,

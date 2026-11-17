@@ -10,7 +10,9 @@ use App\Events\PostCreated;
 use App\Models\PublicationRequest;
 use App\Repositories\PostRepository;
 use App\Repositories\PublicationRequestRepository;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Записывает результат публикации через связь канала и отправляет PostCreated
@@ -30,6 +32,11 @@ class SavePost
 
             if ($request?->status === PublicationStatus::PUBLISHED) {
                 return;
+            }
+
+            if ($request instanceof Model && ($request->channel_id !== $dto->channel->id
+                || $request->episode_assembly_id !== $dto->episodeAssemblyId || $request->series_assembly_id !== $dto->seriesAssemblyId)) {
+                throw new RuntimeException('The publication receipt does not match its pinned source and channel.');
             }
 
             $post = $this->posts->createPublished($dto);

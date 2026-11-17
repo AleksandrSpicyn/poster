@@ -102,10 +102,17 @@ readonly class PromptRepository extends EloquentRepository
         return Prompt::query()->with('media')->whereIn('id', array_map(fn(AssemblyShotData $shot): int => $shot->prompt_id, $data->shots))->get()->keyBy('id');
     }
 
+    public function cycleTakeCount(int $seriesId): int
+    {
+        return Prompt::query()->whereHas('shot.scene.episodeRevision.episode', fn($query) => $query->where('series_id', $seriesId))->count();
+    }
+
     /** @return EloquentCollection<int, Prompt> */
     public function lockEpisodeTakes(ProductionRun $run): EloquentCollection
     {
-        return Prompt::query()->whereHas('shot.scene.episodeRevision', fn($query) => $query->where('episode_id', $run->episode_id))
+        return Prompt::query()->where(fn($query) => $query
+            ->whereHas('generationOperations', fn($operations) => $operations->where('production_run_id', $run->id))
+            ->orWhereHas('shot.scene.episodeRevision', fn($revisions) => $revisions->where('episode_id', $run->episode_id)))
             ->lockForUpdate()->get();
     }
 

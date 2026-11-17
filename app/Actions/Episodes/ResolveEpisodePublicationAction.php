@@ -70,6 +70,7 @@ readonly class ResolveEpisodePublicationAction
                 $verified->externalId,
                 $video->episodeAssemblyId,
                 $video->publicationRequestId,
+                $video->seriesAssemblyId,
             ));
         });
     }

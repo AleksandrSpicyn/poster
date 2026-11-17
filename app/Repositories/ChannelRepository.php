@@ -98,6 +98,12 @@ readonly class ChannelRepository extends EloquentRepository
                     return;
                 }
 
+                if ($source->seriesAssemblyId !== null) {
+                    $query->whereHas('series.finalAssembly', fn(Builder $query) => $query->whereKey($source->seriesAssemblyId));
+
+                    return;
+                }
+
                 $query->whereHas('series.episodes.revisions.assemblies', fn(Builder $query) => $query->whereKey($source->episodeAssemblyId));
             })->exists();
     }

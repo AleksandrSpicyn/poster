@@ -11,6 +11,7 @@ use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\Series;
 use Illuminate\Database\Eloquent\Collection;
 
 /** @extends EloquentRepository<GenerationOperation> */
@@ -80,13 +81,21 @@ readonly class GenerationOperationRepository extends EloquentRepository
         $operation = GenerationOperation::query()->findOrFail($operationId);
         $project = ! $polling && $operation->stage !== GenerationOperationStage::DOWNLOAD
             ? Project::query()->lockForUpdate()->find($operation->prompt()->firstOrFail()->project_id) : null;
+        $series = null;
+
+        if (! $polling && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
+            $source = $operation->prompt()->with('shot.scene.episodeRevision.episode.series')->firstOrFail();
+            $seriesId = $source->shot?->scene?->episodeRevision?->episode?->series_id;
+            $series = $seriesId === null ? null : Series::query()->lockForUpdate()->find($seriesId);
+        }
+
         $productionRun = ! $polling && $operation->stage !== GenerationOperationStage::DOWNLOAD && $operation->production_run_id !== null
             ? ProductionRun::query()->lockForUpdate()->find($operation->production_run_id) : null;
         $prompt = Prompt::query()->lockForUpdate()->findOrFail($operation->prompt_id);
         $operation = GenerationOperation::query()->lockForUpdate()->findOrFail($operationId);
         $productionRun?->load('series');
 
-        return new ShotOperationClaimData($operation, $project, $productionRun, $prompt);
+        return new ShotOperationClaimData($operation, $project, $productionRun, $prompt, $series);
     }
 
     public function withPromptShot(GenerationOperation $operation): GenerationOperation

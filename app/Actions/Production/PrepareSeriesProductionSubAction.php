@@ -9,6 +9,7 @@ use App\Enums\EpisodeValidity;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Enums\RevisionStatus;
+use App\Enums\SeriesOutputMode;
 use App\Models\CharacterRevision;
 use App\Models\ProductionRun;
 use App\Models\User;
@@ -82,7 +83,11 @@ readonly class PrepareSeriesProductionSubAction
                 $number = ($latest->number ?? 0) + 1;
 
                 if ($series->episode_limit !== null && $number > $series->episode_limit) {
-                    $this->update->run($run, ProductionStatus::COMPLETED, message: 'The planned series is complete.');
+                    if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+                        $this->update->run($run, ProductionStatus::WAITING, ProductionStage::FINAL_MONTAGE);
+                    } else {
+                        $this->update->run($run, ProductionStatus::COMPLETED, message: 'The planned series is complete.');
+                    }
 
                     return;
                 }

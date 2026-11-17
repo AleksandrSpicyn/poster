@@ -9,6 +9,7 @@ use App\Data\Production\EpisodeOutcomeData;
 use App\Enums\AssemblyStatus;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
+use App\Enums\SeriesOutputMode;
 use App\Models\ProductionRun;
 use App\Models\User;
 use App\Tasks\Episodes\AcceptEpisode;
@@ -19,6 +20,7 @@ use RuntimeException;
 readonly class ConfirmSeriesStorySubAction
 {
     public function __construct(
+        private AdvanceSeriesCycleSubAction $cycle,
         private UpdateProductionRun $update,
         private InspectEpisodeOutcome $inspect,
         private AcceptEpisode $accept,
@@ -51,7 +53,13 @@ readonly class ConfirmSeriesStorySubAction
                 $outcome->character_state,
                 $outcome->open_threads ?? '',
                 $outcome->scene_closed,
-            ), $actor);
+            ), $actor, $run);
+        }
+
+        if ($run->series?->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+            $this->cycle->run($run);
+
+            return;
         }
 
         $this->update->run($run, ProductionStatus::WAITING, ProductionStage::PUBLICATION);

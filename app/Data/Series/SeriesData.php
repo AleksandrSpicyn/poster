@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\Series;
 
+use App\Enums\SeriesOutputMode;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Attributes\Validation\Required;
@@ -21,5 +22,6 @@ class SeriesData extends Data
         public bool $automation_enabled = false,
         #[Min(1), Max(1000)]
         public ?int $episode_limit = null,
+        public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
     ) {}
 }

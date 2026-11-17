@@ -7,9 +7,12 @@ export interface SeriesSpecification {
     language: string;
     audience: string;
     episode_duration_seconds: number;
+    shot_duration_seconds?: number;
     narrative_rules: string;
     audio_mode: string;
     story_outline?: string;
+    cycle_structure?: string;
+    scene_mode?: string;
 }
 
 export interface SeriesSummary {
@@ -21,6 +24,9 @@ export interface SeriesSummary {
     continuity_version: number;
     lock_version: number;
     automation_enabled: boolean;
+    output_mode: string;
+    cycle_plan?: { objective: string; parts: { number: number; objective: string; expected_result: string }[] } | null;
+    cycle_paused?: boolean;
     episode_limit: number | null;
     latest_production?: ProductionRun | null;
     archived_at: string | null;

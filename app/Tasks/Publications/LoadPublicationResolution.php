@@ -39,7 +39,6 @@ class LoadPublicationResolution
         $context = $this->publications->resolutionContext($request, $lock);
         $request = $context->request;
         $channel = $context->channel;
-        $assembly = $context->assembly;
         $series = $context->series;
 
         if (! $this->users->isVerified($actor->id) || ! $this->channels->belongsToProject($channel, $series->project_id)) {
@@ -64,9 +63,10 @@ class LoadPublicationResolution
             '',
             $request->payload['title'],
             $request->payload['description'],
-            $assembly->id,
+            $request->episode_assembly_id,
             $request->id,
             $request->payload['made_for_kids'],
+            $request->series_assembly_id,
         ), $request);
     }
 }

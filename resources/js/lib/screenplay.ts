@@ -2,7 +2,7 @@ import type { ContinuationSource, ScreenplayScene, ScreenplayShot } from '@/type
 
 export function createScreenplayShot(overrides: Partial<ScreenplayShot> = {}): ScreenplayShot {
     return {
-        duration_ms: 5000,
+        duration_ms: 15000,
         action: '',
         camera: '',
         transition_mode: 'new_scene',

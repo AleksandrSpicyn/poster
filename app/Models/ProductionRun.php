@@ -13,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property array<string, mixed>|null $input_snapshot
+ * @property int $lock_version
+ * @property Carbon|null $stage_started_at
+ * @property int|null $series_assembly_id
+ * @property-read SeriesAssembly|null $seriesAssembly
  * @property int $id
  * @property int $project_id
  * @property int|null $series_id
@@ -48,10 +53,19 @@ class ProductionRun extends Model
         'status' => ProductionStatus::class,
         'stage' => ProductionStage::class,
         'outcome_snapshot' => 'array',
+        'input_snapshot' => 'array',
+        'stage_started_at' => 'datetime',
+        'lock_version' => 'integer',
         'next_check_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
+
+    /** @return BelongsTo<SeriesAssembly, $this> */
+    public function seriesAssembly(): BelongsTo
+    {
+        return $this->belongsTo(SeriesAssembly::class);
+    }
 
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo

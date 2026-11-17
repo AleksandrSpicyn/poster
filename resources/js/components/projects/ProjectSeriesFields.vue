@@ -6,18 +6,47 @@ import type { SeriesSpecification } from '@/types/series';
 
 const specification = defineModel<SeriesSpecification & { story_outline: string }>('specification', { required: true });
 const automationEnabled = defineModel<boolean>('automationEnabled', { required: true });
+const outputMode = defineModel<string>('outputMode', { required: true });
 const episodeLimit = defineModel<number | string>('episodeLimit', { required: true });
 defineProps<{
     processing: boolean;
     errors: Record<string, string | undefined>;
     audiences: Record<string, string>;
     audioModes: Record<string, string>;
+    outputModes: Record<string, string>;
+    cycleStructures: Record<string, string>;
+    sceneModes: Record<string, string>;
 }>();
 </script>
 
 <template>
     <div class="space-y-6">
+        <div class="grid gap-2">
+            <Label for="output-mode">Release format</Label>
+            <select id="output-mode" v-model="outputMode" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+                <option v-for="(label, value) in outputModes" :key="value" :value="value">{{ label }}</option>
+            </select>
+            <InputError :message="errors.output_mode" />
+            <p v-if="outputMode === 'single_video'" class="text-muted-foreground text-sm">All parts become one video. Only the complete accepted video is published. Choose a finite part count (up to 20; 600 seconds total).</p>
+        </div>
+        <div v-if="outputMode === 'single_video'" class="grid gap-2">
+            <Label for="cycle-structure">Story structure</Label>
+            <select id="cycle-structure" v-model="specification.cycle_structure" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+                <option v-for="(label, value) in cycleStructures" :key="value" :value="value">{{ label }}</option>
+            </select>
+            <Label for="cycle-scenes">Scene continuity</Label>
+            <select id="cycle-scenes" v-model="specification.scene_mode" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+                <option v-for="(label, value) in sceneModes" :key="value" :value="value">{{ label }}</option>
+            </select>
+            <p class="text-muted-foreground text-xs">Describe scene changes or a single continuous take in the narrative rules.</p>
+        </div>
         <InputError :message="errors.series_lock_version" /><InputError :message="errors.series" />
+        <div class="grid gap-2">
+            <Label for="generation-duration">Target generation length in seconds</Label>
+            <Input id="generation-duration" v-model="specification.shot_duration_seconds" type="number" min="4" max="30" :disabled="processing" />
+            <InputError :message="errors['series_specification.shot_duration_seconds']" />
+            <p class="text-muted-foreground text-xs">For example: a 60-second episode with 15-second generations uses four clips. Every episode is assembled separately before publication.</p>
+        </div>
         <div class="grid gap-5 sm:grid-cols-2">
             <div class="grid gap-2">
                 <Label for="series-style">Visual style</Label

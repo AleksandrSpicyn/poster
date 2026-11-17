@@ -59,7 +59,8 @@ readonly class ProjectRepository extends EloquentRepository
             ->select('channels.id', 'name', 'type', 'is_active', 'credentials')
             ->withCount(['posts' => static fn(Builder $query) => $query
                 ->where(fn(Builder $query) => $query->whereHas('prompt', fn(Builder $query) => $query->where('project_id', $project->id))
-                    ->orWhereHas('episodeAssembly.episodeRevision.episode.series', fn(Builder $query) => $query->where('project_id', $project->id)))])
+                    ->orWhereHas('episodeAssembly.episodeRevision.episode.series', fn(Builder $query) => $query->where('project_id', $project->id))
+                    ->orWhereHas('seriesAssembly.series', fn(Builder $query) => $query->where('project_id', $project->id)))])
             ->orderBy('name')
             ->orderBy('id')
             ->get());

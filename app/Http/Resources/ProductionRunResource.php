@@ -19,8 +19,13 @@ class ProductionRunResource extends JsonResource
             ? collect(ProductionStage::cases())->reject(fn(ProductionStage $stage): bool => in_array($stage, [ProductionStage::MONTAGE, ProductionStage::STORY], true))
             : collect(ProductionStage::cases());
 
+        if (data_get($this->input_snapshot, 'output_mode') !== 'single_video') {
+            $stages = $stages->reject(fn(ProductionStage $stage): bool => in_array($stage, [ProductionStage::PLANNING, ProductionStage::FINAL_MONTAGE, ProductionStage::FINAL_REVIEW], true));
+        }
+
         return [
-            'id' => $this->id, 'project_id' => $this->project_id, 'series_id' => $this->series_id,
+            'id' => $this->id,
+            'series_assembly_id' => $this->series_assembly_id, 'project_id' => $this->project_id, 'series_id' => $this->series_id,
             'episode_id' => $this->episode_id, 'prompt_id' => $this->prompt_id,
             'status' => $this->status->value, 'status_label' => $this->status->label(),
             'stage' => $this->stage->value, 'stage_label' => $this->stage->label(),

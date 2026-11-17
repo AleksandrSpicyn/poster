@@ -32,7 +32,7 @@ class ClaimEpisodeScript
             $actor = $episode->script_requested_by === null ? null : $this->users->find($episode->script_requested_by);
             $actorAllowed = $actor instanceof User && Gate::forUser($actor)->allows('manageSeries');
 
-            if (! $project->is_active || ! $actorAllowed || $payload === null || $payload['expected_version'] !== $episode->lock_version
+            if ($series->cycle_paused_at !== null || ! $project->is_active || ! $actorAllowed || $payload === null || $payload['expected_version'] !== $episode->lock_version
                 || $series->archived_at !== null || ($payload['context']['continuity_version'] ?? null) !== $series->continuity_version
                 || ($payload['context']['specification_version'] ?? null) !== $series->specification_version) {
                 $this->episodes->update($episode, ['script_generation_status' => ScriptGenerationStatus::FAILED, 'script_generation_error' => 'The episode context or generation permission changed before execution.']);

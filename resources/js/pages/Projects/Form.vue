@@ -23,13 +23,17 @@ const form = useForm({
     prompt: props.series?.specification.premise ?? props.project?.prompt ?? '',
     content_mode: props.project?.content_mode ?? Object.keys(props.contentModes)[0],
     is_active: props.project?.is_active ?? true,
+    output_mode: props.series?.output_mode ?? 'episodes',
     series_specification: {
         premise: '',
         visual_style: 'cinematic',
         language: 'en',
         audience: 'general',
-        episode_duration_seconds: 10,
+        episode_duration_seconds: 15,
+        shot_duration_seconds: 15,
         narrative_rules: '',
+        cycle_structure: 'continuous_story',
+        scene_mode: 'scripted',
         audio_mode: props.defaultAudioMode,
         ...props.series?.specification,
         story_outline: props.series?.specification.story_outline ?? '',
@@ -186,6 +190,10 @@ function submit() {
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
                         v-model:episode-limit="form.episode_limit"
+                        v-model:output-mode="form.output_mode"
+                        :output-modes="outputModes"
+                        :cycle-structures="cycleStructures"
+                        :scene-modes="sceneModes"
                         :processing="form.processing"
                         :errors="formErrors"
                         :audiences="audiences"

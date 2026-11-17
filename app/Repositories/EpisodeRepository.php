@@ -17,6 +17,7 @@ use App\Models\EpisodeRevision;
 use App\Models\Project;
 use App\Models\PublicationRequest;
 use App\Models\Series;
+use App\Models\Shot;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
@@ -122,6 +123,11 @@ readonly class EpisodeRepository extends EloquentRepository
             ->whereHas('acceptedAssembly', fn($query) => $query->where('status', AssemblyStatus::ACCEPTED))
             ->with('acceptedAssembly.episodeRevision')
             ->orderByDesc('number')->limit(50)->get()->reverse()->values();
+    }
+
+    public function otherCycleShotCount(Episode $episode): int
+    {
+        return Shot::query()->whereHas('scene.episodeRevision', fn($query) => $query->whereHas('episode', fn($episodes) => $episodes->where('series_id', $episode->series_id)->whereKeyNot($episode->id)->whereColumn('episodes.current_revision_id', 'episode_revisions.id')))->count();
     }
 
     public function latestForSeries(Series $series): ?Episode

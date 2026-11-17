@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Episodes;
 
 use App\Data\Episodes\CreateEpisodeData;
+use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\Series;
 use App\Repositories\EpisodeRepository;
@@ -29,6 +30,10 @@ class CreateEpisode
             }
 
             $previous = $this->episodes->latestForSeries($series);
+
+            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && ($series->cycle_plan === null || $series->episode_limit === null || ($previous->number ?? 0) >= $series->episode_limit)) {
+                throw ValidationException::withMessages(['episode' => 'Prepare the finite cycle plan before creating its parts; the planned number cannot be exceeded.']);
+            }
 
             return $this->episodes->createNext($series, $previous, $data->title);
         });

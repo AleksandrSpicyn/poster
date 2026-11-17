@@ -56,6 +56,7 @@ readonly class SaveProjectAction
                 lock_version: $data->series_lock_version,
                 automation_enabled: $data->automation_enabled,
                 episode_limit: $data->episode_limit,
+                output_mode: $data->output_mode,
             );
 
             try {

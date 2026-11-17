@@ -75,6 +75,7 @@ readonly class PostRepository extends EloquentRepository
             'external_id' => $dto->externalId,
             'prompt_id' => $dto->prompt?->id,
             'episode_assembly_id' => $dto->episodeAssemblyId,
+            'series_assembly_id' => $dto->seriesAssemblyId,
             'publication_request_id' => $dto->publicationRequestId,
         ]);
     }

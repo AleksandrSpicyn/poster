@@ -8,6 +8,7 @@ use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\Series;
 use Spatie\LaravelData\Data;
 
 class ShotOperationClaimData extends Data
@@ -17,5 +18,6 @@ class ShotOperationClaimData extends Data
         public ?Project $project,
         public ?ProductionRun $productionRun,
         public Prompt $prompt,
+        public ?Series $series = null,
     ) {}
 }

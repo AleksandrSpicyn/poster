@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\SeriesAssemblies;
+
+use App\Actions\Series\GetSeriesVideoAction;
+use App\Http\Resources\SeriesAssemblyResource;
+use App\Models\SeriesAssembly;
+use Inertia\Response;
+
+class ShowController
+{
+    /**
+     * Итоговый монтаж цикла
+     *
+     * @group Сериалы
+     * @authenticated
+     * @urlParam assembly integer required ID итогового монтажа. Example: 1
+     * @response 200
+     * @response 403
+     * @response 404
+     */
+    public function __invoke(SeriesAssembly $assembly, GetSeriesVideoAction $action): Response
+    {
+        $assembly = $action->run($assembly);
+
+        return inertia('SeriesAssemblies/Show', ['assembly' => SeriesAssemblyResource::make($assembly)->resolve(),
+            'series' => ['id' => $assembly->series_id, 'name' => $assembly->series->name, 'project_id' => $assembly->series->project_id],
+            'release_started' => $assembly->series->release_started_at !== null]);
+    }
+}

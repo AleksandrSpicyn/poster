@@ -9,6 +9,7 @@ use App\Http\Controllers\CharacterRevisions;
 use App\Http\Controllers\CharacterRevisions\ApproveController;
 use App\Http\Controllers\Characters;
 use App\Http\Controllers\ProductionRuns;
+use App\Http\Controllers\ProductionRuns\ResumeController;
 use App\Http\Controllers\ProductionRuns\StopController;
 use App\Http\Controllers\Series;
 use App\Http\Controllers\Series\ArchiveController;
@@ -17,6 +18,10 @@ use App\Http\Controllers\Series\EditController;
 use App\Http\Controllers\Series\IndexController;
 use App\Http\Controllers\Series\StoreController;
 use App\Http\Controllers\Series\UpdateController;
+use App\Http\Controllers\SeriesAssemblies\AcceptController;
+use App\Http\Controllers\SeriesAssemblies\ExportController;
+use App\Http\Controllers\SeriesAssemblies\PreviewController;
+use App\Http\Controllers\SeriesAssemblies\PublishController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->group(function (): void {
@@ -24,6 +29,7 @@ Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->gr
         ->whereNumber('project')->name('production_runs.store');
     Route::post('production-runs/{production_run}/stop', StopController::class)
         ->whereNumber('production_run')->name('production_runs.stop');
+    Route::post('production-runs/{production_run}/resume', ResumeController::class)->whereNumber('production_run')->name('production_runs.resume');
     Route::get('series', IndexController::class)->name('series.index');
     Route::get('character-references/{revision}/media/{media}', ShowController::class)
         ->whereNumber(['revision', 'media'])
@@ -62,5 +68,19 @@ Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->gr
                 });
             });
         });
+    });
+});
+
+Route::get('series-exports/{assembly}/media/{media}', ExportController::class)
+    ->whereNumber(['assembly', 'media'])->scopeBindings()->middleware('signed')->name('series_assemblies.export');
+
+Route::middleware(['auth', 'verified', 'can:manageSeries'])->group(function (): void {
+    Route::post('series/{series}/assemblies', \App\Http\Controllers\SeriesAssemblies\StoreController::class)
+        ->whereNumber('series')->name('series_assemblies.store');
+    Route::prefix('series-assemblies/{assembly}')->whereNumber('assembly')->name('series_assemblies.')->group(function (): void {
+        Route::get('', \App\Http\Controllers\SeriesAssemblies\ShowController::class)->name('show');
+        Route::post('accept', AcceptController::class)->name('accept');
+        Route::post('publish', PublishController::class)->name('publish');
+        Route::get('media/{media}', PreviewController::class)->whereNumber('media')->scopeBindings()->name('preview');
     });
 });

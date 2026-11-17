@@ -3,6 +3,7 @@ export interface ProductionRun {
     project_id: number;
     series_id: number | null;
     episode_id: number | null;
+    series_assembly_id: number | null;
     prompt_id: number | null;
     status: string;
     status_label: string;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Production;
 
 use App\Enums\ProjectContentMode;
+use App\Enums\SeriesOutputMode;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
@@ -54,6 +55,10 @@ class CreateProductionRun
             }
 
             if ($series instanceof Series) {
+                if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && ($series->episode_limit === null || $series->episode_limit < 1 || $series->episode_limit > 20)) {
+                    throw ValidationException::withMessages(['series' => 'Configure a finite single-video cycle before starting.']);
+                }
+
                 if ($onlyFirstRun && $this->runs->existsForSeries($series)) {
                     return null;
                 }
@@ -62,9 +67,13 @@ class CreateProductionRun
                     return null;
                 }
 
+                if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && ($series->cycle_paused_at !== null || $series->release_started_at !== null)) {
+                    return null;
+                }
+
                 $latest = $this->episodes->latestForSeries($series);
 
-                if ($series->episode_limit !== null && $latest?->accepted_assembly_id !== null && $latest->number >= $series->episode_limit) {
+                if ($series->output_mode === SeriesOutputMode::EPISODES && $series->episode_limit !== null && $latest?->accepted_assembly_id !== null && $latest->number >= $series->episode_limit) {
                     return null;
                 }
             }

@@ -53,6 +53,13 @@ function changePage(page: number) {
             :archived="!!series.archived_at"
             :run="series.latest_production"
         />
+        <section v-if="series.cycle_plan" class="bg-card space-y-3 rounded-xl border p-5" aria-label="Complete video plan">
+            <h2 class="text-lg font-semibold">Complete video plan</h2>
+            <p>{{ series.cycle_plan.objective }}</p>
+            <ol class="space-y-2">
+                <li v-for="part in series.cycle_plan.parts" :key="part.number" class="text-sm"><strong>Part {{ part.number }}:</strong> {{ part.objective }} — {{ part.expected_result }}</li>
+            </ol>
+        </section>
         <section class="space-y-4" aria-labelledby="series-characters">
             <h2 id="series-characters" class="text-lg font-semibold">Characters</h2>
             <form v-if="!series.archived_at" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="createCharacter">

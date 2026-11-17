@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Shots;
 
 use App\Classes\Story\Snapshot;
+use App\Enums\SeriesOutputMode;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Prompt;
@@ -84,6 +85,11 @@ class CreateShotGeneration
 
             if ($latest instanceof Prompt && $this->operations->hasUnresolvedForPrompt($latest)) {
                 throw ValidationException::withMessages(['shot' => 'Finish or resolve the active generation before starting another paid take.']);
+            }
+
+            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO
+                && ($series->cycle_paused_at !== null || $this->prompts->cycleTakeCount($series->id) >= 200)) {
+                throw ValidationException::withMessages(['shot' => 'The cycle is paused or has reached its 200-take budget.']);
             }
 
             if (($latest->take_number ?? 0) >= 10) {

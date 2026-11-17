@@ -32,6 +32,8 @@ class UpdateController
      * @bodyParam series_specification object Паспорт, обязателен для series; premise, visual_style, language, audience, audio_mode, episode_duration_seconds, narrative_rules, story_outline.
      * @bodyParam series_lock_version integer Версия настроек существующего сериала, обязательна при их изменении. Example: 0
      * @bodyParam automation_enabled boolean Автоматически подготовить и опубликовать выпуск. Example: false
+     * @bodyParam output_mode string Способ выпуска: episodes или single_video. Example: episodes
+     * @bodyParam series_specification.shot_duration_seconds integer Целевая длительность генерации 4–30 секунд, по умолчанию 15. Example: 15
      * @bodyParam episode_limit integer Число серий 1–1000, null для продолжающегося сериала. Example: 5
      * @bodyParam channel_ids integer[] Каналы проекта; [] отключает все, отсутствие сохраняет связи. Только оператор manageChannels. Example: [1,2]
      * @response 302

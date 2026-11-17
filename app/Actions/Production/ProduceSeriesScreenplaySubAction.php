@@ -59,6 +59,14 @@ readonly class ProduceSeriesScreenplaySubAction
                 . ' Keep the sum of all shot durations exactly equal to the requested episode duration. Use whole-second shots of 4 to 30 seconds.'
                 . ' A 10-second episode should normally have one scene and one shot: setup 0-2s, one causal action 2-7s, visible payoff and reaction 7-10s. Encode the timed beats in shot.action.'
                 . ' Use new_scene for a self-contained adventure; continue_scene only when this episode must complete a visible unfinished action. Do not resume an old prop interaction merely because it is the latest memory.';
+
+            if (isset($context['cycle'])) {
+                $brief = 'Write this production part of one complete video using context.cycle as the agreed plan. Entry transition_mode must match context.cycle.part.transition_mode. '
+                    . 'Advance this part objective from confirmed predecessor facts. Do not add episode intros, recaps, end cards, a fresh hook or final goodbyes at technical boundaries. '
+                    . 'For continuous_story preserve the shared arc; only the last part ends it. For anthology deliver the planned local story. '
+                    . 'Keep the exact requested duration, whole-second shots within capabilities, and the intended final state. A part may continue the same physical scene after a local goal is resolved.';
+            }
+
             $data = new GenerateEpisodeScriptData($brief, $episode->lock_version, (string) Str::uuid());
 
             if ($this->queueScript->run($episode, $data, $context, $actor->id)) {

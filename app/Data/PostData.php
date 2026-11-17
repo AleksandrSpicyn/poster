@@ -23,5 +23,6 @@ class PostData extends Data
         public ?string $externalId = null,
         public ?int $episodeAssemblyId = null,
         public ?int $publicationRequestId = null,
+        public ?int $seriesAssemblyId = null,
     ) {}
 }

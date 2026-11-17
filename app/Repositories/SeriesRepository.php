@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Data\Series\SeriesWorkspaceData;
+use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
+use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Database\Eloquent\Collection;
@@ -72,6 +74,29 @@ readonly class SeriesRepository extends EloquentRepository
         }
 
         return $series->where('automation_enabled', true)->orderBy('id')->get();
+    }
+
+    /** @return list<int> */
+    public function cycleChannelIds(Series $series): array
+    {
+        $run = $series->productionRuns()->whereNotNull('input_snapshot')->oldest('id')->first();
+        $ids = $run?->input_snapshot['channel_ids'] ?? [];
+
+        return is_array($ids) ? array_values(array_filter($ids, is_int(...))) : [];
+    }
+
+    public function pauseCycle(ProductionRun $run): void
+    {
+        $series = $run->series()->first();
+
+        if ($series?->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+            $series->update(['cycle_paused_at' => now()]);
+        }
+    }
+
+    public function hasEpisodes(Series $series): bool
+    {
+        return $series->episodes()->exists();
     }
 
     public function forEpisode(Episode $episode): Series

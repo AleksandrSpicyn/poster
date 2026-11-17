@@ -9,6 +9,7 @@ use App\Enums\ChannelType;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Enums\ProjectContentMode;
+use App\Enums\SeriesOutputMode;
 use App\Models\Channel;
 use App\Tasks\Production\GetProductionRun;
 use App\Tasks\Production\StopProductionRun;
@@ -57,7 +58,10 @@ readonly class AdvanceProductionAction
             return;
         }
 
-        if ($run->started_at?->lessThan(now()->subMinutes($this->timeoutMinutes))) {
+        $singleVideo = $run->series?->output_mode === SeriesOutputMode::SINGLE_VIDEO;
+        $deadline = $singleVideo ? $run->stage_started_at : $run->started_at;
+
+        if ($run->stage !== ProductionStage::FINAL_REVIEW && $deadline?->lessThan(now()->subMinutes($this->timeoutMinutes))) {
             $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'Production exceeded its recovery window. Review the existing operations before resuming.');
 
             return;
@@ -65,6 +69,12 @@ readonly class AdvanceProductionAction
 
         if ($run->series_id !== null && ($run->series === null || ! $run->series->automation_enabled || $run->series->archived_at !== null)) {
             $this->stop->run($run, 'Series automation is paused.');
+
+            return;
+        }
+
+        if ($singleVideo && data_get($run->input_snapshot, 'specification_version') !== $run->series->specification_version) {
+            $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'The cycle settings changed. Review its pinned plan.');
 
             return;
         }

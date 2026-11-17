@@ -11,7 +11,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property int $episode_assembly_id
+ * @property int|null $series_assembly_id
+ * @property string|null $release_key
+ * @property int|null $episode_assembly_id
  * @property int $channel_id
  * @property int $created_by
  * @property int|null $production_run_id
@@ -26,9 +28,15 @@ use Illuminate\Support\Carbon;
  */
 class PublicationRequest extends Model
 {
-    protected $fillable = ['episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'submitted_at', 'published_at'];
+    protected $fillable = ['series_assembly_id', 'release_key', 'episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'submitted_at', 'published_at'];
 
     protected $casts = ['status' => PublicationStatus::class, 'payload' => 'array', 'submitted_at' => 'datetime', 'published_at' => 'datetime'];
+
+    /** @return BelongsTo<SeriesAssembly, $this> */
+    public function seriesAssembly(): BelongsTo
+    {
+        return $this->belongsTo(SeriesAssembly::class);
+    }
 
     /** @return BelongsTo<Channel, $this> */
     public function channel(): BelongsTo

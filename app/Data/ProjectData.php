@@ -6,6 +6,7 @@ namespace App\Data;
 
 use App\Data\Series\SeriesSpecificationData;
 use App\Enums\ProjectContentMode;
+use App\Enums\SeriesOutputMode;
 use App\Models\Channel;
 use Spatie\LaravelData\Attributes\Validation\Exists;
 use Spatie\LaravelData\Attributes\Validation\ListType;
@@ -38,6 +39,7 @@ class ProjectData extends Data
         #[ListType, Max(100), Exists(Channel::class, 'id')]
         public ?array $channel_ids = null,
         public ?bool $is_active = null,
+        public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
     ) {}
 
     /** @return array<string, list<string>> */

@@ -6,6 +6,7 @@ namespace App\Tasks\Shots;
 
 use App\Data\Shots\ShotContinuationData;
 use App\Enums\AssemblyStatus;
+use App\Enums\SeriesOutputMode;
 use App\Enums\TransitionMode;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
@@ -59,7 +60,8 @@ readonly class PrepareShotContinuation
                     throw ValidationException::withMessages(['source_assembly_id' => 'Select the accepted predecessor assembly pinned by this screenplay.']);
                 }
 
-                if ($shot->transition_mode === TransitionMode::CONTINUE_SCENE && ($source->continuity_snapshot['scene_closed'] ?? null) === true) {
+                if ($shot->transition_mode === TransitionMode::CONTINUE_SCENE && ($source->continuity_snapshot['scene_closed'] ?? null) === true
+                    && (data_get($revision->context_snapshot, 'cycle.part.transition_mode') !== TransitionMode::CONTINUE_SCENE->value || $series->output_mode !== SeriesOutputMode::SINGLE_VIDEO)) {
                     throw ValidationException::withMessages(['source_assembly_id' => 'The accepted preceding scene is closed. Start a new scene.']);
                 }
 

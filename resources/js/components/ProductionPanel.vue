@@ -56,6 +56,9 @@ function stop() {
                 page.props.contentScheduleEnabled ? 'Schedule enabled' : 'Schedule off'
             }}</span>
         </div>
+        <div v-if="run?.series_assembly_id" class="rounded-lg border p-3">
+            <Link :href="route('series_assemblies.show', run.series_assembly_id)" class="text-primary underline underline-offset-4">Review complete video and boundaries</Link>
+        </div>
         <template v-if="run">
             <p role="status" aria-atomic="true" class="flex items-center gap-2 text-sm font-medium">
                 <LoaderCircle v-if="run.is_active" class="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
@@ -97,6 +100,8 @@ function stop() {
             }}
         </p>
         <div class="flex flex-wrap items-center gap-3 border-t pt-4">
+            <Button v-if="run && ['stopped', 'needs_attention'].includes(run.status) && projectEnabled && enabled" variant="outline" @click="stopForm.post(route('production_runs.resume', run.id), { preserveScroll: true })">Resume after review</Button>
+            <InputError :message="(stopForm.errors as Record<string, string>).production" />
             <Button
                 v-if="!run?.blocks_next_run && projectEnabled && enabled && !archived"
                 type="button"

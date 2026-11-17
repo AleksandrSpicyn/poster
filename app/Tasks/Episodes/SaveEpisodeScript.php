@@ -7,6 +7,7 @@ namespace App\Tasks\Episodes;
 use App\Data\Episodes\EpisodeScriptData;
 use App\Data\Episodes\ShotData;
 use App\Enums\SeriesAudioMode;
+use App\Enums\SeriesOutputMode;
 use App\Enums\TransitionMode;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
@@ -47,6 +48,33 @@ class SaveEpisodeScript
                 throw ValidationException::withMessages(['context' => 'The story context changed. Prepare a new draft.']);
             }
 
+            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+                if (($series->specification['scene_mode'] ?? null) === 'same_scene') {
+                    $allShots = collect($script->scenes)->flatMap(fn($scene): array => $scene->shots)->values();
+
+                    foreach ($allShots as $index => $cycleShot) {
+                        if (($episode->number > 1 || $index > 0) && $cycleShot->transition_mode === TransitionMode::NEW_SCENE) {
+                            throw ValidationException::withMessages(['script.scenes' => 'This cycle keeps one scene; an additional new_scene is not allowed.']);
+                        }
+                    }
+                }
+
+                $part = data_get($context, 'cycle.part');
+                $first = $script->scenes[0]->shots[0];
+
+                if (! is_array($part) || $first->transition_mode->value !== ($part['transition_mode'] ?? null)) {
+                    throw ValidationException::withMessages(['script.scenes' => 'The entry transition must match the pinned cycle boundary.']);
+                }
+
+                $total = collect($script->scenes)->flatMap(fn($scene) => $scene->shots)->sum('duration_ms');
+
+                $partDuration = $series->specification['episode_duration_seconds'] ?? null;
+
+                if (! is_int($partDuration) || $total !== $partDuration * 1000) {
+                    throw ValidationException::withMessages(['script.scenes' => 'The part must match the pinned cycle duration.']);
+                }
+            }
+
             $characters = $this->characterRevisions->approvedSelection($series, $script);
 
             if ($characters->count() !== count($script->character_revision_ids)) {
@@ -55,6 +83,10 @@ class SaveEpisodeScript
 
             $shotCount = collect($script->scenes)->sum(fn($scene): int => count($scene->shots));
             $duration = collect($script->scenes)->flatMap(fn($scene): array => $scene->shots)->sum('duration_ms');
+
+            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && $shotCount + $this->episodes->otherCycleShotCount($episode) > 100) {
+                throw ValidationException::withMessages(['script.scenes' => 'The complete cycle supports at most 100 shots.']);
+            }
 
             if ($shotCount > 100 || $duration > 300000) {
                 throw ValidationException::withMessages(['script.scenes' => 'An episode supports at most 100 shots and five minutes.']);
@@ -92,7 +124,7 @@ class SaveEpisodeScript
                     }
 
                     if ($scenePosition === 0 && $shotPosition === 0 && $shot->transition_mode === TransitionMode::CONTINUE_SCENE
-                        && data_get($context, 'continuity.scene_closed') === true) {
+                        && data_get($context, 'continuity.scene_closed') === true && ! isset($context['cycle'])) {
                         throw ValidationException::withMessages(['script.scenes' => 'The preceding scene is closed. Start a new scene or change the confirmed ending.']);
                     }
 

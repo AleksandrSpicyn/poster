@@ -7,6 +7,7 @@ namespace App\Tasks\Publications;
 use App\Data\Episodes\PublishEpisodeData;
 use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
+use App\Enums\SeriesOutputMode;
 use App\Models\EpisodeAssembly;
 use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
@@ -51,6 +52,10 @@ class CreatePublicationRequest
             $episode = $context->episode;
             $series = $context->series;
             $project = $context->project;
+
+            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
+                throw ValidationException::withMessages(['assembly' => 'Publish only the accepted final video of this cycle.']);
+            }
 
             if (! $project->is_active) {
                 throw ValidationException::withMessages(['project' => 'Enable this project before publishing.']);

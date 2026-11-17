@@ -19,6 +19,7 @@ use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\Scene;
 use App\Models\Series;
+use App\Models\SeriesAssembly;
 use App\Models\Shot;
 use App\Observers\BroadcastWorkspaceChanges;
 use App\Policies\OperationsPolicy;
@@ -39,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ([Project::class, Channel::class, Prompt::class, Post::class, Series::class,
             Character::class, CharacterRevision::class, Episode::class, EpisodeRevision::class,
-            Scene::class, Shot::class, GenerationOperation::class, EpisodeAssembly::class,
+            Scene::class, Shot::class, GenerationOperation::class, EpisodeAssembly::class, SeriesAssembly::class,
             PublicationRequest::class, ProductionRun::class] as $model) {
             $model::observe(BroadcastWorkspaceChanges::class);
         }

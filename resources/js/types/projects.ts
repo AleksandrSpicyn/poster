@@ -53,5 +53,8 @@ export interface ProjectFormProps extends SharedData {
     audiences: Record<string, string>;
     audioModes: Record<string, string>;
     defaultAudioMode: string;
+    outputModes: Record<string, string>;
+    cycleStructures: Record<string, string>;
+    sceneModes: Record<string, string>;
     limits: { name: number; prompt: number };
 }

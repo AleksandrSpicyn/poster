@@ -7,8 +7,11 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\GetProjectFormAction;
 use App\Data\ProjectData;
 use App\Enums\ContentAudience;
+use App\Enums\CycleSceneMode;
+use App\Enums\CycleStructure;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesAudioMode;
+use App\Enums\SeriesOutputMode;
 use App\Http\Resources\ChannelResource;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Response;
@@ -41,6 +44,9 @@ class CreateController
             'selectedChannelIds' => $details->selectedChannelIds,
             'audiences' => ContentAudience::labels(),
             'audioModes' => SeriesAudioMode::labels(),
+            'outputModes' => SeriesOutputMode::labels(),
+            'cycleStructures' => CycleStructure::labels(),
+            'sceneModes' => CycleSceneMode::labels(),
             'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
             'limits' => ['name' => ProjectData::NAME_MAX_LENGTH, 'prompt' => ProjectData::PROMPT_MAX_LENGTH],
         ]);

@@ -16,6 +16,7 @@ require_once __DIR__ . '/Support/Projects.php';
 require_once __DIR__ . '/Support/Channels.php';
 require_once __DIR__ . '/Support/SeriesOperators.php';
 require_once __DIR__ . '/Support/Series.php';
+require_once __DIR__ . '/Support/SingleVideo.php';
 require_once __DIR__ . '/Support/EpisodeHttp.php';
 require_once __DIR__ . '/Support/EpisodePublications.php';
 

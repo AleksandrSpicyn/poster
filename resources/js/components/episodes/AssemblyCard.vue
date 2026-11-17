@@ -16,6 +16,7 @@ const props = defineProps<{
     currentAccepted: boolean;
     archived: boolean;
     projectEnabled: boolean;
+    canPublish?: boolean;
 }>();
 const route = useRoute();
 const params = { ...props.params, revision: props.assembly.episode_revision_id, assembly: props.assembly.id };
@@ -105,7 +106,7 @@ function publish() {
                 }}
             </p>
         </div>
-        <form v-if="currentAccepted && !archived && projectEnabled" class="space-y-4 border-t pt-5" @submit.prevent="publish">
+        <form v-if="canPublish !== false && currentAccepted && !archived && projectEnabled" class="space-y-4 border-t pt-5" @submit.prevent="publish">
             <h4 class="font-semibold">Publish this accepted version</h4>
             <p v-if="!channels.length" class="text-muted-foreground text-sm">No publishing channels are configured for this project.</p>
             <label v-for="channel in channels" :key="channel.id" class="flex min-h-11 items-center gap-3 text-sm"

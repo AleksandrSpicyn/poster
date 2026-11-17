@@ -30,7 +30,7 @@ function serialCharacterContext(): array
     ];
 }
 
-/** @return array{name: string, specification: array{premise: string, visual_style: string, language: string, audience: string, episode_duration_seconds: int, narrative_rules: string, audio_mode: string}} */
+/** @return array{name: string, specification: array{premise: string, visual_style: string, language: string, audience: string, episode_duration_seconds: int, narrative_rules: string, audio_mode: string, shot_duration_seconds: int}} */
 function serialSeriesPayload(): array
 {
     return [
@@ -43,6 +43,7 @@ function serialSeriesPayload(): array
             'episode_duration_seconds' => 30,
             'narrative_rules' => 'End on a question.',
             'audio_mode' => 'native',
+            'shot_duration_seconds' => 15,
         ],
     ];
 }

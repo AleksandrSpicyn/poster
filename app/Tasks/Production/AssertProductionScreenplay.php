@@ -28,6 +28,14 @@ readonly class AssertProductionScreenplay
             throw ValidationException::withMessages(['screenplay' => 'The automatic screenplay must match the configured episode duration exactly. Review the draft.']);
         }
 
+        $target = data_get($revision->context_snapshot, 'specification.shot_duration_seconds');
+
+        if (is_int($target) && $target > 0 && $duration % $target === 0 && $target >= $capabilities->minDuration && $target <= $capabilities->maxDuration
+            && ($capabilities->durations === [] || in_array($target, $capabilities->durations, true))
+            && $shots->contains(fn($shot): bool => $shot->duration_ms !== $target * 1000)) {
+            throw ValidationException::withMessages(['screenplay' => 'Use the configured generation length for each shot of this episode.']);
+        }
+
         foreach ($shots as $shot) {
             $seconds = intdiv($shot->duration_ms, 1000);
 

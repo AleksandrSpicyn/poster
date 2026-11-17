@@ -293,6 +293,7 @@ function refresh() {
                     :params="params"
                     :channels="channels.filter((channel) => ['youtube', 'instagram'].includes(channel.type))"
                     :publications="publications.filter((publication) => publication.episode_assembly_id === assembly.id)"
+                    :can-publish="series.output_mode !== 'single_video'"
                     :current-accepted="episode.accepted_assembly_id === assembly.id && episode.validity === 'current'"
                     :archived="archived"
                     :project-enabled="project.is_active"

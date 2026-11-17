@@ -8,6 +8,7 @@ use App\Models\Channel;
 use App\Models\EpisodeAssembly;
 use App\Models\PublicationRequest;
 use App\Models\Series;
+use App\Models\SeriesAssembly;
 use Spatie\LaravelData\Data;
 
 class PublicationResolutionData extends Data
@@ -15,7 +16,7 @@ class PublicationResolutionData extends Data
     public function __construct(
         public PublicationRequest $request,
         public Channel $channel,
-        public EpisodeAssembly $assembly,
+        public EpisodeAssembly|SeriesAssembly $assembly,
         public Series $series,
     ) {}
 }

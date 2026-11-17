@@ -6,6 +6,7 @@ namespace App\Classes\Publishers;
 
 use App\Data\PostData;
 use App\Data\PublishVideoData;
+use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Prompt;
 use App\Tasks\Channels\IsChannelProjectActive;
@@ -47,7 +48,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function getSourceId(): int
     {
-        return $this->prompt instanceof PublishVideoData ? $this->prompt->episodeAssemblyId : $this->prompt->id;
+        return $this->prompt instanceof PublishVideoData ? ($this->prompt->seriesAssemblyId ?? $this->prompt->episodeAssemblyId ?? throw new RuntimeException('The publication has no source.')) : $this->prompt->id;
     }
 
     protected function assertProjectActive(): void
@@ -59,6 +60,10 @@ abstract class AbstractPublisher implements Publisher
 
     protected function getUrl(string $id): string
     {
+        if ($this->prompt instanceof PublishVideoData && $this->prompt->seriesAssemblyId !== null && $this->channel->type === ChannelType::YOUTUBE) {
+            return 'https://www.youtube.com/watch?v=' . $id;
+        }
+
         return sprintf($this->getUrlTemplate(), $id);
     }
 
@@ -79,6 +84,7 @@ abstract class AbstractPublisher implements Publisher
                 $externalId,
                 $this->prompt instanceof PublishVideoData ? $this->prompt->episodeAssemblyId : null,
                 $this->prompt instanceof PublishVideoData ? $this->prompt->publicationRequestId : null,
+                $this->prompt instanceof PublishVideoData ? $this->prompt->seriesAssemblyId : null,
             ),
         );
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ProductionStatus;
+use App\Enums\SeriesOutputMode;
 use Database\Factories\SeriesFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property SeriesOutputMode $output_mode
+ * @property array<string, mixed>|null $cycle_plan
+ * @property Carbon|null $cycle_paused_at
+ * @property Carbon|null $release_started_at
+ * @property int|null $final_assembly_id
  * @property int $id
  * @property int $project_id
  * @property string $name
@@ -44,7 +50,7 @@ class Series extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id',
+        'project_id', 'output_mode', 'cycle_plan', 'cycle_paused_at', 'release_started_at', 'final_assembly_id',
         'name',
         'specification',
         'specification_version',
@@ -59,6 +65,10 @@ class Series extends Model
 
     protected $casts = [
         'specification' => 'array',
+        'output_mode' => SeriesOutputMode::class,
+        'cycle_plan' => 'array',
+        'cycle_paused_at' => 'datetime',
+        'release_started_at' => 'datetime',
         'specification_version' => 'integer',
         'continuity_version' => 'integer',
         'lock_version' => 'integer',
@@ -67,7 +77,7 @@ class Series extends Model
         'episode_limit' => 'integer',
     ];
 
-    protected $attributes = ['automation_enabled' => false];
+    protected $attributes = ['automation_enabled' => false, 'output_mode' => 'episodes'];
 
     /** @return BelongsTo<User, $this> */
     public function automationUser(): BelongsTo
@@ -109,6 +119,18 @@ class Series extends Model
     public function episodes(): HasMany
     {
         return $this->hasMany(Episode::class);
+    }
+
+    /** @return BelongsTo<SeriesAssembly, $this> */
+    public function finalAssembly(): BelongsTo
+    {
+        return $this->belongsTo(SeriesAssembly::class, 'final_assembly_id');
+    }
+
+    /** @return HasMany<SeriesAssembly, $this> */
+    public function assemblies(): HasMany
+    {
+        return $this->hasMany(SeriesAssembly::class);
     }
 
     /** @return BelongsTo<EpisodeAssembly, $this> */
