@@ -12,6 +12,21 @@ An audit that lists twenty problems is a way of avoiding the one that matters. T
 
 For dialogue-free Poster Shorts, inspect the visible action and payoff directly. Use Studio retention only when available. Public views and other platforms’ watch times cannot establish where YouTube viewers left.
 
+## Read the owner’s YouTube Analytics
+
+The project-local [analytics.py](analytics.py) needs Python 3.10+ and runs independently of Poster. Enable **YouTube Data API v3** and **YouTube Analytics API** in the OAuth project. Download a **Desktop app** OAuth client to `storage/app/private/youtube/desktop-client.json` (or pass `--client PATH` before the subcommand). Keep it and the generated refresh token private. See [Google desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app).
+
+Run from the repository root on the computer with the user's browser. On the first run the user selects their channel and grants the two read-only scopes. If you know the expected channel ID, pass `auth --channel UC...` to verify it before replacing the local grant.
+
+```sh
+tool=.agents/skills/youtube-agent-skill/skills/yt-audit/analytics.py
+python3 "$tool" auth
+python3 "$tool" report FYkol8VhNqc ouFAcr71mTM --start 2026-11-15 --end 2026-11-19
+python3 "$tool" report ouFAcr71mTM --retention
+```
+
+Use the actual video IDs and dates for the audit. The default window is the last 28 Pacific calendar days, inclusive. Compare episodes at a similar age. The first report returns views, engaged views, average duration in seconds, average percentage viewed, likes, comments, shares and subscribers gained. The optional second report returns timeline and watch ratios as fractions; multiply timeline position by duration for approximate seconds. An empty row list means YouTube supplied no data for that video and period. Allow for reporting lag. Use first-party Studio for swipe-away rates. [Supported channel reports](https://developers.google.com/youtube/analytics/channel_reports)
+
 ## Before you write
 
 1. Read `storage/app/private/youtube/voice.md` if it exists. That is the user's voice profile: how they talk
