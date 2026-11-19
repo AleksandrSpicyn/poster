@@ -76,6 +76,7 @@ export interface PublicationSummary {
     channel_name: string | null;
     status: string;
     error_message: string | null;
+    scheduled_at: string | null;
     published_at: string | null;
 }
 export interface EpisodeSummary {

@@ -20,6 +20,7 @@ use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -49,6 +50,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
     {
         return PublicationRequest::query()->where(function ($query): void {
             $query->where('status', PublicationStatus::PLANNED)
+                ->where(fn($slot) => $slot->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now()))
                 ->orWhere(fn($processing) => $processing->where('status', PublicationStatus::PROCESSING)
                     ->whereNotNull('container_id')->where('submitted_at', '<=', now()->subMinutes(5)));
         })->orderBy('id')->limit($limit)->get();
@@ -150,11 +152,36 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return $request;
     }
 
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context): PublicationRequest
+    /** The caller holds the series lock while reserving a shared slot for every selected channel. */
+    public function episodeReleaseTime(EpisodeAssembly $assembly, Series $series, bool $nextSlot): ?Carbon
+    {
+        $reserved = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereNotNull('scheduled_at')->lockForUpdate()->first();
+
+        if ($reserved?->scheduled_at !== null) {
+            return $reserved->scheduled_at;
+        }
+
+        if (! $nextSlot) {
+            return null;
+        }
+
+        $last = PublicationRequest::query()->whereHas('assembly.episodeRevision.episode', fn($episode) => $episode->where('series_id', $series->id))
+            ->where('scheduled_at', '>=', now())->orderByDesc('scheduled_at')->lockForUpdate()->first();
+        $after = ($last->scheduled_at ?? now())->copy()->setTimezone('Europe/Moscow');
+        $slot = $after->copy()->setTime(19, 0);
+
+        while ($slot->lte($after) || ! in_array($slot->dayOfWeekIso, [2, 5], true)) {
+            $slot->addDay();
+        }
+
+        return $slot->setTimezone(config()->string('app.timezone'));
+    }
+
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, ?Carbon $scheduledAt = null): PublicationRequest
     {
         return PublicationRequest::query()->firstOrCreate(
             ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
-            ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'status' => PublicationStatus::PLANNED, 'payload' => [
+            ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'scheduled_at' => $scheduledAt, 'status' => PublicationStatus::PLANNED, 'payload' => [
                 'title' => Str::limit($context->revision->title, 97),
                 'description' => trim(($context->revision->public_caption ?? '') . "\n\n" . $context->series->name . ' · ' . $context->episode->number),
                 'use_public_description' => true,

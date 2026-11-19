@@ -39,7 +39,7 @@ class ClaimPublication
             $userAllowed = $user instanceof User && Gate::forUser($user)->allows('manageSeries');
             $expected = $container ? PublicationStatus::PROCESSING : PublicationStatus::PLANNED;
 
-            if ($request->status !== $expected) {
+            if ($request->status !== $expected || (! $container && $request->scheduled_at?->isFuture())) {
                 return false;
             }
 

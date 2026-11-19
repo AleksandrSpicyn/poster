@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property array{title: string, description: string, made_for_kids: bool, use_public_description?: bool} $payload
  * @property string|null $container_id
  * @property string|null $error_message
+ * @property Carbon|null $scheduled_at
  * @property Carbon|null $submitted_at
  * @property Carbon|null $published_at
  * @property-read Channel|null $channel
@@ -28,9 +29,9 @@ use Illuminate\Support\Carbon;
  */
 class PublicationRequest extends Model
 {
-    protected $fillable = ['series_assembly_id', 'release_key', 'episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'submitted_at', 'published_at'];
+    protected $fillable = ['series_assembly_id', 'release_key', 'episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'scheduled_at', 'submitted_at', 'published_at'];
 
-    protected $casts = ['status' => PublicationStatus::class, 'payload' => 'array', 'submitted_at' => 'datetime', 'published_at' => 'datetime'];
+    protected $casts = ['status' => PublicationStatus::class, 'payload' => 'array', 'scheduled_at' => 'datetime', 'submitted_at' => 'datetime', 'published_at' => 'datetime'];
 
     /** @return BelongsTo<SeriesAssembly, $this> */
     public function seriesAssembly(): BelongsTo

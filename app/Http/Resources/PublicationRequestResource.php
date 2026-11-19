@@ -21,6 +21,7 @@ class PublicationRequestResource extends JsonResource
             'channel_name' => $this->whenLoaded('channel', fn(): ?string => $this->channel?->name),
             'status' => $this->status->value,
             'error_message' => $this->error_message,
+            'scheduled_at' => $this->scheduled_at?->toISOString(),
             'published_at' => $this->published_at?->toISOString(),
         ];
     }

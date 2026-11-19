@@ -23,7 +23,7 @@ readonly class RequestEpisodePublicationAction
         $requests = $this->create->run($assembly, $data, $actor);
 
         foreach ($requests as $request) {
-            if ($request->status === PublicationStatus::PLANNED && $request->wasRecentlyCreated) {
+            if ($request->status === PublicationStatus::PLANNED && $request->wasRecentlyCreated && ! $request->scheduled_at?->isFuture()) {
                 PublishEpisodeJob::dispatch($request->id)->afterCommit();
             }
         }

@@ -27,14 +27,14 @@ const acceptForm = useForm({
     open_threads: '',
     scene_closed: false,
 });
-const publishForm = useForm({ channel_ids: [] as number[] });
+const publishForm = useForm({ channel_ids: [] as number[], next_release_slot: true });
 const acceptErrors = computed(() => Object.values(acceptForm.errors).join(' '));
 const publishErrors = computed(() => Object.values(publishForm.errors).join(' '));
 function accept() {
     acceptForm.post(route('episodes.assemblies.accept', params), { preserveScroll: true, preserveState: 'errors' });
 }
 function publish() {
-    if (window.confirm('Publish this accepted episode to the selected channels?'))
+    if (window.confirm(publishForm.next_release_slot ? 'Schedule this episode for the selected channels?' : 'Publish this episode now?'))
         publishForm.post(route('episodes.assemblies.publish', params), { preserveScroll: true, preserveState: 'errors' });
 }
 </script>
@@ -112,16 +112,24 @@ function publish() {
             <label v-for="channel in channels" :key="channel.id" class="flex min-h-11 items-center gap-3 text-sm"
                 ><input v-model="publishForm.channel_ids" type="checkbox" :value="channel.id" class="size-4" />{{ channel.name }} ·
                 {{ channel.type_label }}</label
-            ><InputError :message="publishErrors" /><Button
+            >
+            <label class="flex min-h-11 items-center gap-3 text-sm">
+                <input v-model="publishForm.next_release_slot" type="checkbox" class="size-4" />
+                Use the next available Tuesday or Friday at 19:00 Moscow time for all selected channels
+            </label>
+            <InputError :message="publishErrors" /><Button
                 type="submit"
                 class="h-11"
                 :disabled="publishForm.processing || !publishForm.channel_ids.length"
-                >Publish to selected channels</Button
+                >{{ publishForm.next_release_slot ? 'Schedule publication' : 'Publish now' }}</Button
             >
         </form>
         <ul v-if="publications.length" class="space-y-2 border-t pt-4 text-sm">
             <li v-for="publication in publications" :key="publication.id">
                 {{ publication.channel_name }}: {{ publication.status }}
+                <time v-if="publication.scheduled_at" :datetime="publication.scheduled_at">{{
+                    new Date(publication.scheduled_at).toLocaleString()
+                }}</time>
                 <p v-if="publication.error_message" class="text-destructive mt-1 text-xs">{{ publication.error_message }}</p>
                 <PublicationRecoveryForm v-if="publication.status === 'submission_unknown'" :publication="publication" :params="params" />
             </li>
