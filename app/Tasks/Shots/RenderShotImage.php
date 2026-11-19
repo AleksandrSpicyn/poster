@@ -50,9 +50,16 @@ readonly class RenderShotImage
                 $workFile = Storage::disk('local')->path('shot-work/' . Str::uuid() . '.png');
                 File::ensureDirectoryExists(dirname($workFile), 0700);
                 $time = $snapshot['source_time_ms'] ?? null;
-                $seek = is_int($time) && $time > 0 ? ['-ss', (string) ($time / 1000)] : ['-sseof', '-0.1'];
+                $seek = is_int($time) && $time > 0 ? ['-ss', (string) ($time / 1000)] : ['-sseof', '-1'];
                 $frames = is_int($time) && $time > 0 ? ['-frames:v', '1'] : [];
-                Process::timeout(60)->run(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov', ...$seek, '-i', $source->getPath(), ...$frames, '-update', '1', '-y', $workFile])->throw();
+                $input = ['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov'];
+                $output = ['-i', $source->getPath(), '-map', '0:v:0', '-fps_mode', 'passthrough', ...$frames, '-update', '1', '-y', $workFile];
+                Process::timeout(60)->run([...$input, ...$seek, ...$output])->throw();
+
+                // An audio tail can extend beyond the final second of video.
+                if ($frames === [] && ! File::isFile($workFile)) {
+                    Process::timeout(60)->run([...$input, ...$output])->throw();
+                }
 
                 if (! File::isFile($workFile) || @getimagesize($workFile) === false) {
                     throw new RuntimeException('The selected continuation point has no readable frame.');
