@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/sergebulaev/instagram-skills",
+  "revision": "823c681b42be9ecff9f4db20eaf14d1ea45ec1a1",
+  "source_path": ".codex-marketplace/instagram-skills",
+  "installer": "skill-installer/scripts/install-skill-from-github.py",
+  "scope": "project",
+  "installed_at": "2026-11-19T13:27:21.299595+00:00"
+}
