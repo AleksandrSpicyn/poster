@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int $number
  * @property RevisionStatus $status
  * @property string $title
+ * @property string|null $public_caption
  * @property string $objective
  * @property int $schema_version
  * @property array<string, mixed> $context_snapshot
@@ -49,6 +50,7 @@ class EpisodeRevision extends Model
         'status',
         'title',
         'objective',
+        'public_caption',
         'schema_version',
         'context_snapshot',
         'context_hash',

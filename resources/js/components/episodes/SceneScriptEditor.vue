@@ -66,6 +66,11 @@ function error(path: string): string | undefined {
                 />
             </div>
         </div>
+        <div class="grid gap-2">
+            <Label for="script-caption">Public caption for Instagram and YouTube</Label>
+            <textarea id="script-caption" v-model="model.public_caption" rows="2" maxlength="1000" class="rounded-md border p-2" />
+            <InputError :message="error('public_caption')" />
+        </div>
         <fieldset class="space-y-3 rounded-lg border p-4">
             <legend class="px-2 text-sm font-semibold">Characters and appearance versions</legend>
             <p class="text-muted-foreground text-xs">Choose one approved appearance for each character in this episode.</p>

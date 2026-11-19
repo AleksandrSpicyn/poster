@@ -49,6 +49,7 @@ class GetEpisode
                         is_int($shot->source_anchor['time_ms'] ?? null) ? $shot->source_anchor['time_ms'] : 0,
                     ))->all()),
                 ))->all()),
+                $revision->public_caption,
             );
         }
 

@@ -14,6 +14,7 @@ use App\Jobs\FinishEpisodePublicationJob;
 use App\Jobs\PublishEpisodeJob;
 use App\Models\Post;
 use App\Models\PublicationRequest;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -74,6 +75,9 @@ test('публикует принятую сборку двумя этапами
     expect(Post::query()->count())->toBe(1);
     Event::assertDispatchedTimes(PostCreated::class, 1);
     Http::assertSentCount(3);
+    expect($post->title)->toBe('The locked door');
+    expect($post->description)->toStartWith("Who has the key?\n\n");
+    Http::assertSent(fn(Request $outgoing): bool => ($outgoing['caption'] ?? null) === $post->title . "\n\n" . $post->description);
 });
 
 test('неизвестная отправка не повторяется при повторе job', function (): void {

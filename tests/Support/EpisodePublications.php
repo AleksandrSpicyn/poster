@@ -21,7 +21,7 @@ function acceptedEpisodePublication(): array
     ['episode' => $episode, 'character' => $character] = storyFixture();
     $user = serialOperator();
     $revision = app(SaveEpisodeScriptAction::class)->run($episode, SaveEpisodeScriptData::validateAndCreate([
-        'script' => storyScriptPayload($character), 'lock_version' => 0,
+        'script' => [...storyScriptPayload($character), 'public_caption' => 'Who has the key?'], 'lock_version' => 0,
     ]));
     app(ApproveEpisodeScriptAction::class)->run($revision, $user);
     $assembly = EpisodeAssembly::factory()->for($revision)->ready()->create(['duration_ms' => 5000]);

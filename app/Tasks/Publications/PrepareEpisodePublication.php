@@ -43,6 +43,7 @@ class PrepareEpisodePublication
             $request->id,
             $request->payload['made_for_kids'],
             $final ? $assembly->id : null,
+            $request->payload['use_public_description'] ?? false,
         ), $request);
     }
 }

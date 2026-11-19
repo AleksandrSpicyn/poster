@@ -7,6 +7,7 @@ namespace App\Classes\Publishers\Instagram;
 use App\Classes\Publishers\AbstractPublisher;
 use App\Classes\Publishers\StagedPublisher;
 use App\Classes\Publishers\VerifiablePublisher;
+use App\Data\PublishVideoData;
 use App\Data\VerifiedPublicationData;
 use App\Enums\ContentType;
 use App\Exceptions\PublicationVerificationException;
@@ -57,7 +58,9 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
         $response = $this->getClient()->post('media', [
             'media_type' => 'REELS',
             'video_url' => $this->getVideoUrl(),
-            'caption' => $this->getTitle(),
+            'caption' => $this->prompt instanceof PublishVideoData && $this->prompt->usePublicDescription
+                ? mb_substr(trim($this->getTitle() . "\n\n" . $this->getDescription()), 0, 2200)
+                : $this->getTitle(),
             'share_to_feed' => true,
         ])->throw();
 

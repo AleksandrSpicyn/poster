@@ -155,8 +155,9 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return PublicationRequest::query()->firstOrCreate(
             ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
             ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'status' => PublicationStatus::PLANNED, 'payload' => [
-                'title' => Str::limit($context->series->name . ' · ' . $context->episode->number . ' · ' . $context->revision->title, 97),
-                'description' => $context->revision->objective,
+                'title' => Str::limit($context->revision->title, 97),
+                'description' => trim(($context->revision->public_caption ?? '') . "\n\n" . $context->series->name . ' · ' . $context->episode->number),
+                'use_public_description' => true,
                 'made_for_kids' => ($context->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value,
             ]],
         );

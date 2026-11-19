@@ -36,6 +36,7 @@ class EpisodeScriptSchema
         ]);
 
         return [
+            'public_caption' => $schema->string()->max(1000)->required(),
             'title' => $schema->string()->required(),
             'objective' => $schema->string()->required(),
             'character_revision_ids' => $schema->array()->items($schema->integer())->min(1)->max(10)->required(),

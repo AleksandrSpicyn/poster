@@ -15,5 +15,6 @@ final readonly class PublishVideoData
         public int $publicationRequestId,
         public bool $madeForKids = false,
         public ?int $seriesAssemblyId = null,
+        public bool $usePublicDescription = false,
     ) {}
 }

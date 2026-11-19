@@ -28,6 +28,7 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
             'status' => RevisionStatus::DRAFT,
             'title' => $script->title,
             'objective' => $script->objective,
+            'public_caption' => $script->public_caption,
             'context_snapshot' => $context,
             'context_hash' => Snapshot::hash($context),
             'source_assembly_id' => $context['source_assembly_id'] ?? null,

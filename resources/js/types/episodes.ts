@@ -103,6 +103,7 @@ export interface ScreenplayShot {
     source_time_ms?: number;
 }
 export interface Screenplay {
+    public_caption?: string | null;
     title: string;
     objective: string;
     character_revision_ids: number[];
