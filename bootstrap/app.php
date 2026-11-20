@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +17,21 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('horizon:snapshot')->everyFiveMinutes();
+
+        $schedule->command('app:reconcile-episode-scripts --limit=50')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('app:reconcile-shot-generations --limit=50')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('app:reconcile-episode-assemblies --limit=50')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('app:reconcile-publications --limit=50')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('app:reconcile-productions --limit=50')->everyMinute()->withoutOverlapping(5);
+
+        $schedule->command('app:produce-content --scheduled')
+            ->cron(config()->string('production.schedule_cron'))
+            ->timezone(config()->string('production.schedule_timezone'))
+            ->when(fn(): bool => (bool) config('production.schedule_enabled'))
+            ->withoutOverlapping(5);
+    })
     ->withBroadcasting(__DIR__ . '/../routes/channels.php', [
         'middleware' => ['web', 'auth', 'verified'],
         'as' => 'broadcasting.auth',

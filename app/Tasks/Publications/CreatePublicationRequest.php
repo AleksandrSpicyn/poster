@@ -80,7 +80,7 @@ class CreatePublicationRequest
             }
 
             $requests = new Collection();
-            $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series, $data->next_release_slot);
+            $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series);
 
             foreach ($channels as $channel) {
                 $requests->push($this->publications->forAcceptedAssembly($assembly, $channel, $actor, $productionRun, $context, $scheduledAt));

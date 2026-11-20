@@ -27,14 +27,14 @@ const acceptForm = useForm({
     open_threads: '',
     scene_closed: false,
 });
-const publishForm = useForm({ channel_ids: [] as number[], next_release_slot: true });
+const publishForm = useForm({ channel_ids: [] as number[] });
 const acceptErrors = computed(() => Object.values(acceptForm.errors).join(' '));
 const publishErrors = computed(() => Object.values(publishForm.errors).join(' '));
 function accept() {
     acceptForm.post(route('episodes.assemblies.accept', params), { preserveScroll: true, preserveState: 'errors' });
 }
 function publish() {
-    if (window.confirm(publishForm.next_release_slot ? 'Schedule this episode for the selected channels?' : 'Publish this episode now?'))
+    if (window.confirm('Schedule this episode for the selected channels?'))
         publishForm.post(route('episodes.assemblies.publish', params), { preserveScroll: true, preserveState: 'errors' });
 }
 </script>
@@ -113,15 +113,11 @@ function publish() {
                 ><input v-model="publishForm.channel_ids" type="checkbox" :value="channel.id" class="size-4" />{{ channel.name }} ·
                 {{ channel.type_label }}</label
             >
-            <label class="flex min-h-11 items-center gap-3 text-sm">
-                <input v-model="publishForm.next_release_slot" type="checkbox" class="size-4" />
-                Use the next available Tuesday or Friday at 19:00 Moscow time for all selected channels
-            </label>
             <InputError :message="publishErrors" /><Button
                 type="submit"
                 class="h-11"
                 :disabled="publishForm.processing || !publishForm.channel_ids.length"
-                >{{ publishForm.next_release_slot ? 'Schedule publication' : 'Publish now' }}</Button
+                >Schedule publication</Button
             >
         </form>
         <ul v-if="publications.length" class="space-y-2 border-t pt-4 text-sm">

@@ -42,6 +42,7 @@ use Laravel\Ai\StructuredAnonymousAgent;
 
 use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
+use function Pest\Laravel\travelTo;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
@@ -224,6 +225,12 @@ test('проводит выпуск до публикации и продолж�
     $advance->run($run->id);
 
     $publication = $assembly->publications()->sole();
+    $releaseAt = $publication->scheduled_at ?? throw new LogicException('Release time missing.');
+    expect($run->refresh()->next_check_at?->equalTo($releaseAt))->toBeTrue();
+    travelTo($releaseAt);
+    $advance->run($run->id);
+    expect($run->refresh()->status)->toBe(ProductionStatus::WAITING);
+
     app(SubmitEpisodePublicationAction::class)->run($publication);
     app(FinishEpisodePublicationAction::class)->run($publication);
 

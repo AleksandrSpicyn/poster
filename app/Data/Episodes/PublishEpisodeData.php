@@ -11,7 +11,7 @@ use Spatie\LaravelData\Data;
 class PublishEpisodeData extends Data
 {
     /** @param list<int> $channel_ids */
-    public function __construct(#[Min(1), Max(20)] public array $channel_ids, public bool $next_release_slot = false) {}
+    public function __construct(#[Min(1), Max(20)] public array $channel_ids) {}
 
     /** @return array<string, list<string>> */
     public static function rules(): array

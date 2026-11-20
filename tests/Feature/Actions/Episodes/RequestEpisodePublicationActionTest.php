@@ -28,7 +28,7 @@ test('запрос публикации сохраняет один receipt и �
 
     expect(PublicationRequest::query()->count())->toBe(1);
     expect(PublicationRequest::query()->firstOrFail()->payload['title'])->toContain('The locked door');
-    Queue::assertPushed(PublishEpisodeJob::class, 1);
+    Queue::assertNothingPushed();
     Http::assertNothingSent();
 });
 

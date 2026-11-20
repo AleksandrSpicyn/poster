@@ -61,6 +61,11 @@ readonly class AdvanceProductionAction
         $singleVideo = $run->series?->output_mode === SeriesOutputMode::SINGLE_VIDEO;
         $deadline = $singleVideo ? $run->stage_started_at : $run->started_at;
 
+        if ($run->stage === ProductionStage::PUBLICATION && $run->assembly !== null) {
+            $releaseAt = $run->assembly->publications->sortByDesc('scheduled_at')->first()?->scheduled_at;
+            $deadline = $releaseAt !== null && ($deadline === null || $releaseAt > $deadline) ? $releaseAt : $deadline;
+        }
+
         if ($run->stage !== ProductionStage::FINAL_REVIEW && $deadline?->lessThan(now()->subMinutes($this->timeoutMinutes))) {
             $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'Production exceeded its recovery window. Review the existing operations before resuming.');
 

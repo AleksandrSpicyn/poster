@@ -65,6 +65,7 @@ test('остановленный выпуск блокирует задержа�
         $publication->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'late-container']);
         app(FinishEpisodePublicationAction::class)->run($publication);
     } else {
+        $publication->update(['scheduled_at' => now()]);
         app(SubmitEpisodePublicationAction::class)->run($publication);
     }
 

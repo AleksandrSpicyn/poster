@@ -27,6 +27,7 @@ test('выключение проекта блокирует ожидающую 
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
     Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->sole();
+    $request->update(['scheduled_at' => now()]);
 
     if ($container) {
         $request->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'project-disabled-container']);
@@ -57,6 +58,7 @@ test('публикует принятую сборку двумя этапами
         '*/media-episode*' => Http::response(['permalink' => 'https://instagram.com/p/media-episode']),
     ]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
+    $request->update(['scheduled_at' => now()]);
 
     app(SubmitEpisodePublicationAction::class)->run($request);
     app(SubmitEpisodePublicationAction::class)->run($request);
@@ -86,6 +88,7 @@ test('неизвестная отправка не повторяется при
     Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
     Http::fake(['*/ig-episode/media' => Http::response([], 503)]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
+    $request->update(['scheduled_at' => now()]);
     Event::fake([WorkspaceUpdated::class]);
 
     app(SubmitEpisodePublicationAction::class)->run($request);
@@ -103,6 +106,7 @@ test('reconciler восстанавливает доставку только б
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
     Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
+    $request->update(['scheduled_at' => now()]);
     $request->update(['status' => PublicationStatus::SUBMITTING, 'submitted_at' => now()->subMinutes(11)]);
     Queue::fake([PublishEpisodeJob::class, FinishEpisodePublicationJob::class]);
 
@@ -119,6 +123,7 @@ test('отзыв доступа блокирует отправку и публ�
     Event::fake([PostCreated::class]);
     Http::fake();
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
+    $request->update(['scheduled_at' => now()]);
 
     if ($container) {
         $request->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'existing-container']);
@@ -145,6 +150,7 @@ test('изменение общего канала блокирует уже п�
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
     Queue::fake([PublishEpisodeJob::class]);
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->sole();
+    $request->update(['scheduled_at' => now()]);
 
     if ($disconnect) {
         $channel->update(['credentials' => null]);

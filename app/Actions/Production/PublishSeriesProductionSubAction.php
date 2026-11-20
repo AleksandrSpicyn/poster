@@ -38,7 +38,7 @@ readonly class PublishSeriesProductionSubAction
             : $this->publish->run($assembly, new PublishEpisodeData($ids), $actor, $run);
 
         foreach ($requests as $request) {
-            if ($request->status === PublicationStatus::PLANNED) {
+            if ($request->status === PublicationStatus::PLANNED && ! $request->scheduled_at?->isFuture()) {
                 PublishEpisodeJob::dispatch($request->id)->afterCommit();
             }
         }
@@ -50,10 +50,12 @@ readonly class PublishSeriesProductionSubAction
         }
 
         $blocked = $requests->contains(fn($request): bool => in_array($request->status, [PublicationStatus::FAILED, PublicationStatus::SUBMISSION_UNKNOWN], true));
+        $releaseAt = $requests->first()?->scheduled_at;
         $this->update->run(
             $run,
             $blocked ? ProductionStatus::NEEDS_ATTENTION : ProductionStatus::WAITING,
             message: $blocked ? 'A publication needs attention. Keep its existing receipt; do not send a duplicate.' : null,
+            nextCheckAt: $releaseAt?->isFuture() ? $releaseAt : null,
         );
     }
 }

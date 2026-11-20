@@ -32,7 +32,8 @@ test('публикация создаёт receipt для выбранного к
     $request = PublicationRequest::query()->firstOrFail();
     expect($request->episode_assembly_id)->toBe($assembly->id);
     expect($request->channel_id)->toBe($channel->id);
-    Bus::assertDispatched(PublishEpisodeJob::class);
+    expect($request->scheduled_at?->isFuture())->toBeTrue();
+    Bus::assertNothingDispatched();
     Http::assertNothingSent();
 });
 
@@ -50,7 +51,8 @@ test('черновик не создаёт публикацию', function (): v
     Bus::assertNothingDispatched();
 });
 
-test('два канала ждут общего слота и повторный запрос сохраняет дату', function (string $start, string $expected): void {
+test('два канала ждут общего слота и повторный запрос сохраняет дату', function (string $start, string $expected, string $cron, string $timezone, int $window): void {
+    config(['production.release_cron' => $cron, 'production.release_timezone' => $timezone, 'production.release_window_minutes' => $window]);
     $context = episodeHttpFixture();
     $series = $context['episode']->series()->firstOrFail();
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->create(['status' => AssemblyStatus::ACCEPTED]);
@@ -66,21 +68,25 @@ test('два канала ждут общего слота и повторный
 
     try {
         $route = route('episodes.assemblies.publish', [...$context['params'], 'assembly' => $assembly]);
-        actingAs($context['user'])->post($route, ['channel_ids' => $ids, 'next_release_slot' => true])->assertRedirect();
-        actingAs($context['user'])->post($route, ['channel_ids' => $ids, 'next_release_slot' => true])->assertRedirect();
+        actingAs($context['user'])->post($route, ['channel_ids' => $ids])->assertRedirect();
+        actingAs($context['user'])->post($route, ['channel_ids' => $ids, 'next_release_slot' => false])->assertRedirect();
 
         $requests = PublicationRequest::query()->get();
         expect($requests)->toHaveCount(2);
 
+        $release = $requests->firstOrFail()->scheduled_at ?? throw new LogicException('Release time missing.');
+        $startOfWindow = Carbon::parse($expected);
+        expect($release->betweenIncluded($startOfWindow, $startOfWindow->copy()->addMinutes($window)))->toBeTrue();
+
         foreach ($requests as $request) {
-            expect($request->scheduled_at?->toDateTimeString())->toBe($expected);
+            expect($request->scheduled_at?->equalTo($release))->toBeTrue();
             expect(app(ClaimPublication::class)->run($request))->toBeFalse();
         }
 
         expect(app(ReconcilePublicationsAction::class)->run())->toBe(0);
         Bus::assertNothingDispatched();
 
-        Carbon::setTestNow($expected);
+        Carbon::setTestNow($release);
         expect(app(ReconcilePublicationsAction::class)->run())->toBe(2);
         Bus::assertDispatchedTimes(PublishEpisodeJob::class, 2);
         Http::assertNothingSent();
@@ -88,6 +94,7 @@ test('два канала ждут общего слота и повторный
         Carbon::setTestNow();
     }
 })->with([
-    ['2026-11-19 23:00:00', '2026-11-20 19:00:00'],
-    ['2026-11-20 19:01:00', '2026-11-24 19:00:00'],
+    ['2026-11-19 23:00:00', '2026-11-20 19:00:00', '0 19 * * 2,5', 'Europe/Moscow', 0],
+    ['2026-11-20 19:01:00', '2026-11-24 19:00:00', '0 19 * * 2,5', 'Europe/Moscow', 0],
+    ['2026-11-20 19:01:00', '2026-11-21 12:15:00', '15 16 * * 6', 'Asia/Bangkok', 30],
 ]);

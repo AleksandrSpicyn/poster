@@ -19,6 +19,7 @@ use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
+use Cron\CronExpression;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -153,7 +154,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
     }
 
     /** The caller holds the series lock while reserving a shared slot for every selected channel. */
-    public function episodeReleaseTime(EpisodeAssembly $assembly, Series $series, bool $nextSlot): ?Carbon
+    public function episodeReleaseTime(EpisodeAssembly $assembly, Series $series): Carbon
     {
         $reserved = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereNotNull('scheduled_at')->lockForUpdate()->first();
 
@@ -161,23 +162,24 @@ readonly class PublicationRequestRepository extends EloquentRepository
             return $reserved->scheduled_at;
         }
 
-        if (! $nextSlot) {
-            return null;
-        }
-
         $last = PublicationRequest::query()->whereHas('assembly.episodeRevision.episode', fn($episode) => $episode->where('series_id', $series->id))
             ->where('scheduled_at', '>=', now())->orderByDesc('scheduled_at')->lockForUpdate()->first();
-        $after = ($last->scheduled_at ?? now())->copy()->setTimezone('Europe/Moscow');
-        $slot = $after->copy()->setTime(19, 0);
+        $after = $last->scheduled_at ?? now();
+        $timezone = config()->string('production.release_timezone');
+        $cron = new CronExpression(config()->string('production.release_cron'));
+        $slot = Carbon::instance($cron->getNextRunDate($after, timeZone: $timezone));
+        $window = config()->integer('production.release_window_minutes');
 
-        while ($slot->lte($after) || ! in_array($slot->dayOfWeekIso, [2, 5], true)) {
-            $slot->addDay();
+        if ($window > 0) {
+            $next = $cron->getNextRunDate($slot, timeZone: $timezone);
+            $maxOffset = min($window, (int) $slot->diffInMinutes($next) - 1);
+            $slot->addMinutes(random_int(0, $maxOffset));
         }
 
         return $slot->setTimezone(config()->string('app.timezone'));
     }
 
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, ?Carbon $scheduledAt = null): PublicationRequest
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt): PublicationRequest
     {
         return PublicationRequest::query()->firstOrCreate(
             ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
