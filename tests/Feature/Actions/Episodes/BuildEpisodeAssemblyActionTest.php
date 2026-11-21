@@ -45,22 +45,17 @@ test('реальный FFmpeg собирает видео и финальные 
     $action->run($assembly);
 
     $assembly->refresh();
-    $video = $assembly->getFirstMedia(EpisodeAssembly::VIDEO);
-    $frame = $assembly->getFirstMedia(EpisodeAssembly::CONTINUATION_FRAME);
-    $tail = $assembly->getFirstMedia(EpisodeAssembly::CONTINUATION_TAIL);
     expect($assembly->status)->toBe(AssemblyStatus::READY);
     expect($assembly->duration_ms)->toBeGreaterThanOrEqual(950)->toBeLessThanOrEqual(1100);
-    expect($assembly->media()->count())->toBe(3);
-    expect($video)->not->toBeNull();
-    expect($frame)->not->toBeNull();
-    expect($tail)->not->toBeNull();
+    expect($assembly->media)->toHaveCount(3);
+    $media = $assembly->media;
+    $video = $media->where('collection_name', EpisodeAssembly::VIDEO)->sole();
+    $frame = $media->where('collection_name', EpisodeAssembly::CONTINUATION_FRAME)->sole();
+    $tail = $media->where('collection_name', EpisodeAssembly::CONTINUATION_TAIL)->sole();
 
-    $video = $assembly->media()->where('collection_name', EpisodeAssembly::VIDEO)->firstOrFail();
-    $frame = $assembly->media()->where('collection_name', EpisodeAssembly::CONTINUATION_FRAME)->firstOrFail();
-    $tail = $assembly->media()->where('collection_name', EpisodeAssembly::CONTINUATION_TAIL)->firstOrFail();
-    $disk->assertExists($video->getPathRelativeToRoot());
-    $disk->assertExists($frame->getPathRelativeToRoot());
-    $disk->assertExists($tail->getPathRelativeToRoot());
+    foreach ([$video, $frame, $tail] as $file) {
+        $disk->assertExists($file->getPathRelativeToRoot());
+    }
 
     expect(getimagesize($frame->getPath()))->toMatchArray([0 => 720, 1 => 1280]);
     expect($disk->allDirectories('episode-builds'))->toBe([]);

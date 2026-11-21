@@ -49,3 +49,24 @@ test('смена окружения сбрасывает профиль, ожи�
 
     Http::assertNothingSent();
 });
+
+test('снимает ожидание после подтверждения публикации в TikTok', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.pending' => true, 'tiktok_demo.author-a.direct.id' => 'test-post']);
+    Http::fake(['*/creator_info/query/' => Http::response(demoCreatorResponse()), '*/status/fetch/' => Http::response(['error' => ['code' => 'ok'], 'data' => ['status' => 'PUBLISH_COMPLETE']]),
+        '*/video/list/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['videos' => []]])]);
+
+    get(route('tiktok-demo.show', 'author-a'))->assertOk()->assertSee('TikTok подтвердил публикацию')->assertDontSee('value="PUBLIC_TO_EVERYONE"', false)
+        ->assertSessionMissing('tiktok_demo.author-a.direct.pending');
+});
+
+test('поясняет старую квитанцию без идентификатора при обновлении', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.pending' => true,
+        'tiktok_demo.author-a.direct.message' => 'Передача не подтверждена. Проверьте результат перед повторной отправкой.']);
+    Http::fake(['*/video/list/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['videos' => []]])]);
+
+    get(route('tiktok-demo.show', 'author-a'))->assertOk()->assertSee('Идентификатор TikTok не сохранён')->assertSessionHas('tiktok_demo.author-a.direct.pending', true);
+
+    Http::assertSentCount(1);
+});

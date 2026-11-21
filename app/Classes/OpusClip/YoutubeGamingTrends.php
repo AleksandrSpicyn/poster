@@ -7,7 +7,7 @@ namespace App\Classes\OpusClip;
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Project;
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use App\Support\Integrations\Payload;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Carbon;
@@ -16,7 +16,7 @@ use RuntimeException;
 
 final readonly class YoutubeGamingTrends
 {
-    public function __construct(private YoutubeReadClient $youtube, private OpusClipRepository $clips) {}
+    public function __construct(private YoutubeReadClient $youtube, private OpusWorkspaceRepository $workspace) {}
 
     /** @return list<array{title: string, channel: string, views: string, views_per_day?: int|null, url: string}> */
     public function search(string $game): array
@@ -58,8 +58,8 @@ final readonly class YoutubeGamingTrends
             return Http::withHeaders(['X-Goog-Api-Key' => $key])->withoutRedirecting()->timeout(30);
         }
 
-        $project = $this->clips->project();
-        $channel = $project instanceof Project ? $this->clips->channels($project)->first(fn(Channel $item): bool => $item->type === ChannelType::YOUTUBE) : null;
+        $project = $this->workspace->project();
+        $channel = $project instanceof Project ? $this->workspace->channels($project)->first(fn(Channel $item): bool => $item->type === ChannelType::YOUTUBE) : null;
 
         if ($channel === null) {
             throw new RuntimeException('Connect the gaming YouTube channel or set YOUTUBE_DATA_API_KEY.');

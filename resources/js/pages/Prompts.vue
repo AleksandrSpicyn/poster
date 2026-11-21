@@ -15,7 +15,7 @@ import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<PromptsPageProps>();
-const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters('prompts', () => ({
+const { filters, loading, error, changeSort, changePerPage, changePage, refresh } = useListFilters('prompts', () => ({
     sort: page.props.filters.sort ?? page.props.defaultSort,
     perPage: page.props.prompts.meta.per_page,
     page: page.props.prompts.meta.current_page,
@@ -44,14 +44,8 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Prompts', href: route('prompts'
                         :per-page="filters.perPage"
                         :directions="page.props.sortDirections"
                         :disabled="loading"
-                        @sort="
-                            filters.sort = $event;
-                            applyFilters();
-                        "
-                        @per-page="
-                            filters.perPage = $event;
-                            applyFilters();
-                        "
+                        @sort="changeSort"
+                        @per-page="changePerPage"
                 /></template>
                 <div class="divide-y md:hidden"><GenerationItem v-for="prompt in page.props.prompts.data" :key="prompt.id" :prompt="prompt" /></div>
                 <Table class="hidden md:table">

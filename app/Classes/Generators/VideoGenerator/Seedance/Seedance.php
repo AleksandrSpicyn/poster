@@ -4,32 +4,29 @@ declare(strict_types=1);
 
 namespace App\Classes\Generators\VideoGenerator\Seedance;
 
+use App\Classes\Generators\VideoGenerator\AsyncVideoGenerator;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\GenerationStatus;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
-use App\Classes\Generators\VideoGenerator\VideoGenerator;
 use App\Data\VideoCapabilitiesData;
 use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
 use App\Enums\VideoAudioSource;
 use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
-use App\Exceptions\VideoGenerationPendingException;
-use App\Exceptions\VideoGenerationUncertainException;
 use App\Support\Integrations\Payload;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Storage;
 use Illuminate\Filesystem\FilesystemAdapter;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use RuntimeException;
 use UnexpectedValueException;
 
 /** Асинхронный BytePlus ModelArk: кадры, референсы и продолжение видео. */
-readonly class Seedance implements VideoGenerator
+readonly class Seedance extends AsyncVideoGenerator
 {
     public function __construct(
         #[Config('services.seedance.api_url')] private string $baseUrl,
@@ -82,21 +79,7 @@ readonly class Seedance implements VideoGenerator
             $payload['omni_reference_task_type'] = $request->mode === VideoInputMode::EXTEND ? 'extend' : 'reference';
         }
 
-        try {
-            $response = $this->request()
-                ->post('contents/generations/tasks', $payload)
-                ->throw();
-
-            return Payload::string($response->json('id'), 'id');
-        } catch (ConnectionException|UnexpectedValueException $exception) {
-            throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
-        } catch (RequestException $exception) {
-            if ($exception->response->serverError()) {
-                throw new VideoGenerationUncertainException('Video submission outcome is unknown.', $exception->getCode(), previous: $exception);
-            }
-
-            throw $exception;
-        }
+        return $this->submit(fn(): Response => $this->request()->post('contents/generations/tasks', $payload)->throw(), 'id');
     }
 
     public function capabilities(?string $model = null): VideoCapabilitiesData
@@ -123,21 +106,11 @@ readonly class Seedance implements VideoGenerator
         );
     }
 
-    public function check(string $id): ?VideoResultData
+    protected function poll(string $id): ?VideoResultData
     {
-        try {
-            $response = $this->request()
-                ->get('contents/generations/tasks/' . rawurlencode($id))
-                ->throw();
-        } catch (ConnectionException $exception) {
-            throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
-        } catch (RequestException $exception) {
-            if ($exception->response->status() === 429 || $exception->response->serverError()) {
-                throw new VideoGenerationPendingException('Video status is temporarily unavailable.', $exception->getCode(), previous: $exception);
-            }
-
-            throw $exception;
-        }
+        $response = $this->request()
+            ->get('contents/generations/tasks/' . rawurlencode($id))
+            ->throw();
 
         $status = GenerationStatus::from(Payload::string($response->json('status'), 'status'));
 

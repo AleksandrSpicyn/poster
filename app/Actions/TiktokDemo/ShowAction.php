@@ -37,6 +37,14 @@ final readonly class ShowAction
         $direct = "$key.direct";
         $id = $this->session->get("$direct.id");
 
+        $message = $this->session->get("$direct.message");
+
+        if ($message === 'Передача не подтверждена. Проверьте результат перед повторной отправкой.' && $this->session->has("$direct.pending")) {
+            $message = is_string($id)
+                ? 'TikTok выдал идентификатор. Передача файла не подтверждена.'
+                : 'Создание публикации не подтверждено. Идентификатор TikTok не сохранён. Причина старой попытки неизвестна.';
+        }
+
         if (is_string($id)) {
             try {
                 $reply = Http::withToken($profile->token())->withoutRedirecting()->timeout(10)
@@ -45,18 +53,19 @@ final readonly class ShowAction
 
                 if (in_array($status, ['PUBLISH_COMPLETE', 'FAILED'], true)) {
                     $this->session->forget(["$direct.id", "$direct.pending"]);
-                    $this->session->put("$direct.message", $status === 'PUBLISH_COMPLETE' ? 'TikTok подтвердил публикацию.' : 'TikTok отклонил публикацию.');
+                    $message = $status === 'PUBLISH_COMPLETE' ? 'TikTok подтвердил публикацию.' : 'TikTok отклонил публикацию.';
+                    $this->session->put("$direct.message", $message);
                 }
             } catch (ConnectionException|RuntimeException) {
-                $page['directMessage'] = 'Не удалось проверить статус. Обновите страницу позже.';
+                $message = (is_string($message) ? $message . ' ' : '') . 'Не удалось проверить статус. Обновите страницу позже.';
             }
         }
 
-        $page['directMessage'] ??= $this->session->get("$direct.message");
+        $page['directMessage'] = $message;
 
         if (! $this->session->has("$direct.pending")) {
             try {
-                $page['creator'] = $this->settings->run($profile->token());
+                $page['creator'] = $this->settings->run($profile->token())->toArray();
                 $page['form'] = $this->session->remember("$direct.form", static fn(): string => Str::random(40));
             } catch (ConnectionException|RuntimeException) {
                 $page['directMessage'] ??= 'Direct Post недоступен. Проверьте разрешение video.publish и попробуйте позже.';

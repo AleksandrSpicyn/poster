@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Production;
 
-use App\Actions\MakeShortSubAction;
 use App\Enums\ChannelType;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
@@ -24,7 +23,7 @@ readonly class AdvanceProductionAction
         private UpdateProductionRun $update,
         private StopProductionRun $stop,
         private ProduceSeriesSubAction $series,
-        private MakeShortSubAction $short,
+        private ProduceShortSubAction $standalone,
         #[Config('production.run_timeout_minutes')] private int $timeoutMinutes,
     ) {}
 
@@ -98,34 +97,6 @@ readonly class AdvanceProductionAction
             return;
         }
 
-        if ($run->prompt_id === null) {
-            if ($run->stage !== ProductionStage::PREPARING) {
-                $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'The standalone submission was interrupted. Inspect its outcome before another request.');
-
-                return;
-            }
-
-            $this->update->run($run, ProductionStatus::RUNNING, ProductionStage::SCREENPLAY);
-            $this->short->run($run->project, $run);
-            $this->update->run($run, ProductionStatus::WAITING, ProductionStage::MEDIA);
-
-            return;
-        }
-
-        if ($run->stage === ProductionStage::SCREENPLAY) {
-            $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'The standalone submission was interrupted. Inspect the existing prompt before another request.');
-
-            return;
-        }
-
-        if (! $run->prompt?->generated) {
-            $this->update->run($run, ProductionStatus::WAITING, ProductionStage::MEDIA);
-
-            return;
-        }
-
-        $publishedChannels = $run->prompt->posts->pluck('channel_id');
-        $complete = $channels->every(fn(Channel $channel): bool => $publishedChannels->contains($channel->id));
-        $this->update->run($run, $complete ? ProductionStatus::COMPLETED : ProductionStatus::WAITING, ProductionStage::PUBLICATION);
+        $this->standalone->run($run, $channels);
     }
 }

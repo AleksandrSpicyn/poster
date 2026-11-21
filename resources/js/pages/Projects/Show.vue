@@ -31,7 +31,7 @@ import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<ProjectPageProps>();
-const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters(
+const { filters, loading, error, changeSort, changePerPage, changePage, refresh } = useListFilters(
     'projects.show',
     () => ({
         sort: page.props.filters.sort,
@@ -269,14 +269,8 @@ function destroyProject() {
                             :per-page="filters.perPage"
                             :directions="page.props.sortDirections"
                             :disabled="loading"
-                            @sort="
-                                filters.sort = $event;
-                                applyFilters();
-                            "
-                            @per-page="
-                                filters.perPage = $event;
-                                applyFilters();
-                            "
+                            @sort="changeSort"
+                            @per-page="changePerPage"
                         />
                     </template>
                     <div class="divide-y"><GenerationItem v-for="prompt in page.props.prompts.data" :key="prompt.id" :prompt="prompt" /></div>

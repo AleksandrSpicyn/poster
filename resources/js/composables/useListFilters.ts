@@ -54,10 +54,20 @@ export function useListFilters(
         refresh();
     }
 
+    function changeSort(sort: string) {
+        filters.sort = sort;
+        applyFilters();
+    }
+
+    function changePerPage(perPage: number) {
+        filters.perPage = perPage;
+        applyFilters();
+    }
+
     function changePage(page: number) {
         filters.page = page;
         refresh();
     }
 
-    return { filters, loading, error, applyFilters, changePage, refresh };
+    return { filters, loading, error, applyFilters, changeSort, changePerPage, changePage, refresh };
 }

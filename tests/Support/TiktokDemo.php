@@ -17,3 +17,10 @@ function demoProfile(string $name): array
 {
     return ['name' => $name, 'access' => Crypt::encryptString('test-access-' . $name), 'expires' => now()->addHour()->toIso8601String()];
 }
+
+/** @return array<string,mixed> */
+function demoCreatorResponse(): array
+{
+    return ['error' => ['code' => 'ok'], 'data' => ['creator_nickname' => 'Alpha', 'max_video_post_duration_sec' => 60,
+        'privacy_level_options' => ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], 'comment_disabled' => false, 'duet_disabled' => true, 'stitch_disabled' => true]];
+}

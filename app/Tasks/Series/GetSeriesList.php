@@ -10,11 +10,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class GetSeriesList
 {
-    public function __construct(private readonly SeriesRepository $seriess) {}
+    public function __construct(private readonly SeriesRepository $series) {}
 
     /** @return LengthAwarePaginator<int, Series> */
     public function run(int $page): LengthAwarePaginator
     {
-        return $this->seriess->paginate($page);
+        return $this->series->paginate($page);
     }
 }

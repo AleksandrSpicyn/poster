@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Actions\OpusClip\SyncOpusMetricsAction;
 use App\Models\Project;
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -18,9 +18,9 @@ class SyncOpusMetrics extends Command
 
     protected $description = 'Record daily owner analytics for linked OpusClip publications';
 
-    public function handle(OpusClipRepository $clips, SyncOpusMetricsAction $action): int
+    public function handle(OpusWorkspaceRepository $workspace, SyncOpusMetricsAction $action): int
     {
-        $project = $clips->project();
+        $project = $workspace->project();
 
         if (! $project instanceof Project) {
             $this->error('Import clips with opus:sync first.');
@@ -30,7 +30,7 @@ class SyncOpusMetrics extends Command
 
         $result = self::SUCCESS;
 
-        foreach ($clips->channels($project) as $channel) {
+        foreach ($workspace->channels($project) as $channel) {
             try {
                 $count = $action->run($project, $channel);
                 $this->info($channel->type->label() . ": $count observations.");

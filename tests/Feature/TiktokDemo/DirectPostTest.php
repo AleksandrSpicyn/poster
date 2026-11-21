@@ -6,7 +6,6 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 
-use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 use function Pest\Laravel\withSession;
 
@@ -17,32 +16,29 @@ function directVideoPayload(): array
         'privacy' => 'SELF_ONLY', 'title' => 'Авторский ролик', 'consent' => '1', 'binding' => 'test-form'];
 }
 
-/** @return array<string,mixed> */
-function demoCreatorResponse(): array
-{
-    return ['error' => ['code' => 'ok'], 'data' => ['creator_nickname' => 'Alpha', 'max_video_post_duration_sec' => 60,
-        'privacy_level_options' => ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], 'comment_disabled' => false, 'duet_disabled' => true, 'stitch_disabled' => true]];
-}
-
-test('публикует выбранный файл, блокирует повтор и ждёт подтверждения TikTok', function (): void {
+test('передаёт выбранный файл один раз и сохраняет квитанцию', function (): void {
     authenticateDemoAuthor();
     withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.form' => 'test-form']);
     $upload = 'https://open-upload.tiktokapis.com/video/?fake=upload';
     Http::fake(['*/creator_info/query/' => Http::response(demoCreatorResponse()), '*/post/publish/video/init/' => Http::response([
         'error' => ['code' => 'ok'], 'data' => ['publish_id' => 'test-post', 'upload_url' => $upload],
-    ]), $upload => Http::response('', 201), '*/status/fetch/' => Http::response(['error' => ['code' => 'ok'], 'data' => ['status' => 'PUBLISH_COMPLETE']]),
-        '*/video/list/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['videos' => []]])]);
+    ]), $upload => Http::response('', 201)]);
 
-    post(route('tiktok-demo.direct', 'author-b'), directVideoPayload())->assertNotFound();
-    Http::assertNothingSent();
     post(route('tiktok-demo.direct', 'author-a'), directVideoPayload())->assertRedirect()->assertSessionHas('tiktok_demo.author-a.direct.pending', true);
     post(route('tiktok-demo.direct', 'author-a'), directVideoPayload())->assertConflict();
 
     Http::assertSent(fn(Request $request): bool => str_ends_with($request->url(), '/post/publish/video/init/') && $request->hasHeader('Authorization', 'Bearer test-access-Alpha')
         && data_get($request->data(), 'post_info.privacy_level') === 'SELF_ONLY' && data_get($request->data(), 'post_info.disable_comment') === true && data_get($request->data(), 'post_info.title') === 'Авторский ролик');
     Http::assertSent(fn(Request $request): bool => $request->url() === $upload && $request->body() === file_get_contents(base_path('tests/Fixtures/shot.mp4')));
-    get(route('tiktok-demo.show', 'author-a'))->assertOk()->assertSee('TikTok подтвердил публикацию')->assertDontSee('value="PUBLIC_TO_EVERYONE"', false)
-        ->assertSessionMissing('tiktok_demo.author-a.direct.pending');
+});
+
+test('запрещает отправку файла от имени другого автора', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.form' => 'test-form']);
+    Http::fake();
+
+    post(route('tiktok-demo.direct', 'author-b'), directVideoPayload())->assertNotFound();
+    Http::assertNothingSent();
 });
 
 test('проверяет согласие и настройки до передачи файла', function (array $change): void {
@@ -70,4 +66,31 @@ test('production отправляет выбранный публичный по
     Http::assertSent(fn(Request $request): bool => str_ends_with($request->url(), '/video/init/')
         && data_get($request->data(), 'post_info.privacy_level') === 'PUBLIC_TO_EVERYONE' && data_get($request->data(), 'post_info.brand_content_toggle') === true
         && data_get($request->data(), 'post_info.is_aigc') === true && data_get($request->data(), 'post_info.disable_comment') === false);
+});
+
+test('сохраняет код ошибки создания и не передаёт файл', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.form' => 'test-form']);
+    Http::fake(['*/creator_info/query/' => Http::response(demoCreatorResponse()), '*/video/init/' => Http::response(['error' => ['code' => 'scope_not_authorized']], 403)]);
+
+    post(route('tiktok-demo.direct', 'author-a'), directVideoPayload())
+        ->assertSessionHas('tiktok_demo.author-a.direct.message', 'Создание публикации не подтверждено. TikTok не вернул идентификатор (HTTP 403, scope_not_authorized).')
+        ->assertSessionMissing('tiktok_demo.author-a.direct.id')
+        ->assertSessionHas('tiktok_demo.author-a.direct.pending', true);
+
+    Http::assertSentCount(2);
+});
+
+test('различает ошибку передачи файла и сохраняет идентификатор для опроса', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.author-a.direct.form' => 'test-form']);
+    $url = 'https://open-upload.tiktokapis.com/video/';
+    Http::fake(['*/creator_info/query/' => Http::response(demoCreatorResponse()), '*/video/init/' => Http::response([
+        'error' => ['code' => 'ok'], 'data' => ['publish_id' => 'test-id', 'upload_url' => $url],
+    ]), $url => Http::response('', 503)]);
+
+    post(route('tiktok-demo.direct', 'author-a'), directVideoPayload())
+        ->assertSessionHas('tiktok_demo.author-a.direct.message', 'Передача файла не подтверждена (HTTP 503).')
+        ->assertSessionHas('tiktok_demo.author-a.direct.id', 'test-id')
+        ->assertSessionHas('tiktok_demo.author-a.direct.pending', true);
 });

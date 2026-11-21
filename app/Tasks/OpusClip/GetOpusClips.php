@@ -9,16 +9,17 @@ use App\Data\OpusClip\GamingTrendReport;
 use App\Models\OpusClip;
 use App\Models\Project;
 use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusTrendRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class GetOpusClips
 {
-    public function __construct(private OpusClipRepository $clips) {}
+    public function __construct(private OpusClipRepository $clips, private OpusTrendRepository $reports) {}
 
     /** @return list<GamingTrendReport> */
     public function trends(Project $project): array
     {
-        return $this->clips->trends($project);
+        return $this->reports->trends($project);
     }
 
     /** @return LengthAwarePaginator<int, OpusClip> */

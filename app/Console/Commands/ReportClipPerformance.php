@@ -7,7 +7,8 @@ namespace App\Console\Commands;
 use App\Enums\ChannelType;
 use App\Models\OpusClipMetric;
 use App\Models\Project;
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusMetricRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Command;
 
 class ReportClipPerformance extends Command
@@ -16,7 +17,7 @@ class ReportClipPerformance extends Command
 
     protected $description = 'Rank gaming publications on each platform by observed growth in views';
 
-    public function handle(OpusClipRepository $clips): int
+    public function handle(OpusWorkspaceRepository $workspace, OpusMetricRepository $observations): int
     {
         $days = filter_var($this->option('days'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 365]]);
 
@@ -26,7 +27,7 @@ class ReportClipPerformance extends Command
             return self::INVALID;
         }
 
-        $project = $clips->project();
+        $project = $workspace->project();
 
         if (! $project instanceof Project) {
             $this->error('Select the clipping project with opus:configure.');
@@ -38,8 +39,8 @@ class ReportClipPerformance extends Command
         $start = $today->copy()->subDays($days)->toDateString();
         $end = $today->toDateString();
         $key = static fn(OpusClipMetric $row): string => $row->opus_clip_id . ':' . $row->platform . ':' . $row->media_id;
-        $baseline = $clips->observations($project, $start)->keyBy($key);
-        $current = $clips->observations($project, $end);
+        $baseline = $observations->observations($project, $start)->keyBy($key);
+        $current = $observations->observations($project, $end);
         $this->info("Observed view growth, $start to $end (UTC)");
 
         $platforms = [ChannelType::YOUTUBE, ChannelType::INSTAGRAM];

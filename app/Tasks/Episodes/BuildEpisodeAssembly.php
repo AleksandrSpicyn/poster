@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tasks\Episodes;
 
+use App\Data\Episodes\AssemblyClipData;
 use App\Data\Episodes\BuiltEpisodeVideoData;
 use App\Data\Episodes\EpisodeAssemblyPlanData;
 use App\Data\Episodes\VideoMetadataData;
@@ -37,67 +38,8 @@ readonly class BuildEpisodeAssembly
 
         try {
             foreach ($plan->shots as $index => $shot) {
-                $media = $this->media->shotVideo($shot->mediaId);
-                $path = $media->getPath();
-
-                if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot->promptId
-                    || ! in_array($media->disk, ['local', 'public'], true) || ! is_file($path)
-                    || filesize($path) > 500000000 || hash_file('sha256', $path) !== $shot->checksum) {
-                    throw new RuntimeException('A selected take is unavailable or its contents changed.');
-                }
-
-                $probe = $this->probe($path);
-
-                if ($shot->trimEndMs > $probe->durationMs + 50) {
-                    throw new RuntimeException('A trim exceeds the actual duration of a selected take.');
-                }
-
                 $clip = 'clip-' . $index . '.mp4';
-                $command = ['ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-                    '-ss', $this->seconds($shot->trimStartMs), '-f', 'mov', '-i', $path];
-
-                $useAudio = $probe->hasAudio && ! $shot->muteAudio;
-
-                if (! $useAudio) {
-                    $command[] = '-f';
-                    $command[] = 'lavfi';
-                    $command[] = '-i';
-                    $command[] = 'anullsrc=r=48000:cl=stereo';
-                }
-
-                $command[] = '-map';
-                $command[] = '0:v:0';
-                $command[] = '-map';
-                $command[] = $useAudio ? '0:a:0' : '1:a:0';
-                $command[] = '-t';
-                $command[] = $this->seconds($shot->durationMs);
-                $command[] = '-vf';
-                $command[] = 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24';
-                $command[] = '-c:v';
-                $command[] = 'libx264';
-                $command[] = '-preset';
-                $command[] = 'veryfast';
-                $command[] = '-threads';
-                $command[] = '2';
-                $command[] = '-pix_fmt';
-                $command[] = 'yuv420p';
-                $command[] = '-af';
-                $command[] = 'aresample=48000,apad';
-                $command[] = '-c:a';
-                $command[] = 'aac';
-                $command[] = '-ar';
-                $command[] = '48000';
-                $command[] = '-ac';
-                $command[] = '2';
-                $command[] = '-movflags';
-                $command[] = '+faststart';
-                $command[] = $workspace . '/' . $clip;
-                $result = Process::timeout($this->remainingSeconds($deadline))->run($command);
-
-                if (! $result->successful() || ! is_file($workspace . '/' . $clip)) {
-                    throw new RuntimeException('Could not normalize a selected take.');
-                }
-
+                $this->normalize($shot, $workspace . '/' . $clip, $deadline);
                 $clips[] = "file '" . $clip . "'";
             }
 
@@ -123,6 +65,40 @@ readonly class BuildEpisodeAssembly
             File::deleteDirectory($workspace);
 
             throw $exception;
+        }
+    }
+
+    private function normalize(AssemblyClipData $shot, string $output, float $deadline): void
+    {
+        $media = $this->media->shotVideo($shot->mediaId);
+        $path = $media->getPath();
+
+        if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot->promptId
+            || ! in_array($media->disk, ['local', 'public'], true) || ! is_file($path)
+            || filesize($path) > 500000000 || hash_file('sha256', $path) !== $shot->checksum) {
+            throw new RuntimeException('A selected take is unavailable or its contents changed.');
+        }
+
+        $probe = $this->probe($path);
+
+        if ($shot->trimEndMs > $probe->durationMs + 50) {
+            throw new RuntimeException('A trim exceeds the actual duration of a selected take.');
+        }
+
+        $useAudio = $probe->hasAudio && ! $shot->muteAudio;
+        $audioInput = $useAudio ? [] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo'];
+        $command = [
+            'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
+            '-ss', $this->seconds($shot->trimStartMs), '-f', 'mov', '-i', $path, ...$audioInput,
+            '-map', '0:v:0', '-map', $useAudio ? '0:a:0' : '1:a:0', '-t', $this->seconds($shot->durationMs),
+            '-vf', 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24',
+            '-c:v', 'libx264', '-preset', 'veryfast', '-threads', '2', '-pix_fmt', 'yuv420p',
+            '-af', 'aresample=48000,apad', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $output,
+        ];
+        $result = Process::timeout($this->remainingSeconds($deadline))->run($command);
+
+        if (! $result->successful() || ! is_file($output)) {
+            throw new RuntimeException('Could not normalize a selected take.');
         }
     }
 

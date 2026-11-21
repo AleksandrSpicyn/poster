@@ -7,7 +7,8 @@ namespace App\Console\Commands;
 use App\Classes\OpusClip\YoutubeGamingTrends;
 use App\Data\OpusClip\GamingTrendReport;
 use App\Models\Project;
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusTrendRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -19,10 +20,10 @@ class FindGamingTrends extends Command
 
     protected $description = 'Find short gaming videos on YouTube from the last seven days, ranked by public views';
 
-    public function handle(YoutubeGamingTrends $trends, OpusClipRepository $clips): int
+    public function handle(YoutubeGamingTrends $trends, OpusWorkspaceRepository $workspace, OpusTrendRepository $reports): int
     {
         $game = $this->argument('game');
-        $project = $clips->project();
+        $project = $workspace->project();
 
         if ($game !== null && (trim($game) === '' || mb_strlen($game) > 255)) {
             $this->error('Enter a game name of up to 255 characters.');
@@ -36,7 +37,7 @@ class FindGamingTrends extends Command
             return self::FAILURE;
         }
 
-        $games = $game !== null ? [trim($game)] : $clips->games($project);
+        $games = $game !== null ? [trim($game)] : $reports->games($project);
         $result = self::SUCCESS;
 
         foreach ($games as $name) {
@@ -44,7 +45,7 @@ class FindGamingTrends extends Command
                 $rows = $trends->search($name);
 
                 if ($project instanceof Project) {
-                    $clips->saveTrends($project, new GamingTrendReport($name, $rows));
+                    $reports->saveTrends($project, new GamingTrendReport($name, $rows));
                 }
 
                 $this->info($name);

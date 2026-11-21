@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,7 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $hasClippingWorkspace = fn(): bool => app(OpusClipRepository::class)->project() !== null;
+        $hasClippingWorkspace = fn(): bool => app(OpusWorkspaceRepository::class)->project() !== null;
 
         if (filled(config('services.opus_clip.key'))) {
             $schedule->command('opus:sync')->hourly()->when($hasClippingWorkspace)->withoutOverlapping(60);

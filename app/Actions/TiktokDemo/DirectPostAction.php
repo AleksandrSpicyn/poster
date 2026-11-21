@@ -10,16 +10,16 @@ use App\Data\TiktokDemo\DirectPostData;
 use App\Data\TiktokDemo\Profile;
 use App\Support\Integrations\Payload;
 use App\Tasks\TiktokDemo\CreatorSettings;
+use App\Tasks\TiktokDemo\ValidateDirectPost;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 final readonly class DirectPostAction
 {
-    public function __construct(private Store $session, private CreatorSettings $settings, private TiktokClient $client, private TransferVideo $transfer) {}
+    public function __construct(private Store $session, private CreatorSettings $settings, private ValidateDirectPost $validate, private TiktokClient $client, private TransferVideo $transfer) {}
 
     public function run(string $author, DirectPostData $post): void
     {
@@ -34,34 +34,13 @@ final readonly class DirectPostAction
             throw ValidationException::withMessages(['privacy' => 'TikTok сейчас не разрешает публикацию. Обновите страницу позже.']);
         }
 
-        if (! in_array($post->privacy, $creator['privacy'], true)
-            || ($post->comment && ! $creator['comment']) || ($post->duet && ! $creator['duet']) || ($post->stitch && ! $creator['stitch'])) {
-            throw ValidationException::withMessages(['privacy' => 'Настройки аккаунта изменились. Выберите доступные параметры.']);
-        }
-
-        if ($post->disclose !== ($post->own_brand || $post->partner)
-            || ($post->partner && ! in_array($post->privacy, ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS'], true))) {
-            throw ValidationException::withMessages(['disclose' => 'Проверьте тип рекламы и видимость ролика.']);
-        }
-
-        if (strlen(mb_convert_encoding($post->title ?? '', 'UTF-16LE', 'UTF-8')) > 4400) {
-            throw ValidationException::withMessages(['title' => 'Подпись превышает лимит TikTok в 2200 единиц UTF-16.']);
-        }
-
-        $probe = Process::timeout(8)->run(['ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov', '-i', $post->video->getPathname(),
-            '-select_streams', 'v:0', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json']);
-        $info = json_decode($probe->output(), true);
-        $duration = data_get($info, 'format.duration');
-
-        if (! $probe->successful() || data_get($info, 'streams.0.codec_type') !== 'video' || ! is_numeric($duration) || (float) $duration <= 0 || (float) $duration > $creator['duration']) {
-            throw ValidationException::withMessages(['video' => 'Выберите MP4 с видео в пределах лимита длительности аккаунта.']);
-        }
+        $this->validate->run($post, $creator);
 
         $bytes = $post->video->getContent();
         $size = strlen($bytes);
         $this->session->forget("$key.form");
         $this->session->put("$key.pending", true);
-        $this->session->put("$key.message", 'Передача не подтверждена. Проверьте результат перед повторной отправкой.');
+        $this->session->put("$key.message", 'Создание публикации не подтверждено. Poster ещё не получил идентификатор TikTok.');
         $this->session->save();
 
         try {
@@ -72,13 +51,34 @@ final readonly class DirectPostAction
                         'disable_duet' => ! $post->duet, 'disable_stitch' => ! $post->stitch, 'brand_organic_toggle' => $post->own_brand,
                         'brand_content_toggle' => $post->partner, 'is_aigc' => $post->ai],
                 ]);
+        } catch (ConnectionException) {
+            $this->session->put("$key.message", 'Создание публикации не подтверждено. Ответ TikTok не получен.');
+
+            return;
+        }
+
+        try {
             $id = Payload::string($this->client->data($reply, 'publish_id'), 'publish_id');
-            $this->session->put("$key.id", $id);
-            $this->session->save();
+        } catch (RuntimeException) {
+            $code = $reply->json('error.code');
+            $detail = is_string($code) && $code !== 'ok' && preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $code) ? ", $code" : '';
+            $this->session->put("$key.message", 'Создание публикации не подтверждено. TikTok не вернул идентификатор (HTTP ' . $reply->status() . $detail . ').');
+
+            return;
+        }
+
+        $this->session->put("$key.id", $id);
+        $this->session->put("$key.message", 'TikTok выдал идентификатор. Передача файла не подтверждена.');
+        $this->session->save();
+
+        try {
             $this->transfer->run($reply->json('data.upload_url'), $bytes);
             $this->session->put("$key.message", 'Файл передан. TikTok обрабатывает видео.');
-        } catch (ConnectionException|RuntimeException) {
-            // Keep the pending receipt: a lost response can follow a successful submission.
+        } catch (ConnectionException) {
+            $this->session->put("$key.message", 'Передача файла не подтверждена. Соединение с TikTok прервалось.');
+        } catch (RuntimeException $error) {
+            $detail = $error->getCode() > 0 ? 'HTTP ' . $error->getCode() : 'некорректный адрес загрузки';
+            $this->session->put("$key.message", "Передача файла не подтверждена ($detail).");
         }
     }
 }

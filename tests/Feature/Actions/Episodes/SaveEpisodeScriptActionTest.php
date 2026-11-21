@@ -23,10 +23,11 @@ test('сохраняет сценарий и закрепляет персона
 
     $revision = app(SaveEpisodeScriptAction::class)->run($episode, $data);
 
+    $shot = $revision->scenes()->firstOrFail()->shots()->firstOrFail();
     expect($revision->status)->toBe(RevisionStatus::DRAFT);
-    expect($revision->scenes()->firstOrFail()->shots()->firstOrFail()->action)->toBe('The hero picks up the key.');
-    expect($revision->scenes()->firstOrFail()->shots()->firstOrFail()->dialogue)->toBe([]);
-    expect($revision->scenes()->firstOrFail()->shots()->firstOrFail()->source_anchor)->toBe(['time_ms' => 0]);
+    expect($shot->action)->toBe('The hero picks up the key.');
+    expect($shot->dialogue)->toBe([]);
+    expect($shot->source_anchor)->toBe(['time_ms' => 0]);
     expect($revision->characterRevisions()->pluck('character_revisions.id')->all())->toBe([$character->id]);
     expect($episode->refresh()->current_revision_id)->toBe($revision->id);
     expect($episode->lock_version)->toBe(1);

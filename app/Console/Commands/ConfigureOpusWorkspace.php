@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Repositories\OpusClipRepository;
+use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use RuntimeException;
@@ -18,7 +18,7 @@ class ConfigureOpusWorkspace extends Command
 
     protected $description = 'Use an existing Poster project and its channels for the OpusClip workspace';
 
-    public function handle(OpusClipRepository $clips): int
+    public function handle(OpusWorkspaceRepository $workspace): int
     {
         $id = filter_var($this->argument('project'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
@@ -29,7 +29,7 @@ class ConfigureOpusWorkspace extends Command
         }
 
         try {
-            $clips->configure($id, $this->option('youtube-account'), $this->option('instagram-account'), $this->option('tiktok-account'));
+            $workspace->configure($id, $this->option('youtube-account'), $this->option('instagram-account'), $this->option('tiktok-account'));
         } catch (QueryException) {
             $this->error('Could not save the workspace. Check the database connection, migrations and existing account assignments.');
 

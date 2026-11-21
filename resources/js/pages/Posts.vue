@@ -15,7 +15,7 @@ import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<PostsPageProps>();
-const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters('posts', () => ({
+const { filters, loading, error, applyFilters, changeSort, changePerPage, changePage, refresh } = useListFilters('posts', () => ({
     type: page.props.filters.type ?? page.props.allTypes,
     sort: page.props.filters.sort ?? page.props.defaultSort,
     perPage: page.props.posts.meta.per_page,
@@ -45,14 +45,8 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                         :per-page="filters.perPage"
                         :directions="page.props.sortDirections"
                         :disabled="loading"
-                        @sort="
-                            filters.sort = $event;
-                            applyFilters();
-                        "
-                        @per-page="
-                            filters.perPage = $event;
-                            applyFilters();
-                        "
+                        @sort="changeSort"
+                        @per-page="changePerPage"
                     >
                         <div class="grid gap-1.5">
                             <label for="post-channel" class="text-muted-foreground text-xs font-medium">Channel</label>

@@ -20,7 +20,7 @@ final class TransferVideo
             ->withHeaders(['Content-Range' => sprintf('bytes 0-%d/%d', $size - 1, $size)])->put($url);
 
         if ($transfer->status() !== 201) {
-            throw new RuntimeException('Transfer not confirmed');
+            throw new RuntimeException('Transfer not confirmed', $transfer->status());
         }
     }
 }

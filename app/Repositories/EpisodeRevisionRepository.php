@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Classes\Story\Snapshot;
 use App\Data\Episodes\EpisodeScriptData;
+use App\Data\Episodes\SceneData;
 use App\Enums\RevisionStatus;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
@@ -37,29 +38,34 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
         $revision->characterRevisions()->sync($script->character_revision_ids);
 
         foreach ($script->scenes as $scenePosition => $scene) {
-            $savedScene = $revision->scenes()->create([
-                'position' => $scenePosition + 1, 'title' => $scene->title,
-                'setting' => ['location' => $scene->location, 'time' => $scene->time],
-                'objective' => $scene->objective,
-                'initial_state' => ['description' => $scene->initial_state],
-                'expected_final_state' => ['description' => $scene->expected_final_state],
-                'is_closed' => $scene->is_closed,
-            ]);
-
-            foreach ($scene->shots as $shotPosition => $shot) {
-                $savedScene->shots()->create([
-                    'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
-                    'action' => $shot->action, 'camera' => ['description' => $shot->camera],
-                    'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
-                    'transition_mode' => $shot->transition_mode,
-                    'source_prompt_id' => $shot->source_prompt_id,
-                    'source_assembly_id' => $shot->source_assembly_id,
-                    'source_anchor' => ['time_ms' => $shot->source_time_ms],
-                ]);
-            }
+            $this->createScene($revision, $scene, $scenePosition + 1);
         }
 
         return $revision;
+    }
+
+    private function createScene(EpisodeRevision $revision, SceneData $scene, int $position): void
+    {
+        $savedScene = $revision->scenes()->create([
+            'position' => $position, 'title' => $scene->title,
+            'setting' => ['location' => $scene->location, 'time' => $scene->time],
+            'objective' => $scene->objective,
+            'initial_state' => ['description' => $scene->initial_state],
+            'expected_final_state' => ['description' => $scene->expected_final_state],
+            'is_closed' => $scene->is_closed,
+        ]);
+
+        foreach ($scene->shots as $shotPosition => $shot) {
+            $savedScene->shots()->create([
+                'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
+                'action' => $shot->action, 'camera' => ['description' => $shot->camera],
+                'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
+                'transition_mode' => $shot->transition_mode,
+                'source_prompt_id' => $shot->source_prompt_id,
+                'source_assembly_id' => $shot->source_assembly_id,
+                'source_anchor' => ['time_ms' => $shot->source_time_ms],
+            ]);
+        }
     }
 
     public function forAssembly(EpisodeRevision $revision): EpisodeRevision

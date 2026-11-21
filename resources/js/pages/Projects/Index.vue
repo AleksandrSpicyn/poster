@@ -16,7 +16,7 @@ import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<ProjectsPageProps>();
-const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters('projects.index', () => ({
+const { filters, loading, error, applyFilters, changeSort, changePerPage, changePage, refresh } = useListFilters('projects.index', () => ({
     search: page.props.filters.search,
     sort: page.props.filters.sort,
     perPage: page.props.projects.meta.per_page,
@@ -87,14 +87,8 @@ function clearSearch() {
                             :per-page="filters.perPage"
                             :directions="page.props.sortDirections"
                             :disabled="loading"
-                            @sort="
-                                filters.sort = $event;
-                                applyFilters();
-                            "
-                            @per-page="
-                                filters.perPage = $event;
-                                applyFilters();
-                            "
+                            @sort="changeSort"
+                            @per-page="changePerPage"
                         />
                     </form>
                 </template>
