@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Assert;
+
 use function Pest\Laravel\post;
 
 test('открывает Login Kit с отдельным ключом и едиными правами автора', function (): void {
@@ -10,7 +12,11 @@ test('открывает Login Kit с отдельным ключом и еди�
 
     $response = post(route('tiktok-demo.connect', 'author-a'))->assertRedirect();
     $url = $response->headers->get('Location');
-    parse_str(parse_url($url, PHP_URL_QUERY), $query);
+    Assert::assertIsString($url);
+    $parameters = parse_url($url, PHP_URL_QUERY);
+    Assert::assertIsString($parameters);
+    parse_str($parameters, $query);
+    Assert::assertIsString($query['state'] ?? null);
 
     expect(parse_url($url, PHP_URL_HOST))->toBe('www.tiktok.com')
         ->and($query['client_key'])->toBe('sandbox-key')
