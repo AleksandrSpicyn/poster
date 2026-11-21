@@ -10,13 +10,13 @@ return [
     'mode' => $mode,
     'key' => match ($mode) {
         'sandbox' => env('TIKTOK_DEMO_SANDBOX_KEY'),
-        'production' => env('TIKTOK_DEMO_PRODUCTION_KEY'),
+        'production' => env('TIKTOK_CLIENT_ID'),
         default => null,
     },
     'secret' => match ($mode) {
         'sandbox' => env('TIKTOK_DEMO_SANDBOX_SECRET'),
-        'production' => env('TIKTOK_DEMO_PRODUCTION_SECRET'),
+        'production' => env('TIKTOK_CLIENT_SECRET'),
         default => null,
     },
-    'redirect' => env('TIKTOK_DEMO_REDIRECT_URI'),
+    'redirect' => rtrim((string) env('APP_URL', 'http://localhost'), '/') . '/demo/tiktok/callback',
 ];

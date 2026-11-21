@@ -14,7 +14,7 @@ final class AuthenticateTiktokDemo
     /** @param Closure(Request):Response $next */
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless(config('tiktok_demo.enabled') && ! app()->isProduction() && config('session.driver') !== 'cookie', 404);
+        abort_unless(config('tiktok_demo.enabled') && config('session.driver') !== 'cookie', 404);
         $mode = config()->string('tiktok_demo.mode');
         abort_unless(in_array($mode, ['sandbox', 'production'], true), 503);
         $session = $request->session();

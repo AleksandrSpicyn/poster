@@ -6,28 +6,17 @@
 
 В существующем приложении TikTok включите Login Kit для Web, Display API и Content Posting API с Direct Post. Укажите HTTPS redirect URI с путём `/demo/tiktok/callback`. Для Sandbox добавьте target users. Кабинет запрашивает `user.info.basic`, `video.list`, `video.publish` и `video.upload` (отдельное действие для черновика). У каждого автора своё согласие.
 
-На отдельном стенде задайте приватный Laravel `.env`. Для текущего размещения это `/srv/poster-tiktok-demo/shared/.env`. Для локального запуска используйте независимую копию Poster с PHP 8.4, Composer-зависимостями, ffprobe и собственным APP_KEY. Запустите её за HTTPS-прокси. Настройте загрузку multipart размером до 1 МиБ и исключите OAuth query string из журналов.
+Кабинет обслуживает основной Poster. В его приватном Laravel `.env` включите модуль и задайте параметры ниже. Адрес обратного вызова формируется из `APP_URL` и пути `/demo/tiktok/callback`. Для проверки длительности ролика нужен ffprobe.
 
 ```dotenv
-APP_ENV=demo
-APP_DEBUG=false
-CACHE_STORE=file
-SESSION_DRIVER=file
-SESSION_COOKIE=poster_tiktok_demo
-SESSION_PATH=/demo/tiktok
-SESSION_SECURE_COOKIE=true
-SESSION_SAME_SITE=lax
 TIKTOK_DEMO_ENABLED=true
 TIKTOK_DEMO_MODE=sandbox
 TIKTOK_DEMO_SANDBOX_KEY=
 TIKTOK_DEMO_SANDBOX_SECRET=
-TIKTOK_DEMO_PRODUCTION_KEY=
-TIKTOK_DEMO_PRODUCTION_SECRET=
-TIKTOK_DEMO_REDIRECT_URI=https://demo.example/demo/tiktok/callback
 TIKTOK_DEMO_UPLOAD=false
 ```
 
-Заранее задайте обе пары ключей в приватной конфигурации и зарегистрируйте тот же callback в соответствующих конфигурациях TikTok. После одобрения приложения, права и аудита Direct Post переключите **только `TIKTOK_DEMO_MODE=production`**. При использовании Laravel config cache обновите его. Кабинет сбрасывает подключение предыдущего окружения и запрашивает новый вход TikTok. Режим Laravel стенда остаётся `demo`. В sandbox разрешена только предложенная TikTok видимость «Только я». В production список определяется текущими настройками автора. Переключатель публикации черновика `TIKTOK_DEMO_UPLOAD` управляет исключительно отправкой фиксированного sample.mp4 во входящие.
+Production использует существующие TIKTOK_CLIENT_ID и TIKTOK_CLIENT_SECRET приложения. Зарегистрируйте callback кабинета в соответствующей конфигурации TikTok. После одобрения приложения, права и аудита Direct Post переключите **только `TIKTOK_DEMO_MODE=production`**. При использовании Laravel config cache обновите его. Кабинет сбрасывает подключение предыдущего окружения и запрашивает новый вход TikTok. В sandbox разрешена только предложенная TikTok видимость «Только я». В production список определяется текущими настройками автора. Переключатель публикации черновика `TIKTOK_DEMO_UPLOAD` управляет исключительно отправкой фиксированного sample.mp4 во входящие.
 
 ## Демонстрация для аудита
 
@@ -40,4 +29,4 @@ Direct Post для публичных роликов требует аудита
 
 ## Проверка и удаление
 
-`php artisan test --compact tests/Feature/TiktokDemo` проверяет сценарий с фиктивными ответами TikTok. Для выключения закройте модуль флагом `TIKTOK_DEMO_ENABLED=false`. Для удаления изолированного стенда отзовите разрешения тестовых авторов, удалите демо-маршрутизацию HTTPS, отдельную службу FPM, её релизы, приватный env и сессии. Рабочий Poster использует собственный релиз. Миграций у демо нет.
+`php artisan test --compact tests/Feature/TiktokDemo` проверяет сценарий с фиктивными ответами TikTok. Для выключения закройте модуль флагом `TIKTOK_DEMO_ENABLED=false`. После завершения демо можно отозвать разрешения тестовых авторов и удалить Sandbox-ключи. Миграций у демо нет.

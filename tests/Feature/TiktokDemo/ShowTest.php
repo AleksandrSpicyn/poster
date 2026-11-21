@@ -9,6 +9,8 @@ use function Pest\Laravel\get;
 use function Pest\Laravel\withSession;
 
 test('демо выключено по умолчанию и открывается без пароля после включения', function (): void {
+    app()->instance('env', 'production');
+
     get(route('tiktok-demo.show'))->assertNotFound();
     config(['tiktok_demo.enabled' => true]);
 
