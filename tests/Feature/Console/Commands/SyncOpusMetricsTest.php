@@ -35,7 +35,10 @@ test('сохраняет показатели обеих площадок за �
     consoleCommand('opus:metrics')->assertSuccessful();
 
     assertDatabaseCount('opus_clip_metrics', 2);
-    expect(OpusClipMetric::query()->where('platform', 'instagram')->sole()->metrics)->toBe(['averageViewDuration' => 9.7, 'reach' => 0])
+    $instagram = OpusClipMetric::query()->where('platform', 'instagram')->sole()->metrics;
+    expect($instagram)->toHaveCount(2)
+        ->and($instagram['averageViewDuration'])->toBe(9.7)
+        ->and($instagram['reach'])->toBe(0)
         ->and(OpusClipMetric::query()->where('platform', 'youtube')->sole()->metrics)->toBe(['views' => 15]);
 });
 
