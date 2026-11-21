@@ -80,7 +80,7 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function hasDependencies(Project $project): bool
     {
-        return $project->prompts()->exists() || $project->channels()->exists() || $project->series()->exists();
+        return $project->clipping_workspace !== null || $project->prompts()->exists() || $project->channels()->exists() || $project->series()->exists();
     }
 
     public function withBlockingProductionRuns(Project $project): Project

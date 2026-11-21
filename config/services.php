@@ -23,6 +23,10 @@ return [
     |
     */
 
+    'opus_clip' => [
+        'key' => env('OPUS_CLIP_API_KEY', ''),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],
@@ -85,6 +89,7 @@ return [
     ],
 
     'youtube' => [
+        'data_api_key' => env('YOUTUBE_DATA_API_KEY', ''),
         'client_id' => env('YOUTUBE_CLIENT_ID'),
         'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
     ],

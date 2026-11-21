@@ -35,6 +35,23 @@ export interface ProjectsPageProps extends SharedData {
 }
 
 export interface ProjectPageProps extends SharedData {
+    gamingTrends: {
+        game: string;
+        entries: { title: string; channel: string; views: string; views_per_day?: number | null; url: string }[];
+        checkedAt: string;
+    }[];
+    opusClips: PaginatedResource<{
+        id: number;
+        clip_id: string;
+        source: string;
+        source_url: string;
+        game: string | null;
+        title: string | null;
+        duration_ms: number | null;
+        score: number | null;
+        publications: { platform: string; status: string | null; url: string | null; publish_at: string | null }[];
+        observations: { platform: string; media_id: string; date: string; metrics: Record<string, number> }[];
+    }> | null;
     project: ProjectSummary & { channels: ProjectChannel[] };
     prompts: PaginatedResource<PromptSummary>;
     filters: { sort: string };

@@ -7,6 +7,8 @@ use App\Enums\ProjectContentMode;
 use App\Models\Channel;
 use App\Models\Character;
 use App\Models\Episode;
+use App\Models\OpusClip;
+use App\Models\OpusSource;
 use App\Models\Post;
 use App\Models\ProductionRun;
 use App\Models\Project;
@@ -130,4 +132,18 @@ test('неподтверждённый пользователь не видит 
     actingAs(User::factory()->unverified()->create())
         ->get(route('projects.show', $project))
         ->assertRedirect(route('verification.notice'));
+});
+
+test('оператор видит игровые клипы только в их проекте', function (): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $source = OpusSource::factory()->for($project)->create(['game' => 'GTA 6']);
+    OpusClip::factory()->for($source, 'source')->create(['title' => 'Game clip']);
+    OpusClip::factory()->create(['title' => 'Foreign clip']);
+
+    actingAs(serialOperator())->get(route('projects.show', $project))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('opusClips.data', 1)
+            ->where('opusClips.data.0.title', 'Game clip')->where('opusClips.data.0.game', 'GTA 6'));
+
+    actingAs(User::factory()->create())->get(route('projects.show', $project))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('opusClips', null));
 });

@@ -18,9 +18,22 @@ readonly class ChannelOAuth
 
     private const string READ_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
+    /** @return list<string> */
+    private function scopes(Channel $channel): array
+    {
+        return match ($channel->type) {
+            ChannelType::YOUTUBE => $channel->external_account === null
+                ? [self::UPLOAD_SCOPE, self::READ_SCOPE]
+                : [self::READ_SCOPE, 'https://www.googleapis.com/auth/yt-analytics.readonly'],
+            ChannelType::INSTAGRAM => ['instagram_business_basic', $channel->external_account === null
+                ? 'instagram_business_content_publish' : 'instagram_business_manage_insights'],
+            default => throw new RuntimeException('Unsupported platform.'),
+        };
+    }
+
     public function fingerprint(Channel $channel): string
     {
-        return Snapshot::hash([$channel->id, $channel->type->value, $channel->client_id, $channel->client_secret, $channel->credentials]);
+        return Snapshot::hash([$channel->id, $channel->type->value, $channel->client_id, $channel->client_secret, $channel->external_account, $channel->credentials]);
     }
 
     public function authorizationUrl(Channel $channel, string $state): string
@@ -31,10 +44,10 @@ readonly class ChannelOAuth
 
         return match ($channel->type) {
             ChannelType::YOUTUBE => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-                ...$params, 'scope' => self::UPLOAD_SCOPE . ' ' . self::READ_SCOPE, 'access_type' => 'offline', 'prompt' => 'consent',
+                ...$params, 'scope' => implode(' ', $this->scopes($channel)), 'access_type' => 'offline', 'prompt' => 'consent',
             ]),
             ChannelType::INSTAGRAM => 'https://www.instagram.com/oauth/authorize?' . http_build_query([
-                ...$params, 'scope' => 'instagram_business_basic,instagram_business_content_publish', 'enable_fb_login' => 'false',
+                ...$params, 'scope' => implode(',', $this->scopes($channel)), 'enable_fb_login' => 'false',
             ]),
             default => throw new RuntimeException('OAuth is not available for this platform.'),
         };
@@ -73,7 +86,7 @@ readonly class ChannelOAuth
         $token = Payload::string($response->json('access_token'), 'access_token');
         $scopes = $response->json('scope');
 
-        if (is_string($scopes) && (! in_array(self::UPLOAD_SCOPE, explode(' ', $scopes), true) || ! in_array(self::READ_SCOPE, explode(' ', $scopes), true))) {
+        if (is_string($scopes) && array_diff($this->scopes($channel), explode(' ', $scopes)) !== []) {
             throw new RuntimeException('Required permissions were not granted.');
         }
 
@@ -101,7 +114,7 @@ readonly class ChannelOAuth
         $permissions = $response->json('data.0.permissions', $response->json('permissions'));
         $granted = is_string($permissions) ? explode(',', $permissions) : $permissions;
 
-        if ($granted !== null && (! is_array($granted) || ! in_array('instagram_business_basic', $granted, true) || ! in_array('instagram_business_content_publish', $granted, true))) {
+        if ($granted !== null && (! is_array($granted) || array_diff($this->scopes($channel), array_filter($granted, is_string(...))) !== [])) {
             throw new RuntimeException('Required permissions were not granted.');
         }
 

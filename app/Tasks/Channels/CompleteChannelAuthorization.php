@@ -6,6 +6,7 @@ namespace App\Tasks\Channels;
 
 use App\Classes\Channels\ChannelOAuth;
 use App\Data\Channels\OAuthCallbackData;
+use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\User;
 use App\Repositories\ChannelRepository;
@@ -31,6 +32,12 @@ readonly class CompleteChannelAuthorization
 
         $fingerprint = $this->oauth->fingerprint($channel);
         $credentials = $this->oauth->exchange($channel, $data->code);
+        $identity = $channel->type === ChannelType::YOUTUBE ? $credentials['channel_id'] : $credentials['account_name'];
+
+        if ($channel->external_account !== null && $identity !== $channel->external_account) {
+            throw new RuntimeException('Select the account assigned to this channel.');
+        }
+
         DB::transaction(function () use ($channel, $fingerprint, $credentials): void {
             $current = $this->channels->findLockedOrFail($channel->id);
 

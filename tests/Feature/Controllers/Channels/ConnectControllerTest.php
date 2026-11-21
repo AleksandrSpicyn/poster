@@ -51,3 +51,16 @@ test('гость и неподтверждённый пользователь н
 
     actingAs(User::factory()->unverified()->create())->post(route('channels.connect', $channel))->assertRedirect(route('verification.notice'));
 });
+
+test('для клиппинга запрашивает аналитику без публикации', function (ChannelType $type, string $scope): void {
+    $channel = Channel::factory()->create(['type' => $type, 'external_account' => 'fixture-owner']);
+
+    $response = actingAs(serialOperator())->post(route('channels.connect', $channel), [], ['X-Inertia' => 'true'])->assertStatus(409);
+
+    parse_str((string) parse_url((string) $response->headers->get('X-Inertia-Location'), PHP_URL_QUERY), $params);
+    expect($params['scope'])->toBe($scope);
+    Http::assertNothingSent();
+})->with([
+    [ChannelType::YOUTUBE, 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly'],
+    [ChannelType::INSTAGRAM, 'instagram_business_basic,instagram_business_manage_insights'],
+]);

@@ -7,6 +7,7 @@ namespace App\Actions\Projects;
 use App\Data\GetPromptsListData;
 use App\Data\Projects\ProjectWorkspaceData;
 use App\Models\Project;
+use App\Tasks\OpusClip\GetOpusClips;
 use App\Tasks\Projects\GetProject;
 use App\Tasks\Prompts\GetPromptsList;
 use App\Tasks\Series\GetSeries;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 
 readonly class GetProjectAction
 {
-    public function __construct(private GetProject $getProject, private GetPromptsList $getPrompts, private GetSeries $getSeries) {}
+    public function __construct(private GetProject $getProject, private GetPromptsList $getPrompts, private GetSeries $getSeries, private GetOpusClips $getClips) {}
 
     public function run(Project $project, GetPromptsListData $filters): ProjectWorkspaceData
     {
@@ -23,12 +24,16 @@ readonly class GetProjectAction
         $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
         $details = $series === null ? null : $this->getSeries->run($series, $filters->page ?? 1);
 
+        $canReadClips = $project->clipping_workspace !== null && Gate::allows('manageChannels');
+
         return new ProjectWorkspaceData(
             project: $project,
             prompts: $this->getPrompts->run($filters, $project),
             series: $details->series ?? null,
             characters: $details->characters ?? null,
             episodes: $details->episodes ?? new Collection(),
+            clips: $canReadClips ? $this->getClips->run($project, $filters) : null,
+            trends: $canReadClips ? $this->getClips->trends($project) : [],
         );
     }
 }

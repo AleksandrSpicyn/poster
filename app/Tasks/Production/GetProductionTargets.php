@@ -29,6 +29,14 @@ readonly class GetProductionTargets
     {
         $this->projects->refresh($project);
 
+        if ($project->clipping_workspace !== null) {
+            if ($actor instanceof User) {
+                throw ValidationException::withMessages(['project' => 'This project imports clips from OpusClip.']);
+            }
+
+            return [];
+        }
+
         if (! $project->is_active) {
             if ($actor instanceof User) {
                 throw ValidationException::withMessages(['project' => 'Enable this project before starting production.']);

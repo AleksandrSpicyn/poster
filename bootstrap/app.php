@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Repositories\OpusClipRepository;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
+        $hasClippingWorkspace = fn(): bool => app(OpusClipRepository::class)->project() !== null;
+
+        if (filled(config('services.opus_clip.key'))) {
+            $schedule->command('opus:sync')->hourly()->when($hasClippingWorkspace)->withoutOverlapping(60);
+        }
+
+        $schedule->command('opus:trends')->dailyAt('06:30')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
+        $schedule->command('opus:metrics')->dailyAt('06:15')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
+
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
 
         $schedule->command('app:reconcile-episode-scripts --limit=50')->everyMinute()->withoutOverlapping(5);

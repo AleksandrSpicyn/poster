@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * В текущей схеме не привязан к User: кабинет показывает общие данные приложения.
  *
  * @property int $id
+ * @property string|null $clipping_workspace
  * @property string $name
  * @property string $prompt
  * @property ProjectContentMode $content_mode
@@ -40,7 +41,16 @@ class Project extends Model
     /** @use HasFactory<ProjectFactory> */
     use HasFactory;
 
+    public const string OPUS_CLIP_WORKSPACE = 'opusclip';
+
+    /** @return HasMany<OpusSource, $this> */
+    public function opusSources(): HasMany
+    {
+        return $this->hasMany(OpusSource::class);
+    }
+
     protected $fillable = [
+        'clipping_workspace',
         'name',
         'prompt',
         'content_mode',

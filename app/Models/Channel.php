@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * OAuth/API-данные; один Prompt может породить Post в нескольких каналах.
  *
  * @property int $id
+ * @property string|null $external_account
  * @property string $name
  * @property ChannelType $type
  * @property string|null $client_id
@@ -42,6 +43,7 @@ class Channel extends Model
     use HasFactory;
 
     protected $fillable = [
+        'external_account',
         'name',
         'type',
         'client_id',

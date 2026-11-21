@@ -9,6 +9,7 @@ use App\Data\GetPromptsListData;
 use App\Enums\SortDirection;
 use App\Http\Resources\CharacterResource;
 use App\Http\Resources\EpisodeSummaryResource;
+use App\Http\Resources\OpusClipResource;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\PromptResource;
 use App\Http\Resources\SeriesResource;
@@ -46,6 +47,8 @@ class ShowController
 
         return inertia('Projects/Show', [
             'project' => ProjectResource::make($data->project)->resolve(),
+            'gamingTrends' => $data->trends,
+            'opusClips' => $data->clips instanceof LengthAwarePaginator ? OpusClipResource::collection($data->clips) : null,
             'prompts' => PromptResource::collection($data->prompts),
             'series' => $data->series instanceof Series ? SeriesResource::make($data->series)->resolve() : null,
             'characters' => $data->characters instanceof LengthAwarePaginator ? CharacterResource::collection($data->characters) : null,

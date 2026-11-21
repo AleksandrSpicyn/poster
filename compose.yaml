@@ -7,6 +7,9 @@ x-app: &app
     args:
       USER_ID: ${USER_ID:-1000}
       GROUP_ID: ${GROUP_ID:-1000}
+  environment:
+    - OPUS_CLIP_API_KEY
+    - YOUTUBE_DATA_API_KEY
   working_dir: /var/www
   volumes:
     - .:/var/www

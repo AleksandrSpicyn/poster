@@ -32,6 +32,7 @@ test('выключенные проекты пропускаются и могу
     $actor = serialOperator();
     config(['production.schedule_enabled' => true, 'services.admin.email' => $actor->email]);
     $active = Project::factory()->create();
+    $clipping = Project::factory()->create(['is_active' => true, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
     $disabled = Project::factory()->create(['is_active' => false]);
     $serial = Project::factory()->create(['is_active' => false, 'content_mode' => ProjectContentMode::SERIES]);
     Series::factory()->for($serial)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
@@ -40,6 +41,7 @@ test('выключенные проекты пропускаются и могу
 
     expect($active->productionRuns()->count())->toBe(1);
     expect($disabled->productionRuns()->exists())->toBeFalse();
+    expect($clipping->productionRuns()->exists())->toBeFalse();
     expect($serial->productionRuns()->exists())->toBeFalse();
     Bus::assertDispatchedTimes(AdvanceProductionJob::class, 1);
     Http::assertNothingSent();

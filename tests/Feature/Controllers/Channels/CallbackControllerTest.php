@@ -158,3 +158,18 @@ test('отсутствие права публикации не подключа
     expect($channel->refresh()->credentials)->toBeNull();
     Http::assertSentCount(1);
 });
+
+test('игровой канал отклоняет подключение другого аккаунта', function (): void {
+    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
+    actingAs(serialOperator());
+    $state = channelOAuthState($channel);
+    Http::fake([
+        'oauth2.googleapis.com/token' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh']),
+        '*/youtube/v3/channels*' => Http::response(['items' => [['id' => 'UCother', 'snippet' => ['title' => 'Other channel']]]]),
+    ]);
+
+    get(route('channels.callback', [$channel, 'state' => $state, 'code' => 'code']))
+        ->assertSessionHasErrors('oauth');
+
+    expect($channel->refresh()->credentials)->toBeNull();
+});

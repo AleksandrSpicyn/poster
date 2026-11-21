@@ -35,8 +35,8 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
     'projects.show',
     () => ({
         sort: page.props.filters.sort,
-        perPage: page.props.prompts.meta.per_page,
-        page: page.props.prompts.meta.current_page,
+        perPage: (page.props.opusClips ?? page.props.prompts).meta.per_page,
+        page: (page.props.opusClips ?? page.props.prompts).meta.current_page,
     }),
     () => ({ project: page.props.project.id }),
 );
@@ -44,6 +44,15 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Projects', href: route('projects.index') },
     { title: page.props.project.name, href: route('projects.show', page.props.project.id) },
 ]);
+const metricLabels: Record<string, string> = {
+    views: 'Views',
+    engagedViews: 'Engaged views',
+    averageViewDuration: 'Average watch (s)',
+    averageViewPercentage: 'Average viewed (%)',
+    shares: 'Shares',
+    reach: 'Reach',
+    saved: 'Saves',
+};
 const deleteOpen = ref(false);
 const deleteError = ref('');
 const deleteForm = useForm({});
@@ -97,18 +106,24 @@ function destroyProject() {
                 >
             </div>
 
-            <p v-if="!page.props.project.is_active" role="status" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+            <p
+                v-if="!page.props.project.is_active && !page.props.opusClips"
+                role="status"
+                class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm"
+            >
                 This project is disabled. Generation and publication are paused. Enable it in project settings to produce new content.
             </p>
 
-            <dl class="bg-card grid grid-cols-3 divide-x rounded-xl border">
+            <dl class="bg-card grid divide-x rounded-xl border" :class="page.props.opusClips ? 'grid-cols-2' : 'grid-cols-3'">
                 <div class="px-4 py-4 sm:px-6">
-                    <dt class="text-muted-foreground text-xs sm:text-sm">{{ page.props.series ? 'Episodes' : 'Generations' }}</dt>
+                    <dt class="text-muted-foreground text-xs sm:text-sm">
+                        {{ page.props.opusClips ? 'Imported clips' : page.props.series ? 'Episodes' : 'Generations' }}
+                    </dt>
                     <dd class="mt-2 text-2xl font-semibold tabular-nums">
-                        {{ page.props.series?.episodes_count ?? page.props.project.prompts_count }}
+                        {{ page.props.opusClips?.meta.total ?? page.props.series?.episodes_count ?? page.props.project.prompts_count }}
                     </dd>
                 </div>
-                <div class="px-4 py-4 sm:px-6">
+                <div v-if="!page.props.opusClips" class="px-4 py-4 sm:px-6">
                     <dt class="text-muted-foreground text-xs sm:text-sm">{{ page.props.series ? 'Characters' : 'Ready videos' }}</dt>
                     <dd class="mt-2 text-2xl font-semibold tabular-nums">
                         {{ page.props.series?.characters_count ?? page.props.project.ready_prompts_count }}
@@ -121,7 +136,7 @@ function destroyProject() {
             </dl>
 
             <ProductionPanel
-                v-if="page.props.auth.can_manage_series && !page.props.series && page.props.project.content_mode === 'short'"
+                v-if="!page.props.opusClips && page.props.auth.can_manage_series && !page.props.series && page.props.project.content_mode === 'short'"
                 :project-id="page.props.project.id"
                 :run="page.props.project.latest_production"
                 :project-enabled="page.props.project.is_active"
@@ -154,7 +169,10 @@ function destroyProject() {
                                 <p class="text-sm font-medium break-words">{{ channel.name }}</p>
                                 <p class="text-muted-foreground mt-0.5 text-xs">{{ channel.type_label }}</p>
                             </div>
-                            <span class="text-muted-foreground shrink-0 text-xs tabular-nums">{{ channel.posts_count }} posts</span>
+                            <Link v-if="page.props.opusClips" :href="route('channels.edit', channel.id)" class="text-sm underline"
+                                >Manage connection</Link
+                            >
+                            <span v-else class="text-muted-foreground shrink-0 text-xs tabular-nums">{{ channel.posts_count }} posts</span>
                         </li>
                     </ul>
                     <EmptyState
@@ -165,8 +183,66 @@ function destroyProject() {
                 </section>
             </div>
 
+            <section v-if="page.props.opusClips" aria-labelledby="opus-clips-heading" class="space-y-4">
+                <details v-for="report in page.props.gamingTrends" :key="report.game" class="bg-card rounded-xl border p-5">
+                    <summary class="cursor-pointer font-medium">{{ report.game }} · YouTube weekly leaders</summary>
+                    <p class="text-muted-foreground my-2 text-xs">Updated {{ formatProjectDate(report.checkedAt) }}</p>
+                    <ol class="list-inside list-decimal space-y-2 text-sm">
+                        <li v-for="{ title, channel, views, views_per_day, url } in report.entries" :key="url">
+                            <a :href="url" target="_blank" rel="noopener noreferrer" class="underline">{{ title }}</a> · {{ channel }} ·
+                            {{ views }} views<span v-if="views_per_day != null"> · {{ views_per_day }} views/day since upload (minimum 1 day)</span>
+                        </li>
+                    </ol>
+                    <p v-if="!report.entries.length" class="text-muted-foreground text-sm">No matching videos this week.</p>
+                </details>
+                <h2 id="opus-clips-heading" class="text-lg font-semibold">OpusClip library</h2>
+                <ListPanel
+                    :meta="page.props.opusClips.meta"
+                    :count="page.props.opusClips.data.length"
+                    :loading="loading"
+                    :error="error"
+                    empty-title="No clips yet"
+                    empty-description="Clips will appear after the next import."
+                    @page="changePage"
+                    @refresh="refresh"
+                >
+                    <ul class="divide-y">
+                        <li v-for="clip in page.props.opusClips.data" :key="clip.id" class="space-y-2 p-5">
+                            <h3 class="font-medium">{{ clip.title || clip.clip_id }}</h3>
+                            <p class="text-muted-foreground flex gap-4 text-xs">
+                                <a :href="clip.source_url" target="_blank" rel="noopener noreferrer" class="underline">{{
+                                    clip.game ?? clip.source
+                                }}</a>
+                                <span v-if="clip.duration_ms !== null">{{ (clip.duration_ms / 1000).toFixed(1) }} s</span>
+                                <span v-if="clip.score !== null">OpusClip score {{ clip.score }}</span>
+                            </p>
+                            <ul v-if="clip.publications.length" class="space-y-1 text-sm">
+                                <li v-for="(post, index) in clip.publications" :key="index">
+                                    <a v-if="post.url" :href="post.url" target="_blank" rel="noopener noreferrer" class="underline">{{
+                                        post.platform
+                                    }}</a>
+                                    <span v-else>{{ post.platform }}</span> · {{ post.status ?? 'Status unavailable' }}
+                                </li>
+                            </ul>
+                            <p v-else class="text-muted-foreground text-xs">No publication reported by OpusClip</p>
+                            <p v-if="clip.publications.some((post) => post.url) && !clip.observations.length" class="text-muted-foreground text-xs">
+                                Awaiting platform analytics
+                            </p>
+                            <div v-for="row in clip.observations" :key="row.platform + row.media_id" class="text-sm">
+                                <p>{{ row.platform }} · {{ row.date }}</p>
+                                <dl class="flex flex-wrap gap-x-5 text-xs">
+                                    <div v-for="(value, metric) in row.metrics" :key="metric">
+                                        <dt class="text-muted-foreground">{{ metricLabels[metric] ?? metric }}</dt>
+                                        <dd>{{ value }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </li>
+                    </ul>
+                </ListPanel>
+            </section>
             <SeriesWorkspace
-                v-if="page.props.series && page.props.characters"
+                v-else-if="page.props.series && page.props.characters"
                 :project="page.props.project"
                 :series="page.props.series"
                 :characters="page.props.characters"
