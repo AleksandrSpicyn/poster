@@ -205,8 +205,8 @@ function remove() {
                                     !channel.is_active
                                         ? 'This channel is disabled.'
                                         : channel.connected
-                                          ? 'Ready for publication from selected projects.'
-                                          : 'Connect an account to allow publication.'
+                                          ? 'Account connected to Poster.'
+                                          : 'Connect the account assigned to this channel.'
                                 }}
                             </p>
                         </div>

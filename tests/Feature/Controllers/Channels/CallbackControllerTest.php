@@ -169,7 +169,25 @@ test('игровой канал отклоняет подключение дру
     ]);
 
     get(route('channels.callback', [$channel, 'state' => $state, 'code' => 'code']))
-        ->assertSessionHasErrors('oauth');
+        ->assertSessionHasErrors(['oauth' => 'YouTube did not return the assigned channel for this login. In the Google account chooser, select the YouTube channel or Brand Account that owns it.']);
 
     expect($channel->refresh()->credentials)->toBeNull();
+});
+
+test('игровой канал находится на следующей странице даже без названия', function (): void {
+    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
+    actingAs(serialOperator());
+    $state = channelOAuthState($channel);
+    Http::fake([
+        'oauth2.googleapis.com/token' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh']),
+        '*/youtube/v3/channels*' => Http::sequence()
+            ->push(['items' => [['id' => 'UCother']], 'nextPageToken' => 'next'])
+            ->push(['items' => [['id' => 'UCgaming']]]),
+    ]);
+
+    get(route('channels.callback', [$channel, 'state' => $state, 'code' => 'code']))
+        ->assertSessionHasNoErrors();
+
+    expect($channel->refresh()->credentials)->toMatchArray(['account_name' => 'UCgaming', 'channel_id' => 'UCgaming']);
+    Http::assertSent(fn(Request $request): bool => str_contains($request->url(), 'pageToken=next') && str_contains($request->url(), 'mine=true'));
 });

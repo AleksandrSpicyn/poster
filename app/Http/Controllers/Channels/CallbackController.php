@@ -36,8 +36,10 @@ class CallbackController
      */
     public function __invoke(Channel $channel, OAuthCallbackData $data, #[CurrentUser] User $user, CompleteChannelAuthorizationAction $action): RedirectResponse
     {
-        if (! $action->run($channel, $user, $data)) {
-            return to_route('channels.edit', $channel)->withErrors(['oauth' => 'Connection was not completed. Check the application settings and permissions, then try connecting again.']);
+        $error = $action->run($channel, $user, $data);
+
+        if ($error !== null) {
+            return to_route('channels.edit', $channel)->withErrors(['oauth' => $error]);
         }
 
         Inertia::flash('success', 'Account connected.');

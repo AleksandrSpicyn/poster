@@ -6,6 +6,7 @@ namespace App\Classes\Channels;
 
 use App\Classes\Story\Snapshot;
 use App\Enums\ChannelType;
+use App\Exceptions\ChannelAuthorizationException;
 use App\Models\Channel;
 use App\Support\Integrations\Payload;
 use Illuminate\Support\Facades\Http;
@@ -44,7 +45,7 @@ readonly class ChannelOAuth
 
         return match ($channel->type) {
             ChannelType::YOUTUBE => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-                ...$params, 'scope' => implode(' ', $this->scopes($channel)), 'access_type' => 'offline', 'prompt' => 'consent',
+                ...$params, 'scope' => implode(' ', $this->scopes($channel)), 'access_type' => 'offline', 'prompt' => $channel->external_account === null ? 'consent' : 'select_account consent',
             ]),
             ChannelType::INSTAGRAM => 'https://www.instagram.com/oauth/authorize?' . http_build_query([
                 ...$params, 'scope' => implode(',', $this->scopes($channel)), 'enable_fb_login' => 'false',
@@ -83,24 +84,59 @@ readonly class ChannelOAuth
             'client_id' => $channel->client_id, 'client_secret' => $channel->client_secret, 'code' => $code,
             'redirect_uri' => route('channels.callback', $channel), 'grant_type' => 'authorization_code',
         ])->throw();
-        $token = Payload::string($response->json('access_token'), 'access_token');
+        $token = $response->json('access_token');
+
+        if (! is_string($token) || trim($token) === '') {
+            throw new ChannelAuthorizationException('Google returned no access token. Check the OAuth client settings in Poster.');
+        }
+
         $scopes = $response->json('scope');
 
         if (is_string($scopes) && array_diff($this->scopes($channel), explode(' ', $scopes)) !== []) {
-            throw new RuntimeException('Required permissions were not granted.');
+            throw new ChannelAuthorizationException('Grant all requested YouTube permissions when connecting the channel.');
         }
 
-        $profile = Http::withToken($token)->timeout(20)->get('https://www.googleapis.com/youtube/v3/channels', ['part' => 'snippet', 'mine' => 'true'])->throw();
-        $id = Payload::string($profile->json('items.0.id'), 'channel_id');
+        $query = ['part' => 'snippet', 'mine' => 'true', 'maxResults' => 50];
+        do {
+            $profile = Http::withToken($token)->timeout(20)->get('https://www.googleapis.com/youtube/v3/channels', $query)->throw();
+            $items = $profile->json('items');
+
+            if (! is_array($items)) {
+                throw new ChannelAuthorizationException('YouTube returned an incomplete channel list. Check YouTube Data API access for the Poster application.');
+            }
+
+            foreach ($items as $item) {
+                $id = is_array($item) ? ($item['id'] ?? null) : null;
+
+                if (is_string($id) && $id !== '' && ($channel->external_account === null || $channel->external_account === $id)) {
+                    $title = data_get($item, 'snippet.title');
+
+                    break 2;
+                }
+            }
+
+            $next = $profile->json('nextPageToken');
+
+            if (! is_string($next) || $next === '') {
+                throw new ChannelAuthorizationException('YouTube did not return the assigned channel for this login. In the Google account chooser, select the YouTube channel or Brand Account that owns it.');
+            }
+
+            $query['pageToken'] = $next;
+        } while (true);
+
         $refresh = $response->json('refresh_token');
 
         if (! is_string($refresh) || $refresh === '') {
             $refresh = ($channel->credentials['channel_id'] ?? null) === $id ? ($channel->credentials['refresh_token'] ?? null) : null;
         }
 
-        return ['access_token' => $token, 'refresh_token' => Payload::string($refresh, 'refresh_token'),
+        if (! is_string($refresh) || trim($refresh) === '') {
+            throw new ChannelAuthorizationException('Google did not grant offline access. Reconnect the assigned channel and approve the consent screen.');
+        }
+
+        return ['access_token' => $token, 'refresh_token' => $refresh,
             'token_type' => 'Bearer', 'expires_in' => $this->expiresIn($response->json('expires_in'), 3600), 'created' => now()->timestamp,
-            'channel_id' => $id, 'account_name' => Payload::string($profile->json('items.0.snippet.title'), 'account_name')];
+            'channel_id' => $id, 'account_name' => is_string($title) && trim($title) !== '' ? $title : $id];
     }
 
     /** @return array<string, mixed> */

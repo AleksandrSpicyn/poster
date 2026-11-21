@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Data\Channels\OAuthCallbackData;
+use App\Exceptions\ChannelAuthorizationException;
 use App\Models\Channel;
 use App\Models\User;
 use App\Tasks\Channels\CompleteChannelAuthorization;
@@ -16,18 +17,19 @@ readonly class CompleteChannelAuthorizationAction
 {
     public function __construct(private CompleteChannelAuthorization $task) {}
 
-    public function run(Channel $channel, User $actor, OAuthCallbackData $data): bool
+    public function run(Channel $channel, User $actor, OAuthCallbackData $data): ?string
     {
         Gate::forUser($actor)->authorize('manageChannels');
 
         try {
             $this->task->run($channel, $actor, $data);
 
-            return true;
+            return null;
         } catch (Throwable $exception) {
-            Log::warning('Channel OAuth connection failed.', ['channel' => $channel->id, 'platform' => $channel->type->value, 'exception' => $exception::class]);
+            $message = $exception instanceof ChannelAuthorizationException ? $exception->getMessage() : null;
+            Log::warning('Channel OAuth connection failed.', ['channel' => $channel->id, 'platform' => $channel->type->value, 'exception' => $exception::class, 'source' => basename($exception->getFile()) . ':' . $exception->getLine(), 'reason' => $message]);
 
-            return false;
+            return $message ?? 'Connection was not completed. Check the application settings and permissions, then try connecting again.';
         }
     }
 }
