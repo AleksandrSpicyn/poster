@@ -21,15 +21,9 @@ final readonly class TiktokClient
     public function __construct(private ChannelRepository $channels) {}
 
     /** @return list<string> */
-    public function scopes(Channel $channel): array
+    public function scopes(): array
     {
-        $scopes = ['user.info.basic', 'video.list'];
-
-        if ($channel->external_account === null && ! $this->channels->belongsToClippingWorkspace($channel)) {
-            $scopes[] = 'video.upload';
-        }
-
-        return $scopes;
+        return ['user.info.basic', 'video.list', 'video.upload'];
     }
 
     /** @return array<string, mixed> */
@@ -38,7 +32,7 @@ final readonly class TiktokClient
         $tokens = $this->token($channel, ['grant_type' => 'authorization_code', 'code' => $code, 'redirect_uri' => $redirectUri]);
         $scope = Payload::string($tokens['scope'] ?? null, 'scope');
 
-        if (array_diff($this->scopes($channel), explode(',', $scope)) !== []) {
+        if (array_diff($this->scopes(), explode(',', $scope)) !== []) {
             throw new ChannelAuthorizationException('Grant the requested TikTok permissions to connect this account.');
         }
 

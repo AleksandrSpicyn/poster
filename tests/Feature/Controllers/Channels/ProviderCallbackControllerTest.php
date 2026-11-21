@@ -77,7 +77,7 @@ test('TikTok использует общий ключ и сверяет неиз
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
     Http::fake([
-        '*/oauth/token/' => Http::response(['access_token' => 'token', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list', 'open_id' => $returned]),
+        '*/oauth/token/' => Http::response(['access_token' => 'token', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list,video.upload', 'open_id' => $returned]),
         '*/user/info/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['user' => ['open_id' => $returned, 'display_name' => 'Author']]]),
     ]);
 
@@ -87,17 +87,18 @@ test('TikTok использует общий ключ и сверяет неиз
     Http::assertSent(fn(Request $request): bool => $request->url() === 'https://open.tiktokapis.com/v2/oauth/token/' && $request['client_key'] === 'shared-key' && $request['redirect_uri'] === route('channels.provider-callback', 'tiktok'));
 })->with([['owner', true], ['foreign', false]]);
 
-test('подключение игрового TikTok запрашивает чтение и закрепляет владельца', function (): void {
+test('подключение игрового TikTok закрепляет владельца без доступа к отправке роликов из Poster', function (): void {
     $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
     $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
     Http::fake([
-        '*/oauth/token/' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list', 'open_id' => 'gaming']),
+        '*/oauth/token/' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list,video.upload', 'open_id' => 'gaming']),
         '*/user/info/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['user' => ['open_id' => 'gaming', 'display_name' => 'Games']]]),
     ]);
 
     get(route('channels.provider-callback', ['tiktok', 'state' => $state, 'code' => 'code']))->assertSessionHasNoErrors();
 
     expect($channel->refresh()->external_account)->toBe('gaming');
+    expect($channel->canSendTiktokInboxVideo())->toBeFalse();
 });

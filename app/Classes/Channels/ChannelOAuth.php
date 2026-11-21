@@ -29,7 +29,7 @@ readonly class ChannelOAuth
             ChannelType::YOUTUBE => $channel->external_account === null
                 ? [self::UPLOAD_SCOPE, self::READ_SCOPE]
                 : [self::READ_SCOPE, 'https://www.googleapis.com/auth/yt-analytics.readonly'],
-            ChannelType::TIKTOK => $this->tiktok->scopes($channel),
+            ChannelType::TIKTOK => $this->tiktok->scopes(),
             ChannelType::INSTAGRAM => ['instagram_business_basic', $channel->external_account === null
                 ? 'instagram_business_content_publish' : 'instagram_business_manage_insights'],
             default => throw new RuntimeException('Unsupported platform.'),

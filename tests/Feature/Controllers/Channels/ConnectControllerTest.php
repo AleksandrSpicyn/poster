@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
@@ -23,6 +24,7 @@ test('OAuth запрашивает нужные права без передач
     expect($params['scope'])->toContain($scope);
 
     if ($type === ChannelType::TIKTOK) {
+        expect($params['scope'])->toBe('user.info.basic,video.list,video.upload');
         expect($params['client_key'] ?? null)->toBe($channel->oauthClientId());
         expect($params)->not->toHaveKey('client_id');
     }
@@ -36,6 +38,17 @@ test('OAuth запрашивает нужные права без передач
     'TikTok' => [ChannelType::TIKTOK, 'www.tiktok.com', 'video.upload'],
     'Instagram' => [ChannelType::INSTAGRAM, 'www.instagram.com', 'instagram_business_content_publish'],
 ]);
+
+test('игровой TikTok запрашивает тот же набор прав, что и канал сериалов', function (?string $externalAccount): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'external_account' => $externalAccount]);
+
+    $response = actingAs(serialOperator())->post(route('channels.connect', $channel), [], ['X-Inertia' => 'true'])->assertStatus(409);
+
+    parse_str((string) parse_url((string) $response->headers->get('X-Inertia-Location'), PHP_URL_QUERY), $params);
+    expect($params['scope'])->toBe('user.info.basic,video.list,video.upload');
+    Http::assertNothingSent();
+})->with([[null], ['fixture-owner']]);
 
 test('неполные настройки не начинают OAuth', function (): void {
     $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'client_secret' => null]);

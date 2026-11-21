@@ -33,7 +33,7 @@ class AuthorizeTiktok extends Command
             return self::FAILURE;
         }
 
-        $scopes = $tiktok->scopes($channel);
+        $scopes = $tiktok->scopes();
 
         $authUrl = 'https://www.tiktok.com/v2/auth/authorize?' . http_build_query([
             'client_key' => $channel->oauthClientId(),
