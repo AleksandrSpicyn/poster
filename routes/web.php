@@ -45,3 +45,4 @@ require __DIR__ . '/shot-operations.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/series.php';
 require __DIR__ . '/episodes.php';
+require __DIR__ . '/tiktok-demo.php';
