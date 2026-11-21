@@ -31,7 +31,7 @@ class CreateProductionRun
         return DB::transaction(function () use ($project, $series, $actor, $requestKey, $onlyFirstRun): ?ProductionRun {
             $project = $this->projects->findLockedOrFail($project->id);
 
-            if (! $project->is_active || $project->clipping_workspace !== null) {
+            if (! $project->is_active || $project->isClippingProject()) {
                 return null;
             }
 

@@ -24,7 +24,7 @@ readonly class GetProjectAction
         $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
         $details = $series === null ? null : $this->getSeries->run($series, $filters->page ?? 1);
 
-        $canReadClips = $project->clipping_workspace !== null && Gate::allows('manageChannels');
+        $canReadClips = $project->isClippingProject() && Gate::allows('manageChannels');
 
         return new ProjectWorkspaceData(
             project: $project,

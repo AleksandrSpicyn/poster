@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * В текущей схеме не привязан к User: кабинет показывает общие данные приложения.
  *
  * @property int $id
+ * @property int|null $opus_source_id
  * @property string|null $clipping_workspace
  * @property string $name
  * @property string $prompt
@@ -42,6 +43,11 @@ class Project extends Model
     use HasFactory;
 
     public const string OPUS_CLIP_WORKSPACE = 'opusclip';
+
+    public function isClippingProject(): bool
+    {
+        return $this->clipping_workspace !== null || $this->opus_source_id !== null;
+    }
 
     /** @return HasMany<OpusSource, $this> */
     public function opusSources(): HasMany

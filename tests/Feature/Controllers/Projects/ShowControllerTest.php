@@ -147,3 +147,19 @@ test('оператор видит игровые клипы только в их
     actingAs(User::factory()->create())->get(route('projects.show', $project))
         ->assertInertia(fn(Assert $page): Assert => $page->where('opusClips', null));
 });
+
+test('карточка Opus показывает только клипы своего исходника', function (): void {
+    $workspace = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $source = OpusSource::factory()->for($workspace)->create();
+    $other = OpusSource::factory()->for($workspace)->create();
+    $card = Project::factory()->create(['opus_source_id' => $source->id]);
+    OpusClip::factory()->for($source, 'source')->create(['title' => 'Own']);
+    OpusClip::factory()->for($other, 'source')->create(['title' => 'Sibling']);
+
+    actingAs(serialOperator())->get(route('projects.show', $card))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('opusClips.data', 1)
+            ->where('opusClips.data.0.title', 'Own')->where('project.can_delete', false));
+
+    get(route('projects.show', $workspace))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('opusClips.data', 2));
+});

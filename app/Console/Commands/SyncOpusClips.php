@@ -16,7 +16,7 @@ class SyncOpusClips extends Command
 {
     protected $signature = 'opus:sync {--source= : Import one OpusClip project ID} {--game= : Game for the selected source} {--preview : Read without writing to Poster}';
 
-    protected $description = 'Import the gaming workspace and its existing publications into the configured Poster project';
+    protected $description = 'Import OpusClip projects and their clips, creating a Poster project for each new source';
 
     public function handle(OpusClipClient $client, SyncOpusClipsAction $action): int
     {

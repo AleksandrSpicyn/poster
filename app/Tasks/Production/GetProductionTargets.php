@@ -29,7 +29,7 @@ readonly class GetProductionTargets
     {
         $this->projects->refresh($project);
 
-        if ($project->clipping_workspace !== null) {
+        if ($project->isClippingProject()) {
             if ($actor instanceof User) {
                 throw ValidationException::withMessages(['project' => 'This project imports clips from OpusClip.']);
             }

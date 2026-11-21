@@ -28,6 +28,7 @@ test('импортирует исходник, готовые клипы и об
 
     consoleCommand('opus:sync', ['--preview' => true, '--source' => 'source'])->expectsOutput('source: Found 2 clips, 1 with public links.')->assertSuccessful();
     assertDatabaseCount('channels', 0);
+    assertDatabaseCount('projects', 2);
     consoleCommand('opus:sync', ['--source' => 'source'])->assertSuccessful();
     consoleCommand('opus:sync', ['--source' => 'source'])->assertSuccessful();
 
@@ -89,7 +90,7 @@ test('предпросмотр обходит проекты и сохраняе
     Http::assertSentCount(5);
 });
 
-test('сохраняет общий проект и два канала для разных игр', function (): void {
+test('создаёт по проекту на исходник и сохраняет общие привязки каналов', function (): void {
     $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
     Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'fixture-youtube']);
     Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM, 'external_account' => 'fixture_creator']);
@@ -103,7 +104,8 @@ test('сохраняет общий проект и два канала для �
     consoleCommand('opus:sync', ['--source' => 'new-game', '--game' => 'Next game'])->assertSuccessful();
     consoleCommand('opus:sync', ['--source' => 'new-game'])->assertSuccessful();
 
-    assertDatabaseCount('projects', 1);
+    assertDatabaseCount('projects', 3);
+    expect(Project::query()->whereNotNull('opus_source_id')->orderBy('id')->pluck('name')->all())->toBe(['Fixture game', 'Next game']);
     assertDatabaseCount('channels', 2);
     assertDatabaseCount('channel_project', 2);
     assertDatabaseCount('opus_clips', 2);
@@ -120,4 +122,27 @@ test('ошибка ключа в предварительном просмотр
         ->assertFailed();
 
     Http::assertSentCount(1);
+});
+
+test('пустые проекты с одинаковым названием создаются отдельно, исторический импорт сохраняется', function (): void {
+    $workspace = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    OpusSource::factory()->for($workspace)->create(['external_id' => 'historical']);
+    config(['services.opus_clip.key' => 'fake']);
+    Http::fake([
+        '*/clip-projects*' => Http::response(['list' => [
+            ['projectId' => 'historical', 'title' => 'Old'],
+            ['projectId' => 'new-a', 'title' => 'Same'],
+            ['projectId' => 'new-b', 'title' => 'Same'],
+        ]]),
+        '*/exportable-clips*' => Http::response([]),
+        '*/post-tasks*' => Http::response(['data' => ['data' => []]]),
+    ]);
+
+    consoleCommand('opus:sync')->assertSuccessful();
+    consoleCommand('opus:sync')->assertSuccessful();
+
+    expect(Project::query()->where('name', 'Same')->count())->toBe(2);
+    assertDatabaseCount('projects', 3);
+    assertDatabaseCount('opus_sources', 3);
+    assertDatabaseCount('opus_clips', 0);
 });

@@ -105,9 +105,24 @@ final readonly class OpusClipRepository extends EloquentRepository
             }
 
             $origin = $project->opusSources()->firstOrNew(['external_id' => $source->id]);
-            $origin->title = $source->title ?? $origin->title;
+            $oldName = $this->sourceProjectName($origin);
+
+            if (filled($source->title)) {
+                $origin->title = $source->title;
+            }
+
             $origin->game = $source->game ?? $origin->game;
             $origin->save();
+
+            $name = $this->sourceProjectName($origin);
+
+            if ($origin->wasRecentlyCreated) {
+                $card = new Project(['name' => $name, 'prompt' => '', 'is_active' => $project->is_active]);
+                $card->opus_source_id = $origin->id;
+                $card->save();
+            } elseif ($oldName !== $name) {
+                Project::query()->where('opus_source_id', $origin->id)->where('name', $oldName)->update(['name' => $name]);
+            }
 
             foreach ($clips as $clip) {
                 $record = $this->query()->firstOrNew(['opus_source_id' => $origin->id, 'clip_id' => $clip->id]);
@@ -127,10 +142,25 @@ final readonly class OpusClipRepository extends EloquentRepository
         }, attempts: 3);
     }
 
+    private function sourceProjectName(OpusSource $source): string
+    {
+        $title = trim((string) $source->title);
+
+        return mb_substr($title !== '' ? $title : ($source->game ?? 'OpusClip ' . $source->external_id), 0, 255);
+    }
+
     /** @return LengthAwarePaginator<int, OpusClip> */
     public function paginate(Project $project, int $perPage, int $page): LengthAwarePaginator
     {
-        return $this->query()->whereRelation('source', 'project_id', $project->id)->with(['source','latestMetrics'])
+        $clips = $this->query();
+
+        if ($project->opus_source_id !== null) {
+            $clips->where('opus_source_id', $project->opus_source_id);
+        } else {
+            $clips->whereRelation('source', 'project_id', $project->id);
+        }
+
+        return $clips->with(['source','latestMetrics'])
             ->orderByDesc('id')->paginate($perPage, page: $page)->withQueryString();
     }
 
