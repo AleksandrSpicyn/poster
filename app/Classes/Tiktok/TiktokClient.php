@@ -26,13 +26,16 @@ final readonly class TiktokClient
         return ['user.info.basic', 'video.list', 'video.upload'];
     }
 
-    /** @return array<string, mixed> */
-    public function exchange(Channel $channel, string $code, string $redirectUri): array
+    /**
+     * @param list<string>|null $requiredScopes
+     * @return array<string, mixed>
+     */
+    public function exchange(Channel $channel, string $code, string $redirectUri, ?array $requiredScopes = null): array
     {
         $tokens = $this->token($channel, ['grant_type' => 'authorization_code', 'code' => $code, 'redirect_uri' => $redirectUri]);
         $scope = Payload::string($tokens['scope'] ?? null, 'scope');
 
-        if (array_diff($this->scopes(), explode(',', $scope)) !== []) {
+        if (array_diff($requiredScopes ?? $this->scopes(), explode(',', $scope)) !== []) {
             throw new ChannelAuthorizationException('Grant the requested TikTok permissions to connect this account.');
         }
 

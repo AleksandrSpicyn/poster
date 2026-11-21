@@ -149,3 +149,33 @@ jobs:
           ssh -i ~/.ssh/poster -p "$SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" deploy < app.tar.gz
           curl --fail --silent --show-error "$PRODUCTION_URL/up"
+
+  deploy-demo:
+    name: Deploy TikTok demo
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: tiktok-demo
+    concurrency:
+      group: poster-tiktok-demo
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: app-${{ github.sha }}
+      - name: Activate demo and verify the passwordless cabinet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEMO_HOST: ${{ secrets.DEMO_SSH_HOST }}
+          DEMO_PRIVATE_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+          DEMO_URL: ${{ vars.DEMO_URL }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_REF_NAME" --jq .sha)" = "$GITHUB_SHA" || exit 0
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEMO_PRIVATE_KEY" > ~/.ssh/demo
+          printf '%s\n' "$DEMO_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/demo
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -i ~/.ssh/demo "poster-demo@$DEMO_HOST" "release $GITHUB_SHA" < app.tar.gz
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$DEMO_URL/demo/tiktok/authors")" = 200

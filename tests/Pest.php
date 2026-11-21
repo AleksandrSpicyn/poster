@@ -38,3 +38,5 @@ pest()
         ScribeServiceProvider::$customTranslationLayerLoaded = false;
     })
     ->in('Feature/Routes/DocumentationTest.php', 'Feature/Support/Documentation/ScribeMcpTest.php');
+
+require_once __DIR__ . '/Support/TiktokDemo.php';
