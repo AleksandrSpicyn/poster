@@ -42,7 +42,13 @@ class ReportClipPerformance extends Command
         $current = $clips->observations($project, $end);
         $this->info("Observed view growth, $start to $end (UTC)");
 
-        foreach ([ChannelType::YOUTUBE, ChannelType::INSTAGRAM] as $platform) {
+        $platforms = [ChannelType::YOUTUBE, ChannelType::INSTAGRAM];
+
+        if ($current->contains('platform', ChannelType::TIKTOK->value) || $baseline->contains('platform', ChannelType::TIKTOK->value)) {
+            $platforms[] = ChannelType::TIKTOK;
+        }
+
+        foreach ($platforms as $platform) {
             $rows = [];
 
             foreach ($current->where('platform', $platform->value) as $row) {

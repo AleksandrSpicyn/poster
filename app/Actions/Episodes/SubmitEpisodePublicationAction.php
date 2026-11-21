@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Episodes;
 
 use App\Enums\PublicationStatus;
+use App\Exceptions\PublicationRejectedException;
 use App\Jobs\FinishEpisodePublicationJob;
 use App\Models\PublicationRequest;
 use App\Tasks\Publications\ClaimPublication;
@@ -42,6 +43,8 @@ readonly class SubmitEpisodePublicationAction
             if (! $result->accepted) {
                 $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The provider did not confirm publication. Verify its outcome before trying again.');
             }
+        } catch (PublicationRejectedException $exception) {
+            $this->update->run($request, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {
             $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The publication outcome is unknown. Inspect the provider receipt before any retry.');
             report($exception);

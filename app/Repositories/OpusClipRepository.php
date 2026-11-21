@@ -34,9 +34,9 @@ final readonly class OpusClipRepository extends EloquentRepository
         return Project::query()->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)->first();
     }
 
-    public function configure(int $projectId, ?string $youtubeAccount, ?string $instagramAccount): void
+    public function configure(int $projectId, ?string $youtubeAccount, ?string $instagramAccount, ?string $tiktokAccount = null): void
     {
-        DB::transaction(function () use ($projectId, $youtubeAccount, $instagramAccount): void {
+        DB::transaction(function () use ($projectId, $youtubeAccount, $instagramAccount, $tiktokAccount): void {
             $project = Project::query()->lockForUpdate()->find($projectId);
 
             if (! $project instanceof Project) {
@@ -53,8 +53,12 @@ final readonly class OpusClipRepository extends EloquentRepository
 
             $channels = $project->channels()->orderBy('channels.id')->lockForUpdate()->get();
 
-            foreach ([ChannelType::YOUTUBE, ChannelType::INSTAGRAM] as $type) {
+            foreach ([ChannelType::YOUTUBE, ChannelType::INSTAGRAM, ChannelType::TIKTOK] as $type) {
                 $matches = $channels->filter(fn(Channel $channel): bool => $channel->type === $type);
+
+                if ($type === ChannelType::TIKTOK && $matches->isEmpty() && $tiktokAccount === null) {
+                    continue;
+                }
 
                 if ($matches->count() !== 1) {
                     throw new RuntimeException('Attach exactly one ' . $type->label() . ' channel to the project.');
@@ -66,9 +70,11 @@ final readonly class OpusClipRepository extends EloquentRepository
                     throw new RuntimeException('Attach a dedicated channel for each clipping account.');
                 }
 
-                $credential = $type === ChannelType::YOUTUBE ? 'channel_id' : 'account_name';
+                $credential = $type === ChannelType::INSTAGRAM ? 'account_name' : 'channel_id';
                 $connected = $channel->credentials[$credential] ?? null;
-                $account = ($type === ChannelType::YOUTUBE ? $youtubeAccount : $instagramAccount) ?? $channel->external_account ?? $connected;
+                $account = (match ($type) {
+                    ChannelType::YOUTUBE => $youtubeAccount, ChannelType::INSTAGRAM => $instagramAccount, default => $tiktokAccount,
+                }) ?? $channel->external_account ?? $connected;
 
                 if (! is_string($account) || trim($account) === '' || mb_strlen($account) > 255) {
                     throw new RuntimeException('Supply the external account for the ' . $type->label() . ' channel or connect it in Poster.');

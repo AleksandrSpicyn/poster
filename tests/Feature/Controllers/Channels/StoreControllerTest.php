@@ -34,7 +34,7 @@ test('невалидные настройки не создают канал', f
     'название' => [['name' => ''], 'name'],
     'длина названия' => [['name' => str_repeat('a', 256)], 'name'],
     'платформа' => [['type' => 'unknown'], 'type'],
-    'неподдерживаемая платформа' => [['type' => 'tiktok'], 'type'],
+    'неподдерживаемая платформа' => [['type' => 'vk'], 'type'],
     'тип идентификатора' => [['client_id' => ['invalid']], 'client_id'],
     'длина секрета' => [['client_secret' => str_repeat('x', 2049)], 'client_secret'],
     'флаг активности' => [['is_active' => 'invalid'], 'is_active'],

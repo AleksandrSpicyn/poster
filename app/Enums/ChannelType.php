@@ -14,4 +14,10 @@ enum ChannelType: string
     case TIKTOK = 'tiktok';
     case INSTAGRAM = 'instagram';
     case VK = 'vk';
+
+    /** @return list<self> */
+    public static function oauthProviders(): array
+    {
+        return [self::YOUTUBE, self::INSTAGRAM, self::TIKTOK];
+    }
 }

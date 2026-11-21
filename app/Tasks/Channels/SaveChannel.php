@@ -22,8 +22,8 @@ readonly class SaveChannel
             throw ValidationException::withMessages(['type' => 'Create a separate channel to use a different platform.']);
         }
 
-        if (! $channel->exists && ! in_array($data->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true)) {
-            throw ValidationException::withMessages(['type' => 'Choose YouTube or Instagram.']);
+        if (! $channel->exists && ! in_array($data->type, ChannelType::oauthProviders(), true)) {
+            throw ValidationException::withMessages(['type' => 'Choose YouTube, Instagram or TikTok.']);
         }
 
         $appChanged = $channel->client_id !== $data->client_id;

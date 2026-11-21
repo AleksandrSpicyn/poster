@@ -84,7 +84,7 @@ readonly class ProductionRunRepository extends EloquentRepository
                 'episode_limit' => $series->episode_limit,
                 'specification_version' => $series->specification_version,
                 'specification' => $series->specification,
-                'channel_ids' => $project->channels()->where('is_active', true)->whereIn('type', ['youtube', 'instagram'])->orderBy('id')->pluck('channels.id')->all(),
+                'channel_ids' => $project->channels()->where('is_active', true)->where(fn($q) => $q->whereIn('type', ['youtube', 'instagram'])->orWhere(fn($tiktok) => $tiktok->where('type', 'tiktok')->whereNull('external_account')->whereNotNull('credentials->access_token')->where('credentials->scope', 'like', '%video.upload%')))->orderBy('id')->pluck('channels.id')->all(),
             ]) : null,
             'stage_started_at' => now(), 'next_check_at' => now(),
         ]);

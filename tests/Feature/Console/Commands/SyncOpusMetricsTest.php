@@ -53,3 +53,25 @@ test('пропускает чужую авторизацию до запроса
     Http::assertNothingSent();
     assertDatabaseCount('opus_clip_metrics', 0);
 });
+
+test('TikTok обновляет токен игрового канала и сохраняет показатели его клипа', function (): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'external_account' => 'gaming',
+        'credentials' => ['channel_id' => 'gaming', 'access_token' => 'expired', 'refresh_token' => 'old', 'expires_at' => now()->subHour()->toIso8601String()]]);
+    OpusClip::factory()->for(OpusSource::factory()->for($project), 'source')->create(['publications' => [
+        ['platform' => 'tiktok', 'url' => 'https://www.tiktok.com/@player/video/123456789'],
+    ]]);
+    Http::fake([
+        '*/oauth/token/' => Http::response(['open_id' => 'gaming', 'access_token' => 'fresh', 'refresh_token' => 'rotated', 'expires_in' => 86400, 'scope' => 'video.list']),
+        '*/video/query/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['videos' => [
+            ['id' => '123456789', 'view_count' => 123, 'like_count' => 0,'comment_count' => 2,'share_count' => 1],
+        ]]]),
+    ]);
+
+    consoleCommand('opus:metrics')->assertSuccessful();
+    consoleCommand('opus:metrics')->assertSuccessful();
+
+    expect($channel->refresh()->credentials['refresh_token'] ?? null)->toBe('rotated')
+        ->and(OpusClipMetric::query()->sole()->metrics)->toMatchArray(['views' => 123, 'likes' => 0, 'comments' => 2, 'shares' => 1]);
+    Http::assertSentCount(3);
+});

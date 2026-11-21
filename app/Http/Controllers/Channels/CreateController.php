@@ -24,6 +24,6 @@ class CreateController
      */
     public function __invoke(): Response
     {
-        return inertia('Channels/Form', ['channel' => null, 'channelTypes' => [ChannelType::YOUTUBE->value => ChannelType::YOUTUBE->label(), ChannelType::INSTAGRAM->value => ChannelType::INSTAGRAM->label()], 'callbackUrl' => null]);
+        return inertia('Channels/Form', ['channel' => null, 'channelTypes' => collect(ChannelType::oauthProviders())->mapWithKeys(fn(ChannelType $type): array => [$type->value => $type->label()])->all(), 'callbackUrl' => null]);
     }
 }

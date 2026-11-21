@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ChannelType;
 use App\Http\Controllers\Channels\CallbackController;
 use App\Http\Controllers\Channels\ConnectController;
 use App\Http\Controllers\Channels\CreateController;
@@ -18,7 +19,7 @@ Route::middleware(['auth', 'verified', 'can:manageChannels'])->prefix('channels'
     Route::get('', IndexController::class)->name('index');
     Route::get('create', CreateController::class)->name('create');
     Route::post('', StoreController::class)->name('store');
-    Route::get('oauth/{provider}/callback', ProviderCallbackController::class)->whereIn('provider', ['youtube', 'instagram'])->block(10, 10)->name('provider-callback');
+    Route::get('oauth/{provider}/callback', ProviderCallbackController::class)->whereIn('provider', array_column(ChannelType::oauthProviders(), 'value'))->block(10, 10)->name('provider-callback');
     Route::prefix('{channel}')->whereNumber('channel')->group(function (): void {
         Route::get('edit', EditController::class)->name('edit');
         Route::patch('', UpdateController::class)->name('update');

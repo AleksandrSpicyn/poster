@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\Project;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -68,4 +69,35 @@ test('чужой провайдер и неизвестное состояние
 
     Http::assertNothingSent();
     expect($channel->refresh()->credentials)->toBeNull();
+});
+
+test('TikTok использует общий ключ и сверяет неизменяемый ID автора', function (string $returned, bool $connected): void {
+    config(['services.tiktok.client_id' => 'shared-key', 'services.tiktok.client_secret' => 'shared-secret']);
+    $channel = Channel::factory()->create(['type' => ChannelType::TIKTOK, 'external_account' => 'owner', 'client_id' => null, 'client_secret' => null]);
+    actingAs(serialOperator());
+    $state = channelOAuthState($channel);
+    Http::fake([
+        '*/oauth/token/' => Http::response(['access_token' => 'token', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list', 'open_id' => $returned]),
+        '*/user/info/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['user' => ['open_id' => $returned, 'display_name' => 'Author']]]),
+    ]);
+
+    get(route('channels.provider-callback', ['tiktok', 'state' => $state, 'code' => 'code']))->assertRedirect(route('channels.edit', $channel));
+
+    expect(filled($channel->refresh()->credentials))->toBe($connected);
+    Http::assertSent(fn(Request $request): bool => $request->url() === 'https://open.tiktokapis.com/v2/oauth/token/' && $request['client_key'] === 'shared-key' && $request['redirect_uri'] === route('channels.provider-callback', 'tiktok'));
+})->with([['owner', true], ['foreign', false]]);
+
+test('подключение игрового TikTok запрашивает чтение и закрепляет владельца', function (): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK]);
+    actingAs(serialOperator());
+    $state = channelOAuthState($channel);
+    Http::fake([
+        '*/oauth/token/' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh', 'expires_in' => 86400, 'scope' => 'user.info.basic,video.list', 'open_id' => 'gaming']),
+        '*/user/info/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['user' => ['open_id' => 'gaming', 'display_name' => 'Games']]]),
+    ]);
+
+    get(route('channels.provider-callback', ['tiktok', 'state' => $state, 'code' => 'code']))->assertSessionHasNoErrors();
+
+    expect($channel->refresh()->external_account)->toBe('gaming');
 });

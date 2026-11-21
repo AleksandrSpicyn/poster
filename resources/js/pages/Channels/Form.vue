@@ -45,7 +45,7 @@ const deletionErrors = computed<Record<string, string | undefined>>(() => deleti
 const deleteOpen = ref(false);
 const requestError = ref('');
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
-const oauthSupported = computed(() => ['youtube', 'instagram'].includes(form.type));
+const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
 function submit() {
     requestError.value = '';
     form.submit(props.channel ? 'patch' : 'post', props.channel ? route('channels.update', props.channel.id) : route('channels.store'), {
@@ -144,12 +144,17 @@ function remove() {
                         <summary class="cursor-pointer text-sm font-semibold">OAuth application settings</summary>
                         <p class="text-muted-foreground text-sm">
                             Leave both fields empty to use the shared application. To override it, enter your
-                            {{ form.type === 'youtube' ? 'Google OAuth web application' : 'Instagram app with Instagram API login' }} credentials.
-                            Changing them requires reconnecting the account.
+                            {{
+                                form.type === 'youtube'
+                                    ? 'Google OAuth web application'
+                                    : form.type === 'tiktok'
+                                      ? 'TikTok Login Kit web app'
+                                      : 'Instagram app with Instagram API login'
+                            }}
+                            credentials. Changing them requires reconnecting the account.
                         </p>
                         <div class="grid gap-2">
-                            <Label for="client-id">Client ID / App ID</Label
-                            ><Input
+                            <Label for="client-id">{{ form.type === 'tiktok' ? 'Client key' : 'Client ID / App ID' }}</Label><Input
                                 id="client-id"
                                 v-model="form.client_id"
                                 maxlength="255"

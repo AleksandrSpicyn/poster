@@ -21,12 +21,19 @@ test('OAuth запрашивает нужные права без передач
     expect(parse_url($url, PHP_URL_HOST))->toBe($host);
     expect($params['redirect_uri'])->toBe(route('channels.provider-callback', $channel->type));
     expect($params['scope'])->toContain($scope);
+
+    if ($type === ChannelType::TIKTOK) {
+        expect($params['client_key'] ?? null)->toBe($channel->oauthClientId());
+        expect($params)->not->toHaveKey('client_id');
+    }
+
     expect($params['state'])->toHaveLength(64);
     expect($params)->not->toHaveKey('client_secret');
     expect($url)->not->toContain((string) $channel->client_secret);
     Http::assertNothingSent();
 })->with([
     'YouTube' => [ChannelType::YOUTUBE, 'accounts.google.com', 'youtube.upload'],
+    'TikTok' => [ChannelType::TIKTOK, 'www.tiktok.com', 'video.upload'],
     'Instagram' => [ChannelType::INSTAGRAM, 'www.instagram.com', 'instagram_business_content_publish'],
 ]);
 

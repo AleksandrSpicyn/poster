@@ -13,7 +13,8 @@ class ConfigureOpusWorkspace extends Command
 {
     protected $signature = 'opus:configure {project : Existing Poster project ID}
         {--youtube-account= : External ID of the attached YouTube channel}
-        {--instagram-account= : Username of the attached Instagram channel}';
+        {--instagram-account= : Username of the attached Instagram channel}
+        {--tiktok-account= : Open ID of the optional dedicated TikTok channel}';
 
     protected $description = 'Use an existing Poster project and its channels for the OpusClip workspace';
 
@@ -28,7 +29,7 @@ class ConfigureOpusWorkspace extends Command
         }
 
         try {
-            $clips->configure($id, $this->option('youtube-account'), $this->option('instagram-account'));
+            $clips->configure($id, $this->option('youtube-account'), $this->option('instagram-account'), $this->option('tiktok-account'));
         } catch (QueryException) {
             $this->error('Could not save the workspace. Check the database connection, migrations and existing account assignments.');
 

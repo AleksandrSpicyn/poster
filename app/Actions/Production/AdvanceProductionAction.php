@@ -84,7 +84,7 @@ readonly class AdvanceProductionAction
             return;
         }
 
-        $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true));
+        $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && (in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true) || ($run->series_id !== null && $channel->canSendTiktokInboxVideo())));
 
         if ($channels->isEmpty() || $channels->contains(fn(Channel $channel): bool => ! filled($channel->credentials['access_token'] ?? null))) {
             $this->update->run($run, ProductionStatus::WAITING, message: 'Connect and authorise the project publishing channels before production starts.');

@@ -62,6 +62,14 @@ class Channel extends Model
         'credentials' => 'array',
     ];
 
+    public function canSendTiktokInboxVideo(): bool
+    {
+        $scope = $this->credentials['scope'] ?? null;
+
+        return $this->type === ChannelType::TIKTOK && $this->external_account === null
+            && filled($this->credentials['access_token'] ?? null) && is_string($scope) && in_array('video.upload', explode(',', $scope), true);
+    }
+
     public function oauthClientId(): ?string
     {
         return $this->oauthSetting('client_id', $this->client_id);
@@ -74,7 +82,7 @@ class Channel extends Model
 
     private function oauthSetting(string $key, ?string $override): ?string
     {
-        if ($this->client_id !== null || $this->client_secret !== null || ! in_array($this->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true)) {
+        if ($this->client_id !== null || $this->client_secret !== null || ! in_array($this->type, ChannelType::oauthProviders(), true)) {
             return $override;
         }
 

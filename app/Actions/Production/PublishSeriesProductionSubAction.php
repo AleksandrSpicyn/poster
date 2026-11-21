@@ -31,7 +31,7 @@ readonly class PublishSeriesProductionSubAction
     {
         $final = $run->series?->output_mode === SeriesOutputMode::SINGLE_VIDEO;
         $assembly = ($final ? $run->seriesAssembly : $run->assembly) ?? throw new RuntimeException('The accepted montage is unavailable.');
-        $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true));
+        $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && (in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true) || $channel->canSendTiktokInboxVideo()));
         $ids = array_values($channels->map(fn(Channel $channel): int => $channel->id)->all());
         $requests = $assembly instanceof SeriesAssembly
             ? $this->publishFinal->run($assembly, PublishEpisodeData::validateAndCreate(['channel_ids' => data_get($run->input_snapshot, 'channel_ids', [])]), $actor, $run)

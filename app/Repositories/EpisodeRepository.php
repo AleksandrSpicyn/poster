@@ -7,9 +7,11 @@ namespace App\Repositories;
 use App\Data\Episodes\EpisodeScriptClaimData;
 use App\Data\Episodes\EpisodeWorkspaceData;
 use App\Enums\AssemblyStatus;
+use App\Enums\ChannelType;
 use App\Enums\EpisodeValidity;
 use App\Enums\RevisionStatus;
 use App\Enums\ScriptGenerationStatus;
+use App\Models\Channel;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
@@ -55,7 +57,8 @@ readonly class EpisodeRepository extends EloquentRepository
             ->orderByDesc('id')
             ->limit(100)
             ->get();
-        $channels = $series->project()->firstOrFail()->channels()->where('is_active', true)->orderBy('name')->limit(100)->get();
+        $channels = $series->project()->firstOrFail()->channels()->where('is_active', true)->orderBy('name')->limit(100)->get()
+            ->reject(fn(Channel $channel): bool => $channel->type === ChannelType::TIKTOK && ! $channel->canSendTiktokInboxVideo())->values();
         $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())->with('channel')->orderByDesc('id')->limit(200)->get();
 
         return new EpisodeWorkspaceData($episode, $characters, $assemblies, $publications, $channels);

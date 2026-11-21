@@ -11,7 +11,7 @@ import { useRoute } from 'ziggy-js';
 const props = defineProps<{
     assembly: EpisodeAssemblySummary;
     params: EpisodeRouteParams;
-    channels: { id: number; name: string; type_label: string }[];
+    channels: { id: number; name: string; type: string; type_label: string }[];
     publications: PublicationSummary[];
     currentAccepted: boolean;
     archived: boolean;
@@ -113,6 +113,9 @@ function publish() {
                 ><input v-model="publishForm.channel_ids" type="checkbox" :value="channel.id" class="size-4" />{{ channel.name }} ·
                 {{ channel.type_label }}</label
             >
+            <p v-if="channels.some((channel) => channel.type === 'tiktok' && publishForm.channel_ids.includes(channel.id))" class="text-sm">
+                Open the notification in your TikTok inbox to review and publish the video.
+            </p>
             <InputError :message="publishErrors" /><Button
                 type="submit"
                 class="h-11"

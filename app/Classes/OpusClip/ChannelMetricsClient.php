@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Classes\OpusClip;
 
+use App\Classes\Tiktok\TiktokClient;
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Support\Integrations\Payload;
@@ -15,12 +16,17 @@ use UnexpectedValueException;
 
 final readonly class ChannelMetricsClient
 {
-    public function __construct(private YoutubeReadClient $youtubeClient) {}
+    public function __construct(private YoutubeReadClient $youtubeClient, private TiktokClient $tiktok) {}
 
     public function reference(ChannelType $type, string $url): ?string
     {
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
         $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if ($type === ChannelType::TIKTOK && in_array($host, ['www.tiktok.com', 'tiktok.com', 'm.tiktok.com'], true)
+            && preg_match('~^/@[^/]+/video/([0-9]{1,20})/?$~D', $path, $match)) {
+            return $match[1];
+        }
 
         if ($type === ChannelType::INSTAGRAM && in_array($host, ['instagram.com', 'www.instagram.com'], true)
             && preg_match('~^/(?:reels?|p)/([\w-]+)/?$~D', $path, $match)) {
@@ -49,10 +55,26 @@ final readonly class ChannelMetricsClient
     public function read(Channel $channel, array $references): Generator
     {
         $credentials = $channel->credentials ?? [];
-        $account = $channel->type === ChannelType::YOUTUBE ? ($credentials['channel_id'] ?? null) : ($credentials['account_name'] ?? null);
+        $account = $channel->type === ChannelType::INSTAGRAM ? ($credentials['account_name'] ?? null) : ($credentials['channel_id'] ?? null);
 
         if (! is_string($account) || $account !== $channel->external_account) {
             throw new RuntimeException('Connect the assigned account in Poster.');
+        }
+
+        if ($channel->type === ChannelType::TIKTOK) {
+            foreach ($this->tiktok->videos($channel, $references) as $video) {
+                $metrics = [];
+
+                foreach (['view_count' => 'views', 'like_count' => 'likes', 'comment_count' => 'comments', 'share_count' => 'shares'] as $field => $name) {
+                    if (is_int($video[$field] ?? null)) {
+                        $metrics[$name] = $video[$field];
+                    }
+                }
+
+                yield Payload::string($video['id'] ?? null, 'id') => $metrics;
+            }
+
+            return;
         }
 
         $token = Payload::string($credentials['access_token'] ?? null, 'access_token');

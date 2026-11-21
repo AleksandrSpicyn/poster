@@ -164,3 +164,33 @@ test('изменение общего канала блокирует уже п�
     expect(Post::query()->exists())->toBeFalse();
     Http::assertNothingSent();
 })->with([true, false]);
+
+test('TikTok отправляет один черновик и ждёт публикации автором', function (): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    $channel->update(['type' => 'tiktok', 'credentials' => ['channel_id' => 'owner', 'access_token' => 'access', 'scope' => 'video.upload,video.list,user.info.basic', 'expires_at' => now()->addHour()->toIso8601String()]]);
+    Queue::fake();
+    Event::fake([PostCreated::class]);
+    Http::fake([
+        '*/inbox/video/init/' => Http::response(['error' => ['code' => 'ok'], 'data' => ['publish_id' => 'receipt']]),
+        '*/status/fetch/' => Http::sequence()
+            ->push(['error' => ['code' => 'ok'], 'data' => ['status' => 'SEND_TO_USER_INBOX']])
+            ->push(['error' => ['code' => 'ok'], 'data' => ['status' => 'PUBLISH_COMPLETE', 'publicaly_available_post_id' => [123456]]]),
+    ]);
+    $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->sole();
+    $request->update(['scheduled_at' => now()]);
+
+    app(SubmitEpisodePublicationAction::class)->run($request);
+    app(FinishEpisodePublicationAction::class)->run($request->refresh());
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::PROCESSING)
+        ->and($request->container_id)->toBe('receipt')
+        ->and(Post::query()->count())->toBe(0);
+
+    app(SubmitEpisodePublicationAction::class)->run($request);
+    app(FinishEpisodePublicationAction::class)->run($request->refresh());
+
+    expect(Post::query()->sole()->external_id)->toBe('123456')
+        ->and($request->refresh()->status)->toBe(PublicationStatus::PUBLISHED);
+    Http::assertSentCount(3);
+});

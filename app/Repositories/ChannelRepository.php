@@ -52,6 +52,16 @@ readonly class ChannelRepository extends EloquentRepository
         return array_values($project->channels()->allRelatedIds()->map(fn($id): int => (int) $id)->all());
     }
 
+    public function isDedicatedToOneProject(Channel $channel): bool
+    {
+        return $channel->projects()->count() === 1;
+    }
+
+    public function belongsToClippingWorkspace(Channel $channel): bool
+    {
+        return $channel->projects()->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)->exists();
+    }
+
     public function belongsToProject(Channel $channel, int $projectId): bool
     {
         return $channel->projects()->whereKey($projectId)->exists();
@@ -78,7 +88,7 @@ readonly class ChannelRepository extends EloquentRepository
     {
         return Channel::query()->whereHas('projects', fn(Builder $query) => $query->whereKey($projectId))
             ->whereIn('id', $data->channel_ids)->where('is_active', true)->whereNotNull('credentials->access_token')
-            ->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM])->get();
+            ->where(fn($q) => $q->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM])->orWhere(fn($tiktok) => $tiktok->where('type', ChannelType::TIKTOK)->whereNull('external_account')->whereNotNull('credentials->access_token')->where('credentials->scope', 'like', '%video.upload%')))->get();
     }
 
     public function forPublication(PublicationRequest $request): Channel

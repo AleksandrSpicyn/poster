@@ -7,9 +7,11 @@ namespace App\Tasks\Channels;
 use App\Classes\Channels\ChannelOAuth;
 use App\Data\Channels\OAuthCallbackData;
 use App\Enums\ChannelType;
+use App\Exceptions\ChannelAuthorizationException;
 use App\Models\Channel;
 use App\Models\User;
 use App\Repositories\ChannelRepository;
+use App\Support\Integrations\Payload;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -46,7 +48,7 @@ readonly class CompleteChannelAuthorization
 
         $fingerprint = $this->oauth->fingerprint($channel);
         $credentials = $this->oauth->exchange($channel, $data->code, $provider instanceof ChannelType ? route('channels.provider-callback', $provider) : route('channels.callback', $channel));
-        $identity = $channel->type === ChannelType::YOUTUBE ? $credentials['channel_id'] : $credentials['account_name'];
+        $identity = $channel->type === ChannelType::INSTAGRAM ? $credentials['account_name'] : $credentials['channel_id'];
 
         if ($channel->external_account !== null && $identity !== $channel->external_account) {
             throw new RuntimeException('Select the account assigned to this channel.');
@@ -57,6 +59,14 @@ readonly class CompleteChannelAuthorization
 
             if ($fingerprint !== $this->oauth->fingerprint($current)) {
                 throw new RuntimeException('Application settings changed during authorization.');
+            }
+
+            if ($current->type === ChannelType::TIKTOK && $this->channels->belongsToClippingWorkspace($current)) {
+                if (! $this->channels->isDedicatedToOneProject($current)) {
+                    throw new ChannelAuthorizationException('Attach a dedicated TikTok account to the clipping project.');
+                }
+
+                $current->external_account = Payload::string($credentials['channel_id'] ?? null, 'channel_id');
             }
 
             $this->channels->update($current, ['credentials' => $credentials]);
