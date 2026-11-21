@@ -62,6 +62,27 @@ class Channel extends Model
         'credentials' => 'array',
     ];
 
+    public function oauthClientId(): ?string
+    {
+        return $this->oauthSetting('client_id', $this->client_id);
+    }
+
+    public function oauthClientSecret(): ?string
+    {
+        return $this->oauthSetting('client_secret', $this->client_secret);
+    }
+
+    private function oauthSetting(string $key, ?string $override): ?string
+    {
+        if ($this->client_id !== null || $this->client_secret !== null || ! in_array($this->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true)) {
+            return $override;
+        }
+
+        $value = config('services.' . $this->type->value . '.' . $key);
+
+        return is_string($value) ? $value : null;
+    }
+
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
     {

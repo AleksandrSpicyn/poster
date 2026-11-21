@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ChannelIcon from '@/components/ChannelIcon.vue';
+import InputError from '@/components/InputError.vue';
 import Heading from '@/components/Heading.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import ProjectNotice from '@/components/projects/ProjectNotice.vue';
@@ -28,6 +29,7 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
         <Head title="Channels" />
         <div class="workspace-page">
             <ProjectNotice />
+            <InputError :message="page.props.errors.oauth" />
             <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
                 <Heading title="Channels" description="Connect your publishing accounts once, then choose them in any project." />
                 <Button as-child class="h-11 shrink-0"

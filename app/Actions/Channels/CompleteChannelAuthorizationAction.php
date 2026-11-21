@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Data\Channels\OAuthCallbackData;
+use App\Enums\ChannelType;
 use App\Exceptions\ChannelAuthorizationException;
 use App\Models\Channel;
 use App\Models\User;
@@ -17,12 +18,19 @@ readonly class CompleteChannelAuthorizationAction
 {
     public function __construct(private CompleteChannelAuthorization $task) {}
 
-    public function run(Channel $channel, User $actor, OAuthCallbackData $data): ?string
+    public function pendingChannel(ChannelType $provider, User $actor, OAuthCallbackData $data): ?Channel
+    {
+        Gate::forUser($actor)->authorize('manageChannels');
+
+        return $this->task->pendingChannel($provider, $actor, $data);
+    }
+
+    public function run(Channel $channel, User $actor, OAuthCallbackData $data, ?ChannelType $provider = null): ?string
     {
         Gate::forUser($actor)->authorize('manageChannels');
 
         try {
-            $this->task->run($channel, $actor, $data);
+            $this->task->run($channel, $actor, $data, $provider);
 
             return null;
         } catch (Throwable $exception) {

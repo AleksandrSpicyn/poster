@@ -21,7 +21,7 @@ readonly class StartChannelAuthorization
         $state = Str::random(64);
         $url = $this->oauth->authorizationUrl($channel, $state);
         $this->session->put('channel_oauth.' . hash('sha256', $state), [
-            'channel_id' => $channel->id, 'user_id' => $actor->id,
+            'provider' => $channel->type->value, 'channel_id' => $channel->id, 'user_id' => $actor->id,
             'fingerprint' => $this->oauth->fingerprint($channel), 'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 

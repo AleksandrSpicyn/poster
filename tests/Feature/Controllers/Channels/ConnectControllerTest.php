@@ -19,7 +19,7 @@ test('OAuth запрашивает нужные права без передач
     $url = (string) $response->headers->get('X-Inertia-Location');
     parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
     expect(parse_url($url, PHP_URL_HOST))->toBe($host);
-    expect($params['redirect_uri'])->toBe(route('channels.callback', $channel));
+    expect($params['redirect_uri'])->toBe(route('channels.provider-callback', $channel->type));
     expect($params['scope'])->toContain($scope);
     expect($params['state'])->toHaveLength(64);
     expect($params)->not->toHaveKey('client_secret');

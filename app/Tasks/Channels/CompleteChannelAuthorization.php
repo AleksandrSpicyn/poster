@@ -18,20 +18,34 @@ readonly class CompleteChannelAuthorization
 {
     public function __construct(private ChannelOAuth $oauth, private ChannelRepository $channels, private Session $session) {}
 
-    public function run(Channel $channel, User $actor, OAuthCallbackData $data): void
+    public function pendingChannel(ChannelType $provider, User $actor, OAuthCallbackData $data): ?Channel
+    {
+        $pending = $this->session->get('channel_oauth.' . hash('sha256', $data->state));
+
+        if (! is_array($pending) || ($pending['provider'] ?? null) !== $provider->value || ($pending['user_id'] ?? null) !== $actor->id || ! is_int($pending['channel_id'] ?? null)) {
+            return null;
+        }
+
+        $channel = $this->channels->find($pending['channel_id']);
+
+        return $channel?->type === $provider ? $channel : null;
+    }
+
+    public function run(Channel $channel, User $actor, OAuthCallbackData $data, ?ChannelType $provider): void
     {
         $pending = $this->session->pull('channel_oauth.' . hash('sha256', $data->state));
         $channel = $this->channels->findOrFail($channel->id);
 
         if (! is_array($pending) || ($pending['channel_id'] ?? null) !== $channel->id || ($pending['user_id'] ?? null) !== $actor->id
             || ! is_int($pending['expires_at'] ?? null) || $pending['expires_at'] < now()->timestamp
+            || ($pending['provider'] ?? null) !== $provider?->value
             || ($pending['fingerprint'] ?? null) !== $this->oauth->fingerprint($channel)
             || $data->error !== null || $data->code === null) {
             throw new RuntimeException('Invalid or cancelled authorization.');
         }
 
         $fingerprint = $this->oauth->fingerprint($channel);
-        $credentials = $this->oauth->exchange($channel, $data->code);
+        $credentials = $this->oauth->exchange($channel, $data->code, $provider instanceof ChannelType ? route('channels.provider-callback', $provider) : route('channels.callback', $channel));
         $identity = $channel->type === ChannelType::YOUTUBE ? $credentials['channel_id'] : $credentials['account_name'];
 
         if ($channel->external_account !== null && $identity !== $channel->external_account) {

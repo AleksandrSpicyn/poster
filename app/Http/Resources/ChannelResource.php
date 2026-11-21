@@ -21,6 +21,7 @@ class ChannelResource extends JsonResource
             'account_name' => is_string($this->credentials['account_name'] ?? null) ? $this->credentials['account_name'] : null,
             'expires_at' => is_string($this->credentials['expires_at'] ?? null) ? $this->credentials['expires_at'] : null,
             'client_id' => $this->client_id, 'has_client_secret' => filled($this->client_secret),
+            'oauth_configured' => filled($this->oauthClientId()) && filled($this->oauthClientSecret()),
             'can_delete' => $this->relationLoaded('projects') && $this->projects->isEmpty() && $this->posts_count === 0 && $this->publication_requests_count === 0,
             'posts_count' => $this->whenCounted('posts'),
             'projects' => $this->whenLoaded('projects', fn() => $this->projects->map(fn($project): array => ['id' => $project->id, 'name' => $project->name])->all()),

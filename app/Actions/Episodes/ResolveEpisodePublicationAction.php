@@ -78,6 +78,6 @@ readonly class ResolveEpisodePublicationAction
     private function channelFingerprint(Channel $channel): string
     {
         return Snapshot::hash(['id' => $channel->id, 'type' => $channel->type->value,
-            'client_id' => $channel->client_id, 'credentials' => $channel->credentials]);
+            'client_id' => $channel->oauthClientId(), 'credentials' => $channel->credentials]);
     }
 }

@@ -25,8 +25,8 @@ class AuthorizeYoutube extends Command
     {
         $channel = $load->run($this->argument('channel_id'));
 
-        $client->setClientId(Payload::string($channel->client_id, 'client_id'));
-        $client->setClientSecret(Payload::string($channel->client_secret, 'client_secret'));
+        $client->setClientId(Payload::string($channel->oauthClientId(), 'client_id'));
+        $client->setClientSecret(Payload::string($channel->oauthClientSecret(), 'client_secret'));
         $client->setRedirectUri(route('home'));
 
         $scopes = [YouTube::YOUTUBE_UPLOAD];

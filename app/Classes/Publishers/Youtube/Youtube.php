@@ -114,8 +114,8 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
         $client = $this->client;
 
         $client->setApplicationName('Midjourney Shorts Uploader');
-        $client->setClientId(Payload::string($this->channel->client_id, 'client_id'));
-        $client->setClientSecret(Payload::string($this->channel->client_secret, 'client_secret'));
+        $client->setClientId(Payload::string($this->channel->oauthClientId(), 'client_id'));
+        $client->setClientSecret(Payload::string($this->channel->oauthClientSecret(), 'client_secret'));
         $client->setScopes([$readOnly ? YouTubeService::YOUTUBE_READONLY : YouTubeService::YOUTUBE_UPLOAD]);
         $client->setAccessType('offline');
         $client->setPrompt('consent');

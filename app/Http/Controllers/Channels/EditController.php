@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\GetChannelFormAction;
+use App\Enums\ChannelType;
 use App\Http\Resources\ChannelResource;
 use App\Models\Channel;
 use Inertia\Response;
@@ -28,6 +29,6 @@ class EditController
      */
     public function __invoke(Channel $channel, GetChannelFormAction $action): Response
     {
-        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => route('channels.callback', $channel)]);
+        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true) ? route('channels.provider-callback', $channel->type) : null]);
     }
 }

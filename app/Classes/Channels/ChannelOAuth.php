@@ -34,14 +34,15 @@ readonly class ChannelOAuth
 
     public function fingerprint(Channel $channel): string
     {
-        return Snapshot::hash([$channel->id, $channel->type->value, $channel->client_id, $channel->client_secret, $channel->external_account, $channel->credentials]);
+        return Snapshot::hash([$channel->id, $channel->type->value, $channel->oauthClientId(), $channel->oauthClientSecret(), $channel->external_account, $channel->credentials]);
     }
 
     public function authorizationUrl(Channel $channel, string $state): string
     {
-        $params = ['client_id' => Payload::string($channel->client_id, 'client_id'),
-            'redirect_uri' => route('channels.callback', $channel), 'response_type' => 'code', 'state' => $state];
-        Payload::string($channel->client_secret, 'client_secret');
+        $redirectUri = route('channels.provider-callback', $channel->type);
+        $params = ['client_id' => Payload::string($channel->oauthClientId(), 'client_id'),
+            'redirect_uri' => $redirectUri, 'response_type' => 'code', 'state' => $state];
+        Payload::string($channel->oauthClientSecret(), 'client_secret');
 
         return match ($channel->type) {
             ChannelType::YOUTUBE => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
@@ -55,11 +56,11 @@ readonly class ChannelOAuth
     }
 
     /** @return array<string, mixed> */
-    public function exchange(Channel $channel, string $code): array
+    public function exchange(Channel $channel, string $code, string $redirectUri): array
     {
         return match ($channel->type) {
-            ChannelType::YOUTUBE => $this->youtube($channel, $code),
-            ChannelType::INSTAGRAM => $this->instagram($channel, $code),
+            ChannelType::YOUTUBE => $this->youtube($channel, $code, $redirectUri),
+            ChannelType::INSTAGRAM => $this->instagram($channel, $code, $redirectUri),
             default => throw new RuntimeException('Unsupported platform.'),
         };
     }
@@ -78,11 +79,11 @@ readonly class ChannelOAuth
     }
 
     /** @return array<string, mixed> */
-    private function youtube(Channel $channel, string $code): array
+    private function youtube(Channel $channel, string $code, string $redirectUri): array
     {
         $response = Http::asForm()->timeout(20)->post('https://oauth2.googleapis.com/token', [
-            'client_id' => $channel->client_id, 'client_secret' => $channel->client_secret, 'code' => $code,
-            'redirect_uri' => route('channels.callback', $channel), 'grant_type' => 'authorization_code',
+            'client_id' => $channel->oauthClientId(), 'client_secret' => $channel->oauthClientSecret(), 'code' => $code,
+            'redirect_uri' => $redirectUri, 'grant_type' => 'authorization_code',
         ])->throw();
         $token = $response->json('access_token');
 
@@ -140,11 +141,11 @@ readonly class ChannelOAuth
     }
 
     /** @return array<string, mixed> */
-    private function instagram(Channel $channel, string $code): array
+    private function instagram(Channel $channel, string $code, string $redirectUri): array
     {
         $response = Http::asForm()->timeout(20)->post('https://api.instagram.com/oauth/access_token', [
-            'client_id' => $channel->client_id, 'client_secret' => $channel->client_secret, 'code' => $code,
-            'redirect_uri' => route('channels.callback', $channel), 'grant_type' => 'authorization_code',
+            'client_id' => $channel->oauthClientId(), 'client_secret' => $channel->oauthClientSecret(), 'code' => $code,
+            'redirect_uri' => $redirectUri, 'grant_type' => 'authorization_code',
         ])->throw();
         $shortToken = Payload::string($response->json('data.0.access_token', $response->json('access_token')), 'access_token');
         $permissions = $response->json('data.0.permissions', $response->json('permissions'));
@@ -155,7 +156,7 @@ readonly class ChannelOAuth
         }
 
         $response = Http::timeout(20)->get('https://graph.instagram.com/access_token', [
-            'grant_type' => 'ig_exchange_token', 'client_secret' => $channel->client_secret, 'access_token' => $shortToken,
+            'grant_type' => 'ig_exchange_token', 'client_secret' => $channel->oauthClientSecret(), 'access_token' => $shortToken,
         ])->throw();
         $token = Payload::string($response->json('access_token'), 'access_token');
         $profile = Http::withToken($token)->timeout(20)->get('https://graph.instagram.com/me', ['fields' => 'user_id,username'])->throw();

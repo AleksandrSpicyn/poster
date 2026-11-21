@@ -136,10 +136,14 @@ function remove() {
                         ></label
                     >
                     <InputError :message="form.errors.is_active" />
-                    <fieldset v-if="oauthSupported" class="space-y-4 border-t pt-5">
-                        <legend class="pr-3 text-sm font-semibold">Application credentials</legend>
+                    <details
+                        v-if="oauthSupported"
+                        class="space-y-4 border-t pt-5"
+                        :open="!!form.errors.client_id || !!form.errors.client_secret || (!!channel && !channel.oauth_configured)"
+                    >
+                        <summary class="cursor-pointer text-sm font-semibold">OAuth application settings</summary>
                         <p class="text-muted-foreground text-sm">
-                            Use your
+                            Leave both fields empty to use the shared application. To override it, enter your
                             {{ form.type === 'youtube' ? 'Google OAuth web application' : 'Instagram app with Instagram API login' }} credentials.
                             Changing them requires reconnecting the account.
                         </p>
@@ -172,13 +176,14 @@ function remove() {
                             </p>
                             <InputError :message="form.errors.client_secret" />
                         </div>
-                        <div v-if="callbackUrl" class="space-y-2">
+                        <div class="space-y-2">
                             <p class="text-sm font-medium">OAuth redirect URI</p>
-                            <p class="bg-muted rounded-md p-3 font-mono text-xs leading-relaxed break-all select-all">{{ callbackUrl }}</p>
-                            <p class="text-muted-foreground text-xs">Add this exact URI to the application's allowed OAuth redirects.</p>
+                            <p class="bg-muted rounded-md p-3 font-mono text-xs leading-relaxed break-all select-all">
+                                {{ callbackUrl ?? route('channels.provider-callback', form.type) }}
+                            </p>
+                            <p class="text-muted-foreground text-xs">Register this URI once per provider application for all its channels.</p>
                         </div>
-                        <p v-else class="text-muted-foreground text-xs">Save this channel to get its OAuth redirect URI.</p>
-                    </fieldset>
+                    </details>
                     <div class="flex flex-wrap justify-end gap-3 border-t pt-5">
                         <Button as-child variant="outline" class="h-11"><Link :href="route('channels.index')">Cancel</Link></Button
                         ><Button type="submit" :disabled="form.processing" class="h-11"
@@ -217,7 +222,7 @@ function remove() {
                         <template v-if="oauthSupported">
                             <Button
                                 class="h-11 w-full"
-                                :disabled="connection.processing || form.isDirty || !channel.client_id || !channel.has_client_secret"
+                                :disabled="connection.processing || form.isDirty || !channel.oauth_configured"
                                 @click="connect"
                                 ><LoaderCircle v-if="connection.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Link2
                                     v-else
@@ -226,11 +231,11 @@ function remove() {
                                 />{{ channel.connected ? 'Reconnect' : 'Connect' }} {{ channel.type_label }}</Button
                             >
                             <p v-if="form.isDirty" class="text-muted-foreground text-xs">Save your changes before connecting.</p>
-                            <p v-else-if="!channel.client_id || !channel.has_client_secret" class="text-muted-foreground text-xs">
+                            <p v-else-if="!channel.oauth_configured" class="text-muted-foreground text-xs">
                                 Save your application credentials to connect.
                             </p>
                             <p v-if="channel.type === 'instagram'" class="text-muted-foreground text-xs leading-relaxed">
-                                Requires an Instagram Business or Creator account and permission to publish content.
+                                Requires an Instagram Business or Creator account.
                             </p>
                         </template>
                         <Button v-if="channel.connected" variant="outline" class="h-11 w-full" :disabled="connection.processing" @click="disconnect"
