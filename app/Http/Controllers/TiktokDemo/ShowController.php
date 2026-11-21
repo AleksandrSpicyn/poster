@@ -12,6 +12,6 @@ final class ShowController
 {
     public function __invoke(ShowAction $action, Request $request): View
     {
-        return view('tiktok-demo.show', $action->run((string) $request->getUser(), max(0, $request->integer('cursor'))));
+        return view('tiktok-demo.show', $action->run($request->attributes->getString('demo_author'), max(0, $request->integer('cursor'))));
     }
 }

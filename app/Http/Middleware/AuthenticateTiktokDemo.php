@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 final class AuthenticateTiktokDemo
@@ -14,12 +15,17 @@ final class AuthenticateTiktokDemo
     public function handle(Request $request, Closure $next): Response
     {
         abort_unless(config('tiktok_demo.enabled') && ! app()->isProduction() && config('session.driver') !== 'cookie', 404);
-        $author = $request->getUser();
-        $hash = config()->array('tiktok_demo.authors')[$author] ?? null;
+        $mode = config()->string('tiktok_demo.mode');
+        abort_unless(in_array($mode, ['sandbox', 'production'], true), 503);
+        $session = $request->session();
 
-        if (! is_string($author) || ! is_string($hash) || ! password_verify((string) $request->getPassword(), $hash)) {
-            return response('Требуется вход автора', 401, ['WWW-Authenticate' => 'Basic realm="Poster TikTok demo", charset="UTF-8"', 'Cache-Control' => 'no-store']);
+        if ($session->get('tiktok_demo.mode') !== $mode) {
+            $session->forget('tiktok_demo');
+            $session->put('tiktok_demo.mode', $mode);
         }
+
+        $author = $session->remember('tiktok_demo.owner', static fn(): string => Str::random(32));
+        $request->attributes->set('demo_author', $author);
 
         abort_if($request->route('author') !== null && $request->route('author') !== $author, 404);
         $response = $next($request);

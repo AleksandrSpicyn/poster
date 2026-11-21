@@ -6,14 +6,16 @@ namespace App\Actions\TiktokDemo;
 
 use App\Classes\Tiktok\TiktokClient;
 use App\Data\TiktokDemo\Profile;
+use App\Tasks\TiktokDemo\CreatorSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 final readonly class ShowAction
 {
-    public function __construct(private TiktokClient $client, private Store $session) {}
+    public function __construct(private TiktokClient $client, private Store $session, private CreatorSettings $settings) {}
 
     /** @return array<string,mixed> */
     public function run(string $author, int $cursor): array
@@ -21,7 +23,7 @@ final readonly class ShowAction
         $key = "tiktok_demo.$author";
         $profile = Profile::fromSession($this->session, $author);
         $page = ['author' => $author, 'name' => $profile?->name, 'videos' => [], 'error' => null, 'next' => null,
-            'notice' => $this->session->get("$key.notice"), 'operation' => $this->session->get("$key.operation"),
+            'creator' => null, 'directMessage' => null, 'form' => null, 'notice' => $this->session->get("$key.notice"), 'operation' => $this->session->get("$key.operation"),
             'upload' => config('tiktok_demo.upload') && is_file(storage_path('app/private/tiktok-demo/sample.mp4'))];
 
         if (! $profile instanceof Profile) {
@@ -30,6 +32,35 @@ final readonly class ShowAction
 
         if ($profile->expired()) {
             return [...$page, 'upload' => false, 'error' => 'Срок доступа истёк. Подключите TikTok повторно.'];
+        }
+
+        $direct = "$key.direct";
+        $id = $this->session->get("$direct.id");
+
+        if (is_string($id)) {
+            try {
+                $reply = Http::withToken($profile->token())->withoutRedirecting()->timeout(10)
+                    ->post('https://open.tiktokapis.com/v2/post/publish/status/fetch/', ['publish_id' => $id]);
+                $status = $this->client->data($reply, 'status');
+
+                if (in_array($status, ['PUBLISH_COMPLETE', 'FAILED'], true)) {
+                    $this->session->forget(["$direct.id", "$direct.pending"]);
+                    $this->session->put("$direct.message", $status === 'PUBLISH_COMPLETE' ? 'TikTok подтвердил публикацию.' : 'TikTok отклонил публикацию.');
+                }
+            } catch (ConnectionException|RuntimeException) {
+                $page['directMessage'] = 'Не удалось проверить статус. Обновите страницу позже.';
+            }
+        }
+
+        $page['directMessage'] ??= $this->session->get("$direct.message");
+
+        if (! $this->session->has("$direct.pending")) {
+            try {
+                $page['creator'] = $this->settings->run($profile->token());
+                $page['form'] = $this->session->remember("$direct.form", static fn(): string => Str::random(40));
+            } catch (ConnectionException|RuntimeException) {
+                $page['directMessage'] ??= 'Direct Post недоступен. Проверьте разрешение video.publish и попробуйте позже.';
+            }
         }
 
         try {

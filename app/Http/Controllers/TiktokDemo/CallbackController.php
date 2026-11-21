@@ -12,7 +12,7 @@ final class CallbackController
 {
     public function __invoke(CallbackAction $action, Request $request): RedirectResponse
     {
-        $author = (string) $request->getUser();
+        $author = $request->attributes->getString('demo_author');
         $action->run($author, $request->query('state'), $request->query('code'));
 
         return new RedirectResponse(route('tiktok-demo.show', ['author' => $author], absolute: false));

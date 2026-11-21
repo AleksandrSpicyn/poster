@@ -10,7 +10,7 @@ use function Pest\Laravel\withSession;
 
 test('обменивает одноразовый код и привязывает подтверждённый профиль владельцу', function (): void {
     authenticateDemoAuthor();
-    Http::fake(['*/oauth/token/' => Http::response(['access_token' => 'fake-access', 'refresh_token' => 'fake-refresh', 'expires_in' => 3600, 'open_id' => 'fake-user', 'scope' => 'user.info.basic,video.list,video.upload']),
+    Http::fake(['*/oauth/token/' => Http::response(['access_token' => 'fake-access', 'refresh_token' => 'fake-refresh', 'expires_in' => 3600, 'open_id' => 'fake-user', 'scope' => 'user.info.basic,video.list,video.upload,video.publish']),
         '*/user/info/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['user' => ['open_id' => 'fake-user', 'display_name' => 'Alpha']]])]);
     post(route('tiktok-demo.connect', 'author-a'));
     $callback = route('tiktok-demo.callback', ['code' => 'test-code', 'state' => session('tiktok_demo.state.value')]);

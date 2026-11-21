@@ -164,7 +164,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-${{ github.sha }}
-      - name: Activate demo and verify the author login
+      - name: Activate demo and verify the passwordless cabinet
         env:
           GH_TOKEN: ${{ github.token }}
           DEMO_HOST: ${{ secrets.DEMO_SSH_HOST }}
@@ -178,4 +178,4 @@ jobs:
           printf '%s\n' "$DEMO_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/demo
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -i ~/.ssh/demo "poster-demo@$DEMO_HOST" "release $GITHUB_SHA" < app.tar.gz
-          test "$(curl -sS -o /dev/null -w '%{http_code}' "$DEMO_URL/demo/tiktok/authors")" = 401
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$DEMO_URL/demo/tiktok/authors")" = 200

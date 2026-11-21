@@ -32,16 +32,17 @@ final readonly class CallbackAction
         }
 
         try {
-            // Explicit Sandbox credentials on an unsaved adapter for the shared Login Kit exchange.
+            // Explicit credentials for the selected environment on an unsaved adapter for the shared Login Kit exchange.
             $channel = new Channel(['type' => ChannelType::TIKTOK, 'client_id' => Payload::string(config('tiktok_demo.key'), 'key'),
                 'client_secret' => Payload::string(config('tiktok_demo.secret'), 'secret')]);
             $tokens = $this->client->exchange($channel, $code, Payload::string(config('tiktok_demo.redirect'), 'redirect'), ConnectAction::SCOPES);
+            $this->session->regenerate(true);
             $this->session->put("$key.profile", [
                 'name' => Payload::string($tokens['account_name'], 'name'),
                 'access' => Crypt::encryptString(Payload::string($tokens['access_token'], 'token')),
                 'expires' => Payload::string($tokens['expires_at'], 'expiry'),
             ]);
-            $this->session->forget("$key.operation");
+            $this->session->forget(["$key.operation", "$key.direct"]);
         } catch (ConnectionException|RuntimeException) {
             $this->session->flash("$key.notice", 'Подключение не удалось. Проверьте разрешения и повторите вход.');
         }

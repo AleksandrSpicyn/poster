@@ -20,7 +20,7 @@ test('открывает Login Kit с отдельным ключом и еди�
 
     expect(parse_url($url, PHP_URL_HOST))->toBe('www.tiktok.com')
         ->and($query['client_key'])->toBe('sandbox-key')
-        ->and($query['scope'])->toBe('user.info.basic,video.list,video.upload')
+        ->and($query['scope'])->toBe('user.info.basic,video.list,video.upload,video.publish')
         ->and($query['redirect_uri'])->toBe(config('tiktok_demo.redirect'))
         ->and(strlen($query['state']))->toBe(64);
     $response->assertSessionHas('tiktok_demo.state.value', $query['state']);

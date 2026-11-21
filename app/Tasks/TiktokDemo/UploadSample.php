@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Tasks\TiktokDemo;
 
 use App\Classes\Tiktok\TiktokClient;
+use App\Classes\Tiktok\TransferVideo;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
 
 final readonly class UploadSample
 {
-    public function __construct(private TiktokClient $client) {}
+    public function __construct(private TiktokClient $client, private TransferVideo $transfer) {}
 
     public function run(string $access): void
     {
@@ -24,15 +24,6 @@ final readonly class UploadSample
         ]);
         $url = $this->client->data($response, 'upload_url');
 
-        if (! is_string($url) || parse_url($url, PHP_URL_SCHEME) !== 'https' || ! str_ends_with((string) parse_url($url, PHP_URL_HOST), '.tiktokapis.com')) {
-            throw new RuntimeException('Invalid upload destination');
-        }
-
-        $transfer = Http::withoutRedirecting()->timeout(45)->withBody($bytes, 'video/mp4')
-            ->withHeaders(['Content-Range' => sprintf('bytes 0-%d/%d', $size - 1, $size)])->put($url);
-
-        if ($transfer->status() !== 201) {
-            throw new RuntimeException('Transfer not confirmed');
-        }
+        $this->transfer->run($url, $bytes);
     }
 }

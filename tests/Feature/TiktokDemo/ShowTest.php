@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\Http;
 use function Pest\Laravel\get;
 use function Pest\Laravel\withSession;
 
-test('демо выключено по умолчанию и требует отдельного входа', function (): void {
+test('демо выключено по умолчанию и открывается без пароля после включения', function (): void {
     get(route('tiktok-demo.show'))->assertNotFound();
     config(['tiktok_demo.enabled' => true]);
 
-    get(route('tiktok-demo.show'))->assertUnauthorized();
+    get(route('tiktok-demo.show'))->assertOk()->assertSee('Подключить TikTok')->assertSessionHas('tiktok_demo.owner');
 });
 
 test('автор видит только свой профиль, счётчики и операции', function (): void {
@@ -35,3 +35,15 @@ test('различает пустой список и отказ провайд�
 
     get(route('tiktok-demo.show', 'author-b'))->assertOk()->assertSee($shown)->assertDontSee($hidden);
 })->with([[200, 'Публичных роликов пока нет', 'Не удалось загрузить'], [500, 'Не удалось загрузить', 'Публичных роликов пока нет']]);
+
+test('смена окружения сбрасывает профиль, ожидающий callback и операцию', function (): void {
+    authenticateDemoAuthor();
+    withSession(['tiktok_demo.author-a.profile' => demoProfile('Alpha'), 'tiktok_demo.state' => ['value' => 'old'],
+        'tiktok_demo.author-a.direct.id' => 'old-operation']);
+    config(['tiktok_demo.mode' => 'production']);
+
+    get(route('tiktok-demo.show'))->assertOk()->assertSee('Подключить TikTok')->assertDontSee('Alpha')
+        ->assertSessionMissing('tiktok_demo.state')->assertSessionMissing('tiktok_demo.author-a.direct.id');
+
+    Http::assertNothingSent();
+});
