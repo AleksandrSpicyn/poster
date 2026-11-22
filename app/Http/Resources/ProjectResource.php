@@ -37,6 +37,7 @@ class ProjectResource extends JsonResource
             'is_clipping' => $this->isClippingProject(),
             'content_mode_label' => $this->opus_source_id !== null ? 'OpusClip' : $this->content_mode->label(),
             'is_active' => $this->is_active,
+            'archived_at' => $this->archived_at?->toISOString(),
             'prompts_count' => $this->whenCounted('prompts'),
             'blocking_runs_count' => $this->whenHas('blocking_runs_count'),
             'ready_prompts_count' => $this->whenCounted('readyPrompts'),

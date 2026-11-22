@@ -188,3 +188,18 @@ test('группирует собственные проекты клиппин�
             ->where('projects.data.2.id', $fallback->id)
             ->where('projects.data.2.cover', null));
 });
+
+test('архив отделяет собственные архивные проекты от приостановленных', function (): void {
+    $owner = User::factory()->create();
+    $paused = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
+    $archived = Project::factory()->create(['owner_id' => $owner->id, 'archived_at' => now()]);
+    Project::factory()->create(['archived_at' => now()]);
+
+    actingAs($owner)->get(route('projects.index'))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('projects.meta.total', 1)->where('projects.data.0.id', $paused->id));
+
+    get(route('projects.index', ['archived' => 1]))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('projects.meta.total', 1)->where('projects.data.0.id', $archived->id));
+
+    get(route('projects.show', $archived))->assertOk();
+});

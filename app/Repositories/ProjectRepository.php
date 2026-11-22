@@ -44,6 +44,7 @@ readonly class ProjectRepository extends EloquentRepository
         $direction = $data->sort ?? SortDirection::DESC;
 
         return $query
+            ->whereNull('archived_at', not: $data->archived)
             ->when($data->clipping, fn(Builder $query) => $query->where(fn(Builder $projects) => $projects
                 ->whereNotNull('clipping_connection_id')->orWhereNotNull('clipping_workspace')->orWhereNotNull('opus_source_id')))
             ->when($data->active, fn($query) => $query->where('is_active', true))
@@ -55,6 +56,12 @@ readonly class ProjectRepository extends EloquentRepository
             ->orderBy('id', $direction->value)
             ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
             ->withQueryString();
+    }
+
+    public function setArchived(Project $project, bool $archived): void
+    {
+        Project::query()->whereKey($project->id)->whereNull('archived_at', not: ! $archived)
+            ->update(['archived_at' => $archived ? now() : null]);
     }
 
     public function information(User $owner, int $id): Project

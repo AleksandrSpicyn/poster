@@ -48,6 +48,11 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: page.props.project.name, href: route('projects.show', page.props.project.id) },
 ]);
 const viewingClip = ref(false);
+const archiveForm = useForm({ archived: false });
+function toggleArchive() {
+    archiveForm.archived = !page.props.project.archived_at;
+    archiveForm.patch(route('projects.archive', page.props.project.id));
+}
 const managing = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'management');
 const deleteOpen = ref(false);
 const deleteError = ref('');
@@ -301,6 +306,15 @@ function destroyProject() {
                         <dd>{{ formatProjectDate(page.props.project.updated_at) }}</dd>
                     </div>
                 </dl>
+                <section
+                    class="flex flex-col items-start justify-between gap-4 rounded-xl border p-5 sm:flex-row sm:items-center"
+                    aria-labelledby="archive-project-heading"
+                >
+                    <h2 id="archive-project-heading" class="font-semibold">Архив проекта</h2>
+                    <Button variant="outline" :disabled="archiveForm.processing" @click="toggleArchive">{{
+                        page.props.project.archived_at ? 'Вернуть из архива' : 'Архивировать проект'
+                    }}</Button>
+                </section>
                 <section
                     class="flex flex-col items-start justify-between gap-4 rounded-xl border p-5 sm:flex-row sm:items-center"
                     aria-labelledby="delete-project-heading"

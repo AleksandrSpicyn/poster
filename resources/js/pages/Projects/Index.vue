@@ -23,6 +23,7 @@ const { filters, loading, error, applyFilters, changePerPage, changePage, refres
     alphabetical: Number(!!page.props.filters.alphabetical),
     clipping: Number(!!page.props.filters.clipping),
     active: Number(!!page.props.filters.active),
+    archived: Number(!!page.props.filters.archived),
     updated: Number(!!page.props.filters.updated),
     sort: page.props.filters.sort,
     perPage: page.props.projects.meta.per_page,
@@ -74,8 +75,9 @@ function runSearch() {
     applyFilters();
 }
 const results = computed(() => !searching.value && (!!page.props.filters.search || !!error.value));
-function selectGroup(active: boolean) {
-    filters.active = Number(active);
+function selectGroup(group: 'all' | 'active' | 'archived') {
+    filters.active = Number(group === 'active');
+    filters.archived = Number(group === 'archived');
     applyFilters();
 }
 function toggleUpdated() {
@@ -86,6 +88,7 @@ function toggleUpdated() {
 function clearSearch() {
     filters.search = '';
     filters.active = 0;
+    filters.archived = 0;
     filters.alphabetical = 0;
     filters.updated = 0;
     filters.sort = 'desc';
@@ -224,7 +227,7 @@ function clearSearch() {
                         >
                     </p>
                     <div class="result-chips flex flex-wrap gap-2">
-                        <span>{{ filters.active ? 'Активные' : 'Все проекты' }}</span><span>{{
+                        <span>{{ filters.archived ? 'В архиве' : filters.active ? 'Активные' : 'Все проекты' }}</span><span>{{
                             filters.alphabetical ? 'По названию' : filters.sort === 'asc' ? 'Сначала старые' : 'Новые сверху'
                         }}</span>
                     </div>
@@ -239,7 +242,13 @@ function clearSearch() {
                     </template>
                     <template v-else-if="!page.props.projects.data.length"
                         ><CircleSlash class="empty-symbol" aria-hidden="true" /><strong class="text-xl">Совпадений нет</strong>
-                        <p>Попробуйте другое название или измените фильтры.</p>
+                        <p>
+                            {{
+                                filters.archived
+                                    ? 'Попробуйте другое название или снимите фильтр «В архиве».'
+                                    : 'Попробуйте другое название или измените фильтры.'
+                            }}
+                        </p>
                         <Button class="justify-self-start" variant="outline" @click="clearSearch">Очистить фильтры</Button></template
                     >
                     <ul v-else>
@@ -304,11 +313,17 @@ function clearSearch() {
             <ProjectCoverGallery v-else-if="page.props.filters.clipping" :projects="page.props.projects" :loading="loading" @page="changePage" />
             <template v-else>
                 <div class="project-tabs flex flex-wrap gap-2" aria-label="Фильтры проектов">
-                    <Button :variant="filters.active ? 'secondary' : 'default'" :aria-pressed="!filters.active" @click="selectGroup(false)"
+                    <Button
+                        :variant="filters.active || filters.archived ? 'secondary' : 'default'"
+                        :aria-pressed="!filters.active && !filters.archived"
+                        @click="selectGroup('all')"
                         >Все</Button
                     >
-                    <Button :variant="filters.active ? 'default' : 'secondary'" :aria-pressed="!!filters.active" @click="selectGroup(true)"
+                    <Button :variant="filters.active ? 'default' : 'secondary'" :aria-pressed="!!filters.active" @click="selectGroup('active')"
                         >Активные</Button
+                    >
+                    <Button :variant="filters.archived ? 'default' : 'secondary'" :aria-pressed="!!filters.archived" @click="selectGroup('archived')"
+                        >В архиве</Button
                     >
                     <Button :variant="filters.updated ? 'default' : 'secondary'" :aria-pressed="!!filters.updated" @click="toggleUpdated"
                         >По дате изменения</Button
@@ -324,7 +339,13 @@ function clearSearch() {
                     :count="page.props.projects.data.length"
                     :loading="loading"
                     :error="error"
-                    :empty-title="page.props.filters.search || filters.active ? 'Проекты не найдены' : 'Создайте первый проект'"
+                    :empty-title="
+                        filters.archived
+                            ? 'Архив пуст'
+                            : page.props.filters.search || filters.active
+                              ? 'Проекты не найдены'
+                              : 'Создайте первый проект'
+                    "
                     :empty-description="
                         page.props.filters.search ? 'Попробуйте другое название или фразу из промпта.' : 'Здесь появятся ваши проекты и их каналы.'
                     "

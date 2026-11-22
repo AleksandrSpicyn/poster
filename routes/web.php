@@ -13,6 +13,7 @@ use App\Http\Controllers\Posts\TiktokStoreController;
 use App\Http\Controllers\ProjectCovers\EditController as ProjectCoverEditController;
 use App\Http\Controllers\ProjectCovers\ShowController as ProjectCoverShowController;
 use App\Http\Controllers\ProjectCovers\StoreController as ProjectCoverStoreController;
+use App\Http\Controllers\Projects\ArchiveController as ProjectsArchiveController;
 use App\Http\Controllers\Projects\CreateController as ProjectsCreateController;
 use App\Http\Controllers\Projects\DestroyController as ProjectsDestroyController;
 use App\Http\Controllers\Projects\EditController as ProjectsEditController;
@@ -67,6 +68,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(func
             Route::post('', ProjectCoverStoreController::class)->name('store');
         });
         Route::get('{project}/edit', ProjectsEditController::class)->whereNumber('project')->name('edit');
+        Route::patch('{project}/archive', ProjectsArchiveController::class)->whereNumber('project')->name('archive');
         Route::patch('{project}', ProjectsUpdateController::class)->whereNumber('project')->name('update');
         Route::delete('{project}', ProjectsDestroyController::class)->whereNumber('project')->name('destroy');
     });
