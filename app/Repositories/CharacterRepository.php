@@ -18,7 +18,7 @@ readonly class CharacterRepository extends EloquentRepository
 
     public function workspace(Character $character, int $page): CharacterWorkspaceData
     {
-        $character->load('series.project', 'currentRevision');
+        $character->load('series.project', 'currentRevision.media');
 
         return new CharacterWorkspaceData(
             character: $character,

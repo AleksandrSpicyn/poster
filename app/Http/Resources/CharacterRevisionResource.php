@@ -20,6 +20,7 @@ class CharacterRevisionResource extends JsonResource
             'number' => $this->number,
             'character_name' => $this->whenLoaded('character', fn(): ?string => $this->character?->name),
             'status' => $this->status->value,
+            'title' => $this->title,
             'description' => $this->description,
             'appearance' => $this->appearance,
             'voice' => $this->voice,

@@ -24,5 +24,7 @@ class CharacterRevisionData extends Data
         public array $voice = [],
         #[Min(0)]
         public ?int $lock_version = null,
+        #[Max(255)]
+        public ?string $title = null,
     ) {}
 }

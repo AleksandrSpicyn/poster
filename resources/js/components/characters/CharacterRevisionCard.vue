@@ -5,10 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CharacterRevision, CharacterRouteParams } from '@/types/series';
 import { useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
-const props = defineProps<{ revision: CharacterRevision; params: CharacterRouteParams; referenceViews: Record<string, string>; archived: boolean }>();
+const props = defineProps<{
+    revision: CharacterRevision;
+    params: CharacterRouteParams;
+    referenceViews: Record<string, string>;
+    archived: boolean;
+    uploadOnly?: boolean;
+}>();
+const emit = defineEmits<{ openUpload: [] }>();
 const route = useRoute();
 const params = { ...props.params, revision: props.revision.id };
 const editable = computed(() => props.revision.status === 'draft' && !props.archived);
@@ -26,6 +33,44 @@ const uploadErrors = computed<Record<string, string | undefined>>(() => uploadFo
 const approvalErrors = computed<Record<string, string | undefined>>(() => approvalForm.errors);
 const removeErrors = computed<Record<string, string | undefined>>(() => removeForm.errors);
 const busy = computed(() => editForm.processing || uploadForm.processing || approvalForm.processing || removeForm.processing);
+const viewLabels: Record<string, string> = {
+    front: 'Анфас',
+    profile: 'Профиль',
+    three_quarter: 'Три четверти',
+    full_body: 'В полный рост',
+    expression: 'Выражение лица',
+    other: 'Другой ракурс',
+};
+function viewLabel(view: string) {
+    return viewLabels[view] ?? props.referenceViews[view] ?? view;
+}
+
+const fileInput = ref<HTMLInputElement | null>(null);
+const previewUrl = ref('');
+const dragging = ref(false);
+
+watch(
+    () => uploadForm.file,
+    (file, _, cleanup) => {
+        if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            previewUrl.value = '';
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        previewUrl.value = url;
+        cleanup(() => URL.revokeObjectURL(url));
+    },
+);
+
+function dropFile(event: DragEvent) {
+    dragging.value = false;
+    const files = event.dataTransfer?.files;
+    if (busy.value || editForm.isDirty || !fileInput.value || files?.length !== 1) return;
+    fileInput.value.files = files;
+    uploadForm.file = files[0];
+    uploadForm.clearErrors('file');
+}
+
 function update() {
     editForm.patch(route('characters.revisions.update', params), { preserveScroll: true, preserveState: 'errors' });
 }
@@ -40,110 +85,139 @@ function remove(media: number) {
 }
 function selectFile(event: Event) {
     uploadForm.file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    uploadForm.clearErrors('file');
 }
 </script>
 
 <template>
     <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 class="font-semibold">Версия {{ revision.number }}</h2>
-            <span class="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs">{{ revision.status }}</span>
-        </div>
-        <form v-if="editable" class="grid gap-4" :aria-busy="editForm.processing" @submit.prevent="update">
-            <div class="grid gap-2">
-                <Label :for="'revision-description-' + revision.id">Описание героя</Label
-                ><textarea
-                    :id="'revision-description-' + revision.id"
-                    v-model="editForm.description"
-                    rows="5"
-                    required
-                    maxlength="10000"
-                    :disabled="busy"
-                    class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
-                /><InputError :message="editForm.errors.description" />
+        <template v-if="!uploadOnly">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 class="font-semibold">Версия {{ revision.number }}</h2>
+                <span class="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs">{{
+                    revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик'
+                }}</span>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
+            <form v-if="editable" class="grid gap-4" :aria-busy="editForm.processing" @submit.prevent="update">
                 <div class="grid gap-2">
-                    <Label :for="'revision-notes-' + revision.id">Детали внешности</Label
-                    ><Input
-                        :id="'revision-notes-' + revision.id"
-                        v-model="editForm.appearance.notes"
+                    <Label :for="'revision-description-' + revision.id">Описание героя</Label
+                    ><textarea
+                        :id="'revision-description-' + revision.id"
+                        v-model="editForm.description"
+                        rows="5"
+                        required
+                        maxlength="10000"
                         :disabled="busy"
-                        placeholder="Clothes, proportions, distinctive details"
-                    />
+                        class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
+                    /><InputError :message="editForm.errors.description" />
                 </div>
-                <div class="grid gap-2">
-                    <Label :for="'revision-voice-' + revision.id">Голос и манера речи</Label
-                    ><Input
-                        :id="'revision-voice-' + revision.id"
-                        v-model="editForm.voice.description"
-                        :disabled="busy"
-                        placeholder="Тембр, акцент, темп"
-                    />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label :for="'revision-notes-' + revision.id">Детали внешности</Label
+                        ><Input
+                            :id="'revision-notes-' + revision.id"
+                            v-model="editForm.appearance.notes"
+                            :disabled="busy"
+                            placeholder="Одежда, черты лица, пропорции"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="'revision-voice-' + revision.id">Голос и манера речи</Label
+                        ><Input
+                            :id="'revision-voice-' + revision.id"
+                            v-model="editForm.voice.description"
+                            :disabled="busy"
+                            placeholder="Тембр, акцент, темп"
+                        />
+                    </div>
                 </div>
+                <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
+                <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить изменения</Button></div>
+            </form>
+            <div v-else class="space-y-2">
+                <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
+                <p class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
             </div>
-            <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
-            <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить изменения</Button></div>
-        </form>
-        <div v-else class="space-y-2">
-            <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
-            <p class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
-        </div>
-        <div class="space-y-3">
-            <h3 class="text-sm font-semibold">Референсы</h3>
-            <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">Добавьте изображения анфас, в профиль и в полный рост.</p>
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                <figure v-for="reference in revision.references ?? []" :key="reference.id" class="min-w-0 space-y-2">
-                    <a
-                        :href="reference.url"
-                        target="_blank"
-                        rel="noopener"
-                        class="focus-visible:ring-ring/50 block overflow-hidden rounded-lg border outline-none focus-visible:ring-2"
-                        ><img
-                            :src="reference.url"
-                            :alt="reference.label || 'Образ персонажа · ' + reference.view"
-                            loading="lazy"
-                            class="bg-muted aspect-square w-full object-contain"
-                    /></a>
-                    <figcaption class="text-muted-foreground text-xs break-words">
-                        {{ reference.label || referenceViews[reference.view] || reference.view }}
-                    </figcaption>
-                    <Button
-                        v-if="editable"
-                        type="button"
-                        variant="outline"
-                        class="h-11 w-full"
+            <div class="space-y-3">
+                <h3 class="text-sm font-semibold">Референсы</h3>
+                <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">
+                    Добавьте изображения анфас, в профиль и в полный рост.
+                </p>
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                    <figure v-for="reference in revision.references ?? []" :key="reference.id" class="min-w-0 space-y-2">
+                        <a
+                            :href="reference.url"
+                            target="_blank"
+                            rel="noopener"
+                            class="focus-visible:ring-ring/50 block overflow-hidden rounded-lg border outline-none focus-visible:ring-2"
+                            ><img
+                                :src="reference.url"
+                                :alt="reference.label || 'Образ персонажа · ' + viewLabel(reference.view)"
+                                loading="lazy"
+                                class="bg-muted aspect-square w-full object-contain"
+                        /></a>
+                        <figcaption class="text-muted-foreground text-xs break-words">
+                            {{ reference.label || viewLabel(reference.view) }}
+                        </figcaption>
+                        <Button
+                            v-if="editable"
+                            type="button"
+                            variant="outline"
+                            class="h-11 w-full"
+                            :disabled="busy || editForm.isDirty"
+                            @click="remove(reference.id)"
+                            >Удалить референс</Button
+                        >
+                    </figure>
+                </div>
+                <InputError :message="removeForm.errors.lock_version" /><InputError :message="removeErrors.revision" />
+            </div>
+            <Button v-if="editable" type="button" variant="outline" :disabled="busy || editForm.isDirty" @click="emit('openUpload')"
+                >Добавить референс</Button
+            >
+        </template>
+        <form v-if="editable && uploadOnly" class="grid min-w-0 gap-4" @submit.prevent="upload">
+            <h2 class="text-xl font-semibold">Добавление референса</h2>
+            <slot name="version" />
+            <div class="grid min-w-0 gap-2">
+                <span class="text-muted-foreground text-sm">Загрузить изображение</span>
+                <label
+                    class="bg-muted focus-within:ring-ring flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-2 text-sm focus-within:ring-2"
+                    :class="{ 'border-primary': dragging }"
+                    @dragover.prevent="dragging = true"
+                    @dragleave="dragging = false"
+                    @drop.prevent="dropFile"
+                >
+                    Перетащите файл или выберите его с устройства
+                    <span class="text-primary" aria-hidden="true">↑</span>
+                    <input
+                        ref="fileInput"
+                        class="sr-only"
+                        type="file"
+                        aria-label="Файл изображения"
+                        accept="image/png,image/jpeg,image/webp"
+                        required
                         :disabled="busy || editForm.isDirty"
-                        @click="remove(reference.id)"
-                        >Удалить референс</Button
+                        @change="selectFile"
+                    />
+                </label>
+                <div v-if="uploadForm.file" class="flex min-w-0 items-center gap-3" role="status">
+                    <img v-if="previewUrl" :src="previewUrl" alt="" class="h-14 w-20 shrink-0 rounded-md object-cover" />
+                    <strong class="text-sm break-all"
+                        >{{ uploadForm.file.name }} · {{ viewLabel(uploadForm.view).toLocaleLowerCase('ru') }} · выбран</strong
                     >
-                </figure>
-            </div>
-            <InputError :message="removeForm.errors.lock_version" /><InputError :message="removeErrors.revision" />
-        </div>
-        <form v-if="editable" class="grid gap-4 border-t pt-5 sm:grid-cols-2" @submit.prevent="upload">
-            <div class="grid gap-2">
-                <Label :for="'reference-file-' + revision.id">Файл изображения</Label
-                ><Input
-                    :id="'reference-file-' + revision.id"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    required
-                    :disabled="busy || editForm.isDirty"
-                    @change="selectFile"
-                />
-                <p class="text-muted-foreground text-xs">PNG, JPEG или WebP до 10 МБ. Перед загрузкой сохраните изменения образа.</p>
+                </div>
                 <InputError :message="uploadForm.errors.file" />
             </div>
             <div class="grid gap-2">
-                <Label :for="'reference-view-' + revision.id">Ракурс</Label
+                <Label :for="'reference-view-' + revision.id">Проекция</Label
                 ><select
                     :id="'reference-view-' + revision.id"
                     v-model="uploadForm.view"
                     :disabled="busy"
                     class="border-input bg-background h-11 rounded-md border px-3 text-sm"
                 >
-                    <option v-for="(label, value) in referenceViews" :key="value" :value="value">{{ label }}</option></select
+                    <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value">{{ viewLabel(value) }}</option></select
                 ><InputError :message="uploadForm.errors.view" />
             </div>
             <div class="grid gap-2">
@@ -157,13 +231,13 @@ function selectFile(event: Event) {
                 /><InputError :message="uploadForm.errors.label" />
             </div>
             <div class="flex items-end">
-                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">Загрузить референс</Button>
+                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">Добавить референс</Button>
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError
                 :message="uploadErrors.character"
             />
         </form>
-        <form v-if="editable" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="approve">
+        <form v-if="editable && !uploadOnly" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="approve">
             <div class="max-w-prose">
                 <p class="text-muted-foreground text-sm">Утвердите версию, когда образ и референсы готовы к использованию в эпизодах.</p>
                 <InputError :message="approvalForm.errors.lock_version" /><InputError :message="approvalErrors.revision" /><InputError

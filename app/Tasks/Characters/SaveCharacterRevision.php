@@ -46,7 +46,11 @@ class SaveCharacterRevision
         ]);
         $revision->fill(['description' => $data->description, 'appearance' => $data->appearance, 'voice' => $data->voice]);
 
-        if ($revision->exists && $revision->isDirty(['description', 'appearance', 'voice'])) {
+        if ($data->title !== null) {
+            $revision->title = $data->title;
+        }
+
+        if ($revision->exists && $revision->isDirty(['title', 'description', 'appearance', 'voice'])) {
             $revision->lock_version++;
         }
 

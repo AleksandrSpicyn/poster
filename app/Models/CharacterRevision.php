@@ -21,6 +21,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property int $character_id
  * @property int $number
  * @property RevisionStatus $status
+ * @property string|null $title
  * @property string $description
  * @property array<string, mixed> $appearance
  * @property array<string, mixed> $voice
@@ -44,6 +45,7 @@ class CharacterRevision extends Model implements HasMedia
         'character_id',
         'number',
         'status',
+        'title',
         'description',
         'appearance',
         'voice',

@@ -64,6 +64,14 @@ readonly class MediaRepository extends EloquentRepository
         return Media::query()->where('collection_name', Prompt::SHOT_VIDEO)->findOrFail($id);
     }
 
+    public function referenceByFileName(CharacterRevision $revision, string $fileName): ?Media
+    {
+        return $revision->media()
+            ->where('collection_name', CharacterRevision::REFERENCES)
+            ->where('file_name', $fileName)
+            ->first();
+    }
+
     public function referenceForRevision(CharacterRevision $revision, int $id): Media
     {
         return $revision->media()

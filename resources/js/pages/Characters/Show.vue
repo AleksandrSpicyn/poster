@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterRevision, CharacterSummary, SeriesSummary } from '@/types/series';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -22,20 +22,43 @@ const props = defineProps<{
     referenceViews: Record<string, string>;
 }>();
 const route = useRoute();
-const newVersion = ref(false);
-const descriptionField = ref<HTMLTextAreaElement | null>(null);
+const archived = computed(() => !!props.character.archived_at || !!props.series.archived_at);
+const sectionHash = ref('');
+const newVersion = computed(() => !archived.value && sectionHash.value === '#new-version');
+const versionDetails = computed(() => sectionHash.value.startsWith('#revision-') || sectionHash.value === '#character-reference-list');
+const editableVersions = computed(() => (archived.value ? [] : props.revisions.data.filter((revision) => revision.status === 'draft')));
+const uploadRevision = computed(() => editableVersions.value.find((revision) => sectionHash.value === '#references-' + revision.id));
+const referenceCount = computed(() => props.revisions.data.reduce((total, version) => total + (version.references?.length ?? 0), 0));
+const referenceCountLabel = computed(() => {
+    const count = referenceCount.value;
+    const ending = new Intl.PluralRules('ru').select(count);
+    return count + ' ' + (ending === 'one' ? 'изображение' : ending === 'few' ? 'изображения' : 'изображений');
+});
+function readHash() {
+    sectionHash.value = window.location.hash;
+    if (uploadRevision.value || newVersion.value) window.scrollTo(0, 0);
+}
+function showUpload(id: number) {
+    window.location.hash = 'references-' + id;
+}
+onMounted(() => {
+    readHash();
+    window.addEventListener('hashchange', readHash);
+});
+onUnmounted(() => window.removeEventListener('hashchange', readHash));
+const titleField = ref<HTMLInputElement | null>(null);
 const portrait = computed(
     () => props.character.current_revision?.references?.[0] ?? props.revisions.data.flatMap((version) => version.references ?? [])[0],
 );
 async function openVersion() {
-    newVersion.value = true;
+    window.location.hash = 'new-version';
+    readHash();
     await nextTick();
-    descriptionField.value?.focus();
+    titleField.value?.focus();
 }
 const params = { project: props.project.id, series: props.series.id, character: props.character.id };
-const archived = !!props.character.archived_at || !!props.series.archived_at;
 const nameForm = useForm({ name: props.character.name, lock_version: props.character.lock_version });
-const revisionForm = useForm({ description: '', appearance: { notes: '' }, voice: { description: '' } });
+const revisionForm = useForm({ title: '', description: '', file: null as File | null });
 const revisionErrors = computed<Record<string, string | undefined>>(() => revisionForm.errors);
 const archiveForm = useForm({ lock_version: props.character.lock_version });
 const breadcrumbs = [
@@ -47,7 +70,15 @@ function saveName() {
     nameForm.patch(route('characters.update', params), { preserveState: 'errors' });
 }
 function createRevision() {
-    revisionForm.post(route('characters.revisions.store', params), { preserveState: 'errors' });
+    revisionForm.post(route('characters.revisions.store', params), {
+        preserveState: 'errors',
+        onError: () => {
+            window.location.hash = 'new-version';
+        },
+        onSuccess: () => {
+            window.location.hash = 'overview';
+        },
+    });
 }
 function archive() {
     archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
@@ -60,137 +91,257 @@ function changePage(page: number) {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="character.name" />
-        <div class="workspace-page max-w-6xl">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading title="Персонаж" :description="series.name + ' / Персонажи / ' + character.name" />
-                <Button v-if="!archived" class="h-11" @click="openVersion">Новая версия</Button>
+        <div class="workspace-page" :class="{ 'character-overview': !uploadRevision && !newVersion }">
+            <div class="character-header">
+                <Heading
+                    :title="uploadRevision || newVersion ? character.name : 'Персонаж'"
+                    :description="uploadRevision ? 'Референсы' : newVersion ? 'Версии' : series.name + ' / Персонажи / ' + character.name"
+                />
+                <Button v-if="!archived && !uploadRevision && !newVersion" class="h-11" @click="openVersion">Новая версия</Button>
             </div>
-            <div class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+            <div
+                v-if="uploadRevision || newVersion"
+                class="grid w-full max-w-[1240px] items-start gap-5 min-[1100px]:grid-cols-[minmax(0,2.37fr)_minmax(0,1fr)]"
+            >
+                <CharacterRevisionCard
+                    v-if="uploadRevision"
+                    :key="uploadRevision.id + ':' + uploadRevision.lock_version"
+                    :revision="uploadRevision"
+                    :params="params"
+                    :reference-views="referenceViews"
+                    :archived="archived"
+                    upload-only
+                >
+                    <template #version>
+                        <label class="grid min-w-0 gap-2 text-sm"
+                            >Версия персонажа
+                            <select
+                                :value="uploadRevision.id"
+                                class="list-select w-full"
+                                @change="showUpload(Number(($event.target as HTMLSelectElement).value))"
+                            >
+                                <option v-for="revision in editableVersions" :key="revision.id" :value="revision.id">
+                                    {{ String(revision.number).padStart(2, '0') }} · черновик
+                                </option>
+                            </select>
+                        </label>
+                    </template>
+                </CharacterRevisionCard>
+                <form v-else-if="!archived" class="studio-panel grid min-w-0 gap-3" @submit.prevent="createRevision">
+                    <h2 class="text-xl font-semibold">Новая версия</h2>
+                    <div v-if="character.current_revision" class="flex items-center gap-3">
+                        <img v-if="portrait" :src="portrait.url" :alt="character.name" class="h-14 w-20 rounded-lg object-cover" />
+                        <strong>Текущий образ · версия {{ String(character.current_revision.number).padStart(2, '0') }}</strong>
+                    </div>
+                    <label class="grid gap-2 text-sm"
+                        >Название версии
+                        <input
+                            ref="titleField"
+                            v-model="revisionForm.title"
+                            required
+                            maxlength="255"
+                            class="border-input bg-background h-11 w-full rounded-md border px-3"
+                            :disabled="revisionForm.processing"
+                        />
+                        <InputError :message="revisionForm.errors.title" />
+                    </label>
+                    <label class="grid gap-2 text-sm"
+                        >Описание внешности
+                        <textarea
+                            v-model="revisionForm.description"
+                            required
+                            maxlength="10000"
+                            rows="1"
+                            class="border-input bg-background min-h-11 w-full resize-y rounded-md border px-3 py-2"
+                            :disabled="revisionForm.processing"
+                        />
+                        <InputError :message="revisionForm.errors.description" />
+                    </label>
+                    <label class="relative grid gap-2 text-sm"
+                        >Референс новой версии
+                        <span class="bg-muted flex min-h-11 items-center justify-between rounded-md border px-3 focus-within:ring-2"
+                            >{{ revisionForm.file?.name || 'Выбрать изображение' }} <span aria-hidden="true">↑</span></span
+                        >
+                        <input
+                            type="file"
+                            class="absolute inset-x-0 bottom-0 h-11 w-full cursor-pointer opacity-0"
+                            accept="image/jpeg,image/png,image/webp"
+                            :disabled="revisionForm.processing"
+                            @change="revisionForm.file = ($event.target as HTMLInputElement).files?.[0] ?? null"
+                        />
+                    </label>
+                    <InputError :message="revisionForm.errors.file || revisionErrors.character" />
+                    <Button type="submit" class="h-11 justify-self-start" :disabled="revisionForm.processing">Создать версию</Button>
+                </form>
+                <aside class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
+                    <img v-if="portrait" :src="portrait.url" :alt="character.name" class="aspect-[2.8] w-full rounded-lg object-cover" />
+                    <strong>{{ series.name }}</strong>
+                    <div>
+                        <p class="text-muted-foreground text-sm">Проект</p>
+                        <Link :href="route('projects.show', project.id)">{{ project.name }}</Link>
+                    </div>
+                </aside>
+                <a href="#overview" class="text-sm underline">К персонажу</a>
+            </div>
+            <div v-else class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
                 <img
                     v-if="portrait"
                     :src="portrait.url"
                     :alt="portrait.label || character.name"
-                    class="aspect-[3/4] w-full rounded-xl object-cover"
+                    class="h-[211px] w-full rounded-xl object-cover md:h-[393px]"
                 />
                 <div v-else class="studio-panel">
                     <h2>{{ character.name }}</h2>
                     <p>Здесь появится референс персонажа.</p>
                 </div>
-                <div class="grid min-w-0 gap-4">
-                    <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-                        Персонаж или сериал в архиве. Версии доступны для просмотра.
-                    </p>
-                    <form v-if="!archived" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="saveName">
-                        <div class="grid min-w-48 flex-1 gap-2">
-                            <Label for="character-edit-name">Имя персонажа</Label
-                            ><Input
-                                id="character-edit-name"
-                                v-model="nameForm.name"
-                                required
-                                maxlength="255"
-                                :disabled="nameForm.processing"
-                            /><InputError :message="nameForm.errors.name" /><InputError :message="nameForm.errors.lock_version" />
-                        </div>
-                        <Button type="submit" variant="outline" class="h-11" :disabled="nameForm.processing">Сохранить имя</Button>
-                    </form>
-                    <section v-if="!archived && (newVersion || revisionForm.hasErrors)" class="bg-card space-y-4 rounded-xl border p-5 sm:p-7">
-                        <h2 class="font-semibold">Новая версия образа</h2>
-                        <p class="text-muted-foreground text-sm">
-                            Опишите героя и добавьте ракурсы. Эпизоды сохранят версию образа, использованную при создании.
-                        </p>
-                        <form class="grid gap-4" @submit.prevent="createRevision">
-                            <div class="grid gap-2">
-                                <Label for="new-revision-description">Внешность и характер</Label
-                                ><textarea
-                                    id="new-revision-description"
-                                    ref="descriptionField"
-                                    v-model="revisionForm.description"
-                                    required
-                                    maxlength="10000"
-                                    rows="4"
-                                    :disabled="revisionForm.processing"
-                                    class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
-                                /><InputError :message="revisionForm.errors.description" /><InputError :message="revisionErrors.character" />
-                            </div>
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <Label for="new-revision-appearance">Детали внешности</Label
-                                    ><Input
-                                        id="new-revision-appearance"
-                                        v-model="revisionForm.appearance.notes"
-                                        placeholder="Одежда, черты лица, пропорции"
-                                    />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="new-revision-voice">Голос и манера речи</Label
-                                    ><Input id="new-revision-voice" v-model="revisionForm.voice.description" placeholder="Тембр, акцент, темп" />
-                                </div>
-                            </div>
-                            <div><Button type="submit" class="h-11" :disabled="revisionForm.processing">Создать черновик</Button></div>
-                        </form>
-                    </section>
-                    <div class="space-y-6">
-                        <CharacterRevisionCard
-                            v-for="revision in revisions.data"
-                            :key="revision.id + ':' + revision.lock_version"
-                            :revision="revision"
-                            :params="params"
-                            :reference-views="referenceViews"
-                            :archived="archived"
-                        />
-                        <p v-if="!revisions.data.length" class="text-muted-foreground p-5 text-sm">Пока нет версий образа.</p>
-                    </div>
-                    <nav
-                        v-if="revisions.meta.last_page > 1"
-                        class="flex flex-wrap items-center justify-between gap-3"
-                        aria-label="Страницы версий образа"
+                <section class="min-w-0" aria-labelledby="character-versions">
+                    <h2 id="character-versions" class="mb-4 text-xl font-semibold">Версии и референсы</h2>
+                    <a v-for="revision in revisions.data" :key="revision.id" class="character-version-row" :href="'#revision-' + revision.id">
+                        <strong>Версия {{ String(revision.number).padStart(2, '0') }}{{ revision.title ? ' · ' + revision.title : '' }}</strong>
+                        <span :class="revision.status === 'approved' ? 'text-primary' : 'text-muted-foreground'">
+                            {{ revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик' }}
+                        </span>
+                    </a>
+                    <a
+                        class="character-version-row"
+                        :href="editableVersions.length ? '#references-' + editableVersions[0].id : '#character-reference-list'"
                     >
-                        <Button
-                            variant="outline"
-                            class="h-11"
-                            :disabled="revisions.meta.current_page <= 1"
-                            @click="changePage(revisions.meta.current_page - 1)"
-                            >Предыдущие версии</Button
-                        >
-                        <p class="text-muted-foreground text-sm">Страница {{ revisions.meta.current_page }} из {{ revisions.meta.last_page }}</p>
-                        <Button
-                            variant="outline"
-                            class="h-11"
-                            :disabled="revisions.meta.current_page >= revisions.meta.last_page"
-                            @click="changePage(revisions.meta.current_page + 1)"
-                            >Следующие версии</Button
-                        >
-                    </nav>
-                    <div v-if="!archived" class="flex justify-end border-t pt-5">
-                        <ConfirmationDialog
-                            heading="Архивация персонажа"
-                            title="Архивировать персонажа?"
-                            description="Персонаж исчезнет из выбора для новых сцен. Принятые версии останутся в истории эпизодов."
-                            action="Архивировать персонажа"
-                            :processing="archiveForm.processing"
-                            :error="archiveForm.errors.lock_version"
-                            @confirm="archive"
-                        >
-                            <div class="studio-row">
-                                <dt>Версия</dt>
-                                <dd>
-                                    {{ character.current_revision ? character.current_revision.number + ' · утверждена' : 'Нет утверждённой версии' }}
-                                </dd>
-                            </div>
-                            <div class="studio-row">
-                                <dt>Использование</dt>
-                                <dd>{{ series.name }} · Эпизодов: {{ episodesCount }}</dd>
-                            </div>
-                        </ConfirmationDialog>
-                    </div>
-                    <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
-                        Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
-                    </p>
-                    <Button as-child variant="outline" class="h-11 self-start"
-                        ><Link :href="route('series.show', { project: project.id, series: series.id })">К сериалу</Link></Button
+                        <strong>Референсы</strong
+                        ><span class="text-muted-foreground">{{ referenceCountLabel }}{{ revisions.meta.last_page > 1 ? ' на странице' : '' }}</span>
+                    </a>
+                    <a v-if="!revisions.data.length || revisions.meta.last_page > 1" href="#character-reference-list" class="text-sm underline"
+                        >Все версии</a
                     >
+                </section>
+            </div>
+            <div v-if="versionDetails && !uploadRevision" id="character-reference-list" class="grid min-w-0 gap-4">
+                <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+                    Персонаж или сериал в архиве. Версии доступны для просмотра.
+                </p>
+                <form v-if="!archived" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="saveName">
+                    <div class="grid min-w-48 flex-1 gap-2">
+                        <Label for="character-edit-name">Имя персонажа</Label
+                        ><Input
+                            id="character-edit-name"
+                            v-model="nameForm.name"
+                            required
+                            maxlength="255"
+                            :disabled="nameForm.processing"
+                        /><InputError :message="nameForm.errors.name" /><InputError :message="nameForm.errors.lock_version" />
+                    </div>
+                    <Button type="submit" variant="outline" class="h-11" :disabled="nameForm.processing">Сохранить имя</Button>
+                </form>
+                <div class="space-y-6">
+                    <CharacterRevisionCard
+                        v-for="revision in revisions.data"
+                        :key="revision.id + ':' + revision.lock_version"
+                        :id="'revision-' + revision.id"
+                        @open-upload="showUpload(revision.id)"
+                        :revision="revision"
+                        :params="params"
+                        :reference-views="referenceViews"
+                        :archived="archived"
+                    />
+                    <p v-if="!revisions.data.length" class="text-muted-foreground p-5 text-sm">Пока нет версий образа.</p>
                 </div>
+                <nav
+                    v-if="revisions.meta.last_page > 1"
+                    class="flex flex-wrap items-center justify-between gap-3"
+                    aria-label="Страницы версий образа"
+                >
+                    <Button
+                        variant="outline"
+                        class="h-11"
+                        :disabled="revisions.meta.current_page <= 1"
+                        @click="changePage(revisions.meta.current_page - 1)"
+                        >Предыдущие версии</Button
+                    >
+                    <p class="text-muted-foreground text-sm">Страница {{ revisions.meta.current_page }} из {{ revisions.meta.last_page }}</p>
+                    <Button
+                        variant="outline"
+                        class="h-11"
+                        :disabled="revisions.meta.current_page >= revisions.meta.last_page"
+                        @click="changePage(revisions.meta.current_page + 1)"
+                        >Следующие версии</Button
+                    >
+                </nav>
+                <div v-if="!archived" class="flex justify-end border-t pt-5">
+                    <ConfirmationDialog
+                        heading="Архивация персонажа"
+                        title="Архивировать персонажа?"
+                        description="Персонаж исчезнет из выбора для новых сцен. Принятые версии останутся в истории эпизодов."
+                        action="Архивировать персонажа"
+                        :processing="archiveForm.processing"
+                        :error="archiveForm.errors.lock_version"
+                        @confirm="archive"
+                    >
+                        <div class="studio-row">
+                            <dt>Версия</dt>
+                            <dd>
+                                {{ character.current_revision ? character.current_revision.number + ' · утверждена' : 'Нет утверждённой версии' }}
+                            </dd>
+                        </div>
+                        <div class="studio-row">
+                            <dt>Использование</dt>
+                            <dd>{{ series.name }} · Эпизодов: {{ episodesCount }}</dd>
+                        </div>
+                    </ConfirmationDialog>
+                </div>
+                <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
+                    Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
+                </p>
+                <Button as-child variant="outline" class="h-11 self-start"
+                    ><Link :href="route('series.show', { project: project.id, series: series.id })">К сериалу</Link></Button
+                >
             </div>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.character-overview {
+    gap: 23px;
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .character-overview {
+        gap: 25px;
+    }
+}
+@media (max-width: 767px) {
+    .character-overview {
+        gap: 19px;
+    }
+}
+
+.character-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.character-version-row {
+    display: grid;
+    grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    min-height: 53px;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+}
+.character-version-row span {
+    font-size: 14px;
+}
+@media (max-width: 1099px) {
+    .character-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+@media (max-width: 767px) {
+    .character-version-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        min-height: 66px;
+    }
+}
+</style>

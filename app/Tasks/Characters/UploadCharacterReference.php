@@ -8,14 +8,16 @@ use App\Data\Characters\CharacterReferenceData;
 use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
 use App\Repositories\CharacterRevisionRepository;
+use App\Repositories\MediaRepository;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\MediaLibrary\MediaCollections\Filesystem;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
 class UploadCharacterReference
 {
-    public function __construct(private readonly CharacterRevisionRepository $characterRevisions) {}
+    public function __construct(private readonly CharacterRevisionRepository $characterRevisions, private readonly MediaRepository $mediaRepository, private readonly Filesystem $files) {}
 
     public function run(CharacterRevision $revision, CharacterReferenceData $data): Media
     {
@@ -63,11 +65,12 @@ class UploadCharacterReference
         };
         $label = $data->label ?? '';
         $media = null;
+        $fileName = Str::uuid() . '.' . $extension;
 
         try {
             $media = $revision->addMedia($data->file)
                 ->usingName($label !== '' ? $label : $data->view->label())
-                ->usingFileName(Str::uuid() . '.' . $extension)
+                ->usingFileName($fileName)
                 ->withCustomProperties([
                     'view' => $data->view->value,
                     'label' => $label,
@@ -79,12 +82,18 @@ class UploadCharacterReference
             $revision->lock_version++;
             $this->characterRevisions->save($revision);
         } catch (Throwable $exception) {
+            $media ??= $this->mediaRepository->referenceByFileName($revision, $fileName);
             $media?->delete();
 
             throw $exception;
         }
 
         return $media;
+    }
+
+    public function discardFiles(Media $media): void
+    {
+        $this->files->removeAllFiles($media);
     }
 
     private function isAnimated(string $contents, int $type): bool
