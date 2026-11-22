@@ -15,6 +15,7 @@ const props = defineProps<{
     referenceViews: Record<string, string>;
     archived: boolean;
     uploadOnly?: boolean;
+    focused?: boolean;
     approvedRevision?: CharacterRevision | null;
 }>();
 const emit = defineEmits<{ openUpload: [] }>();
@@ -127,12 +128,13 @@ function imageCountLabel(count: number) {
 </script>
 
 <template>
-    <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7" :class="{ 'upload-panel': uploadOnly }">
+    <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7" :class="{ 'upload-panel': uploadOnly, 'revision-editor': focused }">
         <template v-if="!uploadOnly">
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <h2 class="font-semibold">Версия {{ revision.number }}</h2>
-                <span class="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs">{{
-                    revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик'
+                <h2 class="font-semibold">{{ focused ? 'Версии' : 'Версия ' + revision.number }}</h2>
+                <span v-if="!focused || !editable || !approvedRevision" class="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs">{{
+                    (focused ? 'Версия ' + String(revision.number).padStart(2, '0') + ' · ' : '') +
+                    (revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик')
                 }}</span>
             </div>
             <div v-if="editable && approvedRevision" class="grid gap-3 sm:grid-cols-2" aria-label="Сравнение версий">
@@ -156,13 +158,19 @@ function imageCountLabel(count: number) {
                     ><textarea
                         :id="'revision-description-' + revision.id"
                         v-model="editForm.description"
-                        rows="5"
+                        :rows="focused ? 2 : 5"
                         required
                         maxlength="10000"
                         :disabled="busy"
                         class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
                     /><InputError :message="editForm.errors.description" />
                 </div>
+                <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
+                <div v-if="editForm.isDirty" role="status" class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
+                    <strong>Есть несохранённая правка</strong>
+                    <p>Сначала сохраните изменения версии {{ String(revision.number).padStart(2, '0') }}.</p>
+                </div>
+                <div><Button type="submit" variant="default" class="h-11 font-bold" :disabled="busy">Сохранить версию</Button></div>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
                         <Label :for="'revision-notes-' + revision.id">Детали внешности</Label
@@ -183,12 +191,6 @@ function imageCountLabel(count: number) {
                         />
                     </div>
                 </div>
-                <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
-                <div v-if="editForm.isDirty" role="status" class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
-                    <strong>Есть несохранённая правка</strong>
-                    <p>Сначала сохраните изменения версии {{ String(revision.number).padStart(2, '0') }}.</p>
-                </div>
-                <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить версию</Button></div>
             </form>
             <div v-else class="space-y-2">
                 <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
@@ -343,6 +345,24 @@ function imageCountLabel(count: number) {
 </template>
 
 <style scoped>
+.revision-editor {
+    padding: 20px 24px 28px;
+}
+.revision-editor h2 {
+    font-size: 20px;
+}
+.revision-editor form textarea {
+    min-height: 46px;
+}
+.revision-editor [aria-label='Сравнение версий'] > div {
+    padding: 10px 12px;
+}
+@media (max-width: 767px) {
+    .revision-editor {
+        padding: 14px 15px 20px;
+    }
+}
+
 .upload-panel {
     padding: 20px 24px 28px;
 }
