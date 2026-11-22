@@ -41,7 +41,8 @@ readonly class ProjectRepository extends EloquentRepository
         $direction = $data->sort ?? SortDirection::DESC;
 
         return $query
-            ->orderBy('created_at', $direction->value)
+            ->when($data->active, fn($query) => $query->where('is_active', true))
+            ->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value)
             ->orderBy('id', $direction->value)
             ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
             ->withQueryString();

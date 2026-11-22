@@ -111,3 +111,17 @@ test('неподтверждённый пользователь не получ�
         ->get(route('projects.index'))
         ->assertRedirect(route('verification.notice'));
 });
+
+test('показывает активные проекты владельца по времени изменения', function (): void {
+    $owner = User::factory()->create();
+    $old = Project::factory()->create(['owner_id' => $owner->id, 'updated_at' => now()->subDay()]);
+    $new = Project::factory()->create(['owner_id' => $owner->id]);
+    Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
+    Project::factory()->create();
+
+    actingAs($owner);
+
+    get(route('projects.index', ['active' => 1, 'updated' => 1]))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('projects.data', 2)
+            ->where('projects.data.0.id', $new->id)->where('projects.data.1.id', $old->id)->where('filters.active', true));
+});

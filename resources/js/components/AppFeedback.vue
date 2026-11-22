@@ -10,13 +10,13 @@ onMounted(() => {
     unsubscribe.push(
         router.on('networkError', (event) => {
             event.preventDefault();
-            message.value = 'Connection lost. Check your connection and try the action again.';
+            message.value = 'Связь прервана. После подключения повторите действие.';
         }),
         router.on('httpException', (event) => {
             const status = event.detail.response.status;
             if (status !== 403 && status < 500) return;
             event.preventDefault();
-            message.value = status === 403 ? 'You do not have access to this action.' : 'Something went wrong. Please try again in a moment.';
+            message.value = status === 403 ? 'Для этого действия недостаточно прав.' : 'Не удалось выполнить действие. Повторите попытку.';
         }),
         router.on('success', () => {
             message.value = '';
@@ -33,6 +33,6 @@ onUnmounted(() => unsubscribe.forEach((stop) => stop()));
         class="border-destructive/25 bg-destructive/5 text-destructive mx-4 mt-4 flex items-center justify-between gap-4 rounded-lg border p-4 text-sm sm:mx-6"
     >
         <p>{{ message }}</p>
-        <Button variant="ghost" size="icon" class="shrink-0" aria-label="Dismiss message" @click="message = ''"><X class="size-4" /></Button>
+        <Button variant="ghost" size="icon" class="shrink-0" aria-label="Закрыть сообщение" @click="message = ''"><X class="size-4" /></Button>
     </div>
 </template>

@@ -13,9 +13,9 @@ export function useNavigation() {
             { title: 'Проекты', href: route('projects.index', undefined, false), icon: FolderOpen },
             ...(page.props.auth.can_manage_series ? [{ title: 'Сериалы', href: route('series.index', undefined, false), icon: Film }] : []),
             { title: 'Генерации', href: route('prompts', undefined, false), icon: Clapperboard },
-            { title: 'Клиппинг', href: route('clipping.index', undefined, false), icon: Scissors },
             { title: 'Публикации', href: route('posts', undefined, false), icon: Send },
             ...(page.props.auth.can_manage_channels ? [{ title: 'Каналы', href: route('channels.index', undefined, false), icon: Radio }] : []),
+            { title: 'Источники', href: route('clipping.index', undefined, false), icon: Scissors },
         ];
         const path = page.url.split('?')[0];
         const section = path.match(/^\/projects\/\d+\/series(?:\/|$)/) ? route('series.index', undefined, false) : path;

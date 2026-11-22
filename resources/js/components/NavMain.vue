@@ -5,6 +5,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 
 defineProps<{
     items: NavItem[];
+    title: string;
 }>();
 
 const page = usePage<SharedData>();
@@ -12,11 +13,11 @@ const page = usePage<SharedData>();
 
 <template>
     <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel>Студия</SidebarGroupLabel>
+        <SidebarGroupLabel class="font-mono text-[11px] uppercase">{{ title }}</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <SidebarMenuButton
-                    class="h-11"
+                    class="h-10 gap-4 px-3 text-[15px]"
                     as-child
                     :is-active="item.isActive ?? (item.href === page.url.split('?')[0] || page.url.split('?')[0].startsWith(item.href + '/'))"
                     :tooltip="item.title"

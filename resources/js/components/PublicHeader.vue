@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from '@/components/AppLogo.vue';
 import type { SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -12,7 +13,7 @@ const user = computed(() => page.props.auth.user);
 <template>
     <header class="access-header">
         <Link :href="route('home')" aria-label="Poster — на главную" class="brand">
-            <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Poster
+            <AppLogo />
         </Link>
         <Link v-if="workspaceLink" :href="route(user ? 'dashboard' : 'login')" class="workspace-link">
             {{ user ? 'Моя студия' : 'Войти' }}
@@ -33,19 +34,6 @@ const user = computed(() => page.props.auth.user);
     font-size: 23px;
     font-weight: 700;
 }
-.brand-mark {
-    display: flex;
-    gap: 2px;
-    padding-inline: 5px;
-}
-.brand-mark i {
-    display: block;
-    width: 5px;
-    height: 20px;
-    background: var(--ring);
-    transform: skew(-24deg);
-}
-
 .workspace-link {
     margin-left: auto;
     display: inline-flex;

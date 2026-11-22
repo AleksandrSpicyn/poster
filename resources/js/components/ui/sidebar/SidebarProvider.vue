@@ -21,13 +21,21 @@ const emits = defineEmits<{
 const isMobile = useMediaQuery('(max-width: 767px)')
 const openMobile = ref(false)
 
-const open = useVModel(props, 'open', emits, {
+const tablet = useMediaQuery('(min-width: 768px) and (max-width: 1099px)')
+const tabletOpen = ref(false)
+const desktopOpen = useVModel(props, 'open', emits, {
   defaultValue: props.defaultOpen ?? false,
   passive: (props.open === undefined) as false,
 }) as Ref<boolean>
 
+const open = computed(() => tablet.value ? tabletOpen.value : desktopOpen.value)
+
 function setOpen(value: boolean) {
-  open.value = value // emits('update:open', value)
+  if (tablet.value) {
+    tabletOpen.value = value
+    return
+  }
+  desktopOpen.value = value // emits('update:open', value)
 
   // This sets the cookie to keep the sidebar state.
   document.cookie = `${SIDEBAR_COOKIE_NAME}=${open.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`

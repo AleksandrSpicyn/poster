@@ -8,6 +8,7 @@ export interface ProjectSummary {
     id: number;
     name: string;
     prompt: string;
+    is_clipping: boolean;
     content_mode: string;
     content_mode_label: string;
     is_active: boolean;
@@ -30,7 +31,7 @@ export interface ProjectChannel {
 
 export interface ProjectsPageProps extends SharedData {
     projects: PaginatedResource<ProjectSummary>;
-    filters: { search: string; sort: string };
+    filters: { search: string; sort: string; active?: boolean; updated?: boolean };
     sortDirections: Record<string, string>;
 }
 

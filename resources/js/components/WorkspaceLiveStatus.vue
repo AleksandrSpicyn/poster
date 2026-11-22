@@ -1,21 +1,46 @@
 <script setup lang="ts">
-import { useWorkspaceRealtime } from '@/composables/useWorkspaceRealtime';
-import { Radio, RefreshCw } from '@lucide/vue';
-
-const { connected, enabled, refresh } = useWorkspaceRealtime();
+import { RefreshCw } from '@lucide/vue';
+defineProps<{ connected: boolean; enabled: boolean }>();
+defineEmits<{ refresh: [] }>();
 </script>
-
 <template>
-    <div class="text-muted-foreground flex items-center justify-end gap-2 px-4 pt-3 text-xs sm:px-6">
-        <Radio class="size-3.5" :class="connected ? 'text-emerald-600 dark:text-emerald-400' : ''" aria-hidden="true" />
-        <span>{{ connected ? 'Live updates' : enabled ? 'Reconnecting · updates every 30s' : 'Updates every 30s' }}</span>
-        <button
-            type="button"
-            class="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md outline-none focus-visible:ring-2"
-            aria-label="Refresh current statuses"
-            @click="refresh"
-        >
-            <RefreshCw class="size-3.5" aria-hidden="true" />
-        </button>
-    </div>
+    <button
+        type="button"
+        class="live-status"
+        aria-label="Обновить состояние студии"
+        :title="connected ? 'Связь активна' : 'Обновление каждые 30 секунд'"
+        @click="$emit('refresh')"
+    >
+        <i :class="connected ? 'online' : ''" aria-hidden="true" />
+        <span>{{ connected ? 'Связь активна' : enabled ? 'Восстанавливаем связь' : 'Обновление каждые 30 с' }}</span>
+        <RefreshCw class="size-3.5 shrink-0" aria-hidden="true" />
+    </button>
 </template>
+<style scoped>
+.live-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 60px;
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding: 8px 12px;
+    color: var(--muted-foreground);
+    font-size: 13px;
+    text-align: left;
+}
+.live-status i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--muted-foreground);
+}
+.live-status i.online {
+    background: var(--ring);
+}
+:global([data-state='collapsed'][data-slot='sidebar'] .live-status span),
+:global([data-state='collapsed'][data-slot='sidebar'] .live-status svg) {
+    display: none;
+}
+</style>

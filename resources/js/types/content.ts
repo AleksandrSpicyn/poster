@@ -41,6 +41,8 @@ export interface ListFilters {
     page: number;
     type?: string;
     search?: string;
+    active?: number;
+    updated?: number;
 }
 
 export interface ListPageProps extends SharedData {

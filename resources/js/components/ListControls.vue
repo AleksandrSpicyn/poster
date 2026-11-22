@@ -10,7 +10,7 @@ const id = useId();
     <div class="flex flex-wrap items-end gap-3">
         <slot />
         <div class="grid gap-1.5">
-            <label :for="`${id}-sort`" class="text-muted-foreground text-xs font-medium">Order</label>
+            <label :for="`${id}-sort`" class="text-muted-foreground text-xs font-medium">Порядок</label>
             <select
                 :id="`${id}-sort`"
                 :value="sort"
@@ -18,11 +18,13 @@ const id = useId();
                 class="list-select"
                 @change="emit('sort', ($event.target as HTMLSelectElement).value)"
             >
-                <option v-for="(label, value) in directions" :key="value" :value="value">{{ label }}</option>
+                <option v-for="(label, value) in directions" :key="value" :value="value">
+                    {{ value === 'asc' ? 'Сначала старые' : value === 'desc' ? 'Сначала новые' : label }}
+                </option>
             </select>
         </div>
         <div class="grid gap-1.5">
-            <label :for="`${id}-per-page`" class="text-muted-foreground text-xs font-medium">Per page</label>
+            <label :for="`${id}-per-page`" class="text-muted-foreground text-xs font-medium">На странице</label>
             <select
                 :id="`${id}-per-page`"
                 :value="perPage"

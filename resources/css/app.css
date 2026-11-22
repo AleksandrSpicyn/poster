@@ -238,8 +238,31 @@
 }
 
 @layer components {
+    [data-slot='sidebar-wrapper'] {
+        --studio-content-width: calc(100% - 80px);
+        --studio-content-max: 1280px;
+    }
     .workspace-page {
-        @apply flex w-full min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8;
+        @apply flex min-w-0 flex-col gap-6;
+        width: var(--studio-content-width, 100%);
+        max-width: var(--studio-content-max, 1280px);
+        margin-inline: auto;
+        padding-block: 24px 36px;
+    }
+    @media (max-width: 1099px) {
+        [data-slot='sidebar-wrapper'] {
+            --studio-content-width: calc(100% - 48px);
+        }
+    }
+    @media (max-width: 767px) {
+        [data-slot='sidebar-wrapper'] {
+            --studio-content-width: calc(100% - 32px);
+        }
+    }
+    @media (min-width: 1920px) {
+        [data-slot='sidebar-wrapper'] {
+            --studio-content-max: 1440px;
+        }
     }
 
     .list-select {

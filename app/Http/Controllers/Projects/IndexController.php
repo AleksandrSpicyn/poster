@@ -38,7 +38,8 @@ class IndexController
     {
         return inertia('Projects/Index', [
             'projects' => ProjectResource::collection($action->run($owner, $data)),
-            'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value],
+            'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value,
+                ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : [])],
             'sortDirections' => SortDirection::labels(),
         ]);
     }
