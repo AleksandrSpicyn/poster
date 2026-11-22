@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import forest from '../../assets/studio/forest-courier.webp';
 import EmptyState from '@/components/EmptyState.vue';
 import GenerationItem from '@/components/GenerationItem.vue';
 import Heading from '@/components/Heading.vue';
@@ -28,7 +29,24 @@ const metrics = computed(() => [
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Обзор студии" />
         <div class="workspace-page">
-            <Heading title="Обзор студии" />
+            <Heading :title="page.props.analytics.projects.length ? 'Обзор студии' : 'Первый вход'" />
+            <section
+                v-if="!page.props.analytics.projects.length"
+                class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]"
+                aria-label="Первый выпуск"
+            >
+                <img :src="forest" alt="" class="h-[210px] w-full rounded-xl object-cover md:h-[393px]" />
+                <div>
+                    <h2 class="mb-4 text-xl font-bold">Первый выпуск</h2>
+                    <div class="grid gap-3">
+                        <Link :href="route('channels.create')" class="studio-panel font-semibold">Подключить канал</Link>
+                        <Link :href="route('projects.create')" class="studio-panel font-semibold">Создать первый проект</Link>
+                        <Link :href="route('projects.create', { format: 'series' })" class="studio-panel font-semibold"
+                            >Подготовить первый сериал</Link
+                        >
+                    </div>
+                </div>
+            </section>
             <PublicationMetrics :report="page.props.analytics" />
             <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Производство">
                 <div v-for="metric in metrics" :key="metric.label" class="bg-card rounded-xl border p-4 sm:p-5">

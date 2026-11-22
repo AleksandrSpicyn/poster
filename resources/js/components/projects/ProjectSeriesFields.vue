@@ -22,34 +22,51 @@ defineProps<{
 <template>
     <div class="space-y-6">
         <div class="grid gap-2">
-            <Label for="output-mode">Release format</Label>
-            <select id="output-mode" v-model="outputMode" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+            <Label for="output-mode">Формат выпуска</Label>
+            <select
+                id="output-mode"
+                v-model="outputMode"
+                :disabled="processing"
+                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+            >
                 <option v-for="(label, value) in outputModes" :key="value" :value="value">{{ label }}</option>
             </select>
             <InputError :message="errors.output_mode" />
-            <p v-if="outputMode === 'single_video'" class="text-muted-foreground text-sm">All parts become one video. Only the complete accepted video is published. Choose a finite part count (up to 20; 600 seconds total).</p>
+            <p v-if="outputMode === 'single_video'" class="text-muted-foreground text-sm">
+                Части собираются в одно видео. Для публикации примите полную сборку. Допустимо до 20 частей и 600 секунд.
+            </p>
         </div>
         <div v-if="outputMode === 'single_video'" class="grid gap-2">
-            <Label for="cycle-structure">Story structure</Label>
-            <select id="cycle-structure" v-model="specification.cycle_structure" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+            <Label for="cycle-structure">Структура истории</Label>
+            <select
+                id="cycle-structure"
+                v-model="specification.cycle_structure"
+                :disabled="processing"
+                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+            >
                 <option v-for="(label, value) in cycleStructures" :key="value" :value="value">{{ label }}</option>
             </select>
-            <Label for="cycle-scenes">Scene continuity</Label>
-            <select id="cycle-scenes" v-model="specification.scene_mode" :disabled="processing" class="border-input bg-background h-11 rounded-md border px-3 text-sm">
+            <Label for="cycle-scenes">Связь сцен</Label>
+            <select
+                id="cycle-scenes"
+                v-model="specification.scene_mode"
+                :disabled="processing"
+                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+            >
                 <option v-for="(label, value) in sceneModes" :key="value" :value="value">{{ label }}</option>
             </select>
-            <p class="text-muted-foreground text-xs">Describe scene changes or a single continuous take in the narrative rules.</p>
+            <p class="text-muted-foreground text-xs">Опишите переходы между сценами или непрерывный дубль в правилах повествования.</p>
         </div>
         <InputError :message="errors.series_lock_version" /><InputError :message="errors.series" />
         <div class="grid gap-2">
-            <Label for="generation-duration">Target generation length in seconds</Label>
+            <Label for="generation-duration">Длительность генерации, секунды</Label>
             <Input id="generation-duration" v-model="specification.shot_duration_seconds" type="number" min="4" max="30" :disabled="processing" />
             <InputError :message="errors['series_specification.shot_duration_seconds']" />
-            <p class="text-muted-foreground text-xs">For example: a 60-second episode with 15-second generations uses four clips. Every episode is assembled separately before publication.</p>
+            <p class="text-muted-foreground text-xs">Для эпизода на 60 секунд требуется четыре генерации по 15 секунд.</p>
         </div>
         <div class="grid gap-5 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="series-style">Visual style</Label
+                <Label for="series-style">Визуальный стиль</Label
                 ><Input
                     id="series-style"
                     v-model="specification.visual_style"
@@ -59,13 +76,13 @@ defineProps<{
                 /><InputError :message="errors['series_specification.visual_style']" />
             </div>
             <div class="grid gap-2">
-                <Label for="series-language">Language</Label
+                <Label for="series-language">Язык</Label
                 ><Input id="series-language" v-model="specification.language" maxlength="35" :disabled="processing" placeholder="en" /><InputError
                     :message="errors['series_specification.language']"
                 />
             </div>
             <div class="grid gap-2">
-                <Label for="series-audience">Audience</Label
+                <Label for="series-audience">Аудитория</Label
                 ><select
                     id="series-audience"
                     v-model="specification.audience"
@@ -76,7 +93,7 @@ defineProps<{
                 ><InputError :message="errors['series_specification.audience']" />
             </div>
             <div class="grid gap-2">
-                <Label for="series-duration">Episode length in seconds</Label
+                <Label for="series-duration">Длительность эпизода, секунды</Label
                 ><Input
                     id="series-duration"
                     v-model="specification.episode_duration_seconds"
@@ -88,7 +105,7 @@ defineProps<{
             </div>
         </div>
         <div class="grid gap-2">
-            <Label for="series-audio">Sound</Label>
+            <Label for="series-audio">Звук</Label>
             <select
                 id="series-audio"
                 v-model="specification.audio_mode"
@@ -104,7 +121,7 @@ defineProps<{
             <InputError :message="errors['series_specification.audio_mode']" />
         </div>
         <div class="grid gap-2">
-            <Label for="series-outline">Overall story</Label>
+            <Label for="series-outline">Сюжет сериала</Label>
             <textarea
                 id="series-outline"
                 v-model="specification.story_outline"
@@ -117,7 +134,7 @@ defineProps<{
             <InputError :message="errors['series_specification.story_outline']" />
         </div>
         <div class="grid gap-2">
-            <Label for="series-rules">Storytelling rules</Label
+            <Label for="series-rules">Правила повествования</Label
             ><textarea
                 id="series-rules"
                 v-model="specification.narrative_rules"
@@ -129,11 +146,11 @@ defineProps<{
             /><InputError :message="errors['series_specification.narrative_rules']" />
         </div>
         <fieldset class="grid gap-5 rounded-lg border p-4 sm:p-5">
-            <legend class="px-2 text-sm font-semibold">Automatic production</legend>
+            <legend class="px-2 text-sm font-semibold">Автоматизация</legend>
             <label class="flex min-h-11 cursor-pointer items-start gap-3">
                 <input v-model="automationEnabled" type="checkbox" class="accent-primary mt-1 size-4 shrink-0" :disabled="processing" />
                 <span class="text-sm"
-                    ><span class="font-medium">Produce and publish episodes automatically</span
+                    ><span class="font-medium">Автоматически создавать и публиковать эпизоды</span
                     ><span class="text-muted-foreground mt-1 block leading-relaxed"
                         >Enabling queues the first release. It waits for character references, then writes the screenplay, generates media, assembles,
                         saves story memory and publishes to connected YouTube and Instagram channels. Future episodes follow the schedule when it is
@@ -143,7 +160,7 @@ defineProps<{
             </label>
             <InputError :message="errors.automation_enabled" />
             <div class="grid gap-2">
-                <Label for="series-limit">Planned number of episodes</Label>
+                <Label for="series-limit">Количество эпизодов</Label>
                 <Input
                     id="series-limit"
                     v-model="episodeLimit"

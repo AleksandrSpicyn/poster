@@ -1,7 +1,8 @@
 import { createScreenplayScene, createScreenplayShot } from '@/lib/screenplay';
+import type { SharedData } from '@/types';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
-import { useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { useForm, usePage } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
@@ -25,6 +26,52 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const generateErrors = computed(() => Object.values(generateForm.errors).join(' '));
     const approveErrors = computed(() => Object.values(approveForm.errors).join(' '));
     const editorStale = computed(() => scriptForm.lock_version !== props.episode.lock_version);
+    const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
+    function clearDraft() {
+        try {
+            sessionStorage.removeItem(draftKey);
+        } catch {
+            // The editor remains available when the browser disables storage.
+        }
+    }
+    onMounted(() => {
+        try {
+            const draft = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
+            if (
+                draft?.version === props.episode.lock_version &&
+                Array.isArray(draft.script?.scenes) &&
+                typeof draft.text === 'string' &&
+                typeof draft.brief === 'string'
+            ) {
+                scriptForm.script = draft.script;
+                scriptText.value = draft.text;
+                generateForm.brief = draft.brief;
+            } else {
+                clearDraft();
+            }
+            watch(
+                () => [scriptForm.script, scriptText.value, generateForm.brief],
+                () => {
+                    try {
+                        sessionStorage.setItem(
+                            draftKey,
+                            JSON.stringify({
+                                version: scriptForm.lock_version,
+                                script: scriptForm.script,
+                                text: scriptText.value,
+                                brief: generateForm.brief,
+                            }),
+                        );
+                    } catch {
+                        // Storage can also fill up while editing.
+                    }
+                },
+                { deep: true, flush: 'sync' },
+            );
+        } catch {
+            clearDraft();
+        }
+    });
     watch(
         () => props.screenplay,
         (screenplay) => {
@@ -36,7 +83,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         },
     );
     function saveScript() {
-        scriptForm.transform((data) => data).post(route('episodes.scripts.store', params), { preserveState: 'errors' });
+        scriptForm.transform((data) => data).post(route('episodes.scripts.store', params), { preserveState: 'errors', onSuccess: clearDraft });
     }
     function importScript() {
         jsonError.value = '';
@@ -52,13 +99,14 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             .transform((data) => ({ ...data, script: parsed as Screenplay }))
             .post(route('episodes.scripts.store', params), {
                 preserveState: 'errors',
+                onSuccess: clearDraft,
                 onFinish: () => {
                     scriptForm.transform((data) => data);
                 },
             });
     }
     function generateScript() {
-        generateForm.post(route('episodes.scripts.generate', params), { preserveState: 'errors' });
+        generateForm.post(route('episodes.scripts.generate', params), { preserveState: 'errors', onSuccess: clearDraft });
     }
     function approveScript() {
         if (revision.value)

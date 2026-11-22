@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps } from '@/types/projects';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
@@ -18,10 +18,14 @@ const props = defineProps<ProjectFormProps>();
 const route = useRoute();
 const formElement = ref<HTMLFormElement | null>(null);
 const requestError = ref('');
+const initialMode =
+    new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series' && 'series' in props.contentModes
+        ? 'series'
+        : Object.keys(props.contentModes)[0];
 const form = useForm({
     name: props.project?.name ?? '',
     prompt: props.series?.specification.premise ?? props.project?.prompt ?? '',
-    content_mode: props.project?.content_mode ?? Object.keys(props.contentModes)[0],
+    content_mode: props.project?.content_mode ?? initialMode,
     is_active: props.project?.is_active ?? true,
     output_mode: props.series?.output_mode ?? 'episodes',
     series_specification: {
@@ -87,7 +91,7 @@ onMounted(() => {
 });
 const isSeries = computed(() => form.content_mode === 'series');
 const formErrors = computed<Record<string, string | undefined>>(() => form.errors);
-const title = computed(() => (props.project ? 'Настройки проекта' : 'Новый проект'));
+const title = computed(() => (isSeries.value ? 'Паспорт сериала' : props.project ? 'Настройки проекта' : 'Новый проект'));
 const cancelUrl = computed(() => (props.project ? route('projects.show', props.project.id) : route('projects.index')));
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Проекты', href: route('projects.index') },

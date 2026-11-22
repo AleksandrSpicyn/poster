@@ -16,7 +16,7 @@ import { useRoute } from 'ziggy-js';
 
 const page = usePage<SharedData & { channels: PaginatedResource<ManagedChannel> }>();
 const route = useRoute();
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Channels', href: route('channels.index') }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Каналы', href: route('channels.index') }];
 const { loading, error, changePage, refresh } = useListFilters('channels.index', () => ({
     page: page.props.channels.meta.current_page,
     sort: 'asc',
@@ -26,14 +26,14 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Channels" />
+        <Head title="Каналы" />
         <div class="workspace-page">
             <ProjectNotice />
             <InputError :message="page.props.errors.oauth" />
             <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
-                <Heading title="Channels" description="Connect your publishing accounts once, then choose them in any project." />
+                <Heading title="Каналы" description="Аккаунты публикации этого пользователя" />
                 <Button as-child class="h-11 shrink-0"
-                    ><Link :href="route('channels.create')"><Plus class="size-4" aria-hidden="true" />New channel</Link></Button
+                    ><Link :href="route('channels.create')"><Plus class="size-4" aria-hidden="true" />Добавить канал</Link></Button
                 >
             </div>
             <ListPanel
@@ -41,12 +41,12 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
                 :count="page.props.channels.data.length"
                 :loading="loading"
                 :error="error"
-                empty-title="Connect your first channel"
-                empty-description="Add a YouTube, Instagram or TikTok account to start publishing from your projects."
+                empty-title="Подключите первый канал"
+                empty-description="Выберите YouTube, Instagram или TikTok и привяжите аккаунт к проекту."
                 @page="changePage"
                 @refresh="refresh"
             >
-                <template #filters><p class="text-muted-foreground text-sm">Shared publishing connections</p></template>
+                <template #filters><p class="text-muted-foreground text-sm">Подключения студии</p></template>
                 <div class="divide-y">
                     <article
                         v-for="channel in page.props.channels.data"
@@ -70,14 +70,22 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
                                                 ? 'border-primary/20 bg-primary/10 text-primary'
                                                 : 'text-muted-foreground'
                                         "
-                                        >{{ !channel.is_active ? 'Disabled' : channel.connected ? 'Connected' : 'Connection needed' }}</span
+                                        >{{ !channel.is_active ? 'Приостановлен' : channel.connected ? 'Подключён' : 'Нужно подключение' }}</span
                                     >
                                     <span class="text-muted-foreground"
-                                        >{{ channel.posts_count ?? 0 }} posts · {{ channel.projects?.length ?? 0 }} projects</span
+                                        >{{ channel.posts_count ?? 0 }} публикаций · {{ channel.projects?.length ?? 0 }} проектов</span
                                     >
                                 </div>
                                 <p v-if="channel.type === 'tiktok' && channel.connected" class="text-sm">
-                                    {{ [channel.tiktok_statistics && 'Statistics', channel.tiktok_inbox && 'Inbox upload', channel.tiktok_direct && 'Direct Post'].filter(Boolean).join(' · ') || 'No active permissions' }}
+                                    {{
+                                        [
+                                            channel.tiktok_statistics && 'Статистика',
+                                            channel.tiktok_inbox && 'Отправка во входящие',
+                                            channel.tiktok_direct && 'Прямая публикация',
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ') || 'Нет действующих разрешений'
+                                    }}
                                 </p>
                                 <div v-if="channel.projects?.length" class="flex flex-wrap gap-x-3 gap-y-1 pt-1">
                                     <Link
@@ -91,7 +99,7 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
                             </div>
                         </div>
                         <Button as-child variant="outline" class="h-11 shrink-0 self-start sm:self-center"
-                            ><Link :href="route('channels.edit', channel.id)">Manage<ArrowUpRight class="size-4" aria-hidden="true" /></Link
+                            ><Link :href="route('channels.edit', channel.id)">Настройки<ArrowUpRight class="size-4" aria-hidden="true" /></Link
                         ></Button>
                     </article>
                 </div>

@@ -4,7 +4,7 @@ import Heading from '@/components/Heading.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -15,7 +15,7 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const breadcrumbs = [
-    { title: 'Projects', href: route('projects.index') },
+    { title: 'Проекты', href: route('projects.index') },
     { title: props.project.name, href: route('projects.show', props.project.id) },
 ];
 </script>
@@ -24,12 +24,13 @@ const breadcrumbs = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="project.name" />
         <div class="workspace-page">
-            <Heading :title="project.name" description="Series project" /><SeriesWorkspace
-                :project="project"
-                :series="series"
-                :characters="characters"
-                :episodes="episodes"
-            />
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <Heading :title="series.name" :description="project.name + ' / Эпизоды и персонажи'" />
+                <Link class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold" :href="route('projects.edit', project.id)"
+                    >Открыть паспорт</Link
+                >
+            </div>
+            <SeriesWorkspace :project="project" :series="series" :characters="characters" :episodes="episodes" />
         </div>
     </AppLayout>
 </template>
