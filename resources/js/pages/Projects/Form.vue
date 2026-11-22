@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import ChannelIcon from '@/components/ChannelIcon.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
@@ -12,7 +11,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { LoaderCircle, Save } from '@lucide/vue';
+import { Info, LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -318,6 +317,7 @@ function submit() {
                 'project-detail': detailSection,
                 'schedule-editor': section === 'automation',
                 'cast-editor': section === 'cast',
+                'channel-editor': section === 'channels',
                 'format-editor': section === 'format',
             }"
         >
@@ -648,16 +648,15 @@ function submit() {
                             <label
                                 v-for="channel in channels"
                                 :key="channel.id"
-                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3"
+                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-start gap-3 border-b py-3"
                             >
                                 <input
                                     v-model="form.channel_ids"
                                     type="checkbox"
                                     :value="channel.id"
                                     :disabled="form.processing || conflict"
-                                    class="accent-primary size-4 shrink-0"
+                                    class="accent-primary mt-1 size-5 shrink-0"
                                 />
-                                <ChannelIcon :channel="channel.type" />
                                 <span class="min-w-0 flex-1 text-sm"
                                     ><span class="block font-medium break-words">{{ channel.name }} · {{ channel.type_label }}</span
                                     ><span class="text-muted-foreground block text-xs"
@@ -681,9 +680,12 @@ function submit() {
                         <p v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
                             Подключите канал, чтобы выбрать его для проекта.
                         </p>
-                        <div class="border-primary bg-muted rounded-md border-l-4 px-3 py-2">
-                            <strong class="block text-sm">Один владелец</strong>
-                            <p class="text-muted-foreground text-sm">Снятие выбора затронет только этот проект.</p>
+                        <div class="bg-muted text-muted-foreground flex gap-3 rounded-md border-l-2 p-3">
+                            <Info aria-hidden="true" class="mt-0.5 size-5 shrink-0" />
+                            <div>
+                                <strong class="block text-sm">Один владелец</strong>
+                                <p class="mt-1 text-sm">Связи используют один аккаунт. Снятие выбора затронет только этот проект.</p>
+                            </div>
                         </div>
                         <InputError :message="form.errors.channel_ids" />
                         <InputError
@@ -692,11 +694,11 @@ function submit() {
                             :message="String(key).startsWith('channel_ids.') ? error : undefined"
                         />
                         <Link
+                            v-if="!channels.length"
                             :href="route('channels.index')"
                             class="text-primary inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
                             >Управление каналами</Link
                         >
-                        <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
                     <div
                         v-if="!['main', 'access', 'deletion'].includes(section)"
@@ -880,12 +882,14 @@ function submit() {
 .schedule-editor fieldset > p span {
     width: 36%;
 }
+.channel-editor #project-form > div:last-child,
 .schedule-editor #project-form > div:last-child {
     justify-content: start;
     margin-top: 14px;
     padding-top: 12px;
 }
 @media (max-width: 767px) {
+    .channel-editor #project-form,
     .schedule-editor #project-form {
         padding: 14px 16px 20px;
     }
