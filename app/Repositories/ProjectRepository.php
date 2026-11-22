@@ -45,8 +45,11 @@ readonly class ProjectRepository extends EloquentRepository
 
         return $query
             ->when($data->active, fn($query) => $query->where('is_active', true))
-            ->when($data->alphabetical, fn($query) => $query->orderBy('name'),
-                fn($query) => $query->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value))
+            ->when(
+                $data->alphabetical,
+                fn($query) => $query->orderBy('name'),
+                fn($query) => $query->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value),
+            )
             ->orderBy('id', $direction->value)
             ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
             ->withQueryString();
