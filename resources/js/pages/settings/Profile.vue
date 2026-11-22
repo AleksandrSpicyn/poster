@@ -94,7 +94,7 @@ const submit = () => {
                 <Link :href="route('verification.send')" method="post" as="button" class="underline">Отправить письмо повторно</Link>
             </section>
             <form v-else id="profile-form" @submit.prevent="submit">
-                <HeadingSmall title="Параметры" />
+                <h2>Параметры</h2>
                 <Label for="name">Имя</Label><Input id="name" v-model="form.name" required autocomplete="name" />
                 <InputError :message="form.errors.name" />
                 <Label for="email">Email</Label><Input id="email" v-model="form.email" type="email" required autocomplete="email" />
