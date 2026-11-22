@@ -65,7 +65,9 @@ function release(event: PointerEvent) {
     <div class="space-y-3 sm:col-span-3">
         <div class="flex items-center justify-between gap-3">
             <h3 class="font-semibold">Границы фрагмента</h3>
-            <span>{{ seconds.format((valid[1] - valid[0]) / 1000) }} с</span>
+            <span class="bg-sidebar-accent text-primary rounded px-2 py-1 text-sm font-bold max-sm:hidden"
+                >{{ seconds.format((valid[1] - valid[0]) / 1000) }} с</span
+            >
         </div>
         <div aria-hidden="true" class="text-muted-foreground flex justify-between text-xs">
             <span v-for="tick in [0, 1, 2, 3, 4]" :key="tick">{{ ((duration * tick) / 4000).toLocaleString('ru') }} с</span>
@@ -73,6 +75,7 @@ function release(event: PointerEvent) {
         <div
             ref="track"
             class="trim-track"
+            :style="{ '--trim-start': (valid[0] / duration) * 100 + '%', '--trim-end': (valid[1] / duration) * 100 + '%' }"
             @pointerdown="press"
             @pointermove="move"
             @pointerup="release"
@@ -124,14 +127,28 @@ function release(event: PointerEvent) {
             /></label>
         </div>
         <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>
-        <strong v-if="focused !== null" class="text-sm">{{ focused === 0 ? 'Фокус на начале фрагмента' : 'Фокус на конце фрагмента' }}</strong>
-        <p :id="'trim-help-' + shotId" class="text-muted-foreground text-sm">Tab — выбор границы; стрелки — 1 мс; Shift и стрелки — 100 мс.</p>
-        <p class="font-mono text-sm">
-            Выделение {{ valid[0] }}–{{ valid[1] }} мс · {{ ((valid[1] - valid[0]) / 1000).toLocaleString('ru-RU', { minimumFractionDigits: 3 }) }} с
-        </p>
+        <p v-if="error" class="text-muted-foreground text-sm">На шкале сохранён последний допустимый интервал: {{ valid[0] }}–{{ valid[1] }} мс.</p>
+        <div v-else class="space-y-1 border-b pb-3 sm:hidden">
+            <p class="text-muted-foreground text-sm">Длительность</p>
+            <p>{{ seconds.format((valid[1] - valid[0]) / 1000) }} с из {{ seconds.format(duration / 1000) }} с</p>
+        </div>
+        <div :id="'trim-help-' + shotId" :class="error ? 'sr-only' : 'trim-help'">
+            <strong v-if="focused !== null" class="text-primary hidden text-sm sm:block">{{
+                focused === 0 ? 'Фокус на начале фрагмента' : 'Фокус на конце фрагмента'
+            }}</strong>
+            <strong class="text-sm sm:hidden">Управление границами</strong>
+            <p class="text-muted-foreground text-sm">Tab — выбор границы. Стрелки — 1 мс, Shift со стрелками — 100 мс.</p>
+        </div>
     </div>
 </template>
 <style scoped>
+input[type='number'] {
+    background-image: none;
+    padding-inline: 12px;
+}
+input[aria-invalid='true'] {
+    border-color: var(--destructive);
+}
 .trim-track {
     position: relative;
     height: 62px;
@@ -145,6 +162,33 @@ function release(event: PointerEvent) {
     background-color: var(--muted);
     background-size: auto 100%;
     background-repeat: repeat-x;
+}
+.strip::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to right,
+        rgb(0 0 0 / 65%) 0 var(--trim-start),
+        transparent var(--trim-start) var(--trim-end),
+        rgb(0 0 0 / 65%) var(--trim-end) 100%
+    );
+}
+.trim-help {
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+@media (max-width: 639px) {
+    .trim-help {
+        padding: 12px;
+        background: var(--muted);
+        border-left: 3px solid var(--muted-foreground);
+        border-top: 0;
+        border-radius: 5px;
+    }
+    .trim-track {
+        margin-inline: 10px;
+    }
 }
 .selection {
     position: absolute;

@@ -75,6 +75,7 @@ const {
     assemblyForm,
     assemblyErrors,
     shots,
+    readyTakes,
     buildAssembly,
     canBuildAssembly,
     stale,
@@ -648,7 +649,7 @@ function refresh() {
                                         ? 'Кадр ' +
                                           String((detail ?? 0) + 1).padStart(2, '0') +
                                           ' · ' +
-                                          (editingShot.camera?.description || editingShot.action)
+                                          (editingShot.title || editingShot.camera?.description || editingShot.action)
                                         : 'Монтаж эпизода'
                                 }}
                             </h2>
@@ -657,15 +658,26 @@ function refresh() {
                                     v-for="(shot, index) in shots"
                                     :key="shot.id"
                                     v-show="detail === null || detail === index"
-                                    class="grid items-end gap-3 rounded-lg border p-4 sm:grid-cols-3"
+                                    class="trim-selection grid items-end gap-3 sm:grid-cols-3"
                                 >
+                                    <label class="trim-source-select text-muted-foreground text-sm"
+                                        >Исходный дубль
+                                        <select v-model="assemblyForm.shots[index].prompt_id" class="list-select w-full">
+                                            <option v-for="take in readyTakes[index]" :key="take.id" :value="take.id">
+                                                Дубль {{ String(take.take_number).padStart(2, '0')
+                                                }}{{
+                                                    editingTake?.id === take.id && selectedDuration
+                                                        ? ' · ' + selectedDuration.toLocaleString('ru', { maximumFractionDigits: 3 }) + ' с'
+                                                        : ''
+                                                }}
+                                            </option>
+                                        </select>
+                                    </label>
                                     <fieldset class="min-w-0 space-y-2 sm:col-span-3">
-                                        <legend class="text-muted-foreground text-sm">Исходный дубль</legend>
+                                        <legend class="text-muted-foreground text-sm max-sm:sr-only">Исходный дубль</legend>
                                         <div class="grid gap-2 sm:grid-cols-2">
                                             <label
-                                                v-for="take in shot.takes.filter(
-                                                    (item) => item.generated && item.media.some((media) => media.collection === 'shot-video'),
-                                                )"
+                                                v-for="take in readyTakes[index]"
                                                 :key="take.id"
                                                 class="take-option"
                                                 :class="{ selected: assemblyForm.shots[index].prompt_id === take.id }"
@@ -751,6 +763,42 @@ function refresh() {
     }
 }
 
+.trim-source-select {
+    display: none;
+}
+.trim-detail-page .trim-selection {
+    min-width: 0;
+}
+.trim-detail-page .take-option {
+    min-height: 64px;
+}
+.trim-detail-page .take-option.selected strong {
+    color: var(--primary);
+}
+@media (max-width: 639px) {
+    .trim-detail-page [aria-labelledby='montage-builder-title'] {
+        padding: 14px 15px 20px;
+    }
+    .trim-selection:has(input[aria-invalid='true']) .trim-source-select {
+        display: grid;
+        gap: 4px;
+    }
+    .trim-selection:has(input[aria-invalid='true']) fieldset {
+        display: none;
+    }
+    .trim-detail-page .take-option {
+        padding: 0;
+        min-height: 54px;
+        border-color: transparent;
+    }
+    .trim-detail-page .take-option.selected {
+        background: transparent;
+    }
+    .trim-detail-page .take-option img {
+        width: 76px;
+        height: 54px;
+    }
+}
 .trim-player video {
     width: 100%;
     max-height: 410px;
