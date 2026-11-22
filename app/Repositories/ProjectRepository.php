@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Data\GetProjectsListData;
 use App\Enums\ProductionStatus;
 use App\Enums\SortDirection;
+use App\Events\WorkspaceUpdated;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
@@ -60,8 +61,12 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function setArchived(Project $project, bool $archived): void
     {
-        Project::query()->whereKey($project->id)->whereNull('archived_at', not: ! $archived)
+        $changed = Project::query()->whereKey($project->id)->whereNull('archived_at', not: ! $archived)
             ->update(['archived_at' => $archived ? now() : null]);
+
+        if ($changed > 0) {
+            WorkspaceUpdated::forResource($project);
+        }
     }
 
     public function information(User $owner, int $id): Project

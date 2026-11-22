@@ -17,7 +17,7 @@ export function useListFilters(
     const loading = ref(false);
     const error = ref('');
 
-    watch([() => page.url, ...keys.map((key) => () => committed.value[key])], () => Object.assign(filters, committed.value));
+    watch([() => page.url.split('#')[0], ...keys.map((key) => () => committed.value[key])], () => Object.assign(filters, committed.value));
 
     function refresh() {
         router.get(
