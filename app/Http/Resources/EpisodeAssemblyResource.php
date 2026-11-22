@@ -21,6 +21,7 @@ class EpisodeAssemblyResource extends JsonResource
             'status' => $this->status->value,
             'lock_version' => $this->lock_version,
             'duration_ms' => $this->duration_ms,
+            'selection' => $this->selection(),
             'error_message' => $this->error_message,
             'continuity_snapshot' => $this->continuity_snapshot,
             'media' => $this->whenLoaded('media', fn(): array => EpisodeMediaResource::collection($this->media)->resolve($request)),

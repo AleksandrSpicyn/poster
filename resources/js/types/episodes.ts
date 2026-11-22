@@ -33,6 +33,7 @@ export interface ShotSummary {
     position: number;
     duration_ms: number;
     action: string;
+    camera?: { description?: string };
     transition_mode: string;
     source_prompt_id: number | null;
     source_assembly_id: number | null;
@@ -70,12 +71,14 @@ export interface EpisodeAssemblySummary {
     status: string;
     lock_version: number;
     duration_ms: number | null;
+    selection?: { shot_id?: number; prompt_id?: number; trim_start_ms?: number; trim_end_ms?: number }[];
     error_message: string | null;
     continuity_snapshot: { confirmed_events?: string; character_state?: string; open_threads?: string; scene_closed?: boolean };
     media: EpisodeMedia[];
     accepted_at: string | null;
 }
 export interface PublicationSummary {
+    url?: string | null;
     id: number;
     episode_assembly_id: number;
     channel_id: number;

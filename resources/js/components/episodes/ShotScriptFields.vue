@@ -70,7 +70,13 @@ function error(field: string): string | undefined {
                     step="1"
                     required
                     @update:model-value="shot.duration_ms = Number($event) * 1000"
-                /><InputError :message="error('duration_ms')" />
+                /><InputError
+                    :message="
+                        shot.duration_ms < 4000 || shot.duration_ms > 30000 || shot.duration_ms % 1000 !== 0
+                            ? 'Укажите целое число от 4 до 30 секунд.'
+                            : error('duration_ms')
+                    "
+                />
             </div>
             <div class="grid gap-2 sm:col-span-2">
                 <Label :for="'shot-camera-' + sceneIndex + '-' + shotIndex">Камера и план</Label

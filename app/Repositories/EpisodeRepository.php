@@ -17,6 +17,7 @@ use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\Project;
+use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\Shot;
@@ -50,6 +51,13 @@ readonly class EpisodeRepository extends EloquentRepository
             ->orderByDesc('id')
             ->limit(20)
             ->get();
+        $currentAssembly = $assemblies->first(fn(EpisodeAssembly $assembly): bool => $assembly->episode_revision_id === $episode->current_revision_id
+            && $assembly->status !== AssemblyStatus::FAILED && $assembly->selection() !== []);
+
+        if ($currentAssembly !== null && $episode->currentRevision !== null) {
+            $this->includeMontageTakes($episode->currentRevision, $currentAssembly, $series->project_id);
+        }
+
         $characters = CharacterRevision::query()
             ->where('status', RevisionStatus::APPROVED)
             ->whereHas('character', fn($query) => $query->where('series_id', $series->id)->whereNull('archived_at'))
@@ -62,6 +70,28 @@ readonly class EpisodeRepository extends EloquentRepository
         $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())->with('channel')->orderByDesc('id')->limit(200)->get();
 
         return new EpisodeWorkspaceData($episode, $characters, $assemblies, $publications, $channels);
+    }
+
+    private function includeMontageTakes(EpisodeRevision $revision, EpisodeAssembly $assembly, int $projectId): void
+    {
+        $shots = $revision->scenes->flatMap(fn($scene) => $scene->shots)->keyBy('id');
+        $selected = collect($assembly->selection())->pluck('prompt_id', 'shot_id');
+        $missing = $shots->filter(fn(Shot $shot): bool => $selected->has($shot->id) && ! $shot->prompts->contains('id', $selected->get($shot->id)));
+
+        if ($missing->isEmpty()) {
+            return;
+        }
+
+        $prompts = Prompt::query()->where('project_id', $projectId)->whereIn('shot_id', $missing->keys())
+            ->whereIn('id', $selected->only($missing->keys()->all()))->with('media', 'generationOperations')->get();
+
+        foreach ($prompts as $prompt) {
+            $shot = $missing->get($prompt->shot_id);
+
+            if ($shot !== null && $selected->get($shot->id) === $prompt->id) {
+                $shot->prompts->push($prompt);
+            }
+        }
     }
 
     /** @return Collection<int, Episode> */

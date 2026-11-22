@@ -99,7 +99,7 @@ class SaveEpisodeAssembly
         $manifest = ['schema_version' => 1, 'shots' => $manifestShots, 'duration_ms' => array_sum(array_column($manifestShots, 'duration_ms'))];
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR));
 
-        return DB::transaction(function () use ($revision, $episode, $series, $manifest, $hash): EpisodeAssembly {
+        return DB::transaction(function () use ($revision, $episode, $series, $manifest, $hash, $data): EpisodeAssembly {
             $project = $this->projects->findLockedOrFail($series->project_id);
 
             if (! $project->is_active) {
@@ -125,6 +125,10 @@ class SaveEpisodeAssembly
 
             if ($existing instanceof EpisodeAssembly) {
                 return $existing;
+            }
+
+            if ($data->base_assembly_id !== null && $data->base_assembly_id !== $this->assemblies->latestUsableId($revision)) {
+                throw ValidationException::withMessages(['base_assembly_id' => 'В другой вкладке сохранён новый монтаж. Сверьте изменения перед сборкой.']);
             }
 
             return $this->assemblies->queueManifest($revision, $manifest, $hash);

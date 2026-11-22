@@ -10,7 +10,7 @@ export function useEpisodeSources(props: EpisodeWorkspaceProps) {
                   {
                       kind: 'assembly' as const,
                       id: props.sourceAssembly.id,
-                      label: 'End of the previous accepted episode',
+                      label: 'Завершение предыдущего принятого эпизода',
                       scene_position: 0,
                       shot_position: 0,
                   },
@@ -23,7 +23,7 @@ export function useEpisodeSources(props: EpisodeWorkspaceProps) {
                     .map((take) => ({
                         kind: 'take' as const,
                         id: take.id,
-                        label: scene.title + ' · shot ' + shot.position + ' · take ' + take.take_number,
+                        label: scene.title + ' · кадр ' + shot.position + ' · дубль ' + take.take_number,
                         scene_position: scene.position,
                         shot_position: shot.position,
                     })),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\Channel;
+use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\User;
@@ -76,3 +77,30 @@ test('дубль позволяет повторную загрузку толь
             ->where('episode.current_revision.scenes.0.shots.0.takes.0.operations.0.can_retry_download', $hasResult)
             ->where('episode.current_revision.scenes.0.shots.0.takes.0.operations.0.stage_label', 'Загрузка файла'));
 })->with([true, false]);
+
+test('возвращает выбранный дубль и интервал без внутренних полей манифеста', function (): void {
+    $context = episodeHttpFixture();
+    $shot = $context['shot'];
+    $series = $context['episode']->series()->firstOrFail();
+    $take = Prompt::factory()->for($shot)->create(['project_id' => $series->project_id]);
+
+    foreach (range(2, 12) as $number) {
+        Prompt::factory()->for($shot)->create(['project_id' => $series->project_id, 'take_number' => $number]);
+    }
+
+    EpisodeAssembly::factory()->for($context['revision'], 'episodeRevision')->ready()->create(['manifest' => [
+        'shots' => [['shot_id' => $shot->id, 'prompt_id' => $take->id, 'media_id' => 234, 'checksum' => 'private-test-checksum', 'trim_start_ms' => 501, 'trim_end_ms' => 1234]],
+    ]]);
+
+    actingAs($context['user'])
+        ->get(route('episodes.show', ['series' => $series, 'episode' => $context['episode']]))
+        ->assertOk()
+        ->assertDontSee('private-test-checksum')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('episode.current_revision.scenes.0.shots.0.takes.10.id', $take->id)
+            ->where('assemblies.0.selection.0.shot_id', $shot->id)
+            ->where('assemblies.0.selection.0.prompt_id', $take->id)
+            ->where('assemblies.0.selection.0.trim_start_ms', 501)
+            ->where('assemblies.0.selection.0.trim_end_ms', 1234)
+            ->missing('assemblies.0.selection.0.media_id'));
+});

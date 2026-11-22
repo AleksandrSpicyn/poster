@@ -21,6 +21,9 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const initialScriptJson = JSON.stringify(initialScript, null, 2);
     const scriptText = ref(initialScriptJson);
     const jsonError = ref('');
+    const restored = ref(false);
+    const saveError = ref('');
+    const sourceVersion = ref(revision.value?.number ?? 0);
     const scriptForm = useForm({ script: initialScript, lock_version: props.episode.lock_version });
     const generateForm = useForm({ brief: '', lock_version: props.episode.lock_version, request_key: props.requestKey });
     const approveForm = useForm({});
@@ -50,10 +53,29 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
     function clearDraft() {
         draftStored.value = false;
+        restored.value = false;
+        saveError.value = '';
         try {
             sessionStorage.removeItem(draftKey);
         } catch {
             // The editor remains available when the browser disables storage.
+        }
+    }
+    function persistDraft() {
+        try {
+            sessionStorage.setItem(
+                draftKey,
+                JSON.stringify({
+                    version: scriptForm.lock_version,
+                    source: sourceVersion.value,
+                    script: scriptForm.script,
+                    text: scriptText.value,
+                    brief: generateForm.brief,
+                }),
+            );
+            draftStored.value = true;
+        } catch {
+            draftStored.value = false;
         }
     }
     onMounted(() => {
@@ -66,6 +88,8 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
                 typeof draft.brief === 'string'
             ) {
                 draftStored.value = true;
+                restored.value = true;
+                if (Number.isInteger(draft.source)) sourceVersion.value = draft.source;
                 scriptForm.lock_version = draft.version;
                 generateForm.lock_version = draft.version;
                 scriptForm.script = draft.script;
@@ -74,26 +98,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             } else {
                 clearDraft();
             }
-            watch(
-                () => [scriptForm.script, scriptText.value, generateForm.brief],
-                () => {
-                    try {
-                        sessionStorage.setItem(
-                            draftKey,
-                            JSON.stringify({
-                                version: scriptForm.lock_version,
-                                script: scriptForm.script,
-                                text: scriptText.value,
-                                brief: generateForm.brief,
-                            }),
-                        );
-                        draftStored.value = true;
-                    } catch {
-                        draftStored.value = false;
-                    }
-                },
-                { deep: true, flush: 'sync' },
-            );
+            watch(() => [scriptForm.script, scriptText.value, generateForm.brief], persistDraft, { deep: true, flush: 'sync' });
         } catch {
             clearDraft();
         }
@@ -103,6 +108,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         (screenplay) => {
             if (!screenplay || hasDraft.value || scriptForm.processing) return;
             const script = JSON.parse(JSON.stringify(screenplay)) as Screenplay;
+            sourceVersion.value = revision.value?.number ?? 0;
             scriptForm.defaults({ script, lock_version: props.episode.lock_version });
             scriptForm.reset();
             scriptText.value = JSON.stringify(script, null, 2);
@@ -110,11 +116,75 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             clearDraft();
         },
     );
+    const conflict = computed(() => {
+        const saved = props.screenplay;
+        if (!saved) return null;
+        const fields = {
+            expected_final_state: 'Финал сцены',
+            objective: 'Цель сцены',
+            initial_state: 'В начале сцены',
+            title: 'Название сцены',
+            location: 'Место',
+            time: 'Время',
+        } as const;
+        for (const [index, scene] of scriptForm.script.scenes.entries()) {
+            const remote = saved.scenes[index];
+            if (!remote) continue;
+            for (const key of Object.keys(fields) as (keyof typeof fields)[]) {
+                if (scene[key] !== remote[key]) return { label: fields[key], local: scene[key], server: remote[key], index };
+            }
+        }
+        for (const key of ['title', 'objective', 'public_caption'] as const) {
+            if (scriptForm.script[key] !== saved[key])
+                return {
+                    label: { title: 'Название эпизода', objective: 'Цель эпизода', public_caption: 'Описание для публикации' }[key],
+                    local: scriptForm.script[key],
+                    server: saved[key],
+                    index: null,
+                };
+        }
+        return null;
+    });
+    function loadServerVersion() {
+        if (!props.screenplay) return;
+        const saved = JSON.parse(JSON.stringify(props.screenplay)) as Screenplay;
+        scriptForm.defaults({ script: saved, lock_version: props.episode.lock_version });
+        scriptForm.reset();
+        scriptForm.clearErrors();
+        generateForm.lock_version = props.episode.lock_version;
+
+        sourceVersion.value = revision.value?.number ?? 0;
+        scriptText.value = JSON.stringify(saved, null, 2);
+        generateForm.brief = '';
+        clearDraft();
+    }
+    function keepLocalVersion() {
+        // The user explicitly chose their complete local screenplay. The current server revision stays in history.
+        scriptForm.lock_version = props.episode.lock_version;
+        generateForm.lock_version = props.episode.lock_version;
+        sourceVersion.value = revision.value?.number ?? 0;
+        persistDraft();
+        restored.value = true;
+    }
+    function failed() {
+        saveError.value = draftStored.value
+            ? 'Сервер недоступен. В этой вкладке сохранилась локальная копия.'
+            : 'Не удалось сохранить изменения. Оставьте вкладку открытой и повторите отправку.';
+        return false as const;
+    }
     function saveScript() {
         if (!online.value || scriptForm.processing || editorStale.value) return;
-        scriptForm.transform((data) => data).post(route('episodes.scripts.store', params), { preserveState: 'errors', onSuccess: clearDraft });
+        saveError.value = '';
+        scriptForm
+            .transform((data) => data)
+            .post(route('episodes.scripts.store', params), {
+                preserveState: 'errors',
+                onSuccess: clearDraft,
+                onNetworkError: failed,
+                onHttpException: (response) => (response.status === 419 ? undefined : failed()),
+            });
     }
-    function importScript() {
+    function checkJson(): Screenplay | null {
         jsonError.value = '';
         let parsed: unknown;
         try {
@@ -122,10 +192,27 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Screenplay must be an object.');
         } catch {
             jsonError.value = 'Введите сценарий в формате JSON.';
-            return;
+            return null;
         }
+        const candidate = parsed as Partial<Screenplay>;
+        if (!Array.isArray(candidate.scenes)) {
+            jsonError.value = 'scenes · ожидается массив сцен.';
+            return null;
+        }
+        const invalid = candidate.scenes.findIndex((scene) => !scene || !Array.isArray(scene.shots));
+        if (invalid >= 0) {
+            const value = candidate.scenes[invalid]?.shots;
+            jsonError.value = 'scenes[' + invalid + '].shots · ожидается массив кадров' + (typeof value === 'string' ? ', получена строка.' : '.');
+            return null;
+        }
+        return candidate as Screenplay;
+    }
+    function importScript() {
+        if (!online.value || scriptForm.processing || editorStale.value) return;
+        const parsed = checkJson();
+        if (!parsed) return;
         scriptForm
-            .transform((data) => ({ ...data, script: parsed as Screenplay }))
+            .transform((data) => ({ ...data, script: parsed }))
             .post(route('episodes.scripts.store', params), {
                 preserveState: 'errors',
                 onSuccess: clearDraft,
@@ -152,6 +239,13 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         approveForm,
         scriptText,
         jsonError,
+        checkJson,
+        restored,
+        saveError,
+        sourceVersion,
+        conflict,
+        keepLocalVersion,
+        loadServerVersion,
         scriptErrors,
         editorErrors,
         generateErrors,

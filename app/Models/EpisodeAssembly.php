@@ -74,6 +74,30 @@ class EpisodeAssembly extends Model implements HasMedia
         'accepted_at' => 'datetime',
     ];
 
+    /** @return list<array{shot_id: int, prompt_id: int, trim_start_ms: int, trim_end_ms: int}> */
+    public function selection(): array
+    {
+        $shots = $this->manifest['shots'] ?? null;
+
+        if (! is_array($shots)) {
+            return [];
+        }
+
+        $selection = [];
+
+        foreach ($shots as $shot) {
+            if (is_array($shot) && is_int($shot['shot_id'] ?? null) && is_int($shot['prompt_id'] ?? null)
+                && is_int($shot['trim_start_ms'] ?? null) && is_int($shot['trim_end_ms'] ?? null)) {
+                $selection[] = [
+                    'shot_id' => $shot['shot_id'], 'prompt_id' => $shot['prompt_id'],
+                    'trim_start_ms' => $shot['trim_start_ms'], 'trim_end_ms' => $shot['trim_end_ms'],
+                ];
+            }
+        }
+
+        return $selection;
+    }
+
     /** @return BelongsTo<EpisodeRevision, $this> */
     public function episodeRevision(): BelongsTo
     {

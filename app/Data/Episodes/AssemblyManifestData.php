@@ -14,5 +14,6 @@ class AssemblyManifestData extends Data
     /** @param list<AssemblyShotData> $shots */
     public function __construct(
         #[DataCollectionOf(AssemblyShotData::class), Min(1), Max(100)] public array $shots,
+        #[Min(0)] public ?int $base_assembly_id = null,
     ) {}
 }

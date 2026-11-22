@@ -48,6 +48,11 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
             ->exists();
     }
 
+    public function latestUsableId(EpisodeRevision $revision): int
+    {
+        return $revision->assemblies()->where('status', '!=', AssemblyStatus::FAILED)->orderByDesc('id')->first(['id'])->id ?? 0;
+    }
+
     public function matchingManifest(EpisodeRevision $revision, string $hash): ?EpisodeAssembly
     {
         return $revision->assemblies()->where('manifest_hash', $hash)

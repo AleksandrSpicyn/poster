@@ -14,6 +14,8 @@ import { computed, inject, ref, watch } from 'vue';
 const model = defineModel<Screenplay>({ required: true });
 const props = defineProps<{
     characters: (CharacterRevision & { character_name?: string })[];
+    sceneIndex?: number | null;
+    thumbnails?: (string | undefined)[][];
     transitions: Record<string, string>;
     sources: ContinuationSource[];
     errors: Record<string, string | undefined>;
@@ -70,7 +72,12 @@ function error(path: string): string | undefined {
 </script>
 
 <template>
-    <fieldset :disabled="disabled" class="min-w-0 space-y-6 disabled:opacity-70" @focusin="rememberActiveLine">
+    <fieldset
+        :disabled="disabled"
+        class="screenplay-fields min-w-0 space-y-6 disabled:opacity-70"
+        :class="{ 'scene-focused': props.sceneIndex != null }"
+        @focusin="rememberActiveLine"
+    >
         <legend class="sr-only">Сценарий эпизода</legend>
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
@@ -108,7 +115,12 @@ function error(path: string): string | undefined {
         <p class="text-muted-foreground text-sm" aria-live="polite">
             Сцен: {{ model.scenes.length }} · кадров: {{ shotCount }} · {{ durationSeconds }} из 300 с
         </p>
-        <section v-for="(scene, sceneIndex) in model.scenes" :key="sceneIndex" class="space-y-5 rounded-xl border p-4 sm:p-5">
+        <section
+            v-for="(scene, sceneIndex) in model.scenes"
+            :key="sceneIndex"
+            v-show="props.sceneIndex == null || props.sceneIndex === sceneIndex"
+            class="space-y-5 rounded-xl border p-4 sm:p-5"
+        >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h3 class="font-semibold">Сцена {{ sceneIndex + 1 }}</h3>
                 <div class="flex items-center gap-2">
@@ -194,47 +206,57 @@ function error(path: string): string | undefined {
             <label class="flex min-h-11 items-center gap-3 text-sm"
                 ><input v-model="scene.is_closed" type="checkbox" class="size-4" />Завершить сцену перед началом следующей</label
             >
-            <section v-for="(shot, shotIndex) in scene.shots" :key="shotIndex" class="bg-muted/25 space-y-4 rounded-lg border p-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h4 class="text-sm font-semibold">Кадр {{ shotIndex + 1 }}</h4>
-                    <div class="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            class="size-11"
-                            :disabled="shotIndex === 0"
-                            aria-label="Переместить кадр вверх"
-                            @click="move(scene.shots, shotIndex, -1)"
-                            ><ArrowUp class="size-4" aria-hidden="true" /></Button
-                        ><Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            class="size-11"
-                            :disabled="shotIndex === scene.shots.length - 1"
-                            aria-label="Переместить кадр вниз"
-                            @click="move(scene.shots, shotIndex, 1)"
-                            ><ArrowDown class="size-4" aria-hidden="true" /></Button
-                        ><Button v-if="scene.shots.length > 1" type="button" variant="outline" class="h-11" @click="scene.shots.splice(shotIndex, 1)"
-                            >Удалить кадр</Button
-                        >
+            <div class="shot-forms">
+                <section v-for="(shot, shotIndex) in scene.shots" :key="shotIndex" class="bg-muted/25 space-y-4 rounded-lg border p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h4 class="font-semibold">Кадр {{ String(shotIndex + 1).padStart(2, '0') }}</h4>
+                        <div class="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                class="size-11"
+                                :disabled="shotIndex === 0"
+                                aria-label="Переместить кадр вверх"
+                                @click="move(scene.shots, shotIndex, -1)"
+                                ><ArrowUp class="size-4" aria-hidden="true" /></Button
+                            ><Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                class="size-11"
+                                :disabled="shotIndex === scene.shots.length - 1"
+                                aria-label="Переместить кадр вниз"
+                                @click="move(scene.shots, shotIndex, 1)"
+                                ><ArrowDown class="size-4" aria-hidden="true" /></Button
+                            ><Button
+                                v-if="scene.shots.length > 1"
+                                type="button"
+                                variant="outline"
+                                class="h-11"
+                                @click="scene.shots.splice(shotIndex, 1)"
+                                >Удалить кадр</Button
+                            >
+                        </div>
                     </div>
-                </div>
-                <ShotScriptFields
-                    v-model="scene.shots[shotIndex]"
-                    :scene-index="sceneIndex"
-                    :recovering-line="recoveringLine"
-                    :connected="dialogueConnected"
-                    :subscribed="!!subscription"
-                    :draft-stored="draftStored"
-                    :shot-index="shotIndex"
-                    :transitions="transitions"
-                    :sources="sourcesFor(sceneIndex, shotIndex)"
-                    :speakers="speakers"
-                    :errors="errors"
-                />
-            </section>
+                    <div v-if="thumbnails?.[sceneIndex]?.[shotIndex]" class="flex items-center gap-3">
+                        <img class="size-16 rounded-md object-cover" :src="thumbnails[sceneIndex][shotIndex]" alt="" /><span>{{ shot.camera }}</span>
+                    </div>
+                    <ShotScriptFields
+                        v-model="scene.shots[shotIndex]"
+                        :scene-index="sceneIndex"
+                        :recovering-line="recoveringLine"
+                        :connected="dialogueConnected"
+                        :subscribed="!!subscription"
+                        :draft-stored="draftStored"
+                        :shot-index="shotIndex"
+                        :transitions="transitions"
+                        :sources="sourcesFor(sceneIndex, shotIndex)"
+                        :speakers="speakers"
+                        :errors="errors"
+                    />
+                </section>
+            </div>
             <Button type="button" variant="outline" class="h-11" :disabled="scene.shots.length >= 30 || shotCount >= 100" @click="addShot(sceneIndex)"
                 ><Plus class="size-4" aria-hidden="true" />Добавить кадр в сцену</Button
             >
@@ -244,3 +266,23 @@ function error(path: string): string | undefined {
         >
     </fieldset>
 </template>
+
+<style scoped>
+.shot-forms {
+    display: grid;
+    gap: 12px;
+}
+@media (min-width: 768px) {
+    .shot-forms {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.scene-focused {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.scene-focused > section {
+    order: -1;
+}
+</style>

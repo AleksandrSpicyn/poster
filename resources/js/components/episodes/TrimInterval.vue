@@ -5,6 +5,8 @@ const start = defineModel<number>('start', { required: true });
 const end = defineModel<number>('end', { required: true });
 const valid = ref<[number, number]>([0, props.duration]);
 const track = ref<HTMLElement | null>(null);
+const focused = ref<0 | 1 | null>(null);
+const seconds = new Intl.NumberFormat('ru', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const drag = ref<{ side: 0 | 1; id: number } | null>(null);
 const bounded = (n: number) => Number.isInteger(n) && n >= 0 && n <= props.duration;
 const error = computed(() =>
@@ -61,6 +63,13 @@ function release(event: PointerEvent) {
 </script>
 <template>
     <div class="space-y-3 sm:col-span-3">
+        <div class="flex items-center justify-between gap-3">
+            <h3 class="font-semibold">Границы фрагмента</h3>
+            <span>{{ seconds.format((valid[1] - valid[0]) / 1000) }} с</span>
+        </div>
+        <div aria-hidden="true" class="text-muted-foreground flex justify-between text-xs">
+            <span v-for="tick in [0, 1, 2, 3, 4]" :key="tick">{{ ((duration * tick) / 4000).toLocaleString('ru') }} с</span>
+        </div>
         <div
             ref="track"
             class="trim-track"
@@ -87,6 +96,8 @@ function release(event: PointerEvent) {
                 :aria-valuenow="valid[side]"
                 :aria-valuetext="valid[side] + ' мс'"
                 :style="{ left: (valid[side] / duration) * 100 + '%' }"
+                @focus="focused = side"
+                @blur="focused = null"
                 @keydown="key($event, side)"
             ></button>
         </div>
@@ -113,6 +124,7 @@ function release(event: PointerEvent) {
             /></label>
         </div>
         <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>
+        <strong v-if="focused !== null" class="text-sm">{{ focused === 0 ? 'Фокус на начале фрагмента' : 'Фокус на конце фрагмента' }}</strong>
         <p :id="'trim-help-' + shotId" class="text-muted-foreground text-sm">Tab — выбор границы; стрелки — 1 мс; Shift и стрелки — 100 мс.</p>
         <p class="font-mono text-sm">
             Выделение {{ valid[0] }}–{{ valid[1] }} мс · {{ ((valid[1] - valid[0]) / 1000).toLocaleString('ru-RU', { minimumFractionDigits: 3 }) }} с
