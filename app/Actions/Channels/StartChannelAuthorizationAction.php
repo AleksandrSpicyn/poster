@@ -22,7 +22,7 @@ readonly class StartChannelAuthorizationAction
         try {
             return $this->task->run($channel, $actor);
         } catch (Throwable) {
-            throw ValidationException::withMessages(['oauth' => 'Save the application ID and secret before connecting a supported platform.']);
+            throw ValidationException::withMessages(['oauth' => 'Сохраните идентификатор и секрет приложения перед подключением.']);
         }
     }
 }

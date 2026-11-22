@@ -36,13 +36,13 @@ final readonly class TiktokClient
         $scope = Payload::string($tokens['scope'] ?? null, 'scope');
 
         if (array_diff($requiredScopes ?? ['user.info.basic'], explode(',', $scope)) !== []) {
-            throw new ChannelAuthorizationException('Grant the requested TikTok permissions to connect this account.');
+            throw new ChannelAuthorizationException('Предоставьте TikTok запрошенные разрешения для этого аккаунта.');
         }
 
         $profile = $this->api(Payload::string($tokens['access_token'], 'access_token'))->get('user/info/', ['fields' => 'open_id,display_name']);
 
         if ($this->data($profile, 'user.open_id') !== $tokens['open_id']) {
-            throw new ChannelAuthorizationException('TikTok could not confirm this account.');
+            throw new ChannelAuthorizationException('TikTok не подтвердил аккаунт.');
         }
 
         return [...$tokens, 'channel_id' => $tokens['open_id'], 'account_name' => Payload::string($this->data($profile, 'user.display_name'), 'display_name')];
@@ -86,7 +86,7 @@ final readonly class TiktokClient
             }
 
             if ($requiredScope !== null && ! $current->hasTiktokScope($requiredScope)) {
-                throw new ChannelAuthorizationException('Reconnect the account with the required TikTok permission.');
+                throw new ChannelAuthorizationException('Подключите аккаунт повторно и предоставьте нужное разрешение TikTok.');
             }
 
             if (Carbon::parse(Payload::string($credentials['expires_at'] ?? null, 'expires_at'))->getTimestamp() > now()->getTimestamp() + 60) {
@@ -109,7 +109,7 @@ final readonly class TiktokClient
         });
 
         if ($token === '') {
-            throw new ChannelAuthorizationException('TikTok revoked the requested permission.');
+            throw new ChannelAuthorizationException('TikTok отозвал разрешение.');
         }
 
         return $this->api($token);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TiktokChannelConnection from '@/components/channels/TiktokChannelConnection.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import Heading from '@/components/Heading.vue';
@@ -12,10 +13,15 @@ import type { BreadcrumbItem, ChannelType, SharedData } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Link2, LoaderCircle, Save, Trash2, Unplug } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
-const props = defineProps<{ channel: ManagedChannel | null; channelTypes: Record<string, string>; callbackUrl: string | null }>();
+const props = defineProps<{
+    channel: ManagedChannel | null;
+    channelTypes: Record<string, string>;
+    callbackUrl: string | null;
+    requestedScopes?: string[];
+}>();
 const route = useRoute();
 const page = usePage<SharedData>();
 const title = computed(() => (props.channel ? props.channel.name : 'Новый канал'));
@@ -36,6 +42,20 @@ const deletionErrors = computed<Record<string, string | undefined>>(() => deleti
 const requestError = ref('');
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
 const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
+const tab = ref('');
+function readTab() {
+    tab.value = window.location.hash.slice(1);
+}
+onMounted(() => {
+    readTab();
+    if (!tab.value && props.channel?.type === 'tiktok') {
+        if (page.props.errors.oauth) tab.value = 'authorization';
+        else if (page.flash.connectedChannelId === props.channel.id) tab.value = 'account';
+    }
+    window.addEventListener('hashchange', readTab);
+});
+onUnmounted(() => window.removeEventListener('hashchange', readTab));
+const connectionPage = computed(() => props.channel?.type === 'tiktok' && ['platform', 'authorization', 'account'].includes(tab.value));
 function submit() {
     requestError.value = '';
     form.submit(props.channel ? 'patch' : 'post', props.channel ? route('channels.update', props.channel.id) : route('channels.store'), {
@@ -66,7 +86,17 @@ function remove() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
-        <div class="workspace-page">
+        <TiktokChannelConnection
+            v-if="channel && connectionPage"
+            :channel="channel"
+            :requested="requestedScopes ?? []"
+            :tab="tab"
+            :processing="connection.processing"
+            :unsaved="form.isDirty"
+            :error="page.props.errors.oauth"
+            @authorize="connect"
+        />
+        <div v-else class="workspace-page">
             <ProjectNotice />
             <div class="flex items-start justify-between gap-3">
                 <Heading
@@ -85,7 +115,9 @@ function remove() {
                 >
                     <h2 class="hidden text-lg font-bold min-[1100px]:block">В этом разделе</h2>
                     <a href="#channel-name" class="bg-sidebar-accent text-sidebar-accent-foreground rounded-lg p-3 text-sm">Основное</a>
-                    <a v-if="channel" href="#connection-heading" class="bg-muted rounded-lg p-3 text-sm">Подключение</a>
+                    <a v-if="channel" :href="channel.type === 'tiktok' ? '#platform' : '#connection-heading'" class="bg-muted rounded-lg p-3 text-sm"
+                        >Подключение</a
+                    >
                     <a v-if="channel" href="#connected-projects" class="bg-muted rounded-lg p-3 text-sm">Проекты</a>
                 </nav>
                 <div class="min-w-0 space-y-4">

@@ -30,6 +30,6 @@ class EditController
      */
     public function __invoke(Channel $channel, GetChannelFormAction $action): Response
     {
-        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null]);
+        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'requestedScopes' => $channel->type === ChannelType::TIKTOK ? $action->requestedScopes($channel) : [], 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null]);
     }
 }

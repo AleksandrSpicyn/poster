@@ -39,3 +39,20 @@ test('гость и неподтверждённый пользователь н
 
     actingAs(User::factory()->unverified()->create())->get(route('channels.edit', $channel))->assertRedirect(route('verification.notice'));
 });
+
+test('показывает запрашиваемые права TikTok отдельно от выданных', function (bool $direct): void {
+    config(['services.tiktok.direct_post' => $direct]);
+    $owner = workspaceOwner();
+    $channel = Channel::factory()->recycle($owner)->create(['type' => ChannelType::TIKTOK,
+        'external_account' => null, 'credentials' => ['access_token' => 'test', 'scope' => 'video.upload']]);
+    $requested = ['user.info.basic', 'video.list', 'video.upload', ...($direct ? ['video.publish'] : [])];
+
+    actingAs($owner)
+        ->get(route('channels.edit', $channel))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('requestedScopes', $requested)
+            ->where('channel.tiktok_inbox', true)
+            ->where('channel.tiktok_direct', false)
+            ->where('channel.tiktok_statistics', false)
+            ->missing('channel.credentials'));
+})->with([true, false]);

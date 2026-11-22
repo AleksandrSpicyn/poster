@@ -39,7 +39,7 @@ class ProviderCallbackController
         $channel = $action->pendingChannel($provider, $user, $data);
 
         if (! $channel instanceof Channel) {
-            return to_route('channels.index')->withErrors(['oauth' => 'Connection expired or invalid. Open the channel and connect again.']);
+            return to_route('channels.index')->withErrors(['oauth' => 'Срок подтверждения истёк. Откройте канал и повторите подключение.']);
         }
 
         $error = $action->run($channel, $user, $data, $provider);
@@ -48,7 +48,8 @@ class ProviderCallbackController
             return to_route('channels.edit', $channel)->withErrors(['oauth' => $error]);
         }
 
-        Inertia::flash('success', 'Account connected.');
+        Inertia::flash('success', 'Аккаунт подключён.');
+        Inertia::flash('connectedChannelId', $channel->id);
 
         return to_route('channels.edit', $channel);
     }

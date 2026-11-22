@@ -21,7 +21,7 @@ readonly class ChannelOAuth
     private const string READ_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
     /** @return list<string> */
-    private function scopes(Channel $channel): array
+    public function scopes(Channel $channel): array
     {
         return match ($channel->type) {
             ChannelType::YOUTUBE => $channel->external_account === null
