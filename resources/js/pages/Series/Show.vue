@@ -21,15 +21,24 @@ const route = useRoute();
 const page = usePage();
 const production = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'production');
 const params = computed(() => ({ project: props.project.id, series: props.series.id }));
+const episodePlanComplete = computed(() => {
+    const latest = props.episodes[0];
+    return (
+        props.series.output_mode === 'episodes' &&
+        props.series.episode_limit != null &&
+        latest?.accepted_assembly_id != null &&
+        latest.number >= props.series.episode_limit
+    );
+});
 const displayedRun = computed(() => {
     const run = props.series.latest_production;
-    return props.series.output_mode === 'episodes' && run?.status === 'completed' ? null : run;
+    return props.series.output_mode === 'episodes' && !episodePlanComplete.value && run?.status === 'completed' ? null : run;
 });
 const currentEpisode = computed(() => {
     const run = displayedRun.value;
     if (run?.episode_id) return props.episodes.find((episode) => episode.id === run.episode_id);
     const latest = props.episodes[0];
-    return latest && !latest.accepted_assembly_id ? latest : null;
+    return latest && (!latest.accepted_assembly_id || episodePlanComplete.value) ? latest : null;
 });
 const episodeNumber = computed(() => displayedRun.value?.episode_number ?? currentEpisode.value?.number ?? (props.episodes[0]?.number ?? 0) + 1);
 const breadcrumbs = [
@@ -43,7 +52,14 @@ const breadcrumbs = [
         <Head :title="project.name" />
         <div class="workspace-page series-overview" :class="{ 'production-view': production }">
             <div class="flex flex-col items-start justify-between gap-3 min-[1100px]:flex-row">
-                <Heading :title="series.name" :description="production ? undefined : 'Сериал / Эпизоды и персонажи'" />
+                <div v-if="!production" class="w-full space-y-2 min-[1100px]:w-auto">
+                    <div class="flex items-center justify-between gap-1 md:justify-start">
+                        <Heading :title="series.name" />
+                        <div id="series-heading-actions"></div>
+                    </div>
+                    <p class="text-muted-foreground text-sm leading-relaxed">Сериал / Эпизоды и персонажи</p>
+                </div>
+                <Heading v-else :title="series.name" />
                 <Link
                     v-if="!production"
                     class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold"
@@ -63,6 +79,7 @@ const breadcrumbs = [
                         :channels="project.channels"
                         :series-id="series.id"
                         :auto-publish="series.auto_publish"
+                        :plan-complete="episodePlanComplete"
                         :pinned-channel-ids="
                             series.output_mode === 'single_video' ? series.latest_production?.channel_ids : currentEpisode?.delivery_channel_ids
                         "
@@ -86,7 +103,14 @@ const breadcrumbs = [
                     </aside>
                 </div>
             </template>
-            <SeriesWorkspace v-else :project="project" :series="series" :characters="characters" :episodes="episodes" />
+            <SeriesWorkspace
+                v-else
+                actions-target="#series-heading-actions"
+                :project="project"
+                :series="series"
+                :characters="characters"
+                :episodes="episodes"
+            />
         </div>
     </AppLayout>
 </template>

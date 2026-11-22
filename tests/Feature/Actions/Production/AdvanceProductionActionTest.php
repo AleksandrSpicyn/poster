@@ -11,6 +11,7 @@ use App\Actions\Production\StartProductionAction;
 use App\Actions\Shots\CheckShotGenerationAction;
 use App\Actions\Shots\SubmitShotGenerationAction;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\Series\SeriesCastData;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
 use App\Enums\GenerationOperationStage;
@@ -34,6 +35,7 @@ use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Tasks\Publications\ClaimPublication;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
@@ -197,8 +199,11 @@ test('проводит выпуск до публикации и продолж�
 
         return Storage::disk('public')->url('generated-images/production.png');
     });
+    $series->update(['cast_settings' => new SeriesCastData($character->id, 'Quiet measured cadence', true)]);
+    $script = storyScriptPayload($appearance);
+    data_set($script, 'scenes.0.shots.0.dialogue', [['character_id' => $character->id, 'text' => 'I found the key.']]);
     StructuredAnonymousAgent::fake([
-        storyScriptPayload($appearance),
+        $script,
         ['usable' => true, 'confirmed_events' => 'The cat rests on an opened box.',
             'character_state' => 'The cat lies comfortably on the cardboard.', 'open_threads' => '',
             'scene_closed' => true, 'review_notes' => 'The final pose is clear.'],
@@ -252,6 +257,12 @@ test('проводит выпуск до публикации и продолж�
     expect(Post::query()->where('publication_request_id', $publication->id)->sole()->episode_assembly_id)->toBe($assembly->id);
     expect(app(StartProductionAction::class)->run($project, 'limit-reached', $actor))->toBeEmpty();
     Http::assertSentCount(6);
+    Http::assertSent(function (Request $request): bool {
+        $text = data_get($request->data(), 'content.0.text');
+
+        return $request->method() === 'POST' && str_ends_with($request->url(), '/contents/generations/tasks')
+            && is_string($text) && str_contains($text, 'Quiet measured cadence');
+    });
     Event::assertDispatchedTimes(PostCreated::class, 1);
     StructuredAnonymousAgent::assertPromptedTimes(2);
     StructuredAnonymousAgent::assertPrompted(fn(AgentPrompt $prompt): bool => count($prompt->attachments) === 6);

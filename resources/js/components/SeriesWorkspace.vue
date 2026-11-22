@@ -10,7 +10,7 @@ import type { ProjectSummary } from '@/types/projects';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Plus } from '@lucide/vue';
+import { Ellipsis, Plus } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -19,6 +19,7 @@ const props = defineProps<{
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];
+    actionsTarget?: string;
 }>();
 const route = useRoute();
 const params = { project: props.project.id, series: props.series.id };
@@ -46,6 +47,7 @@ function cancelEntry() {
         characterForm.clearErrors();
     }
     adding.value = null;
+    nextTick(() => actions.value?.querySelector('summary')?.focus());
 }
 const chronologicalEpisodes = computed(() => [...props.episodes].sort((a, b) => a.number - b.number));
 function episodeLabel(episode: EpisodeSummary) {
@@ -83,43 +85,65 @@ function toggleArchived(event: Event) {
         <p v-if="series.archived_at" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
             Сериал в архиве. История доступна для просмотра.
         </p>
-        <details v-if="!series.archived_at || series.cycle_plan" ref="actions" class="relative w-fit">
-            <summary class="cursor-pointer rounded-md px-3 py-2 text-sm font-medium">Меню сериала</summary>
-            <div class="bg-popover text-popover-foreground absolute z-20 mt-1 grid min-w-52 gap-1 rounded-lg border p-2 shadow-md">
-                <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('episode')">Новый эпизод</Button>
-                <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('character')">Новый персонаж</Button>
-                <Button
-                    v-if="series.cycle_plan"
-                    type="button"
-                    variant="ghost"
-                    @click="
-                        showingPlan = true;
-                        actions?.removeAttribute('open');
-                        $nextTick(() => planHeading?.focus());
+        <Teleport defer :to="actionsTarget || 'body'" :disabled="!actionsTarget">
+            <details
+                v-if="!series.archived_at || series.cycle_plan"
+                ref="actions"
+                class="relative w-fit"
+                @keydown.esc="
+                    actions?.removeAttribute('open');
+                    actions?.querySelector('summary')?.focus();
+                "
+            >
+                <summary
+                    :class="
+                        actionsTarget
+                            ? 'flex size-11 cursor-pointer list-none items-center justify-center rounded-md'
+                            : 'cursor-pointer rounded-md px-3 py-2 text-sm font-medium'
                     "
-                    >План полной версии</Button
                 >
-                <ConfirmationDialog
-                    v-if="!series.archived_at"
-                    heading="Архивация сериала"
-                    title="Архивировать сериал?"
-                    description="Новые эпизоды не будут запускаться автоматически."
-                    action="Архивировать сериал"
-                    :processing="archiveForm.processing"
-                    :error="archiveForm.errors.lock_version"
-                    @confirm="archive"
+                    <Ellipsis v-if="actionsTarget" class="size-5" aria-hidden="true" />
+                    <span :class="{ 'sr-only': actionsTarget }">Меню сериала</span>
+                </summary>
+                <div
+                    class="bg-popover text-popover-foreground absolute z-20 mt-1 grid min-w-52 gap-1 rounded-lg border p-2 shadow-md"
+                    :class="{ 'max-md:right-0': actionsTarget }"
                 >
-                    <div class="studio-row">
-                        <dt>Эпизоды</dt>
-                        <dd>{{ series.episodes_count ?? episodes.length }}</dd>
-                    </div>
-                    <div class="studio-row">
-                        <dt>Производство</dt>
-                        <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
-                    </div>
-                </ConfirmationDialog>
-            </div>
-        </details>
+                    <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('episode')">Новый эпизод</Button>
+                    <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('character')">Новый персонаж</Button>
+                    <Button
+                        v-if="series.cycle_plan"
+                        type="button"
+                        variant="ghost"
+                        @click="
+                            showingPlan = true;
+                            actions?.removeAttribute('open');
+                            $nextTick(() => planHeading?.focus());
+                        "
+                        >План полной версии</Button
+                    >
+                    <ConfirmationDialog
+                        v-if="!series.archived_at"
+                        heading="Архивация сериала"
+                        title="Архивировать сериал?"
+                        description="Новые эпизоды не будут запускаться автоматически."
+                        action="Архивировать сериал"
+                        :processing="archiveForm.processing"
+                        :error="archiveForm.errors.lock_version"
+                        @confirm="archive"
+                    >
+                        <div class="studio-row">
+                            <dt>Эпизоды</dt>
+                            <dd>{{ series.episodes_count ?? episodes.length }}</dd>
+                        </div>
+                        <div class="studio-row">
+                            <dt>Производство</dt>
+                            <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
+                        </div>
+                    </ConfirmationDialog>
+                </div>
+            </details>
+        </Teleport>
         <div class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
             <ProjectArtwork :name="project.name" :cover="project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
             <section class="min-w-0 [&_h2]:mb-4" aria-labelledby="series-episodes">
