@@ -26,6 +26,9 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const generateErrors = computed(() => Object.values(generateForm.errors).join(' '));
     const approveErrors = computed(() => Object.values(approveForm.errors).join(' '));
     const editorStale = computed(() => scriptForm.lock_version !== props.episode.lock_version);
+    const hasDraft = computed(
+        () => scriptForm.isDirty || Boolean(generateForm.brief) || scriptText.value !== JSON.stringify(scriptForm.script, null, 2),
+    );
     const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
     function clearDraft() {
         try {
@@ -38,11 +41,13 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         try {
             const draft = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
             if (
-                draft?.version === props.episode.lock_version &&
+                Number.isInteger(draft?.version) &&
                 Array.isArray(draft.script?.scenes) &&
                 typeof draft.text === 'string' &&
                 typeof draft.brief === 'string'
             ) {
+                scriptForm.lock_version = draft.version;
+                generateForm.lock_version = draft.version;
                 scriptForm.script = draft.script;
                 scriptText.value = draft.text;
                 generateForm.brief = draft.brief;
@@ -75,11 +80,13 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     watch(
         () => props.screenplay,
         (screenplay) => {
-            if (!screenplay || scriptForm.isDirty || scriptForm.processing || scriptText.value !== JSON.stringify(scriptForm.script, null, 2)) return;
+            if (!screenplay || hasDraft.value || scriptForm.processing) return;
             const script = JSON.parse(JSON.stringify(screenplay)) as Screenplay;
             scriptForm.defaults({ script, lock_version: props.episode.lock_version });
             scriptForm.reset();
             scriptText.value = JSON.stringify(script, null, 2);
+            generateForm.lock_version = props.episode.lock_version;
+            clearDraft();
         },
     );
     function saveScript() {
@@ -92,7 +99,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             parsed = JSON.parse(scriptText.value);
             if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Screenplay must be an object.');
         } catch {
-            jsonError.value = 'Enter a valid screenplay JSON object before importing.';
+            jsonError.value = 'Введите сценарий в формате JSON.';
             return;
         }
         scriptForm
@@ -126,6 +133,8 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         generateErrors,
         approveErrors,
         editorStale,
+        clearDraft,
+        hasDraft,
         saveScript,
         importScript,
         generateScript,

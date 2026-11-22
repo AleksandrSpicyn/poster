@@ -39,6 +39,8 @@ const {
     generateErrors,
     approveErrors,
     editorStale,
+    clearDraft,
+    hasDraft,
     saveScript,
     importScript,
     generateScript,
@@ -58,6 +60,12 @@ const panels = [
     { key: 'montage', label: 'Монтаж' },
     { key: 'release', label: 'Публикация' },
 ];
+const panelTitles: Record<string, string> = {
+    screenplay: 'Сценарий эпизода',
+    shots: 'Кадры и дубли',
+    montage: 'Монтаж эпизода',
+    release: 'Публикация эпизода',
+};
 const panel = ref('screenplay');
 function restorePanel() {
     const key = window.location.hash.slice(1);
@@ -70,8 +78,9 @@ onMounted(() => {
 onUnmounted(() => window.removeEventListener('hashchange', restorePanel));
 const preview = computed(() => allAssemblies.value.flatMap((item) => item.media).find((item) => item.collection === 'episode-video'));
 function refresh() {
-    if (scriptForm.isDirty && !window.confirm('Обновить эпизод и сбросить несохранённые изменения сценария?')) return;
-    router.get(route('episodes.show', params), {}, { preserveState: false, replace: true });
+    if (hasDraft.value && !window.confirm('Обновить эпизод и сбросить несохранённые изменения сценария?')) return;
+    clearDraft();
+    router.get(route('episodes.show', params) + window.location.hash, {}, { preserveState: false, replace: true });
 }
 </script>
 
@@ -80,12 +89,10 @@ function refresh() {
         <Head :title="episode.title" />
         <div class="workspace-page">
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading :title="episode.number + '. ' + episode.title" :description="series.name + ' / Эпизод ' + episode.number" /><Button
-                    variant="outline"
-                    class="h-11"
-                    @click="refresh"
-                    ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
-                >
+                <Heading
+                    :title="panelTitles[panel] ?? 'Сценарий эпизода'"
+                    :description="series.name + ' / Эпизод ' + episode.number + ' · ' + episode.title"
+                /><Button variant="outline" class="h-11" @click="refresh"><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button>
             </div>
             <nav aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
                 <a
@@ -102,7 +109,7 @@ function refresh() {
                 Сериал в архиве. Сохранённые сценарии, дубли и монтажи доступны для просмотра.
             </p>
             <p v-if="!project.is_active" role="status" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-                This project is disabled. Enable it in project settings to generate or publish content. Existing history remains available.
+                Проект выключен. Включите его в настройках, чтобы создавать и публиковать новые видео.
             </p>
             <p
                 v-if="episode.validity === 'requires_review'"
@@ -169,7 +176,7 @@ function refresh() {
                         <section v-if="!archived" class="bg-card space-y-4 rounded-xl border p-5 sm:p-7" aria-labelledby="script-generation-title">
                             <h2 id="script-generation-title" class="text-lg font-semibold">Подготовка сценария</h2>
                             <form class="grid gap-3" @submit.prevent="generateScript">
-                                <Label for="script-brief">Describe what should happen next</Label
+                                <Label for="script-brief">Что должно произойти в эпизоде?</Label
                                 ><textarea
                                     id="script-brief"
                                     v-model="generateForm.brief"
@@ -177,7 +184,7 @@ function refresh() {
                                     maxlength="5000"
                                     rows="3"
                                     class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
-                                    placeholder="Continue the open scene, or describe where the next scene starts."
+                                    placeholder="Продолжите сцену или опишите начало следующей."
                                 /><InputError :message="generateErrors" />
                                 <div>
                                     <Button
@@ -185,20 +192,21 @@ function refresh() {
                                         class="h-11"
                                         :disabled="
                                             !project.is_active ||
+                                            editorStale ||
                                             generateForm.processing ||
                                             ['queued', 'running'].includes(episode.script_generation_status ?? '') ||
                                             !characters.length
                                         "
-                                        >Создать сценарий draft</Button
+                                        >Создать черновик</Button
                                     >
                                 </div>
                             </form>
                             <p v-if="episode.script_generation_status" class="text-muted-foreground text-sm" role="status">
-                                Screenplay request: {{ episode.script_generation_status.replaceAll('_', ' ') }}
+                                Подготовка сценария · {{ episode.script_generation_status.replaceAll('_', ' ') }}
                             </p>
                             <p v-if="episode.script_generation_error" class="text-destructive text-sm">{{ episode.script_generation_error }}</p>
                             <p v-if="!characters.length" class="text-muted-foreground text-sm">
-                                Approve at least one character appearance before writing an episode.
+                                Чтобы написать эпизод, утвердите образ хотя бы одного персонажа.
                                 <Link :href="route('projects.show', project.id)" class="text-primary underline">Персонажи</Link>
                             </p>
                         </section>
@@ -206,16 +214,15 @@ function refresh() {
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <h2 id="script-editor-title" class="text-lg font-semibold">Редактор сценария</h2>
                                 <span v-if="revision" class="text-muted-foreground text-sm"
-                                    >Version {{ revision.number }} · {{ revision.status }}</span
+                                    >Версия {{ revision.number }} · {{ revision.status }}</span
                                 >
                             </div>
                             <p class="text-muted-foreground text-sm">
-                                Choose characters, arrange scenes and describe each shot. Saving creates a new version and keeps previous scripts and
-                                takes.
+                                Выберите персонажей, расположите сцены по порядку и опишите кадры. После сохранения предыдущие версии останутся в
+                                истории.
                             </p>
                             <p v-if="editorStale" role="alert" class="text-destructive text-sm">
-                                A newer episode version is available. Refresh before saving; export your unsaved draft from the advanced tools if you
-                                need to keep it.
+                                Появилась новая версия эпизода. Скопируйте изменения из черновика перед загрузкой новой версии.
                             </p>
                             <form class="grid gap-5" @submit.prevent="saveScript">
                                 <SceneScriptEditor
@@ -240,13 +247,13 @@ function refresh() {
                                         class="h-11"
                                         :disabled="archived || approveForm.processing || scriptForm.isDirty"
                                         @click="approveScript"
-                                        >Approve reviewed version {{ revision.number }}</Button
+                                        >Утвердить версию {{ revision.number }}</Button
                                     >
                                 </div>
                                 <InputError :message="approveErrors" />
                             </form>
                             <details class="space-y-4 rounded-lg border p-4">
-                                <summary class="cursor-pointer text-sm font-medium">Advanced: screenplay JSON import and export</summary>
+                                <summary class="cursor-pointer text-sm font-medium">Импорт и экспорт сценария в JSON</summary>
                                 <p class="text-muted-foreground mt-3 text-xs">
                                     Use these tools to exchange a structured screenplay. The scene editor above is the current draft. Importing
                                     creates a new version after server validation.
@@ -316,7 +323,7 @@ function refresh() {
                         <form class="space-y-4" @submit.prevent="buildAssembly">
                             <div v-for="(shot, index) in shots" :key="shot.id" class="grid items-end gap-3 rounded-lg border p-4 sm:grid-cols-3">
                                 <div class="grid gap-2">
-                                    <Label :for="'take-' + shot.id">Shot {{ index + 1 }} · ready take</Label
+                                    <Label :for="'take-' + shot.id">Кадр {{ index + 1 }} · готовый дубль</Label
                                     ><select
                                         :id="'take-' + shot.id"
                                         v-model="assemblyForm.shots[index].prompt_id"
@@ -330,11 +337,11 @@ function refresh() {
                                     </select>
                                 </div>
                                 <div class="grid gap-2">
-                                    <Label :for="'trim-start-' + shot.id">Start in milliseconds</Label
+                                    <Label :for="'trim-start-' + shot.id">Начало, мс</Label
                                     ><Input :id="'trim-start-' + shot.id" v-model="assemblyForm.shots[index].trim_start_ms" type="number" min="0" />
                                 </div>
                                 <div class="grid gap-2">
-                                    <Label :for="'trim-end-' + shot.id">End in milliseconds</Label
+                                    <Label :for="'trim-end-' + shot.id">Конец, мс</Label
                                     ><Input
                                         :id="'trim-end-' + shot.id"
                                         v-model="assemblyForm.shots[index].trim_end_ms"
@@ -348,13 +355,13 @@ function refresh() {
                                 type="submit"
                                 class="h-11"
                                 :disabled="!project.is_active || assemblyForm.processing || assemblyForm.shots.some((item) => !item.prompt_id)"
-                                >Build selected montage</Button
+                                >Собрать монтаж</Button
                             >
                         </form>
                     </section>
                     <section v-show="panel === 'release'" class="space-y-5" aria-labelledby="episode-montages-title">
                         <h2 id="episode-montages-title" class="text-lg font-semibold">Сборки и публикация</h2>
-                        <p v-if="!allAssemblies.length" class="text-muted-foreground text-sm">Finished montages will appear here for review.</p>
+                        <p v-if="!allAssemblies.length" class="text-muted-foreground text-sm">Здесь появятся сборки для просмотра и приёмки.</p>
                         <AssemblyCard
                             v-for="assembly in allAssemblies"
                             :key="assembly.id + ':' + assembly.lock_version"
