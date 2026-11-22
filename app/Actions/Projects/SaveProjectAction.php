@@ -58,6 +58,7 @@ readonly class SaveProjectAction
                 episode_limit: $data->episode_limit,
                 output_mode: $data->output_mode,
                 auto_publish: $data->auto_publish,
+                cast_settings: $data->cast_settings,
             );
 
             try {

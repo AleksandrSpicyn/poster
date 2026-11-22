@@ -29,7 +29,7 @@ class BuildEpisodeContext
 
     /**
      * @return array{
-     *     cycle?: array<string, mixed>,
+     *     cycle?: array<string, mixed>, lead_character_id?: int, series_voice?: string,
      *     schema_version: int, series_id: int, specification_version: int,
      *     specification: array<string, mixed>, continuity_version: int, episode_number: int,
      *     source_assembly_id: int|null, continuity: array<string, mixed>,
@@ -70,7 +70,7 @@ class BuildEpisodeContext
             'episode_number' => $episode->number,
             'source_assembly_id' => $source?->id,
             'continuity' => $source->continuity_snapshot ?? [],
-            'characters' => array_values($this->characterRevisions->currentForContext($series->id)
+            'characters' => array_values($this->characterRevisions->currentForContext($series->id, $series->cast_settings?->lead_character_id)
                 ->map(fn(CharacterRevision $revision): array => [
                     'id' => $revision->id, 'character_id' => $revision->character_id,
                     'name' => $revision->character->name ?? '',
@@ -78,6 +78,18 @@ class BuildEpisodeContext
                 ])
                 ->all()),
         ];
+
+        $cast = $series->cast_settings;
+
+        if ($cast !== null) {
+            if ($cast->lead_character_id !== null && in_array($cast->lead_character_id, array_column($snapshot['characters'], 'character_id'), true)) {
+                $snapshot['lead_character_id'] = $cast->lead_character_id;
+            }
+
+            if ($cast->use_series_voice && filled($cast->voice_description) && ($cast->lead_character_id === null || isset($snapshot['lead_character_id']))) {
+                $snapshot['series_voice'] = $cast->voice_description;
+            }
+        }
 
         if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
             $plan = CyclePlanData::validateAndCreate($series->cycle_plan ?? []);

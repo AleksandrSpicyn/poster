@@ -74,6 +74,17 @@ readonly class PrepareShotGenerationInput
             $hasDialogue => "Speak only these exact dialogue lines in the series language, using each character's pinned voice blueprint and delivery: $dialogue. Keep voices distinct and consistent. Do not narrate the production instructions.",
             default => 'No speech, narration, commentary, singing or intelligible vocals. Natural action sounds and suitable instrumental music only.',
         };
+        $seriesVoice = $revision->context_snapshot['series_voice'] ?? null;
+        $lead = $revision->context_snapshot['lead_character_id'] ?? null;
+
+        if ($audioMode !== SeriesAudioMode::SILENT && $hasDialogue && is_string($seriesVoice) && $seriesVoice !== '') {
+            if ($lead === null) {
+                $sound .= " Series voice direction for the scripted lines: $seriesVoice.";
+            } elseif (is_int($lead) && in_array($lead, array_column($shot->dialogue, 'character_id'), true)) {
+                $sound .= " For character $lead, apply the series voice direction: $seriesVoice. Keep other characters' individual voice blueprints.";
+            }
+        }
+
         $imagePrompt = <<<TEXT
 Create the opening frame of this scripted shot using the supplied character references.
 Series world, style and constraints (not additional events to depict): $specification

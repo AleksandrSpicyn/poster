@@ -85,6 +85,11 @@ readonly class SeriesRepository extends EloquentRepository
             ])->get();
     }
 
+    public function hasAvailableCharacter(Series $series, int $id): bool
+    {
+        return $series->characters()->whereKey($id)->whereNull('archived_at')->whereNotNull('current_revision_id')->exists();
+    }
+
     public function lockedForProject(int $projectId, int $id): Series
     {
         return Series::query()

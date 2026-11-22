@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Character;
 use App\Models\Project;
 use Illuminate\Support\Facades\Bus;
 
@@ -76,4 +77,22 @@ test('сохраняет независимые настройки сборки 
     ])->assertRedirect()->assertSessionHasNoErrors();
 
     expect($series->refresh()->automation_enabled)->toBeFalse()->and($series->auto_publish)->toBeFalse();
+});
+
+test('проверяет принадлежность главного героя и сохраняет голос следующих эпизодов', function (): void {
+    $context = serialCharacterContext();
+    $context['revision']->update(['status' => 'approved']);
+    $context['character']->update(['current_revision_id' => $context['revision']->id]);
+    $foreign = Character::factory()->create();
+    $payload = [...serialSeriesPayload(), 'lock_version' => 0];
+    $cast = ['lead_character_id' => $context['character']->id, 'voice_description' => 'Мягкий голос', 'use_series_voice' => true];
+
+    actingAs(serialOperator())->patchJson(route('series.update', $context['params']), [
+        ...$payload, 'cast_settings' => [...$cast, 'lead_character_id' => $foreign->id],
+    ])->assertUnprocessable()->assertJsonValidationErrors('cast_settings.lead_character_id');
+    expect($context['series']->refresh()->cast_settings)->toBeNull();
+    actingAs(serialOperator())->patch(route('series.update', $context['params']), [...$payload, 'cast_settings' => $cast])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($context['series']->refresh()->cast_settings?->toArray())->toBe($cast);
 });

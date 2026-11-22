@@ -75,9 +75,13 @@ export interface ProjectSchedule {
 }
 
 export interface ProjectFormProps extends SharedData {
+    castCharacters?: CharacterSummary[];
     scheduleSettings?: ProjectSchedule & { configured: boolean; next: string | null; timezones: string[] };
     project:
-        | (Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at' | 'can_delete' | 'cover'> & {
+        | (Pick<
+              ProjectSummary,
+              'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at' | 'can_delete' | 'cover'
+          > & {
               blocking_runs_count: number;
           })
         | null;

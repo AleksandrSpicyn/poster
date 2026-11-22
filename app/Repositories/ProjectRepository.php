@@ -109,10 +109,11 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function forSettings(Project $project): Project
     {
-        return $project->load('seriesDefinition', 'media', 'coverFrame')->loadCount([
-            'prompts', 'channels', 'series',
-            'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
-        ]);
+        return $project->load(['seriesDefinition' => fn($query) => $query->withMax('episodes', 'number'), 'seriesDefinition.characters' => fn($query) => $query->whereNull('archived_at')
+            ->whereNotNull('current_revision_id')->with('currentRevision.media')->orderBy('name'), 'media', 'coverFrame'])->loadCount([
+                'prompts', 'channels', 'series',
+                'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
+            ]);
     }
 
     public function hasSeries(Project $project): bool

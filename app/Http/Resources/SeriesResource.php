@@ -28,6 +28,8 @@ class SeriesResource extends JsonResource
             'lock_version' => $this->lock_version,
             'automation_enabled' => $this->automation_enabled,
             'auto_publish' => $this->auto_publish,
+            'last_episode_number' => $this->whenHas('episodes_max_number'),
+            'cast_settings' => $this->cast_settings?->toArray(),
             'episode_limit' => $this->episode_limit,
             'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null ? null : ProductionRunResource::make($this->latestProductionRun)->resolve($request)),
             'archived_at' => $this->archived_at?->toISOString(),

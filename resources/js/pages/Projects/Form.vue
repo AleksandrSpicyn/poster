@@ -66,6 +66,7 @@ const form = useForm({
         ...props.series?.specification,
         story_outline: props.series?.specification.story_outline ?? '',
     },
+    cast_settings: props.series?.cast_settings ?? { lead_character_id: null as number | null, voice_description: '', use_series_voice: false },
     series_lock_version: props.series?.lock_version ?? null,
     automation_enabled: props.series?.automation_enabled ?? true,
     auto_publish: props.series?.auto_publish ?? false,
@@ -90,6 +91,7 @@ const settingsLabels: Record<FieldKey, string> = {
     is_active: 'Состояние',
     output_mode: 'Формат выпуска',
     series_specification: 'Паспорт сериала',
+    cast_settings: 'Герои и звук',
     series_lock_version: 'Версия сериала',
     automation_enabled: 'Автоматизация',
     auto_publish: 'Автоматическая публикация',
@@ -248,6 +250,7 @@ function submit() {
 
     form.transform((data) => ({
         ...data,
+        cast_settings: isSeries.value ? data.cast_settings : null,
         series_specification: isSeries.value ? { ...data.series_specification, premise: data.prompt } : null,
     }));
     form.submit(props.project ? 'patch' : 'post', props.project ? route('projects.update', props.project.id) : route('projects.store'), {
@@ -255,6 +258,7 @@ function submit() {
         onSuccess: clearDraft,
         onError: (errors) => {
             if (errors.name || errors.prompt) window.location.hash = 'main';
+            else if (Object.keys(errors).some((key) => key.startsWith('cast_settings.'))) window.location.hash = 'cast';
             else if (errors.channel_ids || Object.keys(errors).some((key) => key.startsWith('channel_ids.'))) window.location.hash = 'channels';
             else if (Object.keys(errors).some((key) => key.startsWith('schedule.'))) window.location.hash = 'automation';
             else if (isSeries.value && !errors.settings_version)
@@ -292,7 +296,10 @@ function submit() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
-        <div class="workspace-page project-editor" :class="{ 'project-detail': detailSection, 'schedule-editor': section === 'automation', 'cast-editor': section === 'cast' }">
+        <div
+            class="workspace-page project-editor"
+            :class="{ 'project-detail': detailSection, 'schedule-editor': section === 'automation', 'cast-editor': section === 'cast' }"
+        >
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading
                     :title="title"
@@ -331,7 +338,9 @@ function submit() {
                         class="project-tab"
                         >{{ label }}</a
                     >
-                    <Link v-if="project && section !== 'cast'" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
+                    <Link v-if="project && section !== 'cast'" :href="route('projects.cover.edit', project.id)" class="project-tab"
+                        >Обложка проекта</Link
+                    >
                 </nav>
                 <form
                     ref="formElement"
@@ -585,7 +594,9 @@ function submit() {
                     </div>
 
                     <ProjectSeriesFields
-                        v-if="isSeries && (section === 'cast' || section === 'plan')"
+                        v-if="isSeries && ['main', 'cast', 'plan'].includes(section)"
+                        :characters="castCharacters ?? []"
+                        v-model:cast="form.cast_settings"
                         :section="section"
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
@@ -663,12 +674,12 @@ function submit() {
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
                     <div v-if="!['main', 'access', 'deletion'].includes(section)" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
-                        <Button v-if="section !== 'automation'" as-child variant="outline" class="h-11"
+                        <Button v-if="!['automation', 'cast'].includes(section)" as-child variant="outline" class="h-11"
                             ><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button
                         >
                         <Button type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
-                                v-else-if="section !== 'automation'"
+                                v-else-if="!['automation', 'cast'].includes(section)"
                                 class="size-4"
                                 aria-hidden="true"
                             />{{
@@ -688,18 +699,26 @@ function submit() {
                     </div>
                 </form>
                 <aside v-if="detailSection" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
-                    <ProjectArtwork v-if="project" :name="project.name" :cover="project.cover" class="aspect-[3/1] rounded-lg" />
+                    <ProjectArtwork
+                        v-if="project"
+                        :name="project.name"
+                        :cover="project.cover"
+                        :class="section === 'cast' ? 'h-[106px] w-full rounded-lg' : 'aspect-[3/1] rounded-lg'"
+                    />
                     <h2 class="text-lg font-semibold">
                         {{ project?.name || (isSeries && section !== 'format' ? form.name || 'Паспорт сериала' : 'Мои проекты') }}
                     </h2>
                     <template v-if="section === 'cast'">
                         <div><span class="text-muted-foreground block text-sm">Проект</span>{{ project?.name || form.name }}</div>
-                        <div><span class="text-muted-foreground block text-sm">Сериал</span>{{ series?.last_episode_number ? 'Эпизод ' + String(series.last_episode_number).padStart(2, '0') : 'Нет эпизодов' }}</div>
+                        <div>
+                            <span class="text-muted-foreground block text-sm">Сериал</span
+                            >{{ series?.last_episode_number ? 'Эпизод ' + String(series.last_episode_number).padStart(2, '0') : 'Нет эпизодов' }}
+                        </div>
                     </template>
                     <template v-else>
-                    <div><span class="text-muted-foreground block text-sm">Студия</span>{{ auth.user.name }}</div>
-                    <div><span class="text-muted-foreground block text-sm">Рабочая область</span>Моя студия</div>
-                </template>
+                        <div><span class="text-muted-foreground block text-sm">Студия</span>{{ auth.user.name }}</div>
+                        <div><span class="text-muted-foreground block text-sm">Рабочая область</span>Моя студия</div>
+                    </template>
                 </aside>
             </div>
         </div>
@@ -846,5 +865,45 @@ function submit() {
         width: auto;
     }
 }
-.cast-editor #project-form > .justify-end { justify-content: flex-start; }
+.cast-editor #project-form > .justify-end {
+    justify-content: flex-start;
+    padding-top: 12px;
+    margin-top: 14px;
+}
+.cast-editor aside {
+    padding: 15px;
+}
+.cast-editor #project-form {
+    padding-bottom: 15px;
+}
+@media (max-width: 767px) {
+    .cast-editor {
+        padding-top: 15px;
+    }
+}
+@media (min-width: 768px) {
+    .cast-editor {
+        padding-top: 23px;
+        gap: 16px;
+    }
+}
+@media (min-width: 1100px) {
+    .cast-editor {
+        padding-top: 19px;
+    }
+    .project-editor.cast-editor > .grid {
+        grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
+        gap: 20px;
+    }
+}
+@media (min-width: 1920px) {
+    .cast-editor {
+        padding-top: 17px;
+    }
+    .project-editor.cast-editor > .grid {
+        max-width: 1236px;
+        grid-template-columns: minmax(0, 860px) minmax(0, 354px);
+        gap: 22px;
+    }
+}
 </style>
