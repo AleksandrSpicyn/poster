@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ArchiveDialog from '@/components/ArchiveDialog.vue';
 import CharacterRevisionCard from '@/components/characters/CharacterRevisionCard.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -16,6 +17,7 @@ const props = defineProps<{
     project: { id: number; name: string };
     series: SeriesSummary;
     character: CharacterSummary;
+    episodesCount: number;
     revisions: PaginatedResource<CharacterRevision>;
     referenceViews: Record<string, string>;
 }>();
@@ -48,8 +50,7 @@ function createRevision() {
     revisionForm.post(route('characters.revisions.store', params), { preserveState: 'errors' });
 }
 function archive() {
-    if (window.confirm('Перенести персонажа в архив? Его версии и история эпизодов сохранятся.'))
-        archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
+    archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
 }
 function changePage(page: number) {
     router.get(route('characters.show', params), { page }, { preserveScroll: true });
@@ -160,13 +161,27 @@ function changePage(page: number) {
                             >Следующие версии</Button
                         >
                     </nav>
-                    <form v-if="!archived" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="archive">
-                        <div>
-                            <p class="text-muted-foreground text-sm">После архивации персонаж останется в прежних эпизодах.</p>
-                            <InputError :message="archiveForm.errors.lock_version" />
-                        </div>
-                        <Button type="submit" variant="outline" class="h-11" :disabled="archiveForm.processing">В архив</Button>
-                    </form>
+                    <div v-if="!archived" class="flex justify-end border-t pt-5">
+                        <ArchiveDialog
+                            title="Архивировать персонажа?"
+                            description="Персонаж исчезнет из выбора для новых сцен. Принятые версии останутся в истории эпизодов."
+                            action="Архивировать персонажа"
+                            :processing="archiveForm.processing"
+                            :error="archiveForm.errors.lock_version"
+                            @confirm="archive"
+                        >
+                            <div class="studio-row">
+                                <dt>Версия</dt>
+                                <dd>
+                                    {{ character.current_revision ? character.current_revision.number + ' · утверждена' : 'Нет утверждённой версии' }}
+                                </dd>
+                            </div>
+                            <div class="studio-row">
+                                <dt>Использование</dt>
+                                <dd>{{ series.name }} · Эпизодов: {{ episodesCount }}</dd>
+                            </div>
+                        </ArchiveDialog>
+                    </div>
                     <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
                         Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
                     </p>

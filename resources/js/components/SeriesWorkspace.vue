@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ArchiveDialog from '@/components/ArchiveDialog.vue';
 import forest from '../../assets/studio/forest-courier.webp';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -33,11 +34,11 @@ function createEpisode() {
     episodeForm.post(route('episodes.store', { series: props.series.id }), { preserveState: 'errors' });
 }
 function archive() {
-    if (window.confirm('Переместить сериал в архив? Эпизоды и персонажи останутся доступны.'))
-        archiveForm.post(route('series.archive', params), { preserveState: 'errors' });
+    archiveForm.post(route('series.archive', params), { preserveState: 'errors' });
 }
 function changePage(page: number) {
-    router.get(route('projects.show', props.project.id), { page }, { preserveScroll: true });
+    const url = route().current('series.show') ? route('series.show', params) : route('projects.show', props.project.id);
+    router.get(url, { page }, { preserveScroll: true });
 }
 </script>
 
@@ -97,7 +98,7 @@ function changePage(page: number) {
             <p>{{ series.cycle_plan.objective }}</p>
             <ol class="space-y-2">
                 <li v-for="part in series.cycle_plan.parts" :key="part.number" class="text-sm">
-                    <strong>Part {{ part.number }}:</strong> {{ part.objective }} — {{ part.expected_result }}
+                    <strong>Эпизод {{ part.number }}.</strong> {{ part.objective }} — {{ part.expected_result }}
                 </li>
             </ol>
         </section>
@@ -116,7 +117,7 @@ function changePage(page: number) {
                     /><InputError :message="characterForm.errors.name" /><InputError :message="characterErrors.series" />
                 </div>
                 <Button type="submit" class="h-11" :disabled="characterForm.processing"
-                    ><Plus class="size-4" aria-hidden="true" />Add character</Button
+                    ><Plus class="size-4" aria-hidden="true" />Добавить персонажа</Button
                 >
             </form>
             <ListPanel
@@ -124,12 +125,12 @@ function changePage(page: number) {
                 :count="characters.data.length"
                 :loading="false"
                 error=""
-                empty-title="No characters yet"
-                empty-description="Create a character, describe their appearance and upload reference views."
+                empty-title="Пока нет персонажей"
+                empty-description="Добавьте персонажа, опишите его внешность и загрузите ракурсы."
                 @page="changePage"
                 @refresh="router.reload()"
             >
-                <template #filters><p class="text-muted-foreground text-sm">Stable identities and approved appearance versions</p></template>
+                <template #filters><p class="text-muted-foreground text-sm">Персонажи и утверждённые образы</p></template>
                 <div class="divide-y">
                     <article v-for="character in characters.data" :key="character.id" class="flex flex-wrap items-center justify-between gap-4 p-5">
                         <div>
@@ -137,9 +138,9 @@ function changePage(page: number) {
                             <p class="text-muted-foreground mt-1 text-sm">
                                 {{
                                     character.current_revision
-                                        ? 'Approved appearance v' + character.current_revision.number
-                                        : 'No approved appearance yet'
-                                }}<span v-if="character.archived_at"> · Archived</span>
+                                        ? 'Утверждённый образ · версия ' + character.current_revision.number
+                                        : 'Пока нет утверждённого образа'
+                                }}<span v-if="character.archived_at"> · В архиве</span>
                             </p>
                         </div>
                         <Button as-child variant="outline" class="h-11"
@@ -149,12 +150,24 @@ function changePage(page: number) {
                 </div>
             </ListPanel>
         </section>
-        <form v-if="!series.archived_at" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="archive">
-            <div>
-                <p class="text-muted-foreground text-sm">В архиве сохраняются персонажи, эпизоды и публикации.</p>
-                <InputError :message="archiveForm.errors.lock_version" />
-            </div>
-            <Button type="submit" variant="outline" class="h-11" :disabled="archiveForm.processing">В архив</Button>
-        </form>
+        <div v-if="!series.archived_at" class="flex justify-end border-t pt-5">
+            <ArchiveDialog
+                title="Архивировать сериал?"
+                description="Новые эпизоды не будут запускаться автоматически."
+                action="Архивировать сериал"
+                :processing="archiveForm.processing"
+                :error="archiveForm.errors.lock_version"
+                @confirm="archive"
+            >
+                <div class="studio-row">
+                    <dt>Эпизоды</dt>
+                    <dd>{{ series.episodes_count ?? episodes.length }}</dd>
+                </div>
+                <div class="studio-row">
+                    <dt>Производство</dt>
+                    <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
+                </div>
+            </ArchiveDialog>
+        </div>
     </div>
 </template>

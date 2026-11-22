@@ -22,7 +22,7 @@ class ShowController
      * Персонаж, версии внешности и приватные референсы
      *
      * Требуются сессия, подтверждённый email и CSRF для изменений.
-     * Вложенные ресурсы ограничены своим родителем. Данные кабинета общие.
+     * Вложенные ресурсы ограничены своим родителем. Доступ определяется владельцем проекта.
      *
      * @group Кабинет
      * @subgroup Сериалы и персонажи
@@ -44,6 +44,7 @@ class ShowController
             'project' => ProjectResource::make($project)->resolve(),
             'series' => SeriesResource::make($series)->resolve(),
             'character' => CharacterResource::make($details->character)->resolve(),
+            'episodesCount' => $details->episodesCount,
             'revisions' => CharacterRevisionResource::collection($details->revisions),
             'referenceViews' => ReferenceView::labels(),
         ]);

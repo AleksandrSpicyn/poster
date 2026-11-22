@@ -14,6 +14,7 @@ class CharacterWorkspaceData extends Data
     /** @param LengthAwarePaginator<int, CharacterRevision> $revisions */
     public function __construct(
         public Character $character,
+        public int $episodesCount,
         public LengthAwarePaginator $revisions,
     ) {}
 }

@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Data\Characters\CharacterWorkspaceData;
 use App\Models\Character;
+use App\Models\Episode;
 
 /** @extends EloquentRepository<Character> */
 readonly class CharacterRepository extends EloquentRepository
@@ -21,6 +22,10 @@ readonly class CharacterRepository extends EloquentRepository
 
         return new CharacterWorkspaceData(
             character: $character,
+            episodesCount: Episode::query()
+                ->where('series_id', $character->series_id)
+                ->whereHas('revisions.characterRevisions', fn($query) => $query->where('character_id', $character->id))
+                ->count(),
             revisions: $character->revisions()
                 ->with('media')
                 ->orderByDesc('number')

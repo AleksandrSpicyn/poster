@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Character;
+use App\Models\Episode;
+use App\Models\EpisodeRevision;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -16,6 +18,12 @@ test('карточка возвращает версии и безопасные
     Storage::fake('local');
     $context = serialCharacterContext();
     $media = serialReferenceMedia($context['revision']);
+    $episode = Episode::factory()->for($context['series'])->create();
+    $scripts = EpisodeRevision::factory()->count(2)->for($episode)->create();
+
+    foreach ($scripts as $script) {
+        $script->characterRevisions()->attach($context['revision']);
+    }
 
     actingAs(serialOperator())
         ->get(route('characters.show', $context['params']))
@@ -23,6 +31,7 @@ test('карточка возвращает версии и безопасные
         ->assertDontSee($media->getPath())
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('Characters/Show')
+            ->where('episodesCount', 1)
             ->where('character.id', $context['character']->id)
             ->where('revisions.data.0.references.0.id', $media->id)
             ->where('revisions.data.0.references.0.url', route('characters.references.show', ['revision' => $context['revision'], 'media' => $media])));
