@@ -35,6 +35,7 @@ class ShowController
      * @header X-Inertia-Version {ASSET_VERSION}
      * @urlParam project integer required ID проекта. Example: 1
      * @queryParam sort string Порядок генераций: asc или desc, по умолчанию desc. Example: desc
+     * @queryParam active boolean Только клипы с публикациями. Example: 1
      * @queryParam perPage integer Размер страницы истории от 1 до 100, по умолчанию 10. Example: 10
      * @queryParam page integer Номер страницы истории от 1. Example: 1
      * @response 200 {"component":"Projects/Show","props":{"project":{"id":1,"name":"Wildlife","prompt":"Original short stories about animals","prompts_count":0,"ready_prompts_count":0,"channels_count":0,"can_delete":true,"channels":[]},"prompts":{"data":[]}}}
@@ -57,7 +58,7 @@ class ShowController
             'characters' => $data->characters instanceof LengthAwarePaginator ? CharacterResource::collection($data->characters) : null,
             'episodes' => EpisodeSummaryResource::collection($data->episodes)->resolve(),
             'sortDirections' => SortDirection::labels(),
-            'filters' => ['updated' => $filters->updated, 'sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
+            'filters' => ['active' => $filters->active, 'updated' => $filters->updated, 'sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
         ]);
     }
 }

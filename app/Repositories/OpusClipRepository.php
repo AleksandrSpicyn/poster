@@ -229,6 +229,7 @@ final readonly class OpusClipRepository extends EloquentRepository
                     $received++;
                     $added += (int) ! $record->exists;
                 }
+
                 $publications += count(array_diff(array_unique(array_filter(array_column($record->publications, 'url'))), $oldUrls));
                 $merged[$canonical] = $record;
 
@@ -248,6 +249,7 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($run->failed_at !== null && $run->resumed_at === null) {
                 $run->resumed_at = now();
             }
+
             $run->clips_received += $publicationStage ? $added : $received;
             $run->clips_added += $added;
             $run->publications_added += $publications;
@@ -259,6 +261,7 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($nextCheckpoint === null) {
                 $run->completed_at = now();
             }
+
             $run->save();
         }
     }
@@ -287,7 +290,7 @@ final readonly class OpusClipRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, OpusClip> */
-    public function paginate(Project $project, int $perPage, int $page, bool $updated = false): LengthAwarePaginator
+    public function paginate(Project $project, int $perPage, int $page, bool $updated = false, bool $active = false): LengthAwarePaginator
     {
         $clips = $this->query();
 
@@ -298,6 +301,7 @@ final readonly class OpusClipRepository extends EloquentRepository
         }
 
         return $clips->with(['source','latestMetrics'])
+            ->when($active, fn($query) => $query->whereJsonLength('publications', '>', 0))
             ->when($updated, fn($query) => $query->orderByDesc('updated_at'))
             ->orderByDesc('id')->paginate($perPage, page: $page)->withQueryString();
     }

@@ -198,3 +198,24 @@ test('недельный отчёт клипов сопоставляет дат
         ->get(route('projects.show', ['project' => $card, 'week' => '2025-11-20']))
         ->assertNotFound();
 });
+
+test('активные клипы включают только записи с публикациями выбранного проекта', function (): void {
+    $owner = workspaceOwner();
+    $workspace = Project::factory()->create(['owner_id' => $owner->id, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $source = OpusSource::factory()->for($workspace)->create();
+    $post = ['platform' => 'youtube', 'url' => 'https://youtu.be/test', 'status' => 'published', 'publish_at' => null];
+    $published = OpusClip::factory()->for($source, 'source')->create(['publications' => [$post]]);
+    OpusClip::factory()->for($source, 'source')->create(['publications' => []]);
+    OpusClip::factory()->create(['publications' => [$post]]);
+
+    actingAs($owner)
+        ->get(route('projects.show', ['project' => $workspace, 'perPage' => 1, 'active' => 1]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('filters.active', true)
+            ->where('opusClips.meta.total', 1)
+            ->where('opusClips.data.0.id', $published->id));
+
+    get(route('projects.show', ['project' => $workspace, 'active' => 0]))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('opusClips.meta.total', 2));
+});
