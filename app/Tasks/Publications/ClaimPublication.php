@@ -83,13 +83,18 @@ class ClaimPublication
             return 'The project is disabled.';
         }
 
-        if (! $this->channels->readyForProject($request->channel_id, $project->id)) {
+        if (! $this->channels->readyForProject($request->channel_id, $project->id, production: $productionRun instanceof ProductionRun)) {
             return 'The publishing channel is disabled, disconnected or no longer attached to this project.';
         }
 
         if ($request->production_run_id !== null && (! $productionRun instanceof ProductionRun || ! $productionRun->status->isActive()
-            || ! $series->automation_enabled || $productionRun->series_id !== $series->id)) {
+            || (! $series->automation_enabled && ! $productionRun->wasStartedManually()) || $productionRun->series_id !== $series->id)) {
             return 'Automatic production stopped before publication.';
+        }
+
+        if ($productionRun instanceof ProductionRun && (! $productionRun->allowsAutomaticDelivery($series)
+            || ($productionRun->deliveryChannelIds() !== null && ! in_array($request->channel_id, $productionRun->deliveryChannelIds(), true)))) {
+            return 'Этот канал исключён из автоматической публикации.';
         }
 
         if ($assembly instanceof SeriesAssembly) {

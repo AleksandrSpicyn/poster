@@ -29,7 +29,7 @@ class ProductionRunResource extends JsonResource
         return [
             'id' => $this->id,
             'series_assembly_id' => $this->series_assembly_id, 'project_id' => $this->project_id, 'series_id' => $this->series_id,
-            'channel_ids' => data_get($this->input_snapshot, 'channel_ids'),
+            'channel_ids' => $this->deliveryChannelIds(), 'manual_start' => $this->wasStartedManually(),
             'episode_title' => $this->whenLoaded('episode', fn(): ?string => $this->episode?->title),
             'episode_number' => $this->whenLoaded('episode', fn(): ?int => $this->episode?->number),
             'has_unresolved_effects' => $this->whenHas('has_unresolved_effects', fn(): bool => (bool) $this->getAttribute('has_unresolved_effects')),

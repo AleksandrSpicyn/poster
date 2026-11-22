@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Actions\Production\AdvanceProductionAction;
 use App\Actions\Production\ResumeProductionAction;
+use App\Enums\AssemblyStatus;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Jobs\AdvanceProductionJob;
 use App\Models\PublicationRequest;
+use App\Models\SeriesAssembly;
 use App\Tasks\Production\CreateProductionRun;
 use App\Tasks\Production\StopProductionRun;
 use Illuminate\Support\Facades\Bus;
@@ -54,6 +56,7 @@ test('остановка блокирует расписание а явное �
     Storage::fake('local');
     $context = singleVideoFixture();
     Bus::fake([AdvanceProductionJob::class]);
+    $context['run']->update(['input_snapshot' => [...$context['run']->input_snapshot, 'channel_ids' => [], 'manual_delivery' => true]]);
     app(StopProductionRun::class)->run($context['run']);
 
     $scheduled = app(CreateProductionRun::class)->run($context['project'], $context['series']->refresh(), $context['user'], 'next-schedule');
@@ -63,6 +66,7 @@ test('остановка блокирует расписание а явное �
     expect($scheduled)->toBeNull();
     expect($context['run']->refresh()->status)->toBe(ProductionStatus::STOPPED);
     expect($context['series']->productionRuns()->count())->toBe(2);
+    expect($context['series']->productionRuns()->latest('id')->firstOrFail()->deliveryChannelIds())->toBe([]);
     expect($context['series']->refresh()->cycle_paused_at)->toBeNull();
     Bus::assertDispatched(AdvanceProductionJob::class);
 });
@@ -88,3 +92,28 @@ test('генерирует и закрепляет конечный план д�
 
     Http::assertNothingSent();
 })->with([false, true]);
+
+test('завершает полную версию без отправки и не собирает её повторно по расписанию', function (): void {
+    Storage::fake('local');
+    $context = singleVideoFixture();
+    $series = $context['series'];
+    $assembly = SeriesAssembly::factory()->for($series)->create(['status' => AssemblyStatus::ACCEPTED]);
+    $series->update(['final_assembly_id' => $assembly->id]);
+    $run = $context['run'];
+    $run->update([
+        'stage' => ProductionStage::PUBLICATION, 'series_assembly_id' => $assembly->id,
+        'input_snapshot' => [...$run->input_snapshot, 'channel_ids' => [], 'manual_delivery' => true],
+    ]);
+    Bus::fake();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+    $next = app(CreateProductionRun::class)->run($context['project'], $series, $context['user'], 'next-cycle', scheduled: true);
+
+    expect($run->refresh()->status)->toBe(ProductionStatus::COMPLETED)
+        ->and($next)->toBeNull()
+        ->and($series->productionRuns()->count())->toBe(1)
+        ->and($series->refresh()->release_started_at)->toBeNull()
+        ->and($assembly->publications()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+});

@@ -71,7 +71,7 @@ readonly class AdvanceProductionAction
             return;
         }
 
-        if ($run->series_id !== null && ($run->series === null || ! $run->series->automation_enabled || $run->series->archived_at !== null)) {
+        if ($run->series_id !== null && ($run->series === null || (! $run->series->automation_enabled && ! $run->wasStartedManually()) || $run->series->archived_at !== null)) {
             $this->stop->run($run, 'Series automation is paused.');
 
             return;
@@ -85,7 +85,22 @@ readonly class AdvanceProductionAction
 
         $channels = $run->project->channels->filter(fn(Channel $channel): bool => $channel->is_active && (in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true) || ($run->series_id !== null && $channel->canSendTiktokInboxVideo())));
 
-        if ($channels->isEmpty() || $channels->contains(fn(Channel $channel): bool => ! filled($channel->credentials['access_token'] ?? null))) {
+        $selected = $run->deliveryChannelIds();
+
+        if ($run->series !== null && $selected !== null) {
+            $channels = $channels->filter(fn(Channel $channel): bool => in_array($channel->id, $selected, true)
+                && $channel->owner_id === $run->project->owner_id && $channel->canReceiveProduction());
+
+            if ($run->allowsAutomaticDelivery($run->series) && $channels->count() !== count($selected)) {
+                $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'Один из выбранных каналов больше недоступен.');
+
+                return;
+            }
+        }
+
+        $withoutDelivery = $run->series !== null && (($selected === [] && $run->wasStartedManually()) || ! $run->allowsAutomaticDelivery($run->series));
+
+        if (! $withoutDelivery && ($channels->isEmpty() || $channels->contains(fn(Channel $channel): bool => ! filled($channel->credentials['access_token'] ?? null)))) {
             $this->update->run($run, ProductionStatus::WAITING, message: 'Connect and authorise the project publishing channels before production starts.');
 
             return;

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Project;
+use Illuminate\Support\Facades\Bus;
 
 use function Pest\Laravel\actingAs;
 use function Tests\Support\serialCharacterContext;
@@ -58,4 +59,21 @@ test('смена режима звука сохраняется как нова�
     expect($context['series']->refresh()->specification['audio_mode'])->toBe('silent');
     expect($context['series']->specification_version)->toBe(2);
     expect($context['series']->lock_version)->toBe(1);
+});
+
+test('сохраняет независимые настройки сборки и отправки при редактировании', function (): void {
+    Bus::fake();
+    $context = serialCharacterContext();
+    $series = $context['series'];
+    $payload = [...serialSeriesPayload(), 'automation_enabled' => true, 'auto_publish' => false, 'lock_version' => 0];
+
+    actingAs(serialOperator())->patch(route('series.update', $context['params']), $payload)->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($series->refresh()->automation_enabled)->toBeTrue()->and($series->auto_publish)->toBeFalse();
+
+    actingAs(serialOperator())->patch(route('series.update', $context['params']), [
+        ...serialSeriesPayload(), 'automation_enabled' => false, 'lock_version' => $series->lock_version,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($series->refresh()->automation_enabled)->toBeFalse()->and($series->auto_publish)->toBeFalse();
 });

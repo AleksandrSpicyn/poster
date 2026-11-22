@@ -27,6 +27,7 @@ class SeriesResource extends JsonResource
             'continuity_version' => $this->continuity_version,
             'lock_version' => $this->lock_version,
             'automation_enabled' => $this->automation_enabled,
+            'auto_publish' => $this->auto_publish,
             'episode_limit' => $this->episode_limit,
             'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null ? null : ProductionRunResource::make($this->latestProductionRun)->resolve($request)),
             'archived_at' => $this->archived_at?->toISOString(),

@@ -24,6 +24,7 @@ export interface SeriesSummary {
     continuity_version: number;
     lock_version: number;
     automation_enabled: boolean;
+    auto_publish: boolean;
     output_mode: string;
     cycle_plan?: { objective: string; parts: { number: number; objective: string; expected_result: string }[] } | null;
     cycle_paused?: boolean;
@@ -71,6 +72,7 @@ export interface CharacterSummary {
 }
 
 export interface EpisodeSummary {
+    delivery_channel_ids?: number[] | null;
     objective?: string | null;
     current_revision_id: number | null;
     accepted_assembly_id: number | null;

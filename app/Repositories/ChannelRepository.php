@@ -104,10 +104,12 @@ readonly class ChannelRepository extends EloquentRepository
         return $channel->projects()->whereKey($projectId)->exists();
     }
 
-    public function readyForProject(int $channelId, int $projectId): bool
+    public function readyForProject(int $channelId, int $projectId, bool $production = false): bool
     {
-        return Channel::query()->whereKey($channelId)->where('is_active', true)->whereNotNull('credentials->access_token')
-            ->whereHas('projects', fn(Builder $query) => $query->whereKey($projectId)->whereColumn('projects.owner_id', 'channels.owner_id'))->exists();
+        $query = Channel::query()->whereKey($channelId)->where('is_active', true)->whereNotNull('credentials->access_token')
+            ->whereHas('projects', fn(Builder $query) => $query->whereKey($projectId)->whereColumn('projects.owner_id', 'channels.owner_id'));
+
+        return $production ? $query->first()?->canReceiveProduction() === true : $query->exists();
     }
 
     public function hasDependencies(Channel $channel): bool

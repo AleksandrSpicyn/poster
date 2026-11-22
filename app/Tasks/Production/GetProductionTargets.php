@@ -23,7 +23,7 @@ readonly class GetProductionTargets
     ) {}
 
     /** @return list<ProductionTargetData> */
-    public function run(Project $project, ?int $seriesId, ?User $actor): array
+    public function run(Project $project, ?int $seriesId, ?User $actor, bool $manual = false): array
     {
         $scheduled = ! $actor instanceof User && $seriesId === null && $project->relationLoaded('automatedSeries') && $project->relationLoaded('owner');
 
@@ -59,7 +59,7 @@ readonly class GetProductionTargets
 
         $items = $scheduled ? $project->automatedSeries : $this->series->productionTargets($project, $seriesId);
 
-        return array_values($items->filter(fn(Series $series): bool => $series->automation_enabled)
+        return array_values($items->filter(fn(Series $series): bool => $manual || $series->automation_enabled)
             ->map(function (Series $series) use ($actor): ?ProductionTargetData {
                 $operator = $actor ?? $series->automationUser;
 

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import type { SeriesSpecification } from '@/types/series';
 
 const specification = defineModel<SeriesSpecification & { story_outline: string }>('specification', { required: true });
+const autoPublish = defineModel<boolean>('autoPublish', { required: true });
 const automationEnabled = defineModel<boolean>('automationEnabled', { required: true });
 const outputMode = defineModel<string>('outputMode', { required: true });
 const episodeLimit = defineModel<number | string>('episodeLimit', { required: true });
@@ -163,7 +164,7 @@ const labels: Record<string, string> = {
             <label class="flex min-h-11 cursor-pointer items-start gap-3">
                 <input v-model="automationEnabled" type="checkbox" class="accent-primary mt-1 size-4 shrink-0" :disabled="processing" />
                 <span class="text-sm"
-                    ><span class="font-medium">Автоматически создавать и публиковать эпизоды</span
+                    ><span class="font-medium">Автоматически создавать эпизоды</span
                     ><span class="text-muted-foreground mt-1 block leading-relaxed"
                         >После включения начнётся работа над первым выпуском. Сначала понадобятся референсы персонажей. Следующие эпизоды создаются по
                         расписанию.</span
@@ -171,6 +172,11 @@ const labels: Record<string, string> = {
                 >
             </label>
             <InputError :message="errors.automation_enabled" />
+            <label class="flex min-h-11 cursor-pointer items-start gap-3">
+                <input v-model="autoPublish" type="checkbox" class="accent-primary mt-1 size-4 shrink-0" :disabled="processing" />
+                <span class="text-sm font-medium">Автоматически публиковать готовое видео</span>
+            </label>
+            <InputError :message="errors.auto_publish" />
             <div class="grid gap-2">
                 <Label for="series-limit">Количество эпизодов</Label>
                 <Input

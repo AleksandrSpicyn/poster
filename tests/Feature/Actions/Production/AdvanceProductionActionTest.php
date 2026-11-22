@@ -18,6 +18,7 @@ use App\Enums\GenerationOperationStatus;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Enums\ProjectContentMode;
+use App\Enums\PublicationStatus;
 use App\Enums\RevisionStatus;
 use App\Events\PostCreated;
 use App\Jobs\GenerateEpisodeScriptJob;
@@ -30,7 +31,9 @@ use App\Models\Post;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Models\Series;
+use App\Tasks\Publications\ClaimPublication;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
@@ -43,6 +46,7 @@ use Laravel\Ai\StructuredAnonymousAgent;
 use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
 use function Pest\Laravel\travelTo;
+use function Tests\Support\acceptedEpisodePublication;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
@@ -339,3 +343,53 @@ test('неподключённый или выключенный канал за
     'выключен' => [false, ['access_token' => 'test']],
     'без токена' => [true, ['channel_id' => 'account-only']],
 ]);
+
+test('отправляет готовый эпизод только выбранным каналам', function (bool $deliver): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
+    $episode = $assembly->episodeRevision->episode;
+    $series = $episode->series;
+    $series->project->update(['content_mode' => ProjectContentMode::SERIES]);
+    $series->update(['automation_enabled' => true, 'auto_publish' => false]);
+    Channel::factory()->for($series->project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'fake']]);
+    $ids = $deliver ? [$channel->id] : [];
+    $run = ProductionRun::factory()->for($series->project)->for($series)->create([
+        'episode_id' => $episode->id, 'episode_assembly_id' => $assembly->id, 'actor_id' => $owner->id,
+        'stage' => ProductionStage::PUBLICATION, 'input_snapshot' => ['channel_ids' => $ids, 'manual_delivery' => true],
+    ]);
+    Bus::fake();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect(PublicationRequest::query()->pluck('channel_id')->all())->toBe($ids)
+        ->and($run->refresh()->status)->toBe($deliver ? ProductionStatus::WAITING : ProductionStatus::COMPLETED);
+
+    if ($deliver) {
+        $request = PublicationRequest::query()->sole();
+        $request->update(['scheduled_at' => now()->subMinute()]);
+        $series->project->channels()->detach($channel);
+        expect(app(ClaimPublication::class)->run($request))->toBeFalse()
+            ->and($request->refresh()->status)->toBe(PublicationStatus::FAILED);
+    } else {
+        Bus::assertNothingDispatched();
+    }
+
+    Http::assertNothingSent();
+})->with([true, false]);
+
+test('закрепляет пустой выбор в самом эпизоде перед подготовкой сценария', function (): void {
+    Storage::fake('local');
+    ['episode' => $episode, 'user' => $owner] = episodeHttpFixture();
+    $series = $episode->series;
+    $series->project->update(['content_mode' => ProjectContentMode::SERIES]);
+    $series->update(['automation_enabled' => false, 'auto_publish' => false]);
+    Bus::fake();
+    $run = app(StartProductionAction::class)->run($series->project, 'manual-episode', $owner, $series->id, [])->sole();
+
+    app(AdvanceProductionAction::class)->run($run->id);
+
+    expect($run->refresh()->episode_id)->toBe($episode->id)
+        ->and($run->stage)->toBe(ProductionStage::SCREENPLAY)
+        ->and($episode->refresh()->delivery_channel_ids)->toBe([]);
+    Http::assertNothingSent();
+});

@@ -76,6 +76,7 @@ class SaveSeries
             'output_mode' => $data->output_mode,
             'specification' => $specification,
             'automation_enabled' => $data->automation_enabled,
+            'auto_publish' => $data->auto_publish ?? $series->auto_publish,
             'episode_limit' => $data->episode_limit,
             'automation_user_id' => $data->automation_enabled ? ($actorId ?? $series->automation_user_id) : $series->automation_user_id,
         ]);

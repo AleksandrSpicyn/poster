@@ -42,6 +42,7 @@ class ProjectData extends Data
         public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
         #[Min(1)]
         public ?int $settings_version = null,
+        public ?bool $auto_publish = null,
     ) {}
 
     /** @return array<string, list<string>> */
