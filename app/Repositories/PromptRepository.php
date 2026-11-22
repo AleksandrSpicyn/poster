@@ -33,15 +33,13 @@ readonly class PromptRepository extends EloquentRepository
     {
         $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
 
-        $query = Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->with('project', 'media');
+        $query = $project === null ? Prompt::query()->with('project') : $project->prompts()->chaperone('project');
 
-        if ($project instanceof Project) {
-            $query->whereBelongsTo($project);
-        } elseif (is_int($dto->project)) {
+        if ($project === null && is_int($dto->project)) {
             $query->where('project_id', $dto->project);
         }
 
-        return $query
+        return $query->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->with('media')
             ->orderBy('created_at', $direction->value)
             ->orderBy('id', $direction->value)
             ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
@@ -62,19 +60,14 @@ readonly class PromptRepository extends EloquentRepository
         return $project->prompts()->whereNull('shot_id')->latest()->limit(50)->get(['prompt'])->map(fn(Prompt $prompt): string => $prompt->prompt);
     }
 
-    public function legacyCount(User $owner): int
+    /** @return array{total: int, ready: int} */
+    public function dashboardCounts(User $owner): array
     {
-        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->count();
-    }
+        /** @var object{total: int|string, ready: int|string} $counts */
+        $counts = Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')
+            ->toBase()->selectRaw('count(*) as total, count(case when prompts.generated then 1 end) as ready')->first();
 
-    public function readyCount(User $owner): int
-    {
-        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->where('generated', true)->count();
-    }
-
-    public function pendingCount(User $owner): int
-    {
-        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->where('generated', false)->count();
+        return ['total' => (int) $counts->total, 'ready' => (int) $counts->ready];
     }
 
     /** @return EloquentCollection<int, Prompt> */
@@ -116,7 +109,8 @@ readonly class PromptRepository extends EloquentRepository
         return Prompt::query()->where(fn($query) => $query
             ->whereHas('generationOperations', fn($operations) => $operations->where('production_run_id', $run->id))
             ->orWhereHas('shot.scene.episodeRevision', fn($revisions) => $revisions->where('episode_id', $run->episode_id)))
-            ->lockForUpdate()->get();
+            ->with(['project', 'generationOperations' => fn($query) => $query->chaperone('prompt')->orderBy('id')->lockForUpdate()])
+            ->orderBy('id')->lockForUpdate()->get();
     }
 
     public function forOperation(GenerationOperation $operation): Prompt
@@ -147,7 +141,7 @@ readonly class PromptRepository extends EloquentRepository
     /** @return LazyCollection<int, Prompt> */
     public function unfinished(): LazyCollection
     {
-        return Prompt::query()->where('generated', false)->lazyById();
+        return Prompt::query()->where('generated', false)->whereNull('shot_id')->whereNotNull('video_url')->whereNotNull('audio_url')->lazyById();
     }
 
     public function refreshForAssembly(Prompt $prompt): Prompt

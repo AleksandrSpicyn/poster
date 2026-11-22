@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
@@ -93,3 +94,35 @@ test('гость не запускает производство', function ():
     expect(ProductionRun::query()->exists())->toBeFalse();
     Bus::assertNothingDispatched();
 });
+
+test('запускает все сериалы проекта пакетно и не повторяет выпуск', function (int $size): void {
+    Bus::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->for($actor, 'owner')->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->for($project)->make(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+
+    foreach (array_chunk(array_fill(0, $size, $series->getAttributes()), 100) as $batch) {
+        Series::query()->insert($batch);
+    }
+
+    actingAs($actor);
+    DB::enableQueryLog();
+
+    try {
+        post(route('production_runs.store', $project), ['request_key' => 'all-series'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+        $queries = collect(DB::getQueryLog())->pluck('query');
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    post(route('production_runs.store', $project), ['request_key' => 'all-series'])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($queries->filter(fn(mixed $sql): bool => is_string($sql) && str_starts_with($sql, 'select '))->count())->toBeLessThanOrEqual(12)
+        ->and($queries->filter(fn(mixed $sql): bool => is_string($sql) && str_starts_with($sql, 'insert '))->count())->toBe((int) ceil($size / 100))
+        ->and($project->productionRuns()->count())->toBe($size);
+    Bus::assertDispatchedTimes(AdvanceProductionJob::class, $size);
+})->with([1, 10, 100, 1000]);

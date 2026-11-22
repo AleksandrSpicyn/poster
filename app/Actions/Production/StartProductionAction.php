@@ -27,20 +27,29 @@ readonly class StartProductionAction
             Gate::forUser($actor)->authorize('manageSeries', $project);
         }
 
-        foreach ($this->targets->run($project, $seriesId, $actor) as $target) {
-            if ($target->actor->id !== $project->owner_id || ! $actor instanceof User && ! Gate::forUser($target->actor)->allows('manageSeries')) {
+        $targets = $this->targets->run($project, $seriesId, $actor);
+        $ids = [];
+        $operator = null;
+
+        foreach ($targets as $target) {
+            if ($target->actor->id !== $project->owner_id || ! Gate::forUser($target->actor)->allows('manageSeries')) {
                 continue;
             }
 
-            Gate::forUser($target->actor)->authorize('manageSeries');
-            $run = $this->create->run($project, $target->series, $target->actor, $requestKey);
+            $operator = $target->actor;
 
-            if (! $run instanceof ProductionRun) {
-                continue;
+            if ($target->series !== null) {
+                $ids[] = $target->series->id;
             }
+        }
 
-            $runs->push($run);
+        if ($operator === null) {
+            return $runs;
+        }
 
+        $runs = $this->create->forTargets($project, $ids, $operator, $requestKey, scheduled: $actor === null);
+
+        foreach ($runs as $run) {
             if ($run->wasRecentlyCreated) {
                 AdvanceProductionJob::dispatch($run->id)->afterCommit();
             }

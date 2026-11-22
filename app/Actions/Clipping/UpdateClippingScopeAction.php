@@ -7,6 +7,7 @@ namespace App\Actions\Clipping;
 use App\Classes\Clipping\ClippingReaders;
 use App\Data\ClippingScopeData;
 use App\Models\ClippingConnection;
+use App\Models\Project;
 use App\Repositories\ClippingConnectionRepository;
 use Illuminate\Validation\ValidationException;
 
@@ -25,7 +26,7 @@ final readonly class UpdateClippingScopeAction
         }
 
         if ($data->project_id !== null) {
-            abort_unless($this->connections->projects($connection)->contains('id', $data->project_id), 404);
+            abort_unless($this->connections->availableProject($connection, $data->project_id) instanceof Project, 404);
         }
 
         $this->connections->updateScope($connection, $data);

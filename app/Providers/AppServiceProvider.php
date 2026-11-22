@@ -24,6 +24,7 @@ use App\Models\Shot;
 use App\Observers\BroadcastWorkspaceChanges;
 use App\Policies\OperationsPolicy;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Ai\Ai;
@@ -32,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        Model::preventLazyLoading();
+
         Ai::extend('codex', fn(Application $app, array $config): CodexProvider => $app->make(CodexProvider::class, ['config' => $config]));
 
         Gate::define('viewLogViewer', [OperationsPolicy::class, 'viewLogs']);

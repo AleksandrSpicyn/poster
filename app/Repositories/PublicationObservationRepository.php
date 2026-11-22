@@ -19,6 +19,7 @@ use App\Models\PublicationObservation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
@@ -71,82 +72,116 @@ final readonly class PublicationObservationRepository
     /** @return LazyCollection<int, PublicationObservation> */
     public function period(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
     {
-        return PublicationObservation::query()->select('publication_observations.*')->addSelect([
-            'report_project_id' => DB::table('publication_metric_origins as origin')->select('origin.project_id')
-                ->join('projects as origin_project', 'origin_project.id', '=', 'origin.project_id')
-                ->where('origin_project.owner_id', $owner->id)->where('origin.owner_id', $owner->id)
-                ->whereColumn('origin.publication_key', 'publication_observations.publication_key')
-                ->when($filters->project, fn($query) => $query->where('origin.project_id', $filters->project))
-                ->when($filters->format, fn($query) => $query->where('origin_project.content_mode', $filters->format?->value))
-                ->orderBy('origin.project_id')->limit(1),
-            'post_url' => Post::query()->select('url')->whereColumn('id', 'publication_observations.post_id')
-                ->whereRelation('channel', 'owner_id', $owner->id)->limit(1),
-            'clip_publications' => OpusClip::query()->select('publications')->whereColumn('id', 'publication_observations.opus_clip_id')
-                ->whereRelation('source.project', 'owner_id', $owner->id)->limit(1),
-        ])->withCasts(['clip_publications' => 'array'])->where('owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
+        return PublicationObservation::query()->join('publication_metric_identities as identity', static fn(JoinClause $join) => $join
+            ->on('identity.owner_id', '=', 'publication_observations.owner_id')->on('identity.publication_key', '=', 'publication_observations.publication_key'))
+            ->select('publication_observations.*', 'identity.platform', 'identity.account', 'identity.media_id')->addSelect([
+                'report_project_id' => DB::table('publication_metric_origins as origin')->select('origin.project_id')
+                    ->join('projects as origin_project', 'origin_project.id', '=', 'origin.project_id')
+                    ->where('origin_project.owner_id', $owner->id)->where('origin.owner_id', $owner->id)
+                    ->whereColumn('origin.publication_key', 'publication_observations.publication_key')
+                    ->when($filters->project, fn($query) => $query->where('origin.project_id', $filters->project))
+                    ->when($filters->format, fn($query) => $query->where('origin_project.content_mode', $filters->format?->value))
+                    ->orderBy('origin.project_id')->limit(1),
+                'post_url' => Post::query()->select('url')->whereColumn('id', 'publication_observations.post_id')
+                    ->whereRelation('channel', 'owner_id', $owner->id)->limit(1),
+                'clip_publications' => OpusClip::query()->select('publications')->whereColumn('id', 'publication_observations.opus_clip_id')
+                    ->whereRelation('source.project', 'owner_id', $owner->id)->limit(1),
+            ])->withCasts(['clip_publications' => 'array'])->where('publication_observations.owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
             ->when($filters->platform, fn($query) => $query->where('platform', $filters->platform?->value))
             ->when($filters->format, fn($query) => $query->whereIn('publication_observations.publication_key', DB::table('publication_metric_origins as origin')
                 ->join('projects', 'projects.id', '=', 'origin.project_id')->where('projects.owner_id', $owner->id)->where('origin.owner_id', $owner->id)
                 ->where('projects.content_mode', $filters->format?->value)->when($filters->project, fn($origin) => $origin->where('origin.project_id', $filters->project))->select('origin.publication_key')))
-            ->when($filters->project, fn($query) => $query->whereIn('publication_key', DB::table('publication_metric_origins')
+            ->when($filters->project, fn($query) => $query->whereIn('publication_observations.publication_key', DB::table('publication_metric_origins')
                 ->where('owner_id', $owner->id)->where('project_id', $filters->project)->select('publication_key')))
             ->orderBy('observed_on')->orderBy('id')->cursor();
     }
 
-    /** @param array<string, int|float> $metrics */
-    public function record(Channel $channel, MetricTargetData $target, string $account, array $metrics): bool
+    /**
+     * @param array<array-key, MetricTargetData> $targets
+     * @param array<array-key, array<string, int|float>> $metrics
+     */
+    public function record(Channel $channel, array $targets, string $account, array $metrics): int
     {
-        return DB::transaction(function () use ($channel, $target, $account, $metrics): bool {
+        if ($metrics === []) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($channel, $targets, $account, $metrics): int {
             User::query()->whereKey($channel->owner_id)->lockForUpdate()->firstOrFail(['id']);
             $current = Channel::query()->where('owner_id', $channel->owner_id)->where('type', $channel->type)->where('is_active', true)->lockForUpdate()->find($channel->id);
 
             if ($current === null || ($current->credentials['channel_id'] ?? null) !== $account || blank($current->credentials['access_token'] ?? null)
                 || ($current->type === ChannelType::TIKTOK && ! $current->hasTiktokScope('video.list'))) {
-                return false;
+                return 0;
             }
 
-            $identity = hash('sha256', serialize([$channel->type->value, $account, $target->mediaId]));
-            $observation = PublicationObservation::query()->firstOrNew([
-                'owner_id' => $channel->owner_id, 'publication_key' => $identity, 'observed_on' => now('UTC')->toDateString(),
-            ]);
-            $linked = false;
-            $clipIds = [];
+            $projectIds = collect($targets)->pluck('origins')->collapse()->pluck('projectId')->unique()->values();
+            $owned = Project::query()->where('owner_id', $channel->owner_id)->whereIn('id', $projectIds)->pluck('id')->flip();
+            $day = now('UTC')->toDateString();
+            $keys = [];
 
-            foreach ($target->origins as $origin) {
-                if (! Project::query()->whereKey($origin->projectId)->where('owner_id', $channel->owner_id)->exists()) {
-                    continue;
+            foreach (array_keys($metrics) as $id) {
+                $keys[$id] = hash('sha256', serialize([$channel->type->value, $account, $targets[$id]->mediaId]));
+            }
+            $existing = PublicationObservation::query()->where('owner_id', $channel->owner_id)->where('observed_on', $day)
+                ->whereIn('publication_key', $keys)->get()->keyBy('publication_key');
+
+            $identities = [];
+            $links = [];
+            $rows = [];
+            $newOrigins = [];
+
+            foreach ($metrics as $id => $values) {
+                $target = $targets[$id];
+                $key = $keys[$id];
+                $previous = $existing->get($key);
+                $postId = $previous?->post_id;
+                $clipId = $previous?->opus_clip_id;
+                $linked = false;
+
+                foreach ($target->origins as $origin) {
+                    if (! $owned->has($origin->projectId)) {
+                        continue;
+                    }
+
+                    $links[] = ['owner_id' => $channel->owner_id, 'publication_key' => $key, 'source_type' => $origin->type,
+                        'source_id' => $origin->id, 'project_id' => $origin->projectId];
+
+                    if ($origin->type === Post::class) {
+                        $postId = $origin->id;
+                    } else {
+                        $clipId = $origin->id;
+
+                        if ($previous === null) {
+                            $observationKey = ClippingSyncRunRepository::observationKey($channel->type->value, $account, $target->mediaId, $day);
+                            $newOrigins[$observationKey][] = $origin->id;
+                        }
+                    }
+                    $linked = true;
                 }
 
-                DB::table('publication_metric_origins')->upsert([[
-                    'owner_id' => $channel->owner_id, 'publication_key' => $identity, 'source_type' => $origin->type,
-                    'source_id' => $origin->id, 'project_id' => $origin->projectId,
-                ]], ['owner_id', 'publication_key', 'source_type', 'source_id'], ['project_id']);
+                if ($linked) {
+                    $identity = ['owner_id' => $channel->owner_id, 'publication_key' => $key];
+                    $identities[] = [...$identity, 'platform' => $channel->type->value, 'account' => $account, 'media_id' => $target->mediaId];
+                    $snapshot = $previous ?? new PublicationObservation();
+                    $snapshot->fill([...$identity, 'observed_on' => $day, 'channel_id' => $channel->id, 'title' => mb_substr($target->title, 0, 255),
+                        'post_id' => $postId, 'opus_clip_id' => $clipId, 'metrics' => $values]);
 
-                if ($origin->type === Post::class) {
-                    $observation->post_id = $origin->id;
-                } else {
-                    $observation->opus_clip_id = $origin->id;
-                    $clipIds[] = $origin->id;
+                    if ($snapshot->isDirty()) {
+                        $rows[] = array_diff_key($snapshot->getAttributes(), array_flip(['id', 'created_at', 'updated_at']));
+                    }
                 }
-
-                $linked = true;
             }
 
-            if (! $linked) {
-                return false;
+            if ($links !== []) {
+                DB::table('publication_metric_identities')->upsert($identities, ['owner_id', 'publication_key'], ['publication_key']);
+                DB::table('publication_metric_origins')->upsert($links, ['owner_id', 'publication_key', 'source_type', 'source_id'], ['project_id']);
+                PublicationObservation::query()->upsert($rows, ['owner_id', 'publication_key', 'observed_on'], ['post_id', 'opus_clip_id', 'title', 'metrics', 'channel_id']);
             }
 
-            $observation->fill([
-                'channel_id' => $channel->id, 'platform' => $channel->type->value, 'account' => $account,
-                'media_id' => $target->mediaId, 'title' => mb_substr($target->title, 0, 255), 'metrics' => $metrics,
-            ])->save();
+            $this->syncRuns->observations($newOrigins);
 
-            if ($observation->wasRecentlyCreated && $clipIds !== []) {
-                $key = ClippingSyncRunRepository::observationKey($channel->type->value, $account, $target->mediaId, $observation->observed_on);
-                $this->syncRuns->observations([$key => $clipIds]);
-            }
-
-            return true;
+            return count($identities);
         }, attempts: 3);
     }
 }

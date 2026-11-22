@@ -25,7 +25,11 @@ readonly class GetProductionTargets
     /** @return list<ProductionTargetData> */
     public function run(Project $project, ?int $seriesId, ?User $actor): array
     {
-        $this->projects->refresh($project);
+        $scheduled = $actor === null && $seriesId === null && $project->relationLoaded('automatedSeries') && $project->relationLoaded('owner');
+
+        if (! $scheduled) {
+            $this->projects->refresh($project);
+        }
 
         if ($project->isClippingProject()) {
             if ($actor instanceof User) {
@@ -48,12 +52,12 @@ readonly class GetProductionTargets
                 throw ValidationException::withMessages(['series_id' => 'Select a series project before requesting an episode.']);
             }
 
-            $actor ??= $project->owner_id === null ? null : $this->users->find($project->owner_id);
+            $actor ??= $scheduled ? $project->owner : ($project->owner_id === null ? null : $this->users->find($project->owner_id));
 
             return $actor instanceof User ? [new ProductionTargetData(null, $actor)] : [];
         }
 
-        $items = $this->series->productionTargets($project, $seriesId);
+        $items = $scheduled ? $project->automatedSeries : $this->series->productionTargets($project, $seriesId);
 
         return array_values($items->filter(fn(Series $series): bool => $series->automation_enabled)
             ->map(function (Series $series) use ($actor): ?ProductionTargetData {

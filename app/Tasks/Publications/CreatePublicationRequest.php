@@ -81,14 +81,9 @@ class CreatePublicationRequest
                 throw ValidationException::withMessages(['channel_ids' => 'Choose supported channels belonging to this project.']);
             }
 
-            $requests = new Collection();
             $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series);
 
-            foreach ($channels as $channel) {
-                $requests->push($this->publications->forAcceptedAssembly($assembly, $channel, $actor, $productionRun, $context, $scheduledAt, $tiktok));
-            }
-
-            return $requests;
+            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $tiktok);
         });
     }
 }

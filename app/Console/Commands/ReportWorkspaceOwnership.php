@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use App\Models\Channel;
 use App\Models\Chat;
-use App\Models\OpusSource;
 use App\Models\Project;
 use Illuminate\Console\Command;
 
@@ -34,12 +33,15 @@ class ReportWorkspaceOwnership extends Command
             }
         }
 
-        foreach (OpusSource::query()->with('project')->lazyById() as $source) {
-            foreach (Project::query()->where('opus_source_id', $source->id)->lazyById() as $card) {
-                if ($card->owner_id === null || $card->owner_id !== $source->project?->owner_id) {
-                    $this->line("Review OpusClip source {$source->id} / project {$source->project_id} / card {$card->id}");
-                }
-            }
+        $cards = Project::query()->join('opus_sources', 'opus_sources.id', '=', 'projects.opus_source_id')
+            ->join('projects as origins', 'origins.id', '=', 'opus_sources.project_id')
+            ->where(fn($query) => $query->whereNull('projects.owner_id')->orWhereNull('origins.owner_id')->orWhereColumn('projects.owner_id', '!=', 'origins.owner_id'))
+            ->select('projects.id', 'projects.opus_source_id', 'origins.id as origin_id')
+            ->toBase()->lazyById(column: 'projects.id', alias: 'id');
+
+        /** @var object{id: int, opus_source_id: int, origin_id: int} $card */
+        foreach ($cards as $card) {
+            $this->line("Review OpusClip source {$card->opus_source_id} / project {$card->origin_id} / card {$card->id}");
         }
 
         foreach (Chat::query()->whereNull('owner_id')->lazyById() as $chat) {

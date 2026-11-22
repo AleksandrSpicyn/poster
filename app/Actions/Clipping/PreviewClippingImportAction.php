@@ -8,6 +8,7 @@ use App\Classes\Clipping\ClippingReaders;
 use App\Data\ClippingImportData;
 use App\Models\ClippingConnection;
 use App\Models\ClippingImport;
+use App\Models\Project;
 use App\Repositories\ClippingAccountRepository;
 use App\Repositories\ClippingConnectionRepository;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +21,7 @@ final readonly class PreviewClippingImportAction
     public function run(ClippingConnection $connection, ClippingImportData $data): ClippingImport
     {
         if ($data->project_id !== null) {
-            abort_unless($this->connections->projects($connection)->contains('id', $data->project_id), 404);
+            abort_unless($this->connections->availableProject($connection, $data->project_id) instanceof Project, 404);
         }
 
         if (! $connection->import_accounts && $data->accounts !== []) {
@@ -69,7 +70,6 @@ final readonly class PreviewClippingImportAction
         $selected = $this->accounts->preview($connection, $data->accounts, $available);
         $selectedIds = array_fill_keys(array_column($selected, 'id'), true);
         $unmapped = [];
-
         foreach ($available as $account) {
             if (! isset($selectedIds[$account['id']])) {
                 $unmapped[] = ['id' => $account['id'], 'name' => $account['name'], 'platform' => $account['platform']];

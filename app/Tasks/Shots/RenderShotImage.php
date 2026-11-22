@@ -7,6 +7,7 @@ namespace App\Tasks\Shots;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Data\ImageReferenceData;
 use App\Enums\TransitionMode;
+use App\Models\CharacterRevision;
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
 use App\Repositories\MediaRepository;
@@ -81,6 +82,10 @@ readonly class RenderShotImage
                 throw new RuntimeException('The pinned character snapshot is invalid.');
             }
 
+            $ids = collect($characters)->pluck('references')->filter(static fn(mixed $references): bool => is_array($references))
+                ->collapse()->pluck('media_id')->filter(static fn(mixed $id): bool => is_int($id))->values()->all();
+            $pinned = $this->media->byIds($ids);
+
             foreach ($characters as $character) {
                 if (! is_array($character) || ! is_int($character['id'] ?? null) || ! is_int($character['character_id'] ?? null) || ! is_array($character['references'] ?? null)) {
                     throw new RuntimeException('The pinned character references are invalid.');
@@ -91,7 +96,12 @@ readonly class RenderShotImage
                         throw new RuntimeException('The pinned media reference is invalid.');
                     }
 
-                    $media = $this->media->characterReference($character['id'], $reference['media_id']);
+                    $media = $pinned->get($reference['media_id']);
+
+                    if ($media === null || $media->model_type !== new CharacterRevision()->getMorphClass()
+                        || (int) $media->model_id !== $character['id'] || $media->collection_name !== CharacterRevision::REFERENCES) {
+                        throw new RuntimeException('The pinned media reference is invalid.');
+                    }
 
                     if (hash_file('sha256', $media->getPath()) !== ($reference['sha256'] ?? null)) {
                         throw new RuntimeException('An approved reference changed after this take was requested.');

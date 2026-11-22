@@ -51,6 +51,9 @@ class ApproveEpisodeScript
                 throw ValidationException::withMessages(['script' => 'Only the current draft with an up-to-date story context can be approved.']);
             }
 
+            $episode->setRelation('series', $series);
+            $revision->setRelation('episode', $episode);
+
             $this->episodeRevisions->update($revision, ['status' => RevisionStatus::APPROVED, 'approved_at' => now(), 'approved_by' => $actor->id]);
 
             if ($useGeneratedTitle) {

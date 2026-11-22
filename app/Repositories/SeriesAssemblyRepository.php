@@ -71,10 +71,14 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
         return true;
     }
 
+    public function loadSeries(SeriesAssembly $assembly): void
+    {
+        $assembly->loadMissing('series');
+    }
+
     public function withContext(int $id, bool $includeParts = false): SeriesAssembly
     {
         $assembly = SeriesAssembly::query()->with('series.project', 'media')->findOrFail($id);
-
         if ($includeParts) {
             $assembly->load(['episodeAssemblies' => fn($query) => $query
                 ->whereRelation('episodeRevision.episode', 'series_id', $assembly->series_id)
@@ -99,9 +103,10 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
             'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
         ]);
 
-        foreach (SeriesAssemblyManifestData::fromSnapshot($manifest)->parts as $part) {
-            DB::table('series_assembly_items')->insert(['series_assembly_id' => $assembly->id, 'episode_assembly_id' => $part['assembly_id'], 'position' => $part['number']]);
-        }
+        $items = collect(SeriesAssemblyManifestData::fromSnapshot($manifest)->parts)->map(fn(array $part): array => [
+            'series_assembly_id' => $assembly->id, 'episode_assembly_id' => $part['assembly_id'], 'position' => $part['number'],
+        ]);
+        DB::table('series_assembly_items')->insert($items->all());
 
         return $assembly;
     }

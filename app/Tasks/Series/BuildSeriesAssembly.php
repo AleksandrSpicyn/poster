@@ -22,10 +22,13 @@ readonly class BuildSeriesAssembly
     {
         $clips = [];
 
-        foreach (SeriesAssemblyManifestData::fromSnapshot($assembly->manifest)->parts as $part) {
-            $media = $this->media->findOrFail($part['media_id']);
+        $parts = SeriesAssemblyManifestData::fromSnapshot($assembly->manifest)->parts;
+        $sources = $this->media->byIds(array_column($parts, 'media_id'));
 
-            if ($media->model_type !== new EpisodeAssembly()->getMorphClass() || $media->model_id !== $part['assembly_id']
+        foreach ($parts as $part) {
+            $media = $sources->get($part['media_id']);
+
+            if ($media === null || $media->model_type !== new EpisodeAssembly()->getMorphClass() || $media->model_id !== $part['assembly_id']
                 || $media->collection_name !== EpisodeAssembly::VIDEO || $media->disk !== 'local' || ! is_file($media->getPath())
                 || filesize($media->getPath()) > 500000000 || hash_file('sha256', $media->getPath()) !== $part['checksum']) {
                 throw new RuntimeException('An accepted part is unavailable or its checksum changed.');

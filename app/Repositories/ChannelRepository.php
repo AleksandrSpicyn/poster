@@ -62,7 +62,27 @@ readonly class ChannelRepository extends EloquentRepository
             throw ValidationException::withMessages(['channel_ids' => 'Select channels from your workspace.']);
         }
 
-        $project->channels()->sync($ids);
+        $this->assignToProject($project, $ids, replace: true);
+    }
+
+    /** @param list<int> $ids */
+    public function assignToProject(Project $project, array $ids, bool $replace = false): void
+    {
+        $relation = $project->channels();
+        /** @var list<int> $existing */
+        $existing = $relation->newPivotQuery()
+            ->when(! $replace, fn($query) => $query->whereIntegerInRaw('channel_id', $ids))
+            ->pluck('channel_id')->all();
+
+        if ($replace) {
+            $relation->detach(array_values(array_diff($existing, $ids)));
+        }
+
+        $missing = array_diff(array_unique($ids), $existing);
+
+        foreach (array_chunk($missing, 400) as $batch) {
+            $relation->attach($batch);
+        }
     }
 
     /** @return list<int> */

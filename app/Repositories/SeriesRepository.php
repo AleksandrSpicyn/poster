@@ -9,7 +9,6 @@ use App\Data\Series\SeriesWorkspaceData;
 use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
-use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
@@ -29,7 +28,7 @@ readonly class SeriesRepository extends EloquentRepository
     public function paginate(User $owner, GetSeriesListData $data): LengthAwarePaginator
     {
         return Series::query()->whereRelation('project', 'owner_id', $owner->id)
-            ->with('project')
+            ->with('project.media', 'project.coverFrame')
             ->withCount(['characters', 'episodes', 'episodes as accepted_episodes_count' => static fn(Builder $query) => $query->whereNotNull('accepted_assembly_id')])
             ->when($data->active, static fn(Builder $query) => $query->whereNull('archived_at')->whereRelation('project', 'is_active', true))
             ->when($data->updated, static fn(Builder $query) => $query->latest('updated_at'))
@@ -40,7 +39,7 @@ readonly class SeriesRepository extends EloquentRepository
 
     public function workspace(Series $series, int $page, bool $withArchived = true): SeriesWorkspaceData
     {
-        $series->load('project', 'latestProductionRun')->loadCount('characters', 'episodes');
+        $series->loadMissing('project.media', 'project.coverFrame', 'latestProductionRun')->loadCount('characters', 'episodes');
 
         return new SeriesWorkspaceData(
             series: $series,
@@ -53,6 +52,21 @@ readonly class SeriesRepository extends EloquentRepository
                 ->withQueryString(),
             episodes: $series->episodes()->orderByDesc('number')->limit(20)->get(),
         );
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return Collection<int, Series>
+     */
+    public function lockProductionTargets(Project $project, array $ids, bool $checkHistory): Collection
+    {
+        return $project->series()->whereKey($ids)->orderBy('id')->lockForUpdate()
+            ->when($checkHistory, fn($query) => $query->withExists('productionRuns'))
+            ->with([
+                'episodes' => fn($query) => $query->orderByDesc('number')->limit(1),
+                'activeProductionRun' => fn($query) => $query->where('project_id', $project->id),
+                'productionRuns' => fn($query) => $query->whereNotNull('input_snapshot')->oldest('id')->limit(1),
+            ])->get();
     }
 
     public function lockedForProject(int $projectId, int $id): Series
@@ -91,10 +105,8 @@ readonly class SeriesRepository extends EloquentRepository
         return is_array($ids) ? array_values(array_filter($ids, is_int(...))) : [];
     }
 
-    public function pauseCycle(ProductionRun $run): void
+    public function pauseCycle(?Series $series): void
     {
-        $series = $run->series()->first();
-
         if ($series?->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
             $series->update(['cycle_paused_at' => now()]);
         }

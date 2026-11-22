@@ -39,8 +39,9 @@ class ReportClipPerformance extends Command
         $start = $today->copy()->subDays($days)->toDateString();
         $end = $today->toDateString();
         $key = static fn(OpusClipMetric $row): string => $row->opus_clip_id . ':' . $row->platform . ':' . $row->media_id;
-        $baseline = $observations->observations($project, $start)->keyBy($key);
-        $current = $observations->observations($project, $end);
+        $records = $observations->observations($project, $start, $end);
+        $current = $records->where('observed_on', $end);
+        $baseline = $records->where('observed_on', $start)->keyBy($key);
         $this->info("Observed view growth, $start to $end (UTC)");
 
         $platforms = [ChannelType::YOUTUBE, ChannelType::INSTAGRAM];
@@ -57,7 +58,7 @@ class ReportClipPerformance extends Command
                 $views = $row->metrics['views'] ?? null;
 
                 if ($previous !== null && $views !== null) {
-                    $rows[] = [$row->clip->source->game ?? 'Unassigned', $row->clip->title ?? $row->clip->clip_id, $views - $previous, $views];
+                    $rows[] = [$row->clip_game ?? 'Unassigned', $row->clip_title ?? $row->clip_id, $views - $previous, $views];
                 }
             }
 

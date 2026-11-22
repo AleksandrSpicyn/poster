@@ -25,7 +25,7 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
     /** @return Collection<int, EpisodeAssembly> */
     public function lockForReconciliation(int $limit): Collection
     {
-        return EpisodeAssembly::query()
+        return EpisodeAssembly::query()->with('episodeRevision.episode.series.project')
             ->where(function (Builder $query): void {
                 $query->where(function (Builder $queued): void {
                     $queued->where('status', AssemblyStatus::QUEUED)->where('updated_at', '<=', now()->subSeconds(90));
@@ -39,13 +39,19 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
             ->get();
     }
 
-    public function isAcceptedSource(int $sourceAssemblyId, int $seriesId, int $episodeNumber): bool
+    /**
+     * @param array<int, int> $ids
+     * @return list<int>
+     */
+    public function acceptedSourceIds(array $ids, int $seriesId, int $episodeNumber): array
     {
-        return EpisodeAssembly::query()
+        /** @var list<int> $accepted */
+        $accepted = array_values(EpisodeAssembly::query()
             ->where('status', AssemblyStatus::ACCEPTED)
             ->whereHas('episodeRevision.episode', fn($query) => $query->where('series_id', $seriesId)->where('number', '<=', $episodeNumber))
-            ->whereKey($sourceAssemblyId)
-            ->exists();
+            ->whereKey($ids)->pluck('id')->all());
+
+        return $accepted;
     }
 
     public function latestUsableId(EpisodeRevision $revision): int
@@ -63,7 +69,7 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
     /** @param array<string, mixed> $manifest */
     public function queueManifest(EpisodeRevision $revision, array $manifest, string $hash): EpisodeAssembly
     {
-        return $revision->assemblies()->create([
+        return $revision->assemblies()->chaperone('episodeRevision')->create([
             'number' => ($revision->assemblies()->orderByDesc('number')->first()->number ?? 0) + 1,
             'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
             'continuity_snapshot' => [],
@@ -77,7 +83,7 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
 
     public function forExport(EpisodeAssembly $assembly): EpisodeAssembly
     {
-        return $assembly->load('episodeRevision.episode', 'media');
+        return $assembly->loadMissing('episodeRevision.episode');
     }
 
     public function forStoryInspection(EpisodeAssembly $assembly): EpisodeAssembly

@@ -71,6 +71,9 @@ readonly class ProjectRepository extends EloquentRepository
     public function forWorkspace(Project $project): Project
     {
         $project->load('latestProductionRun', 'seriesDefinition', 'media', 'coverFrame');
+        $project->seriesDefinition?->setRelation('project', $project->withoutRelations()
+            ->setRelation('media', $project->getRelation('media'))
+            ->setRelation('coverFrame', $project->getRelation('coverFrame')));
         $project->loadCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
@@ -121,7 +124,7 @@ readonly class ProjectRepository extends EloquentRepository
     /** @return LazyCollection<int, Project> */
     public function activeForProduction(?string $projectId): LazyCollection
     {
-        return Project::query()->where('is_active', true)->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
+        return Project::query()->with('owner', 'automatedSeries.automationUser')->where('is_active', true)->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
     }
 
     public function forPromptPublication(Prompt $prompt): ?Project

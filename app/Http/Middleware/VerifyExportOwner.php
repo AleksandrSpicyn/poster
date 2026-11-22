@@ -19,7 +19,8 @@ class VerifyExportOwner
     public function handle(Request $request, Closure $next): Response
     {
         $media = $request->route('media');
-        $ownerId = $media instanceof Model ? WorkspaceOwner::id($media) : null;
+        $parent = $request->route('assembly') ?? $request->route('prompt');
+        $ownerId = $media instanceof Model ? WorkspaceOwner::id($media, $parent instanceof Model ? $parent : null) : null;
         abort_unless($ownerId !== null && $request->integer('owner') === $ownerId && $this->users->isVerified($ownerId), 404);
 
         return $next($request);

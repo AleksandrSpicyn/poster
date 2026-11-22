@@ -6,11 +6,14 @@ namespace App\Repositories;
 
 use App\Classes\Story\Snapshot;
 use App\Data\Episodes\EpisodeScriptData;
-use App\Data\Episodes\SceneData;
 use App\Enums\RevisionStatus;
+use App\Events\WorkspaceUpdated;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
+use App\Models\Scene;
+use App\Models\Shot;
+use LogicException;
 
 /** @extends EloquentRepository<EpisodeRevision> */
 readonly class EpisodeRevisionRepository extends EloquentRepository
@@ -24,7 +27,7 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
     public function createScript(Episode $episode, EpisodeScriptData $script, array $context, int $continuityVersion): EpisodeRevision
     {
         $maximumNumber = $episode->revisions()->max('number');
-        $revision = $episode->revisions()->create([
+        $revision = $episode->revisions()->chaperone('episode')->create([
             'number' => (is_numeric($maximumNumber) ? (int) $maximumNumber : 0) + 1,
             'status' => RevisionStatus::DRAFT,
             'title' => $script->title,
@@ -35,42 +38,57 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
             'source_assembly_id' => $context['source_assembly_id'] ?? null,
             'base_continuity_version' => $continuityVersion,
         ]);
-        $revision->characterRevisions()->sync($script->character_revision_ids);
+        $revision->characterRevisions()->attach(array_values(array_unique($script->character_revision_ids)));
 
-        foreach ($script->scenes as $scenePosition => $scene) {
-            $this->createScene($revision, $scene, $scenePosition + 1);
+        $scenes = [];
+
+        foreach ($script->scenes as $position => $scene) {
+            $scenes[] = [
+                'episode_revision_id' => $revision->id, 'position' => $position + 1, 'title' => $scene->title,
+                'setting' => ['location' => $scene->location, 'time' => $scene->time],
+                'objective' => $scene->objective, 'initial_state' => ['description' => $scene->initial_state],
+                'expected_final_state' => ['description' => $scene->expected_final_state], 'is_closed' => $scene->is_closed,
+            ];
+        }
+
+        Scene::query()->fillAndInsert($scenes);
+        $savedScenes = $revision->scenes()->chaperone('episodeRevision')->get(['id', 'position', 'episode_revision_id'])->keyBy('position');
+        $shots = [];
+
+        foreach ($script->scenes as $position => $scene) {
+            $saved = $savedScenes->get($position + 1) ?? throw new LogicException('Saved scene missing.');
+
+            foreach ($scene->shots as $shotPosition => $shot) {
+                $shots[] = [
+                    'scene_id' => $saved->id, 'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
+                    'action' => $shot->action, 'camera' => ['description' => $shot->camera],
+                    'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
+                    'transition_mode' => $shot->transition_mode, 'source_prompt_id' => $shot->source_prompt_id,
+                    'source_assembly_id' => $shot->source_assembly_id, 'source_anchor' => ['time_ms' => $shot->source_time_ms],
+                ];
+            }
+        }
+
+        foreach (array_chunk($shots, 50) as $batch) {
+            Shot::query()->fillAndInsert($batch);
+        }
+
+        $savedScenes->load(['shots' => fn($query) => $query->chaperone('scene')->select('id', 'scene_id')]);
+
+        foreach ($savedScenes as $saved) {
+            WorkspaceUpdated::forResource($saved);
+
+            foreach ($saved->shots as $savedShot) {
+                WorkspaceUpdated::forResource($savedShot);
+            }
         }
 
         return $revision;
     }
 
-    private function createScene(EpisodeRevision $revision, SceneData $scene, int $position): void
-    {
-        $savedScene = $revision->scenes()->create([
-            'position' => $position, 'title' => $scene->title,
-            'setting' => ['location' => $scene->location, 'time' => $scene->time],
-            'objective' => $scene->objective,
-            'initial_state' => ['description' => $scene->initial_state],
-            'expected_final_state' => ['description' => $scene->expected_final_state],
-            'is_closed' => $scene->is_closed,
-        ]);
-
-        foreach ($scene->shots as $shotPosition => $shot) {
-            $savedScene->shots()->create([
-                'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
-                'action' => $shot->action, 'camera' => ['description' => $shot->camera],
-                'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
-                'transition_mode' => $shot->transition_mode,
-                'source_prompt_id' => $shot->source_prompt_id,
-                'source_assembly_id' => $shot->source_assembly_id,
-                'source_anchor' => ['time_ms' => $shot->source_time_ms],
-            ]);
-        }
-    }
-
     public function forAssembly(EpisodeRevision $revision): EpisodeRevision
     {
-        return $revision->load('episode.series', 'scenes.shots');
+        return $revision->loadMissing('episode.series')->load('scenes.shots');
     }
 
     public function forAssemblyRecord(EpisodeAssembly $assembly): EpisodeRevision

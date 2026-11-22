@@ -15,7 +15,10 @@ readonly class GetSeriesExport
 
     public function run(SeriesAssembly $assembly, Media $media, bool $preview = false): string
     {
-        $assembly = $this->assemblies->withContext($assembly->id);
+        if (! $preview) {
+            $this->assemblies->loadSeries($assembly);
+        }
+
         abort_unless(($preview || ($assembly->status === AssemblyStatus::ACCEPTED && $assembly->series->final_assembly_id === $assembly->id))
             && $media->model_type === $assembly->getMorphClass() && $media->model_id === $assembly->id
             && $media->collection_name === SeriesAssembly::VIDEO && $media->disk === 'local'

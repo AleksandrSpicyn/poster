@@ -26,20 +26,40 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class WorkspaceOwner
 {
-    public static function id(?Model $model): ?int
+    public static function id(?Model $model, ?Model $boundParent = null): ?int
     {
-        return match (true) {
-            $model instanceof Project, $model instanceof Channel, $model instanceof ClippingConnection => $model->owner_id,
-            $model instanceof Media => self::id($model->model),
-            $model instanceof Post, $model instanceof PublicationRequest => self::id($model->channel),
-            $model instanceof Prompt, $model instanceof ProductionRun, $model instanceof Series => self::id($model->project),
-            $model instanceof Character, $model instanceof Episode, $model instanceof SeriesAssembly => self::id($model->series),
-            $model instanceof EpisodeAssembly, $model instanceof Scene => self::id($model->episodeRevision),
-            $model instanceof EpisodeRevision => self::id($model->episode),
-            $model instanceof CharacterRevision => self::id($model->character),
-            $model instanceof Shot => self::id($model->scene),
-            $model instanceof GenerationOperation => self::id($model->prompt),
+        if ($model instanceof Project || $model instanceof Channel || $model instanceof ClippingConnection) {
+            return $model->owner_id;
+        }
+
+        $relation = match (true) {
+            $model instanceof Media => 'model',
+            $model instanceof Post, $model instanceof PublicationRequest => 'channel',
+            $model instanceof Prompt, $model instanceof ProductionRun, $model instanceof Series => 'project',
+            $model instanceof Character, $model instanceof Episode, $model instanceof SeriesAssembly => 'series',
+            $model instanceof EpisodeAssembly, $model instanceof Scene => 'episodeRevision',
+            $model instanceof EpisodeRevision => 'episode',
+            $model instanceof CharacterRevision => 'character',
+            $model instanceof Shot => 'scene',
+            $model instanceof GenerationOperation => 'prompt',
             default => null,
         };
+
+        if ($relation === null) {
+            return null;
+        }
+
+        if ($boundParent !== null && ! $model->relationLoaded($relation)) {
+            $link = $model->{$relation}();
+
+            if ($link->getRelated()::class === $boundParent::class
+                && $model->getAttribute($link->getForeignKeyName()) === $boundParent->getAttribute($link->getOwnerKeyName())) {
+                $model->setRelation($relation, $boundParent);
+            }
+        }
+
+        $parent = $model->getRelationValue($relation);
+
+        return $parent instanceof Model ? self::id($parent) : null;
     }
 }

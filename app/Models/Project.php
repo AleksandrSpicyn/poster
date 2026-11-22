@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -22,6 +23,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /**
  * Группирует исходную тему, историю генераций и каналы доставки роликов.
  *
+ * @property-read User|null $owner
+ * @property-read Collection<int, Series> $automatedSeries
  * @property int|null $owner_id
  * @property int $settings_version
  * @property int $id
@@ -76,6 +79,18 @@ class Project extends Model implements HasMedia
     public function isClippingProject(): bool
     {
         return $this->clipping_connection_id !== null || $this->clipping_workspace !== null || $this->opus_source_id !== null;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /** @return HasMany<Series, $this> */
+    public function automatedSeries(): HasMany
+    {
+        return $this->series()->whereNull('archived_at')->where('automation_enabled', true)->orderBy('id');
     }
 
     /** @return HasMany<OpusSource, $this> */

@@ -21,6 +21,7 @@ use App\Repositories\PromptRepository;
 use App\Repositories\SeriesRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class SaveEpisodeAssembly
 {
@@ -37,8 +38,8 @@ class SaveEpisodeAssembly
     public function run(EpisodeRevision $revision, AssemblyManifestData $data): EpisodeAssembly
     {
         $this->episodeRevisions->forAssembly($revision);
-        $episode = $this->episodes->forRevision($revision);
-        $series = $this->series->forEpisode($episode);
+        $episode = $revision->episode ?? throw new LogicException('Missing episode.');
+        $series = $episode->series ?? throw new LogicException('Missing series.');
         $shots = $revision->scenes->flatMap(fn(Scene $scene) => $scene->shots)->values();
 
         if ($shots->isEmpty() || $shots->count() !== count($data->shots) || count($data->shots) > 100) {
@@ -86,10 +87,13 @@ class SaveEpisodeAssembly
             ];
         }
 
+        $sourceIds = $prompts->pluck('input_snapshot.source_media_id')->filter(static fn(mixed $id): bool => is_int($id))->values()->all();
+        $sources = $this->media->byIds($sourceIds);
+
         foreach ($data->shots as $position => $selection) {
             $prompt = $prompts->get($selection->prompt_id);
             $sourceId = data_get($prompt?->input_snapshot, 'source_media_id');
-            $source = is_int($sourceId) ? $this->media->find($sourceId) : null;
+            $source = is_int($sourceId) ? $sources->get($sourceId) : null;
 
             if ($source?->model_type === new Prompt()->getMorphClass() && ! in_array($source->id, $selectedMedia, true)) {
                 throw ValidationException::withMessages(['shots.' . $position => 'This take continues a different take. Select a compatible continuation or regenerate it.']);
@@ -130,6 +134,10 @@ class SaveEpisodeAssembly
             if ($data->base_assembly_id !== null && $data->base_assembly_id !== $this->assemblies->latestUsableId($revision)) {
                 throw ValidationException::withMessages(['base_assembly_id' => 'В другой вкладке сохранён новый монтаж. Сверьте изменения перед сборкой.']);
             }
+
+            $series->setRelation('project', $project);
+            $episode->setRelation('series', $series);
+            $revision->setRelation('episode', $episode);
 
             return $this->assemblies->queueManifest($revision, $manifest, $hash);
         });

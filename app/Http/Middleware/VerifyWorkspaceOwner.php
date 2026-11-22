@@ -19,9 +19,12 @@ class VerifyWorkspaceOwner
         $owner = $request->user();
         abort_unless($owner instanceof User, 403);
 
+        $parent = null;
+
         foreach ($request->route()?->parameters() ?? [] as $resource) {
             if ($resource instanceof Model) {
-                abort_unless(WorkspaceOwner::id($resource) === $owner->id, 404);
+                abort_unless(WorkspaceOwner::id($resource, $parent) === $owner->id, 404);
+                $parent = $resource;
             }
         }
 

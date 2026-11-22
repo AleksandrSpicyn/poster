@@ -6,7 +6,6 @@ namespace App\Repositories;
 
 use App\Data\MetricPeriodData;
 use App\Enums\ChannelType;
-use App\Models\OpusClip;
 use App\Models\OpusClipMetric;
 use App\Models\Project;
 use App\Models\User;
@@ -20,10 +19,14 @@ final readonly class OpusMetricRepository
     public function __construct(private ClippingSyncRunRepository $syncRuns) {}
 
     /** @return Collection<int, OpusClipMetric> */
-    public function observations(Project $project, string $day): Collection
+    public function observations(Project $project, string $start, string $end): Collection
     {
-        return OpusClipMetric::query()->whereRelation('clip.source', 'project_id', $project->id)
-            ->where('observed_on', $day)->with('clip.source')->get();
+        return OpusClipMetric::query()
+            ->join('opus_clips', 'opus_clips.id', '=', 'opus_clip_metrics.opus_clip_id')
+            ->join('opus_sources', 'opus_sources.id', '=', 'opus_clips.opus_source_id')
+            ->where('opus_sources.project_id', $project->id)->whereIn('observed_on', [$start, $end])
+            ->get(['opus_clip_metrics.opus_clip_id', 'platform', 'media_id', 'observed_on', 'metrics',
+                'opus_sources.game as clip_game', 'opus_clips.title as clip_title', 'opus_clips.clip_id']);
     }
 
     /** @return Collection<int, OpusClipMetric> */
@@ -69,19 +72,35 @@ final readonly class OpusMetricRepository
             ->orderBy('observed_on')->orderBy('opus_clip_metrics.updated_at')->orderBy('opus_clip_metrics.id')->cursor();
     }
 
-    /** @param array<string, int|float> $metrics */
-    public function observe(OpusClip $clip, ChannelType $platform, string $mediaId, array $metrics, ?string $accountId = null): void
+    /** @param list<array{opus_clip_id: int, platform: string, media_id: string, observed_on: string, metrics: array<string, int|float>, account_id: string|null}> $rows */
+    public function observe(array $rows): void
     {
-        DB::transaction(function () use ($clip, $platform, $mediaId, $metrics, $accountId): void {
-            $day = now('UTC')->toDateString();
-            $observation = OpusClipMetric::query()->updateOrCreate([
-                'opus_clip_id' => $clip->id, 'platform' => $platform->value, 'media_id' => $mediaId, 'observed_on' => $day,
-            ], ['metrics' => $metrics, 'account_id' => $accountId]);
+        $existing = OpusClipMetric::query()->whereIn('opus_clip_id', array_column($rows, 'opus_clip_id'))
+            ->whereIn('platform', array_unique(array_column($rows, 'platform')))
+            ->whereIn('media_id', array_unique(array_column($rows, 'media_id')))
+            ->whereIn('observed_on', array_unique(array_column($rows, 'observed_on')))
+            ->get()->keyBy(fn(OpusClipMetric $row): string => serialize([$row->opus_clip_id, $row->platform, $row->media_id, $row->observed_on]));
+        $changed = [];
+        $newOrigins = [];
 
-            if ($observation->wasRecentlyCreated) {
-                $key = ClippingSyncRunRepository::observationKey($platform->value, $accountId ?? '', $mediaId, $day);
-                $this->syncRuns->observations([$key => [$clip->id]]);
+        foreach ($rows as $row) {
+            $key = serialize([$row['opus_clip_id'], $row['platform'], $row['media_id'], $row['observed_on']]);
+            $metric = $existing->get($key) ?? new OpusClipMetric();
+            $metric->fill($row);
+
+            if (! $metric->exists) {
+                $observationKey = ClippingSyncRunRepository::observationKey($row['platform'], $row['account_id'] ?? '', $row['media_id'], $row['observed_on']);
+                $newOrigins[$observationKey][] = $row['opus_clip_id'];
             }
+
+            if ($metric->isDirty()) {
+                $changed[$key] = array_diff_key($metric->getAttributes(), array_flip(['id', 'created_at', 'updated_at']));
+            }
+        }
+
+        DB::transaction(function () use ($changed, $newOrigins): void {
+            OpusClipMetric::query()->upsert(array_values($changed), ['opus_clip_id', 'platform', 'media_id', 'observed_on'], ['metrics', 'account_id']);
+            $this->syncRuns->observations($newOrigins);
         }, attempts: 3);
     }
 }

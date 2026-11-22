@@ -16,13 +16,12 @@ class GetDashboard
 
     public function run(User $owner): DashboardData
     {
-        $promptCount = $this->prompts->legacyCount($owner);
-        $readyCount = $this->prompts->readyCount($owner);
+        $counts = $this->prompts->dashboardCounts($owner);
 
         return new DashboardData(
-            promptCount: $promptCount,
-            pendingCount: $this->prompts->pendingCount($owner),
-            readyCount: $readyCount,
+            promptCount: $counts['total'],
+            pendingCount: $counts['total'] - $counts['ready'],
+            readyCount: $counts['ready'],
             postCount: $this->posts->totalCount($owner),
             recentPrompts: $this->prompts->recentForDashboard($owner),
             recentPosts: $this->posts->recentForDashboard($owner),

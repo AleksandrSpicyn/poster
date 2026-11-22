@@ -33,6 +33,9 @@ final readonly class EpisodeShotRules
         $sourceIds = array_values($shots->map(fn(ShotData $shot): ?int => $shot->source_prompt_id)->filter()->unique()->all());
         $sources = $this->prompts->readySources($episode, $sourceIds);
 
+        $assemblyIds = $shots->map(fn(ShotData $shot): ?int => $shot->source_assembly_id)->filter()->unique()->values()->all();
+        $acceptedIds = $this->assemblies->acceptedSourceIds($assemblyIds, $episode->series_id, $episode->number);
+
         foreach ($script->scenes as $scenePosition => $scene) {
             foreach ($scene->shots as $shotPosition => $shot) {
                 if ($silent && $shot->dialogue !== []) {
@@ -40,7 +43,7 @@ final readonly class EpisodeShotRules
                 }
 
                 $source = $shot->source_prompt_id === null ? null : $sources->get($shot->source_prompt_id);
-                $this->validateContinuation($episode, $shot, $source, $scenePosition, $shotPosition, $context);
+                $this->validateContinuation($shot, $source, $acceptedIds, $scenePosition, $shotPosition, $context);
 
                 if (collect($shot->dialogue)->contains(fn(DialogueLineData $line): bool => ! $characterIds->containsStrict($line->character_id))) {
                     throw ValidationException::withMessages(['script.scenes' => 'Every dialogue speaker must belong to the pinned characters.']);
@@ -49,8 +52,11 @@ final readonly class EpisodeShotRules
         }
     }
 
-    /** @param array<string, mixed> $context */
-    private function validateContinuation(Episode $episode, ShotData $shot, ?Prompt $source, int $scenePosition, int $shotPosition, array $context): void
+    /**
+     * @param list<int> $acceptedIds
+     * @param array<string, mixed> $context
+     */
+    private function validateContinuation(ShotData $shot, ?Prompt $source, array $acceptedIds, int $scenePosition, int $shotPosition, array $context): void
     {
         $isOpeningContinuation = $scenePosition === 0 && $shotPosition === 0 && $shot->transition_mode === TransitionMode::CONTINUE_SCENE;
 
@@ -63,7 +69,7 @@ final readonly class EpisodeShotRules
             throw ValidationException::withMessages(['script.scenes' => 'A continuation take must be ready and belong to this episode. Use an accepted assembly to continue an earlier episode.']);
         }
 
-        if ($shot->source_assembly_id !== null && ! $this->assemblies->isAcceptedSource($shot->source_assembly_id, $episode->series_id, $episode->number)) {
+        if ($shot->source_assembly_id !== null && ! in_array($shot->source_assembly_id, $acceptedIds, true)) {
             throw ValidationException::withMessages(['script.scenes' => 'A continuation assembly must be accepted in this series.']);
         }
 

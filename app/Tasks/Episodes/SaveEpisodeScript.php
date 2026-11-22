@@ -78,6 +78,7 @@ class SaveEpisodeScript
                 'description' => $character->description, 'appearance' => $character->appearance, 'voice' => $character->voice,
             ])->all();
 
+            $episode->setRelation('series', $series);
             $revision = $this->episodeRevisions->createScript($episode, $script, $context, $series->continuity_version);
 
             $this->episodes->update($episode, ['title' => $script->title, 'current_revision_id' => $revision->id, 'lock_version' => $expectedVersion + 1]);

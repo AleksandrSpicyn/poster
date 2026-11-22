@@ -9,6 +9,7 @@ use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -146,6 +147,48 @@ test('пустые проекты с одинаковым названием с�
     assertDatabaseCount('projects', 3);
     assertDatabaseCount('opus_sources', 3);
     assertDatabaseCount('opus_clips', 0);
+});
+
+test('импорт читает и записывает клипы пакетами', function (): void {
+    Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    config(['services.opus_clip.key' => 'fake']);
+    Http::fake([
+        '*/exportable-clips*' => Http::response(collect(range(1, 25))->map(fn(int $id): array => ['id' => 'clip-' . $id])->all()),
+        '*/post-tasks*' => Http::response(['data' => ['data' => []]]),
+    ]);
+
+    DB::enableQueryLog();
+
+    try {
+        consoleCommand('opus:sync', ['--source' => 'source'])->assertSuccessful();
+        $queries = collect(DB::getQueryLog())->pluck('query')
+            ->filter(fn(mixed $query): bool => is_string($query) && str_contains($query, 'opus_clips'));
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    expect($queries)->toHaveCount(2);
+    assertDatabaseCount('opus_clips', 25);
+});
+
+test('импорт сохраняет историю при сравнении ID по правилам базы', function (): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $source = OpusSource::factory()->for($project)->create(['external_id' => 'source']);
+    $clip = OpusClip::factory()->for($source, 'source')->create(['clip_id' => 'ClipA', 'title' => 'Original',
+        'publications' => [['url' => 'https://youtu.be/12345678901', 'platform' => 'youtube', 'status' => 'published', 'publish_at' => null]]]);
+    $sameIdentity = OpusClip::query()->where('clip_id', 'clipa')->exists();
+    config(['services.opus_clip.key' => 'fake']);
+    Http::fake([
+        '*/exportable-clips*' => Http::response([['id' => 'clipa', 'score' => 90]]),
+        '*/post-tasks*' => Http::response(['data' => ['data' => []]]),
+    ]);
+
+    consoleCommand('opus:sync', ['--source' => 'source'])->assertSuccessful();
+
+    assertDatabaseCount('opus_clips', $sameIdentity ? 1 : 2);
+    expect($clip->refresh()->title)->toBe('Original')
+        ->and($clip->publications[0]['url'])->toBe('https://youtu.be/12345678901');
+    expect(OpusClip::query()->where('clip_id', 'clipa')->sole()->score)->toEqual(90);
 });
 
 test('выключение проектов останавливает прежний серверный импорт до запроса к провайдеру', function (): void {

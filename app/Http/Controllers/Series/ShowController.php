@@ -39,7 +39,7 @@ class ShowController
         $details = $action->run($series, $data->page, $data->with_archived);
 
         return inertia('Series/Show', [
-            'project' => ProjectResource::make($project)->resolve(),
+            'project' => ProjectResource::make($details->series->project)->resolve(),
             'series' => SeriesResource::make($details->series)->resolve(),
             'withArchived' => $data->with_archived,
             'characters' => CharacterResource::collection($details->characters),

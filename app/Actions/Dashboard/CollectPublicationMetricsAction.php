@@ -60,10 +60,16 @@ final readonly class CollectPublicationMetricsAction
                 );
             }
 
-            foreach ($this->client->read($channel, array_map(strval(...), array_keys($targets))) as $id => $metrics) {
-                if (isset($targets[$id]) && $this->observations->record($channel, $targets[$id], $account, $metrics)) {
-                    $count++;
+            $observed = [];
+
+            try {
+                foreach ($this->client->read($channel, array_map(strval(...), array_keys($targets))) as $id => $metrics) {
+                    if (isset($targets[$id])) {
+                        $observed[$id] = $metrics;
+                    }
                 }
+            } finally {
+                $count += $this->observations->record($channel, $targets, $account, $observed);
             }
         }
 

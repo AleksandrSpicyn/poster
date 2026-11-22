@@ -24,6 +24,7 @@ use App\Models\Shot;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /** @extends EloquentRepository<Episode> */
 readonly class EpisodeRepository extends EloquentRepository
@@ -35,16 +36,16 @@ readonly class EpisodeRepository extends EloquentRepository
 
     public function workspace(Episode $episode): EpisodeWorkspaceData
     {
+        $episode->loadMissing('series.project.media', 'series.project.coverFrame');
         $episode->load([
-            'series.project',
-            'currentRevision.characterRevisions.character',
+            'currentRevision.characterRevisions:character_revisions.id',
             'currentRevision.scenes.shots.prompts' => static function (HasMany $query): void {
                 $query->with('media', 'generationOperations')->orderByDesc('take_number')->limit(10);
             },
             'acceptedAssembly.media',
             'predecessor.acceptedAssembly.media',
         ]);
-        $series = $episode->series()->firstOrFail();
+        $series = $episode->series ?? throw new LogicException('Missing episode series.');
         $assemblies = EpisodeAssembly::query()
             ->whereHas('episodeRevision', fn($query) => $query->where('episode_id', $episode->id))
             ->with('media')
@@ -65,7 +66,7 @@ readonly class EpisodeRepository extends EloquentRepository
             ->orderByDesc('id')
             ->limit(100)
             ->get();
-        $project = $series->project()->firstOrFail();
+        $project = $series->project ?? throw new LogicException('Missing series project.');
         $channels = $project->channels()
             ->where('channels.owner_id', $project->owner_id)->where('is_active', true)->whereNotNull('credentials->access_token')
             ->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM, ChannelType::TIKTOK])
@@ -111,7 +112,7 @@ readonly class EpisodeRepository extends EloquentRepository
             ->where('script_started_at', '<', now()->subMinutes(10))
             ->update(['script_generation_status' => ScriptGenerationStatus::OUTCOME_UNKNOWN, 'script_generation_error' => 'The worker stopped before confirming a result. Review before requesting another draft.']);
 
-        return Episode::query()->whereKey($expiredIds)->get();
+        return Episode::query()->whereKey($expiredIds)->with('series.project')->get();
     }
 
     /** @return Collection<int, Episode> */

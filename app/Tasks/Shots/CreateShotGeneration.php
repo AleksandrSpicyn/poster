@@ -98,11 +98,10 @@ class CreateShotGeneration
 
             $requestKey ??= (string) Str::uuid();
             $snapshot['request_key'] = $requestKey;
-            $projectId = $series->project_id;
             $prompt = new Prompt(['prompt' => $snapshot['video_prompt'], 'shot_id' => $shot->id,
                 'take_number' => ($latest->take_number ?? 0) + 1, 'input_snapshot' => $snapshot,
                 'input_hash' => Snapshot::hash($snapshot)]);
-            $prompt->project_id = $projectId;
+            $prompt->project()->associate($project);
 
             $this->prompts->save($prompt);
             $this->operations->createImageOperation($prompt, $productionRun, $requestKey, $snapshot);

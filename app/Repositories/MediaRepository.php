@@ -11,6 +11,7 @@ use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
 use App\Models\SeriesAssembly;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -62,16 +63,13 @@ readonly class MediaRepository extends EloquentRepository
             });
     }
 
-    public function characterReference(int $revisionId, int $mediaId): Media
+    /**
+     * @param array<int, int> $ids
+     * @return Collection<int, Media>
+     */
+    public function byIds(array $ids): Collection
     {
-        return Media::query()->where('model_type', new CharacterRevision()->getMorphClass())
-            ->where('model_id', $revisionId)->where('collection_name', CharacterRevision::REFERENCES)
-            ->findOrFail($mediaId);
-    }
-
-    public function shotVideo(int $id): Media
-    {
-        return Media::query()->where('collection_name', Prompt::SHOT_VIDEO)->findOrFail($id);
+        return Media::query()->whereKey($ids)->get()->keyBy('id');
     }
 
     public function referenceByFileName(CharacterRevision $revision, string $fileName): ?Media

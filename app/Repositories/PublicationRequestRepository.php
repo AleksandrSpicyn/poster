@@ -48,7 +48,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN, 'error_message' => 'A worker stopped before confirming the external result. Inspect its receipt before retrying.']);
 
-        return PublicationRequest::query()->whereKey($expiredIds)->get();
+        return PublicationRequest::query()->whereKey($expiredIds)->with('channel')->get();
     }
 
     /** @return Collection<int, PublicationRequest> */
@@ -131,10 +131,19 @@ readonly class PublicationRequestRepository extends EloquentRepository
             return new PublicationResolutionData($request, $channel, $short->project()->firstOrFail(), $short);
         }
 
-        $assembly = $request->series_assembly_id === null ? $request->assembly()->firstOrFail() : $request->seriesAssembly()->firstOrFail();
-        $series = $assembly instanceof SeriesAssembly ? $assembly->series()->firstOrFail() : $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail()->series()->firstOrFail();
+        $projectQuery = Project::query()->select('projects.*')->join('series', 'series.project_id', '=', 'projects.id');
 
-        return new PublicationResolutionData($request, $channel, $series->project()->firstOrFail(), assemblyNumber: $assembly->number);
+        if ($request->series_assembly_id !== null) {
+            $assembly = $request->seriesAssembly()->firstOrFail();
+            $projectQuery->where('series.id', $assembly->series_id);
+        } else {
+            $assembly = $request->assembly()->firstOrFail();
+            $projectQuery->join('episodes', 'episodes.series_id', '=', 'series.id')
+                ->join('episode_revisions', 'episode_revisions.episode_id', '=', 'episodes.id')
+                ->where('episode_revisions.id', $assembly->episode_revision_id);
+        }
+
+        return new PublicationResolutionData($request, $channel, $projectQuery->firstOrFail(), assemblyNumber: $assembly->number);
     }
 
     /** @return Collection<int, PublicationRequest> */
@@ -153,32 +162,50 @@ readonly class PublicationRequestRepository extends EloquentRepository
         ]);
     }
 
-    public function forFinalAssembly(SeriesAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $run, ?TiktokPublicationData $tiktok = null): PublicationRequest
+    /**
+     * @param Collection<int, Channel> $channels
+     * @return Collection<int, PublicationRequest>
+     */
+    public function forFinalAssembly(SeriesAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $run, ?TiktokPublicationData $tiktok = null): Collection
     {
-        $request = PublicationRequest::query()->firstOrCreate(
-            ['release_key' => 'series:' . $assembly->series_id . ':single_video', 'channel_id' => $channel->id],
-            ['series_assembly_id' => $assembly->id, 'created_by' => $actor->id, 'production_run_id' => $run?->id,
-                'status' => PublicationStatus::PLANNED, 'payload' => [...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []), 'title' => Str::limit($assembly->series->name, 97),
+        $releaseKey = 'series:' . $assembly->series_id . ':single_video';
+        $existing = PublicationRequest::query()->where('release_key', $releaseKey)->whereIn('channel_id', $channels->modelKeys())
+            ->lockForUpdate()->get()->keyBy('channel_id');
+        $requests = new Collection();
+
+        foreach ($channels as $channel) {
+            $request = $existing->get($channel->id) ?? new PublicationRequest([
+                'release_key' => $releaseKey, 'channel_id' => $channel->id, 'series_assembly_id' => $assembly->id, 'created_by' => $actor->id,
+                'production_run_id' => $run?->id, 'status' => PublicationStatus::PLANNED,
+                'payload' => [...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []), 'title' => Str::limit($assembly->series->name, 97),
                     'description' => $assembly->series->specification['premise'],
-                    'made_for_kids' => ($assembly->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value]],
-        );
+                    'made_for_kids' => ($assembly->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value],
+            ]);
+            $request->setRelation('channel', $channel);
 
-        if ($request->series_assembly_id !== $assembly->id) {
-            if ($assembly->series->release_started_at === null && $request->status === PublicationStatus::PLANNED && $request->submitted_at === null) {
-                $request->update(['series_assembly_id' => $assembly->id, 'production_run_id' => $run?->id]);
-            } else {
-                throw ValidationException::withMessages(['publication' => 'This cycle is already assigned to another final file.']);
+            if (! $request->exists) {
+                $request->save();
             }
+
+            if ($request->series_assembly_id !== $assembly->id) {
+                if ($assembly->series->release_started_at === null && $request->status === PublicationStatus::PLANNED && $request->submitted_at === null) {
+                    $request->update(['series_assembly_id' => $assembly->id, 'production_run_id' => $run?->id]);
+                } else {
+                    throw ValidationException::withMessages(['publication' => 'This cycle is already assigned to another final file.']);
+                }
+            }
+
+            if ($run instanceof ProductionRun && $request->production_run_id !== $run->id && $request->status === PublicationStatus::FAILED
+                && $request->error_message === 'Automatic production stopped before publication.') {
+                if ($request->container_id !== null || $request->submitted_at === null) {
+                    $request->update(['production_run_id' => $run->id, 'status' => $request->container_id === null ? PublicationStatus::PLANNED : PublicationStatus::PROCESSING, 'error_message' => null]);
+                }
+            }
+
+            $requests->push($request);
         }
 
-        if ($run instanceof ProductionRun && $request->production_run_id !== $run->id && $request->status === PublicationStatus::FAILED
-            && $request->error_message === 'Automatic production stopped before publication.') {
-            if ($request->container_id !== null || $request->submitted_at === null) {
-                $request->update(['production_run_id' => $run->id, 'status' => $request->container_id === null ? PublicationStatus::PLANNED : PublicationStatus::PROCESSING, 'error_message' => null]);
-            }
-        }
-
-        return $request;
+        return $requests;
     }
 
     /** The caller holds the series lock while reserving a shared slot for every selected channel. */
@@ -207,17 +234,36 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return $slot->setTimezone(config()->string('app.timezone'));
     }
 
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, ?TiktokPublicationData $tiktok = null): PublicationRequest
+    /**
+     * @param Collection<int, Channel> $channels
+     * @return Collection<int, PublicationRequest>
+     */
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, ?TiktokPublicationData $tiktok = null): Collection
     {
-        return PublicationRequest::query()->firstOrCreate(
-            ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
-            ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'scheduled_at' => $scheduledAt, 'status' => PublicationStatus::PLANNED, 'payload' => [
-                ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
-                'title' => Str::limit($context->revision->title, 97),
-                'description' => trim(($context->revision->public_caption ?? '') . "\n\n" . $context->series->name . ' · ' . $context->episode->number),
-                'use_public_description' => true,
-                'made_for_kids' => ($context->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value,
-            ]],
-        );
+        $existing = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereIn('channel_id', $channels->modelKeys())
+            ->lockForUpdate()->get()->keyBy('channel_id');
+        $requests = new Collection();
+
+        foreach ($channels as $channel) {
+            $request = $existing->get($channel->id) ?? new PublicationRequest([
+                'episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id,
+                'created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'scheduled_at' => $scheduledAt, 'status' => PublicationStatus::PLANNED, 'payload' => [
+                    ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
+                    'title' => Str::limit($context->revision->title, 97),
+                    'description' => trim(($context->revision->public_caption ?? '') . "\n\n" . $context->series->name . ' · ' . $context->episode->number),
+                    'use_public_description' => true,
+                    'made_for_kids' => ($context->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value,
+                ],
+            ]);
+            $request->setRelation('channel', $channel);
+
+            if (! $request->exists) {
+                $request->save();
+            }
+
+            $requests->push($request);
+        }
+
+        return $requests;
     }
 }

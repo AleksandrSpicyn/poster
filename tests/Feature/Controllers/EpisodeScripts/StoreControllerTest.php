@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
 use function Tests\Support\storyFixture;
 use function Tests\Support\storyScriptPayload;
@@ -58,4 +60,34 @@ test('немой сериал отклоняет реплики до сохра�
     Bus::assertNothingDispatched();
     Process::assertNothingRan();
     Http::assertNothingSent();
+});
+
+test('сохраняет несколько сцен и их кадры пакетно в порядке сценария', function (): void {
+    $context = storyFixture();
+    $episode = $context['episode'];
+    $script = storyScriptPayload($context['character']);
+    /** @var array{title: string, shots: non-empty-list<array<string, mixed>>} $scene */
+    $scene = data_get($script, 'scenes.0');
+    $scene['shots'] = array_fill(0, 10, $scene['shots'][0]);
+    $script['scenes'] = [$scene, [...$scene, 'title' => 'Second scene']];
+    actingAs(serialOperator());
+
+    DB::enableQueryLog();
+
+    try {
+        post(route('episodes.scripts.store', ['series' => $episode->series_id, 'episode' => $episode]), ['script' => $script, 'lock_version' => 0])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+        $writes = collect(DB::getQueryLog())->pluck('query')->filter(fn(mixed $sql): bool => is_string($sql) && preg_match('/^insert into [`"](scenes|shots)[`"]/i', $sql) === 1);
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    $scenes = $episode->revisions()->sole()->scenes()->with('shots')->get();
+    expect($writes)->toHaveCount(2)
+        ->and($scenes->pluck('title')->all())->toBe([$scene['title'], 'Second scene']);
+
+    foreach ($scenes as $saved) {
+        expect($saved->shots->pluck('position')->all())->toBe(range(1, 10));
+    }
 });

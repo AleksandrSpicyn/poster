@@ -51,10 +51,9 @@ class AssignWorkspaceOwner extends Command
                 $record->saveQuietly();
             }
 
-            foreach ($selectedProjects as $project) {
-                if ($project->channels()->where(fn($query) => $query->whereNull('owner_id')->orWhere('owner_id', '!=', $owner->id))->exists()) {
-                    throw new RuntimeException('Include all connected channels in the confirmed mapping.');
-                }
+            if (Project::query()->whereKey($projects)->whereHas('channels', fn($query) => $query
+                ->where(fn($related) => $related->whereNull('owner_id')->orWhere('owner_id', '!=', $owner->id)))->exists()) {
+                throw new RuntimeException('Include all connected channels in the confirmed mapping.');
             }
 
             $sourceIds = OpusSource::query()->whereIn('project_id', $projects)->select('id');
@@ -66,10 +65,9 @@ class AssignWorkspaceOwner extends Command
                 throw new RuntimeException('Include the OpusClip source project and all imported project cards in the mapping.');
             }
 
-            foreach ($selectedChannels as $channel) {
-                if ($channel->projects()->where(fn($query) => $query->whereNull('owner_id')->orWhere('owner_id', '!=', $owner->id))->exists()) {
-                    throw new RuntimeException('Include all connected projects in the confirmed mapping.');
-                }
+            if (Channel::query()->whereKey($channels)->whereHas('projects', fn($query) => $query
+                ->where(fn($related) => $related->whereNull('owner_id')->orWhere('owner_id', '!=', $owner->id)))->exists()) {
+                throw new RuntimeException('Include all connected projects in the confirmed mapping.');
             }
         });
 

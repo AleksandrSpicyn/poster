@@ -8,6 +8,7 @@ use App\Models\EpisodeRevision;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -51,6 +52,32 @@ test('подтверждённый посторонний пользовател
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('series.index'))
         ->assertInertia(fn(Assert $page): Assert => $page->where('series.meta.total', 0));
+});
+
+test('число запросов списка не растёт с количеством сериалов', function (): void {
+    $owner = workspaceOwner();
+    actingAs(serialOperator());
+    Series::factory()->recycle($owner)->create();
+
+    $countQueries = static function (int $total): int {
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        try {
+            get(route('series.index'))
+                ->assertOk()
+                ->assertInertia(fn(Assert $page): Assert => $page->has('series.data', $total));
+
+            return count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+        }
+    };
+
+    $single = $countQueries(1);
+    Series::factory()->recycle($owner)->count(9)->create();
+
+    expect($countQueries(10))->toBeLessThanOrEqual($single);
 });
 
 test('фильтры каталога сохраняют владение и отделяют активные сериалы', function (): void {

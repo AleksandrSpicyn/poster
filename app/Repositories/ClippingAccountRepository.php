@@ -11,21 +11,35 @@ use App\Models\ClippingAccountMapping;
 use App\Models\ClippingConnection;
 use App\Models\ClippingImport;
 use App\Models\Project;
+use App\Traits\Repositories\MatchesProviderIdentifiers;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 final readonly class ClippingAccountRepository
 {
-    /** @return Collection<int, Channel> */
-    public function channels(ClippingConnection $connection): Collection
+    use MatchesProviderIdentifiers;
+
+    public function __construct(private ChannelRepository $channels) {}
+
+    /**
+     * @param list<int>|null $ids
+     * @return Collection<int, Channel>
+     */
+    public function channels(ClippingConnection $connection, ?array $ids = null): Collection
     {
-        return Channel::query()->where('owner_id', $connection->owner_id)->orderBy('name')->get(['id', 'name', 'type']);
+        return Channel::query()->where('owner_id', $connection->owner_id)->when($ids !== null, fn($query) => $query->whereKey($ids))->orderBy('name')->get(['id', 'name', 'type']);
     }
 
-    /** @return array<string, int> */
-    public function mappings(ClippingConnection $connection): array
+    /**
+     * @param list<string>|null $providerIds
+     * @return array<string, int>
+     */
+    public function mappings(ClippingConnection $connection, ?array $providerIds = null): array
     {
-        return ClippingAccountMapping::query()->where('clipping_connection_id', $connection->id)->get(['provider_account_id', 'channel_id'])->mapWithKeys(static fn(ClippingAccountMapping $mapping): array => [$mapping->provider_account_id => $mapping->channel_id])->all();
+        return ClippingAccountMapping::query()->where('clipping_connection_id', $connection->id)->when($providerIds !== null, fn($query) => $query->whereIn('provider_account_id', $providerIds))->get(['provider_account_id', 'channel_id'])->mapWithKeys(static fn(ClippingAccountMapping $mapping): array => [$mapping->provider_account_id => $mapping->channel_id])->all();
     }
 
     /**
@@ -35,8 +49,14 @@ final readonly class ClippingAccountRepository
      */
     public function preview(ClippingConnection $connection, array $selections, array $available): array
     {
+        if ($selections === []) {
+            return [];
+        }
+
         $byId = collect($available)->keyBy('id');
-        $mapped = $this->mappings($connection);
+        $mapped = $this->mappings($connection, array_column($selections, 'id'));
+        $ids = [...array_values($mapped), ...array_column($selections, 'channel_id')];
+        $channels = Channel::query()->where('owner_id', $connection->owner_id)->whereKey(array_filter($ids))->get(['id', 'type'])->keyBy('id');
         $result = [];
 
         foreach ($selections as $selection) {
@@ -53,8 +73,8 @@ final readonly class ClippingAccountRepository
                 throw ValidationException::withMessages(['accounts' => 'У аккаунта уже есть другое сопоставление.']);
             }
 
-            if ($id !== null) {
-                Channel::query()->where('owner_id', $connection->owner_id)->where('type', $type)->findOrFail($id);
+            if ($id !== null && $channels->get($id)?->type !== $type) {
+                throw (new ModelNotFoundException())->setModel(Channel::class, [$id]);
             }
 
             $result[$selection->id] = [...$account, 'channel_id' => $id];
@@ -65,9 +85,27 @@ final readonly class ClippingAccountRepository
 
     public function attach(ClippingConnection $connection, Project $project, ClippingImport $preview): void
     {
-        foreach ($preview->accounts ?? [] as $account) {
-            $mapping = ClippingAccountMapping::query()->where('clipping_connection_id', $connection->id)
-                ->where('provider_account_id', $account['id'])->lockForUpdate()->first();
+        $accounts = $preview->accounts ?? [];
+
+        if ($accounts === []) {
+            return;
+        }
+
+        $input = $this->providerIdentifiers('clipping_account_mappings', 'provider_account_id', array_column($accounts, 'id'));
+        $mappings = ClippingAccountMapping::query()->fromSub($input, 'input')
+            ->leftJoin('clipping_account_mappings as mapping', static fn(JoinClause $join) => $join->on('mapping.provider_account_id', '=', 'input.lookup_id')
+                ->where('mapping.clipping_connection_id', $connection->id))
+            ->select('mapping.*', 'input.lookup_id', 'input.canonical_id')->orderBy('mapping.id')->lockForUpdate()->get()->keyBy('lookup_id');
+        $ids = [...$mappings->pluck('channel_id')->all(), ...array_column($accounts, 'channel_id')];
+        $channels = Channel::query()->where('owner_id', $connection->owner_id)->whereKey(array_filter($ids))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $selectedIds = [];
+        $newMappings = [];
+        $created = [];
+
+        foreach ($accounts as $account) {
+            $match = $mappings->get($account['id']) ?? throw new LogicException('Missing import account identity.');
+            $canonical = $match->canonical_id;
+            $mapping = $match->getRawOriginal('id') !== null ? $match : ($created[$canonical] ?? null);
 
             if ($mapping !== null && ($mapping->external_id !== $account['external_id'] || $mapping->platform !== $account['platform']
                 || ($account['channel_id'] !== null && $mapping->channel_id !== $account['channel_id']))) {
@@ -77,7 +115,11 @@ final readonly class ClippingAccountRepository
             $id = $mapping->channel_id ?? $account['channel_id'];
             $channel = $id === null
                 ? new Channel(['name' => $account['name'] ?: $account['external_id'], 'type' => $account['platform'], 'is_active' => false])
-                : Channel::query()->where('owner_id', $connection->owner_id)->where('type', $account['platform'])->lockForUpdate()->findOrFail($id);
+                : $channels->get($id);
+
+            if ($channel === null || $channel->type->value !== $account['platform']) {
+                throw (new ModelNotFoundException())->setModel(Channel::class, $id ?? []);
+            }
 
             if (! $channel->exists) {
                 $channel->owner_id = $connection->owner_id;
@@ -85,14 +127,22 @@ final readonly class ClippingAccountRepository
             }
 
             if ($mapping === null) {
-                ClippingAccountMapping::query()->insert([
+                $mapping = new ClippingAccountMapping([
                     'clipping_connection_id' => $connection->id, 'provider_account_id' => $account['id'],
                     'external_id' => $account['external_id'], 'platform' => $account['platform'], 'channel_id' => $channel->id,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
+                $created[$canonical] = $mapping;
+                $newMappings[] = $mapping->getAttributes();
             }
 
-            $project->channels()->syncWithoutDetaching([$channel->id]);
+            $selectedIds[] = $channel->id;
         }
+
+        if ($newMappings !== []) {
+            ClippingAccountMapping::query()->insert($newMappings);
+        }
+
+        $this->channels->assignToProject($project, $selectedIds);
     }
 }

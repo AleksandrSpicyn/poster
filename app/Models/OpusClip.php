@@ -15,6 +15,7 @@ use Illuminate\Database\Query\Builder;
  * @property int $id
  * @property-read OpusSource $source
  * @property int $opus_source_id
+ * @property-read string $canonical_id Provider ID selected for a batch import.
  * @property string $clip_id
  * @property list<array{platform: string, status: string|null, url: string|null, publish_at: string|null}> $publications
  */

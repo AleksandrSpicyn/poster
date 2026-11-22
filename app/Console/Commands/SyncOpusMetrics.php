@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\OpusClip\SyncOpusMetricsAction;
+use App\Enums\ChannelType;
+use App\Models\Channel;
 use App\Models\Project;
 use App\Repositories\OpusWorkspaceRepository;
 use Illuminate\Console\Command;
@@ -30,9 +32,18 @@ class SyncOpusMetrics extends Command
 
         $result = self::SUCCESS;
 
-        foreach ($workspace->channels($project) as $channel) {
+        $channels = $workspace->channels($project);
+
+        if ($channels->isEmpty()) {
+            return $result;
+        }
+
+        $platforms = $channels->map(fn(Channel $channel): ChannelType => $channel->type)->unique()->all();
+        $targets = $action->targets($project, array_values($platforms));
+
+        foreach ($channels as $channel) {
             try {
-                $count = $action->run($project, $channel);
+                $count = $action->run($project, $channel, $targets[$channel->type->value] ?? []);
                 $this->info($channel->type->label() . ": $count observations.");
             } catch (RequestException $error) {
                 $this->error($channel->type->label() . ': provider returned HTTP ' . $error->response->status() . '. Check the channel authorization.');

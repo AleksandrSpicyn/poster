@@ -6,7 +6,6 @@ namespace App\Actions\Clipping;
 
 use App\Http\Resources\ProjectResource;
 use App\Models\ClippingConnection;
-use App\Models\Project;
 use App\Repositories\ClippingAccountRepository;
 use App\Repositories\ClippingConnectionRepository;
 use Illuminate\Support\Arr;
@@ -23,8 +22,9 @@ final readonly class GetClippingPreviewAction
         $accountNames = [];
 
         if ($preview->accounts !== [] && $preview->accounts !== null) {
-            $channels = $this->accounts->channels($connection)->keyBy('id');
-            $mappings = $this->accounts->mappings($connection);
+            $mappings = $this->accounts->mappings($connection, array_column($preview->accounts, 'id'));
+            $ids = array_values(array_filter([...array_column($preview->accounts, 'channel_id'), ...array_values($mappings)]));
+            $channels = $this->accounts->channels($connection, $ids)->keyBy('id');
 
             foreach ($preview->accounts as $account) {
                 $id = $account['channel_id'] ?? $mappings[$account['id']] ?? null;
@@ -38,7 +38,7 @@ final readonly class GetClippingPreviewAction
         $project = $preview->project_id === null ? null : $this->connections->reviewProject($connection, $preview->project_id);
 
         return [
-            'project' => $project instanceof Project ? Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover']) : null,
+            'project' => $project === null ? null : Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover']),
             'existingClipIds' => $preview->external_id === null || $preview->imported_at !== null ? [] : $this->connections->existingClipIds($connection, $preview),
             'accountNames' => (object) $accountNames,
             'connection' => $connection->only(['id', 'name']), 'preview' => $preview,

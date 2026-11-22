@@ -19,6 +19,7 @@ use App\Models\Series;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Inertia\Inertia;
@@ -288,3 +289,26 @@ test('устаревший черновик не перезаписывает н
     expect($project->refresh()->name)->toBe('Сезон 2')
         ->and($project->settings_version)->toBe(2);
 });
+
+test('сохраняет выбранные каналы одной пакетной вставкой', function (int $size): void {
+    $owner = serialOperator();
+    $project = Project::factory()->for($owner, 'owner')->create();
+    $channels = Channel::factory()->count($size)->create(['owner_id' => $owner->id, 'project_id' => null]);
+    $removed = Channel::factory()->for($project)->create();
+
+    DB::enableQueryLog();
+
+    try {
+        actingAs($owner)
+            ->patch(route('projects.update', $project), [...projectPayload(), 'channel_ids' => $channels->modelKeys()])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+        $inserts = collect(DB::getQueryLog())->pluck('query')->filter(fn(mixed $sql): bool => is_string($sql) && preg_match('/^insert into [`"]channel_project[`"]/i', $sql) === 1);
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    expect($inserts)->toHaveCount(1)
+        ->and($project->channels()->count())->toBe($size)
+        ->and($project->channels()->whereKey($removed->id)->exists())->toBeFalse();
+})->with([1, 10, 100]);

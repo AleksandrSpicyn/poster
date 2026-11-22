@@ -62,13 +62,7 @@ readonly class CreateSeriesPublication
                 throw ValidationException::withMessages(['assembly' => 'The final file exceeds the supported publishing profile (600 seconds; Instagram 300 MB).']);
             }
 
-            $requests = new Collection();
-
-            foreach ($channels as $channel) {
-                $requests->push($this->publications->forFinalAssembly($assembly, $channel, $actor, $run, $tiktok));
-            }
-
-            return $requests;
+            return $this->publications->forFinalAssembly($assembly, $channels, $actor, $run, $tiktok);
         });
     }
 }

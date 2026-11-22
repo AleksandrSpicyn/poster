@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
 readonly class BuildEpisodeAssembly
@@ -37,9 +38,11 @@ readonly class BuildEpisodeAssembly
         $deadline = microtime(true) + 3300;
 
         try {
+            $sources = $this->media->byIds(array_column($plan->shots, 'mediaId'));
+
             foreach ($plan->shots as $index => $shot) {
                 $clip = 'clip-' . $index . '.mov';
-                $this->normalize($shot, $workspace . '/' . $clip, $deadline);
+                $this->normalize($shot, $sources->get($shot->mediaId), $workspace . '/' . $clip, $deadline);
                 $clips[] = "file '" . $clip . "'";
             }
 
@@ -68,9 +71,11 @@ readonly class BuildEpisodeAssembly
         }
     }
 
-    private function normalize(AssemblyClipData $shot, string $output, float $deadline): void
+    private function normalize(AssemblyClipData $shot, ?Media $media, string $output, float $deadline): void
     {
-        $media = $this->media->shotVideo($shot->mediaId);
+        if ($media === null || $media->collection_name !== Prompt::SHOT_VIDEO) {
+            throw new RuntimeException('A selected take is unavailable.');
+        }
         $path = $media->getPath();
 
         if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot->promptId

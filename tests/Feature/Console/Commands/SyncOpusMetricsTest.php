@@ -8,6 +8,7 @@ use App\Models\OpusClip;
 use App\Models\OpusClipMetric;
 use App\Models\OpusSource;
 use App\Models\Project;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -31,7 +32,17 @@ test('сохраняет показатели обеих площадок за �
         ]]),
     ]);
 
-    consoleCommand('opus:metrics')->assertSuccessful();
+    DB::enableQueryLog();
+
+    try {
+        consoleCommand('opus:metrics')->assertSuccessful();
+        $clipReads = collect(DB::getQueryLog())->pluck('query')->filter(
+            fn(mixed $sql): bool => is_string($sql) && preg_match('/from [`"]opus_clips[`"]/i', $sql) === 1,
+        );
+    } finally {
+        DB::disableQueryLog();
+    }
+    expect($clipReads)->toHaveCount(1);
     consoleCommand('opus:metrics')->assertSuccessful();
 
     assertDatabaseCount('opus_clip_metrics', 2);

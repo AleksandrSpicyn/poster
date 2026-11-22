@@ -12,6 +12,9 @@ use App\Models\ClippingImport;
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
+use App\Traits\Repositories\MatchesProviderIdentifiers;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
@@ -21,6 +24,8 @@ use RuntimeException;
 /** @extends EloquentRepository<OpusClip> */
 final readonly class OpusClipRepository extends EloquentRepository
 {
+    use MatchesProviderIdentifiers;
+
     public function __construct(private ClippingAccountRepository $accounts, private ClippingSyncRunRepository $runs) {}
 
     protected function model(): string
@@ -189,26 +194,52 @@ final readonly class OpusClipRepository extends EloquentRepository
             Project::query()->where('opus_source_id', $origin->id)->where('owner_id', $project->owner_id)->where('name', $oldName)->update(['name' => $name]);
         }
 
+        $items = LazyCollection::make(static function () use ($clips) {
+            foreach ($clips as $clip) {
+                yield $clip;
+            }
+        });
+
         $received = 0;
         $added = 0;
         $publications = 0;
 
-        foreach ($clips as $clip) {
-            $record = $this->query()->firstOrNew(['opus_source_id' => $origin->id, 'clip_id' => $clip->id]);
-            $received++;
-            $added += (int) ! $record->exists;
-            $oldUrls = array_column($record->publications ?? [], 'url');
-            $oldLinks = collect($record->publications ?? [])
-                ->filter(fn(array $post): bool => $post['url'] !== null)
-                ->whereNotIn('url', array_column($clip->publications, 'url'));
+        foreach ($items->chunk(100) as $page) {
+            $matches = $this->matchImportIds($origin, array_values($page->map(fn(ImportedClipData $clip): string => $clip->id)->all()));
+            $merged = [];
+            $rows = [];
 
-            $record->fill([
-                'title' => $clip->title ?? $record->title,
-                'duration_ms' => $clip->durationMs ?? $record->duration_ms,
-                'score' => $clip->score ?? $record->score,
-                'publications' => $nextCheckpoint !== null ? ($record->publications ?? []) : [...$clip->publications, ...$oldLinks->values()->all()],
-            ])->save();
-            $publications += count(array_diff(array_unique(array_filter(array_column($record->publications, 'url'))), $oldUrls));
+            foreach ($page as $clip) {
+                $match = $matches->get($clip->id) ?? throw new RuntimeException('Missing clip import identity.');
+                $canonical = $match->canonical_id;
+                $record = $merged[$canonical] ?? ($match->getRawOriginal('id') === null ? new OpusClip(['opus_source_id' => $origin->id, 'clip_id' => $clip->id]) : $match);
+                $oldUrls = array_column($record->publications ?? [], 'url');
+                $oldLinks = collect($record->publications ?? [])
+                    ->filter(fn(array $post): bool => $post['url'] !== null)
+                    ->whereNotIn('url', array_column($clip->publications, 'url'));
+
+                $record->fill([
+                    'title' => $clip->title ?? $record->title,
+                    'duration_ms' => $clip->durationMs ?? $record->duration_ms,
+                    'score' => $clip->score ?? $record->score,
+                    'publications' => $nextCheckpoint !== null ? ($record->publications ?? []) : [...$clip->publications, ...$oldLinks->values()->all()],
+                ]);
+
+                if (! isset($merged[$canonical])) {
+                    $received++;
+                    $added += (int) ! $record->exists;
+                }
+                $publications += count(array_diff(array_unique(array_filter(array_column($record->publications, 'url'))), $oldUrls));
+                $merged[$canonical] = $record;
+
+                if (! $record->exists || $record->isDirty()) {
+                    $rows[$canonical] = array_intersect_key($record->getAttributes(), array_flip(['opus_source_id', 'clip_id', 'title', 'duration_ms', 'score', 'publications']));
+                }
+            }
+
+            if ($rows !== []) {
+                $this->query()->upsert(array_values($rows), ['opus_source_id', 'clip_id'], ['title', 'duration_ms', 'score', 'publications', 'updated_at']);
+            }
         }
 
         if ($connectionId !== null) {
@@ -217,7 +248,6 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($run->failed_at !== null && $run->resumed_at === null) {
                 $run->resumed_at = now();
             }
-
             $run->clips_received += $publicationStage ? $added : $received;
             $run->clips_added += $added;
             $run->publications_added += $publications;
@@ -229,9 +259,24 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($nextCheckpoint === null) {
                 $run->completed_at = now();
             }
-
             $run->save();
         }
+    }
+
+    /**
+     * Match provider IDs using the unique index's collation, including aliases within the same page.
+     *
+     * @param list<string> $ids
+     * @return Collection<array-key, OpusClip>
+     */
+    private function matchImportIds(OpusSource $source, array $ids): Collection
+    {
+        $input = $this->providerIdentifiers('opus_clips', 'clip_id', $ids);
+
+        return OpusClip::query()->fromSub($input, 'input')
+            ->leftJoin('opus_clips', static fn(JoinClause $join) => $join->on('opus_clips.clip_id', '=', 'input.lookup_id')->where('opus_clips.opus_source_id', $source->id))
+            ->select('opus_clips.*', 'input.lookup_id', 'input.canonical_id')
+            ->get()->keyBy('lookup_id');
     }
 
     private function sourceProjectName(OpusSource $source): string
@@ -260,6 +305,6 @@ final readonly class OpusClipRepository extends EloquentRepository
     /** @return LazyCollection<int, OpusClip> */
     public function forMetrics(Project $project): LazyCollection
     {
-        return $this->query()->whereRelation('source', 'project_id', $project->id)->lazyById();
+        return $this->query()->select('id', 'publications')->whereRelation('source', 'project_id', $project->id)->lazyById();
     }
 }

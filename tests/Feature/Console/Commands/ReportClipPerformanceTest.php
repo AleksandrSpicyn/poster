@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
+use Illuminate\Support\Facades\DB;
 
 use function Tests\Support\consoleCommand;
 
@@ -18,8 +19,19 @@ test('сравнивает просмотры одной публикации н
 
     $clip->latestMetrics()->create(['platform' => 'instagram', 'media_id' => 'fixture-reel', 'observed_on' => now('UTC')->toDateString(), 'metrics' => ['views' => 80]]);
 
-    consoleCommand('opus:performance')
-        ->expectsTable(['Game', 'Clip', 'View change', 'Total views'], [['Demo', 'Boss fight', 25, 25]])
-        ->expectsOutput('No publications with view counts on both dates.')
-        ->assertSuccessful();
+    DB::enableQueryLog();
+
+    try {
+        consoleCommand('opus:performance')
+            ->expectsTable(['Game', 'Clip', 'View change', 'Total views'], [['Demo', 'Boss fight', 25, 25]])
+            ->expectsOutput('No publications with view counts on both dates.')
+            ->assertSuccessful();
+        $reads = collect(DB::getQueryLog())->pluck('query')->filter(
+            fn(mixed $sql): bool => is_string($sql) && preg_match('/from [`"]opus_(clip_metrics|clips|sources)[`"]/i', $sql) === 1,
+        );
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    expect($reads)->toHaveCount(1);
 });

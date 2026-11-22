@@ -41,7 +41,7 @@ readonly class ResumeProduction
 
             if ($current->status === ProductionStatus::STOPPED) {
                 $key = hash('sha256', 'resume:' . $current->id);
-                $existing = $this->runs->forRequestKey($key) ?? $this->runs->blockingForProject($project, $series);
+                $existing = $this->runs->blockingForProject($project, $series);
 
                 if ($existing instanceof ProductionRun) {
                     return $existing;

@@ -9,7 +9,9 @@ use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Models\Shot;
+use Illuminate\Database\LazyLoadingViolationException;
 use Illuminate\Validation\ValidationException;
 
 test('связи сериала сохраняют отдельные версии и исходный дубль', function (): void {
@@ -44,4 +46,12 @@ test('утвержденная версия персонажа не изменя
         ->toThrow(ValidationException::class);
     expect($revision->refresh()->status)->toBe(RevisionStatus::APPROVED);
     expect($revision->description)->not->toBe('Changed');
+});
+
+test('обращение к незагруженной связи в коллекции запрещено', function (): void {
+    Series::factory()->count(2)->create();
+
+    $series = Series::query()->orderBy('id')->get()->firstOrFail();
+
+    expect(fn() => $series->project)->toThrow(LazyLoadingViolationException::class);
 });

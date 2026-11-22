@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Data\Shots\ShotOperationClaimData;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
+use App\Events\WorkspaceUpdated;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Project;
@@ -25,7 +26,7 @@ readonly class GenerationOperationRepository extends EloquentRepository
     /** @return Collection<int, GenerationOperation> */
     public function forReconciliation(int $limit): Collection
     {
-        return GenerationOperation::query()->with('prompt.media')
+        return GenerationOperation::query()->with('prompt.media', 'prompt.project')
             ->where(function ($query): void {
                 $query->whereIn('status', [GenerationOperationStatus::PLANNED->value, GenerationOperationStatus::SUBMITTED->value, GenerationOperationStatus::RUNNING->value])
                     ->where(function ($query): void {
@@ -41,7 +42,47 @@ readonly class GenerationOperationRepository extends EloquentRepository
     /** @return Collection<int, GenerationOperation> */
     public function lockForPrompt(Prompt $prompt): Collection
     {
-        return $prompt->generationOperations()->lockForUpdate()->get();
+        return $prompt->generationOperations()->with('prompt.project')->lockForUpdate()->get();
+    }
+
+    /** @param iterable<GenerationOperation> $operations Locked operations with their workspace ownership loaded. */
+    public function cancelActive(iterable $operations): void
+    {
+        $changed = [];
+        $planned = [];
+        $submitted = [];
+        $now = now();
+
+        foreach ($operations as $operation) {
+            if (! $operation->status->isActive()) {
+                continue;
+            }
+
+            $operation->cancel_requested_at = $now;
+
+            if ($operation->status === GenerationOperationStatus::PLANNED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
+                $operation->status = GenerationOperationStatus::CANCELLED;
+                $planned[] = $operation->id;
+            } elseif ($operation->isDirty('cancel_requested_at')) {
+                $submitted[] = $operation->id;
+            } else {
+                continue;
+            }
+
+            $changed[] = $operation;
+        }
+
+        if ($planned !== []) {
+            GenerationOperation::query()->whereKey($planned)->update(['cancel_requested_at' => $now, 'status' => GenerationOperationStatus::CANCELLED]);
+        }
+
+        if ($submitted !== []) {
+            GenerationOperation::query()->whereKey($submitted)->update(['cancel_requested_at' => $now]);
+        }
+
+        foreach ($changed as $operation) {
+            WorkspaceUpdated::forResource($operation);
+        }
     }
 
     public function forRequestKey(string $requestKey): ?GenerationOperation
@@ -57,7 +98,7 @@ readonly class GenerationOperationRepository extends EloquentRepository
     /** @param array<string, mixed> $snapshot */
     public function createImageOperation(Prompt $prompt, ?ProductionRun $productionRun, string $requestKey, array $snapshot): GenerationOperation
     {
-        return $prompt->generationOperations()->create([
+        return $prompt->generationOperations()->chaperone('prompt')->create([
             'production_run_id' => $productionRun?->id,
             'stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::PLANNED,
             'request_key' => $requestKey, 'idempotency_key' => hash('sha256', $requestKey . ':image'),
