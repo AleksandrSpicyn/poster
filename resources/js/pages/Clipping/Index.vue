@@ -2,8 +2,10 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import type { SharedData } from '@/types';
+import { ref } from 'vue';
+import { Input } from '@/components/ui/input';
 import { useRoute } from 'ziggy-js';
 
 type AccessStatus = 'available' | 'denied' | 'unavailable' | 'unsupported' | 'unchecked';
@@ -13,9 +15,17 @@ type Connection = {
     driver: string;
     access: Partial<Record<'projects' | 'clips' | 'accounts' | 'metrics', AccessStatus>> | null;
 };
-defineProps<{ connections: Connection[]; drivers: Record<string, string> }>();
+const props = defineProps<{ connections: Connection[]; drivers: Record<string, string> }>();
 const page = usePage<SharedData>();
 const route = useRoute();
+const filtering = ref(false);
+const selectedConnection = ref(props.connections[0]?.id ?? null);
+const sourceTitle = ref('');
+function findSources() {
+    if (selectedConnection.value !== null) {
+        router.get(route('clipping.sources', selectedConnection.value), { search: sourceTitle.value.trim() });
+    }
+}
 const labels: Record<AccessStatus, string> = {
     available: 'Чтение',
     denied: 'Нет доступа',
@@ -54,8 +64,29 @@ function rows(connection: Connection) {
             </header>
             <p v-if="page.props.errors.connection" role="alert" class="text-destructive">{{ page.props.errors.connection }}</p>
             <nav aria-label="Источники">
-                <Link :href="route('clipping.index')" aria-current="page">Все</Link><Link :href="route('clipping.history')">История импорта</Link>
+                <button type="button" :aria-pressed="!filtering" @click="filtering = false">Все</button>
+                <button
+                    type="button"
+                    aria-controls="provider-filters"
+                    :aria-expanded="filtering"
+                    :aria-pressed="filtering"
+                    @click="filtering = !filtering"
+                >
+                    Фильтры
+                </button>
             </nav>
+            <form v-if="filtering" id="provider-filters" class="studio-panel grid max-w-2xl gap-3" @submit.prevent="findSources">
+                <h2>Фильтры</h2>
+                <label for="provider-connection">Подключение</label>
+                <select id="provider-connection" v-model="selectedConnection" class="list-select" required>
+                    <option v-if="!connections.length" :value="null" disabled>Нет подключений</option>
+                    <option v-for="connection in connections" :key="connection.id" :value="connection.id">{{ connection.name }}</option>
+                </select>
+                <label for="provider-project-name">Название внешнего проекта</label>
+                <Input id="provider-project-name" v-model="sourceTitle" type="search" maxlength="200" />
+                <Button type="submit" :disabled="!selectedConnection" class="justify-self-start">Применить</Button>
+                <Link :href="route('clipping.history')" class="justify-self-start underline">История импорта</Link>
+            </form>
             <section>
                 <h2>Подключение и возможности</h2>
                 <p v-if="!connections.length">Подключите провайдера для импорта проектов и клипов.</p>
@@ -95,13 +126,13 @@ function rows(connection: Connection) {
     gap: 8px;
     flex-wrap: wrap;
 }
-.providers nav a {
+.providers nav button {
     background: var(--muted);
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 14px;
 }
-.providers nav [aria-current] {
+.providers nav [aria-pressed='true'] {
     color: var(--primary);
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
 }

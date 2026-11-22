@@ -67,3 +67,20 @@ test('не открывает настройки сопоставления по
 
     Http::assertNothingSent();
 });
+
+test('фильтрует внешние проекты по имени в выбранном подключении', function (): void {
+    $owner = User::factory()->create();
+    $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id, 'api_key' => 'local-reader', 'import_accounts' => false]);
+    Http::fake(['*/clip-projects*' => Http::response(['list' => [
+        ['projectId' => 'night', 'title' => 'Ночной маршрут'],
+        ['projectId' => 'river', 'title' => 'Река'],
+    ]])]);
+
+    actingAs($owner)->get(route('clipping.sources', ['connection' => $connection, 'search' => 'НОЧ']))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('search', 'НОЧ')->has('sources', 1)->where('sources.0.id', 'night'));
+
+    get(route('clipping.sources', ['connection' => $connection, 'search' => 'Луна']))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('sources', 0));
+
+    Http::assertSentCount(2);
+});
