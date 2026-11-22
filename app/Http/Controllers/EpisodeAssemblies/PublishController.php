@@ -30,6 +30,7 @@ class PublishController
      * @urlParam revision integer required ID сценария. Example: 1
      * @urlParam assembly integer required ID сборки этой версии. Example: 1
      * @bodyParam channel_ids integer[] required ID поддержанных каналов проекта, 1–20 элементов. Example: [1]
+     * @bodyParam caption string Разовая подпись до 1000 символов. Пустая строка отправляет эпизод без подписи. Example: Енот находит карту.
      * @response 302
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}

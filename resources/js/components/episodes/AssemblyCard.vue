@@ -45,7 +45,7 @@ const acceptForm = useForm({
     open_threads: '',
     scene_closed: false,
 });
-const publishForm = useForm({ channel_ids: [] as number[] });
+const publishForm = useForm({ channel_ids: [] as number[], caption: props.caption ?? '' });
 const reviewId = ref<number | null>(null);
 const mixed = computed(() => props.publications.some((item) => item.status === 'submission_unknown'));
 const ordered = computed(() => props.publications.toSorted((a, b) => Number(b.status === 'published') - Number(a.status === 'published')));
@@ -53,7 +53,7 @@ watch(reviewId, (value) => emit('review', value !== null));
 const confirmed = ref(false);
 const reviewedVersion = ref(false);
 watch(
-    () => publishForm.channel_ids.slice(),
+    [() => publishForm.channel_ids.slice(), () => publishForm.caption],
     () => {
         confirmed.value = false;
     },
@@ -198,7 +198,7 @@ function publish() {
                     <p v-if="selected.some((channel) => channel.type === 'tiktok')">
                         Видео поступит во входящие TikTok. Чтобы опубликовать его, откройте уведомление в приложении.
                     </p>
-                    <label v-if="caption" class="grid gap-2">Подпись<input :value="caption" readonly class="list-select" /></label>
+                    <label class="grid gap-2">Подпись<input v-model="publishForm.caption" maxlength="1000" class="list-select" /></label>
                     <label v-if="selected.length" class="flex items-center gap-2"
                         ><input v-model="confirmed" type="checkbox" required />Подтверждаю выпуск в выбранные аккаунты</label
                     >
