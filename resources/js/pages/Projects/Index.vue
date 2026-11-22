@@ -12,7 +12,7 @@ import { formatProjectDate } from '@/lib/formatProjectDate';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { CircleSlash, CircleX } from '@lucide/vue';
+import { CircleSlash, CircleX, Search } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -47,6 +47,7 @@ watch(
     },
 );
 const preview = computed(() => {
+    if (!!filters.archived !== !!page.props.filters.archived) return null;
     if (filters.search === page.props.filters.search) return { total: page.props.projects.meta.total, first: page.props.projects.data[0] };
     if (page.props.filters.search || page.props.projects.meta.total !== page.props.projects.data.length) return null;
     const term = (filters.search ?? '').trim().toLocaleLowerCase('ru');
@@ -75,9 +76,9 @@ function runSearch() {
     applyFilters();
 }
 const results = computed(() => !searching.value && (!!page.props.filters.search || !!error.value));
-function selectGroup(group: 'all' | 'active' | 'archived') {
+function selectGroup(group: 'all' | 'active') {
     filters.active = Number(group === 'active');
-    filters.archived = Number(group === 'archived');
+    filters.archived = 0;
     applyFilters();
 }
 function toggleUpdated() {
@@ -99,12 +100,12 @@ function clearSearch() {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Мои проекты" />
+        <Head title="Проекты студии" />
         <div class="workspace-page">
             <ProjectNotice />
             <div class="project-heading flex flex-wrap items-start justify-between gap-4">
                 <Heading
-                    title="Мои проекты"
+                    :title="information || searching || results || page.props.filters.clipping ? 'Мои проекты' : 'Проекты студии'"
                     :description="
                         information
                             ? 'Сведения'
@@ -114,9 +115,18 @@ function clearSearch() {
                                 ? 'Результаты поиска'
                                 : page.props.filters.clipping
                                   ? 'Клиппинг'
-                                  : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' · Все форматы'
+                                  : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' / Все форматы'
                     "
                 />
+                <a
+                    v-if="!information && !searching && !results && !page.props.filters.clipping"
+                    href="#search"
+                    class="project-search-link"
+                    aria-label="Поиск и порядок"
+                    title="Поиск и порядок"
+                    @click="searching = true"
+                    ><Search aria-hidden="true" class="size-4"
+                /></a>
                 <Button v-if="!information && !searching && !results && !page.props.filters.clipping" as-child class="h-11"
                     ><Link :href="route('projects.create')">Создать проект</Link></Button
                 >
@@ -201,6 +211,17 @@ function clearSearch() {
                             <span><strong>По названию</strong><small>От А до Я</small></span>
                         </label>
                     </fieldset>
+                    <label class="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            :checked="!!filters.archived"
+                            @change="
+                                filters.archived = Number(($event.target as HTMLInputElement).checked);
+                                filters.active = 0;
+                            "
+                        />
+                        В архиве
+                    </label>
                     <p v-if="preview" class="studio-row">
                         <strong>Найдено</strong
                         ><span
@@ -322,14 +343,10 @@ function clearSearch() {
                     <Button :variant="filters.active ? 'default' : 'secondary'" :aria-pressed="!!filters.active" @click="selectGroup('active')"
                         >Активные</Button
                     >
-                    <Button :variant="filters.archived ? 'default' : 'secondary'" :aria-pressed="!!filters.archived" @click="selectGroup('archived')"
-                        >В архиве</Button
-                    >
+                    <Button v-if="page.props.filters.archived" variant="default" :aria-pressed="true" @click="selectGroup('all')">В архиве</Button>
                     <Button :variant="filters.updated ? 'default' : 'secondary'" :aria-pressed="!!filters.updated" @click="toggleUpdated"
                         >По дате изменения</Button
                     >
-
-                    <a href="#search" @click="searching = true" class="text-muted-foreground ml-auto py-2 text-sm">Поиск и порядок</a>
                 </div>
                 <ListPanel
                     external-controls
@@ -352,11 +369,21 @@ function clearSearch() {
                     @page="changePage"
                     @refresh="refresh"
                 >
-                    <h2 class="mb-4 text-xl font-bold">{{ filters.updated ? 'По дате изменения' : 'Проекты студии' }}</h2>
+                    <h2 class="mb-4 text-xl font-bold">
+                        {{
+                            filters.alphabetical
+                                ? 'По названию'
+                                : filters.updated
+                                  ? 'По дате изменения'
+                                  : filters.sort === 'asc'
+                                    ? 'Сначала старые'
+                                    : 'Сначала новые'
+                        }}
+                    </h2>
                     <div class="project-grid">
                         <article v-for="project in page.props.projects.data" :key="project.id" class="project-card">
                             <Link :href="route('projects.show', project.id)" class="focus-visible:ring-ring block focus-visible:ring-2">
-                                <ProjectArtwork :name="project.name" :cover="project.cover" class="aspect-[1.86] max-h-[245px] w-full" />
+                                <ProjectArtwork :name="project.name" :cover="project.cover" class="project-list-cover" />
                                 <h3>{{ project.name }}</h3>
                             </Link>
                             <div class="flex min-w-0 items-center justify-between gap-2 px-4 pb-2">
@@ -384,6 +411,46 @@ function clearSearch() {
 </template>
 
 <style scoped>
+.project-heading [data-slot='button'] {
+    font-weight: 700;
+}
+.project-heading {
+    position: relative;
+}
+.project-search-link {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    color: var(--muted-foreground);
+    border-radius: 8px;
+}
+.project-search-link:hover,
+.project-search-link:focus-visible {
+    background: var(--muted);
+    color: var(--foreground);
+}
+@media (min-width: 1100px) {
+    .project-search-link {
+        margin-left: auto;
+    }
+}
+@media (max-width: 1099px) {
+    .project-search-link {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+}
+.workspace-page:has(.project-list) {
+    gap: 23px;
+}
+@media (max-width: 767px) {
+    .workspace-page:has(.project-list) {
+        padding-top: 15px;
+    }
+}
+
 .info-panel .studio-row,
 .search-panel .studio-row,
 .results-panel .studio-row {
@@ -553,6 +620,15 @@ function clearSearch() {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
+}
+.project-list-cover {
+    width: calc(100% + 2px);
+    aspect-ratio: 1.85;
+    max-height: 246px;
+    margin-inline: -1px;
+}
+.project-card {
+    padding-bottom: 15px;
 }
 .project-card h3 {
     padding: 14px 15px 0;
