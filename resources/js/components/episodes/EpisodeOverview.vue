@@ -124,13 +124,18 @@ const rows = computed(() => {
     text-align: left;
 }
 @media (max-width: 639px) {
+    .episode-overview h2 {
+        margin-bottom: 16px;
+    }
     .overview-row {
+        min-height: 67px;
+        align-content: center;
         grid-template-columns: 1fr;
         gap: 2px;
         padding: 8px 0;
     }
     .overview-row span {
-        font-size: 13px;
+        font-size: 14px;
     }
 }
 </style>

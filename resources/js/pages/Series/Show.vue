@@ -125,8 +125,22 @@ const breadcrumbs = [
     }
 }
 @media (max-width: 767px) {
-    .series-overview {
-        gap: 19px;
+    .series-overview:not(.production-view) {
+        padding-top: 14px;
+        gap: 27px;
+    }
+    .series-overview:not(.production-view) :deep(#series-episodes) {
+        margin-top: 2px;
+        margin-bottom: 20px;
+    }
+    .series-overview:not(.production-view) :deep(.studio-history-row) {
+        row-gap: 0;
+        align-content: center;
+    }
+}
+@media (min-width: 1100px) {
+    .series-overview:not(.production-view) > div:first-child > a {
+        margin-top: 6px;
     }
 }
 .run-tabs {

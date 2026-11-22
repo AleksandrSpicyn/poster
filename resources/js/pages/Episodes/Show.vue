@@ -723,6 +723,34 @@ function refresh() {
 </template>
 
 <style scoped>
+.episode-overview-page > div:first-of-type > button {
+    font-weight: 700;
+}
+.episode-overview-page > nav a {
+    padding-inline: 12px;
+}
+.episode-overview-page > .episode-columns {
+    margin-top: -4px;
+}
+@media (min-width: 1100px) {
+    .episode-overview-page > div:first-of-type > button {
+        margin-top: 6px;
+    }
+}
+@media (max-width: 1099px) {
+    .episode-overview-page > div:first-of-type {
+        gap: 11px;
+    }
+}
+@media (max-width: 767px) {
+    .episode-overview-page {
+        padding-top: 15px;
+    }
+    .episode-overview-page > div:first-of-type {
+        gap: 14px;
+    }
+}
+
 .trim-player video {
     width: 100%;
     max-height: 410px;
