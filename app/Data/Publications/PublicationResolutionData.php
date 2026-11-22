@@ -17,5 +17,6 @@ class PublicationResolutionData extends Data
         public Channel $channel,
         public Project $project,
         public ?Prompt $short = null,
+        public ?int $assemblyNumber = null,
     ) {}
 }

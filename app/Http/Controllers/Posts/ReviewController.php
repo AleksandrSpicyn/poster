@@ -26,6 +26,7 @@ class ReviewController
             'channel' => $context->channel->name,
             'platform' => $context->channel->type->label(),
             'project' => Arr::only(ProjectResource::make($context->project)->resolve(), ['name', 'cover']),
+            'assemblyNumber' => $context->assemblyNumber,
             'submittedAt' => $publication->submitted_at?->toISOString(),
         ]);
     }

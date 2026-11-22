@@ -134,7 +134,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
         $assembly = $request->series_assembly_id === null ? $request->assembly()->firstOrFail() : $request->seriesAssembly()->firstOrFail();
         $series = $assembly instanceof SeriesAssembly ? $assembly->series()->firstOrFail() : $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail()->series()->firstOrFail();
 
-        return new PublicationResolutionData($request, $channel, $series->project()->firstOrFail());
+        return new PublicationResolutionData($request, $channel, $series->project()->firstOrFail(), assemblyNumber: $assembly->number);
     }
 
     /** @return Collection<int, PublicationRequest> */
