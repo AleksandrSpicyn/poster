@@ -43,21 +43,19 @@ function stop() {
     <section class="bg-card space-y-5 rounded-xl border p-5 sm:p-7" aria-labelledby="production-heading">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h2 id="production-heading" class="text-lg font-semibold">Automatic production</h2>
+                <h2 id="production-heading" class="text-lg font-semibold">Производство</h2>
                 <p class="text-muted-foreground mt-1 text-sm">
-                    {{
-                        seriesId
-                            ? 'Characters → screenplay → images and video → montage → story memory → publication'
-                            : 'Idea → first frame → video → publication'
-                    }}
+                    {{ seriesId ? 'Персонажи, сценарий, съёмка, монтаж, память сюжета и публикация' : 'Идея, первый кадр, видео и публикация' }}
                 </p>
             </div>
             <span class="bg-muted text-muted-foreground rounded-full px-3 py-1.5 text-xs">{{
-                page.props.contentScheduleEnabled ? 'Schedule enabled' : 'Schedule off'
+                page.props.contentScheduleEnabled ? 'Расписание включено' : 'Расписание выключено'
             }}</span>
         </div>
         <div v-if="run?.series_assembly_id" class="rounded-lg border p-3">
-            <Link :href="route('series_assemblies.show', run.series_assembly_id)" class="text-primary underline underline-offset-4">Review complete video and boundaries</Link>
+            <Link :href="route('series_assemblies.show', run.series_assembly_id)" class="text-primary underline underline-offset-4"
+                >Проверить полную версию и стыки</Link
+            >
         </div>
         <template v-if="run">
             <p role="status" aria-atomic="true" class="flex items-center gap-2 text-sm font-medium">
@@ -93,14 +91,19 @@ function stop() {
         <p v-else class="text-muted-foreground text-sm">
             {{
                 !projectEnabled
-                    ? 'Enable this project in its settings to produce new content.'
+                    ? 'Включите проект в настройках, чтобы создавать новые ролики.'
                     : seriesId && !enabled
-                      ? 'Enable automation in series settings to let new episodes run through every stage.'
-                      : 'Start one release now. Later, each scheduled trigger will create the next release.'
+                      ? 'Включите автоматизацию в настройках сериала для подготовки новых эпизодов.'
+                      : 'Запустите первый выпуск. Следующие выпуски можно создавать по расписанию.'
             }}
         </p>
         <div class="flex flex-wrap items-center gap-3 border-t pt-4">
-            <Button v-if="run && ['stopped', 'needs_attention'].includes(run.status) && projectEnabled && enabled" variant="outline" @click="stopForm.post(route('production_runs.resume', run.id), { preserveScroll: true })">Resume after review</Button>
+            <Button
+                v-if="run && ['stopped', 'needs_attention'].includes(run.status) && projectEnabled && enabled"
+                variant="outline"
+                @click="stopForm.post(route('production_runs.resume', run.id), { preserveScroll: true })"
+                >Продолжить после проверки</Button
+            >
             <InputError :message="(stopForm.errors as Record<string, string>).production" />
             <Button
                 v-if="!run?.blocks_next_run && projectEnabled && enabled && !archived"
@@ -114,15 +117,15 @@ function stop() {
                     class="size-4"
                     aria-hidden="true"
                 />
-                {{ seriesId ? 'Produce next episode' : 'Produce one video' }}
+                {{ seriesId ? 'Создать следующий эпизод' : 'Создать ролик' }}
             </Button>
             <Button v-if="run?.blocks_next_run" type="button" variant="outline" class="h-11" :disabled="stopForm.processing" @click="stop"
-                ><Square class="size-4" aria-hidden="true" />Stop next stages</Button
+                ><Square class="size-4" aria-hidden="true" />Остановить следующие этапы</Button
             >
             <Button v-if="run?.episode_id && run.series_id" as-child variant="outline" class="h-11"
-                ><Link :href="route('episodes.show', { series: run.series_id, episode: run.episode_id })">Open episode</Link></Button
+                ><Link :href="route('episodes.show', { series: run.series_id, episode: run.episode_id })">Открыть эпизод</Link></Button
             >
-            <p v-if="run?.blocks_next_run" class="text-muted-foreground text-xs">Submitted work may still finish after stopping.</p>
+            <p v-if="run?.blocks_next_run" class="text-muted-foreground text-xs">Уже начатые этапы могут завершиться после остановки.</p>
         </div>
         <InputError :message="Object.values(form.errors).join(' ')" /><InputError :message="Object.values(stopForm.errors).join(' ')" />
     </section>

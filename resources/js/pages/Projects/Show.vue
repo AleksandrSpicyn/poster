@@ -3,7 +3,7 @@ import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import drive from '../../../assets/studio/night-drive.webp';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import GenerationItem from '@/components/GenerationItem.vue';
+import VideoPreview from '@/components/VideoPreview.vue';
 import Heading from '@/components/Heading.vue';
 import ListControls from '@/components/ListControls.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -82,9 +82,12 @@ function destroyProject() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="page.props.project.name" />
-        <div class="workspace-page">
+        <div class="workspace-page" :class="{ 'short-project': !page.props.opusClips && !page.props.series }">
             <ProjectNotice />
-            <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
+            <div
+                class="flex flex-col items-start justify-between"
+                :class="page.props.opusClips || page.props.series ? 'gap-4 sm:flex-row' : 'gap-3 min-[1100px]:flex-row'"
+            >
                 <div class="w-full min-w-0 flex-1 space-y-3 [&_h1]:break-words">
                     <Heading
                         :title="page.props.opusClips ? 'Библиотека клипов' : page.props.series ? page.props.project.name : 'Проект коротких роликов'"
@@ -94,7 +97,7 @@ function destroyProject() {
                 <Button v-if="page.props.opusClips" as-child class="h-11 shrink-0"><Link :href="route('clipping.index')">Импортировать</Link></Button>
                 <Button as-child :variant="page.props.opusClips ? 'outline' : 'default'" class="h-11 shrink-0"
                     ><Link :href="route('projects.edit', page.props.project.id)"
-                        ><Pencil class="size-4" aria-hidden="true" />Открыть настройки</Link
+                        ><Pencil v-if="page.props.opusClips" class="size-4" aria-hidden="true" />Открыть настройки</Link
                     ></Button
                 >
             </div>
@@ -171,36 +174,53 @@ function destroyProject() {
                 aria-labelledby="project-history-heading"
             >
                 <ProjectArtwork :name="page.props.project.name" :cover="page.props.project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
-                <div class="min-w-0 space-y-4">
-                    <div>
-                        <h2 id="project-history-heading" class="text-lg font-semibold">История роликов</h2>
-                        <p class="text-muted-foreground mt-1 text-sm">Генерации и результаты проекта.</p>
+                <div class="min-w-0">
+                    <h2 id="project-history-heading" class="mb-4 text-xl font-semibold">История роликов</h2>
+                    <div v-for="prompt in page.props.prompts.data" :key="prompt.id">
+                        <VideoPreview v-if="prompt.url" :prompt="prompt">
+                            <template #trigger>
+                                <button type="button" class="studio-history-row" :aria-label="'Предпросмотр · ' + prompt.title">
+                                    <strong>{{ prompt.title }}</strong><span class="text-primary">Собрано</span>
+                                </button>
+                            </template>
+                        </VideoPreview>
+                        <div v-else class="studio-history-row">
+                            <strong>{{ prompt.title }}</strong><span class="text-muted-foreground">{{
+                                prompt.generated ? 'Собрано' : prompt.stage === 'image' ? 'Запланировано' : 'В работе'
+                            }}</span>
+                        </div>
                     </div>
-                    <ListPanel
-                        :meta="page.props.prompts.meta"
-                        :count="page.props.prompts.data.length"
-                        :loading="loading"
-                        :error="error"
-                        empty-title="Здесь появятся ролики проекта"
-                        empty-description="После первой генерации здесь можно посмотреть результат."
-                        @page="changePage"
-                        @refresh="refresh"
-                    >
-                        <template #filters>
-                            <ListControls
-                                :sort="filters.sort"
-                                :per-page="filters.perPage"
-                                :directions="page.props.sortDirections"
-                                :disabled="loading"
-                                @sort="changeSort"
-                                @per-page="changePerPage"
-                            />
-                        </template>
-                        <div class="divide-y"><GenerationItem v-for="prompt in page.props.prompts.data" :key="prompt.id" :prompt="prompt" /></div>
-                    </ListPanel>
+                    <p v-if="!page.props.prompts.data.length" class="text-muted-foreground text-sm">Здесь появятся ролики проекта.</p>
                 </div>
             </section>
 
+            <div v-if="!page.props.series && !page.props.opusClips" class="space-y-3">
+                <ListControls
+                    :sort="filters.sort"
+                    :per-page="filters.perPage"
+                    :directions="page.props.sortDirections"
+                    :disabled="loading"
+                    @sort="changeSort"
+                    @per-page="changePerPage"
+                />
+                <p v-if="error" role="alert">{{ error }}</p>
+                <Button variant="outline" :disabled="loading" @click="refresh">Обновить</Button>
+                <nav v-if="page.props.prompts.meta.last_page > 1" class="flex items-center gap-3" aria-label="Страницы истории роликов">
+                    <Button
+                        variant="outline"
+                        :disabled="loading || page.props.prompts.meta.current_page === 1"
+                        @click="changePage(page.props.prompts.meta.current_page - 1)"
+                        >Назад</Button
+                    >
+                    <span>{{ page.props.prompts.meta.current_page }} из {{ page.props.prompts.meta.last_page }}</span>
+                    <Button
+                        variant="outline"
+                        :disabled="loading || page.props.prompts.meta.current_page >= page.props.prompts.meta.last_page"
+                        @click="changePage(page.props.prompts.meta.current_page + 1)"
+                        >Далее</Button
+                    >
+                </nav>
+            </div>
             <p
                 v-if="!page.props.project.is_active && !page.props.opusClips"
                 role="status"
@@ -326,3 +346,19 @@ function destroyProject() {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.short-project {
+    gap: 23px;
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .short-project {
+        gap: 25px;
+    }
+}
+@media (max-width: 767px) {
+    .short-project {
+        gap: 19px;
+    }
+}
+</style>

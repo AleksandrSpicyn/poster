@@ -69,6 +69,9 @@ export interface CharacterSummary {
 }
 
 export interface EpisodeSummary {
+    current_revision_id: number | null;
+    accepted_assembly_id: number | null;
+    script_generation_status: string | null;
     id: number;
     series_id: number;
     number: number;

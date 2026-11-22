@@ -418,3 +418,15 @@
     .studio-confirm > [data-slot='dialog-title'] { margin-bottom: 20px; font-size: 19px; }
     .studio-confirm dl .studio-row { grid-template-columns: 1fr; gap: 3px; padding: 6px 0 12px; }
 }
+
+@layer components {
+    .studio-history-row {
+        @apply grid w-full min-w-0 items-center gap-0.5 border-b px-0 py-2 text-left min-h-[66px] md:min-h-[53px] md:grid-cols-[46%_minmax(0,1fr)] md:gap-2;
+    }
+    .studio-history-row strong {
+        @apply min-w-0 break-words;
+    }
+    .studio-history-row span {
+        @apply text-sm;
+    }
+}

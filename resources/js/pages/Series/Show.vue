@@ -24,9 +24,9 @@ const breadcrumbs = [
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="project.name" />
-        <div class="workspace-page">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading :title="series.name" :description="project.name + ' / Эпизоды и персонажи'" />
+        <div class="workspace-page series-overview">
+            <div class="flex flex-col items-start justify-between gap-3 min-[1100px]:flex-row">
+                <Heading :title="series.name" description="Сериал / Эпизоды и персонажи" />
                 <Link class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold" :href="route('projects.edit', project.id)"
                     >Открыть паспорт</Link
                 >
@@ -35,3 +35,19 @@ const breadcrumbs = [
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.series-overview {
+    gap: 23px;
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .series-overview {
+        gap: 25px;
+    }
+}
+@media (max-width: 767px) {
+    .series-overview {
+        gap: 19px;
+    }
+}
+</style>

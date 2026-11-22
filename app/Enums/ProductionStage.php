@@ -23,15 +23,15 @@ enum ProductionStage: string
     public function label(): string
     {
         return match ($this) {
-            self::PLANNING => 'Planning the complete video',
-            self::FINAL_MONTAGE => 'Building the complete video',
-            self::FINAL_REVIEW => 'Reviewing the complete video',
-            self::PREPARING => 'Preparing',
-            self::SCREENPLAY => 'Writing screenplay',
-            self::MEDIA => 'Generating images and video',
-            self::MONTAGE => 'Building montage',
-            self::STORY => 'Saving confirmed story',
-            self::PUBLICATION => 'Publishing',
+            self::PLANNING => 'План полной версии',
+            self::FINAL_MONTAGE => 'Сборка полной версии',
+            self::FINAL_REVIEW => 'Проверка полной версии',
+            self::PREPARING => 'Подготовка',
+            self::SCREENPLAY => 'Сценарий',
+            self::MEDIA => 'Создание изображений и видео',
+            self::MONTAGE => 'Монтаж',
+            self::STORY => 'Сохранение истории',
+            self::PUBLICATION => 'Публикация',
         };
     }
 }

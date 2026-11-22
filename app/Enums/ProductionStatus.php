@@ -17,6 +17,18 @@ enum ProductionStatus: string
     case COMPLETED = 'completed';
     case STOPPED = 'stopped';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::QUEUED => 'В очереди',
+            self::RUNNING => 'В работе',
+            self::WAITING => 'Ожидание',
+            self::NEEDS_ATTENTION => 'Требует внимания',
+            self::COMPLETED => 'Готово',
+            self::STOPPED => 'Остановлено',
+        };
+    }
+
     public function isActive(): bool
     {
         return in_array($this, [self::QUEUED, self::RUNNING, self::WAITING], true);

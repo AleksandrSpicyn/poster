@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssemblyStatus;
+use App\Enums\ScriptGenerationStatus;
 use App\Models\Character;
 use App\Models\Episode;
+use App\Models\EpisodeAssembly;
+use App\Models\EpisodeRevision;
 use App\Models\Project;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -45,4 +49,24 @@ test('гость не видит карточку сериала', function (): 
     $context = serialCharacterContext();
 
     get(route('series.show', $context['params']))->assertRedirect(route('login'));
+});
+
+test('карточка передаёт состояние сценария и принятую сборку своего эпизода', function (): void {
+    $context = serialCharacterContext();
+    $episode = Episode::factory()->for($context['series'])->create();
+    $revision = EpisodeRevision::factory()->for($episode)->approved()->create();
+    $assembly = EpisodeAssembly::factory()->ready()->create(['episode_revision_id' => $revision->id, 'status' => AssemblyStatus::ACCEPTED]);
+    $episode->update([
+        'current_revision_id' => $revision->id,
+        'accepted_assembly_id' => $assembly->id,
+        'script_generation_status' => ScriptGenerationStatus::COMPLETED,
+    ]);
+
+    actingAs(serialOperator())
+        ->get(route('series.show', $context['params']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('episodes.0.current_revision_id', $revision->id)
+            ->where('episodes.0.accepted_assembly_id', $assembly->id)
+            ->where('episodes.0.script_generation_status', ScriptGenerationStatus::COMPLETED->value));
 });

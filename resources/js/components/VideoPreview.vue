@@ -31,9 +31,11 @@ function clearPlayer() {
 <template>
     <Dialog v-if="prompt.url" @update:open="clearPlayer">
         <DialogTrigger as-child>
-            <Button variant="outline" size="sm" class="h-11 sm:h-9">
-                <Play class="size-3.5" aria-hidden="true" />Предпросмотр<span class="sr-only"> · {{ prompt.title }}</span>
-            </Button>
+            <slot name="trigger"
+                ><Button variant="outline" size="sm" class="h-11 sm:h-9">
+                    <Play class="size-3.5" aria-hidden="true" />Предпросмотр<span class="sr-only"> · {{ prompt.title }}</span>
+                </Button></slot
+            >
         </DialogTrigger>
         <DialogContent class="studio-confirm max-h-[90svh] overflow-y-auto" :show-close="false">
             <DialogHeader>

@@ -26,6 +26,14 @@ const params = { project: props.project.id, series: props.series.id };
 const characterForm = useForm({ name: '' });
 const characterErrors = computed<Record<string, string | undefined>>(() => characterForm.errors);
 const episodeForm = useForm({ title: '' });
+const chronologicalEpisodes = computed(() => [...props.episodes].sort((a, b) => a.number - b.number));
+function episodeLabel(episode: EpisodeSummary) {
+    if (episode.validity === 'requires_review') return 'Нужна проверка';
+    if (episode.accepted_assembly_id) return 'Принято';
+    if (episode.script_generation_status === 'failed') return 'Ошибка сценария';
+    if (episode.script_generation_status === 'outcome_unknown') return 'Результат неизвестен';
+    return episode.current_revision_id || episode.script_generation_status ? 'В работе' : 'Черновик';
+}
 const archiveForm = useForm({ lock_version: props.series.lock_version });
 
 function createCharacter() {
@@ -50,42 +58,36 @@ function changePage(page: number) {
         </p>
         <div class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
             <ProjectArtwork :name="project.name" :cover="project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
-            <section class="space-y-4" aria-labelledby="series-episodes">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="series-episodes" class="text-lg font-semibold">Эпизоды</h2>
-                    <p class="text-muted-foreground text-sm">Последние 20 из {{ series.episodes_count ?? episodes.length }}</p>
-                </div>
-                <form v-if="!series.archived_at" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="createEpisode">
-                    <div class="grid min-w-48 flex-1 gap-2">
-                        <Label for="episode-title">Название эпизода</Label
-                        ><Input
-                            id="episode-title"
-                            v-model="episodeForm.title"
-                            required
-                            maxlength="255"
-                            :disabled="episodeForm.processing"
-                        /><InputError :message="episodeForm.errors.title" />
-                    </div>
-                    <Button type="submit" class="h-11" :disabled="episodeForm.processing"
-                        ><Plus class="size-4" aria-hidden="true" />Создать эпизод</Button
+            <section class="min-w-0 [&_h2]:mb-4" aria-labelledby="series-episodes">
+                <h2 id="series-episodes" class="text-xl font-semibold">Эпизоды</h2>
+                <p v-if="!episodes.length" class="text-muted-foreground text-sm">Добавьте персонажей и создайте первый эпизод.</p>
+                <Link
+                    v-for="episode in chronologicalEpisodes"
+                    :key="episode.id"
+                    :href="route('episodes.show', { series: series.id, episode: episode.id })"
+                    :aria-label="'Открыть эпизод ' + episode.title"
+                    class="studio-history-row"
+                >
+                    <strong>{{ episode.title }}</strong>
+                    <span
+                        :class="episode.accepted_assembly_id && episode.validity !== 'requires_review' ? 'text-primary' : 'text-muted-foreground'"
+                        >{{ episodeLabel(episode) }}</span
                     >
-                </form>
-                <div class="bg-card divide-y rounded-xl border">
-                    <p v-if="!episodes.length" class="text-muted-foreground p-6 text-sm">Добавьте персонажей и создайте первый эпизод.</p>
-                    <article v-for="episode in episodes" :key="episode.id" class="flex flex-wrap items-center justify-between gap-4 p-5">
-                        <div>
-                            <h3 class="font-semibold">{{ episode.number }}. {{ episode.title }}</h3>
-                            <p v-if="episode.validity === 'requires_review'" class="text-destructive mt-1 text-sm">
-                                Источник изменился. Проверьте продолжение.
-                            </p>
-                        </div>
-                        <Button as-child variant="outline" class="h-11"
-                            ><Link :href="route('episodes.show', { series: series.id, episode: episode.id })">Открыть эпизод</Link></Button
-                        >
-                    </article>
-                </div>
+                </Link>
+                <p v-if="(series.episodes_count ?? 0) > episodes.length" class="text-muted-foreground text-sm">
+                    Последние {{ episodes.length }} из {{ series.episodes_count }}
+                </p>
             </section>
         </div>
+        <form v-if="!series.archived_at" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="createEpisode">
+            <div class="grid min-w-48 flex-1 gap-2">
+                <Label for="episode-title">Название эпизода</Label
+                ><Input id="episode-title" v-model="episodeForm.title" required maxlength="255" :disabled="episodeForm.processing" /><InputError
+                    :message="episodeForm.errors.title"
+                />
+            </div>
+            <Button type="submit" class="h-11" :disabled="episodeForm.processing"><Plus class="size-4" aria-hidden="true" />Создать эпизод</Button>
+        </form>
         <ProductionPanel
             :project-id="project.id"
             :series-id="series.id"
