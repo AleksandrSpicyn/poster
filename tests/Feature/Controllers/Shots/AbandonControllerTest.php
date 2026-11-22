@@ -24,7 +24,7 @@ test('закрывает неизвестный запуск без внешни
     Process::fake();
 
     actingAs($actor)->post(route('shots.abandon', $params), ['note' => 'Verified manually.', 'accept_unknown_outcome' => true])
-        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]));
+        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]) . '#shots');
     $original = $operation->refresh()->result_snapshot;
     actingAs($actor)->post(route('shots.abandon', $params), ['note' => 'Repeated submission.', 'accept_unknown_outcome' => true])
         ->assertRedirect();

@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\GenerationOperationStage;
+use App\Enums\GenerationOperationStatus;
 use App\Models\Channel;
+use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -54,3 +57,22 @@ test('подтверждённый посторонний пользовател
         ->get(route('episodes.show', ['series' => $context['episode']->series_id, 'episode' => $context['episode']]))
         ->assertNotFound();
 });
+
+test('дубль позволяет повторную загрузку только при сохранённом результате провайдера', function (bool $hasResult): void {
+    $context = episodeHttpFixture();
+    $episode = $context['episode'];
+    $take = Prompt::factory()->for($context['shot'])->create(['project_id' => $episode->series()->firstOrFail()->project_id]);
+    $take->generationOperations()->create([
+        'stage' => GenerationOperationStage::DOWNLOAD, 'status' => GenerationOperationStatus::FAILED,
+        'request_key' => 'display-download', 'idempotency_key' => hash('sha256', 'display-download'),
+        'request_snapshot' => [], 'result_snapshot' => $hasResult ? ['video_url' => 'https://media.example.test/private-source'] : [],
+    ]);
+
+    actingAs($context['user'])
+        ->get(route('episodes.show', ['series' => $episode->series_id, 'episode' => $episode]))
+        ->assertOk()
+        ->assertDontSee('private-source')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('episode.current_revision.scenes.0.shots.0.takes.0.operations.0.can_retry_download', $hasResult)
+            ->where('episode.current_revision.scenes.0.shots.0.takes.0.operations.0.stage_label', 'Загрузка файла'));
+})->with([true, false]);

@@ -7,6 +7,9 @@ export interface EpisodeMedia {
     url: string;
 }
 export interface GenerationOperation {
+    stage_label: string;
+    can_retry_download: boolean;
+    retrying_download: boolean;
     id: number;
     stage: string;
     status: string;
@@ -23,6 +26,7 @@ export interface ShotTake {
     operations: GenerationOperation[];
 }
 export interface ShotSummary {
+    transition_mode_label: string;
     id: number;
     scene_id: number;
     position: number;

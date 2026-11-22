@@ -43,7 +43,7 @@ test('запуск дубля создаёт долговечный intent до 
 
     actingAs($context['user'])
         ->post(route('shots.generate', $context['params']), ['request_key' => 'http-shot-request', 'new_take' => false])
-        ->assertRedirect(route('episodes.show', ['series' => $context['episode']->series_id, 'episode' => $context['episode']->id]))
+        ->assertRedirect(route('episodes.show', ['series' => $context['episode']->series_id, 'episode' => $context['episode']->id]) . '#shots')
         ->assertSessionHasNoErrors();
 
     $take = $context['shot']->prompts()->firstOrFail();

@@ -50,6 +50,6 @@ class AbandonController
     {
         $action->run($operation, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
     }
 }

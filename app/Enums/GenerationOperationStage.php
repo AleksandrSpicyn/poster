@@ -13,4 +13,13 @@ enum GenerationOperationStage: string
     case IMAGE = 'image';
     case VIDEO = 'video';
     case DOWNLOAD = 'download';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::IMAGE => 'Изображение',
+            self::VIDEO => 'Видео',
+            self::DOWNLOAD => 'Загрузка файла',
+        };
+    }
 }

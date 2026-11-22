@@ -43,61 +43,62 @@ function stop(prompt: number) {
 <template>
     <article class="bg-card space-y-4 rounded-xl border p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
-            <h4 class="font-semibold">Shot {{ shot.position }} · {{ shot.duration_ms / 1000 }}s</h4>
-            <span class="text-muted-foreground text-xs">{{ shot.transition_mode.replaceAll('_', ' ') }}</span>
+            <h4 class="font-semibold">Кадр {{ shot.position }} · {{ (shot.duration_ms / 1000).toLocaleString('ru') }} с</h4>
+            <span class="text-muted-foreground text-xs">{{ shot.transition_mode_label }}</span>
         </div>
         <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ shot.action }}</p>
         <div v-if="approved && !archived && projectEnabled" class="flex flex-wrap items-end gap-3">
             <div v-if="shot.transition_mode !== 'new_scene'" class="grid gap-2">
-                <Label :for="'shot-source-' + shot.id">Continue from a previous take</Label
+                <Label :for="'shot-source-' + shot.id">Продолжить от дубля</Label
                 ><select
                     :id="'shot-source-' + shot.id"
                     v-model="form.source_prompt_id"
                     class="border-input bg-background h-11 max-w-80 rounded-md border px-3 text-sm"
                     :disabled="form.processing || hasActiveRequest"
                 >
-                    <option value="">Use the screenplay source</option>
+                    <option value="">Источник из сценария</option>
                     <option v-for="source in sourceOptions" :key="source.id" :value="source.id">{{ source.label }}</option>
                 </select>
             </div>
             <Button type="button" class="h-11" :disabled="form.processing || hasActiveRequest" @click="generate(shot.takes.length > 0)">{{
-                form.processing ? 'Starting…' : shot.takes.length ? 'Generate a new take' : 'Generate shot'
+                form.processing ? 'Запуск…' : shot.takes.length ? 'Создать новый дубль' : 'Создать кадр'
             }}</Button>
         </div>
         <p v-if="approved && !archived && projectEnabled" class="text-muted-foreground text-xs">
-            Starts media generation using the approved screenplay and selected references. A new take can use provider credits.
+            Новый дубль создаётся по утверждённому сценарию и выбранным референсам. Провайдер может списать средства за генерацию.
         </p>
         <InputError :message="errors" />
-        <p v-if="!shot.takes.length" class="text-muted-foreground text-sm">No takes yet.</p>
+        <p v-if="!shot.takes.length" class="text-muted-foreground text-sm">Пока нет дублей.</p>
         <div class="space-y-4">
             <section v-for="take in shot.takes" :key="take.id" class="bg-muted/30 space-y-3 rounded-lg border p-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h5 class="text-sm font-semibold">Take {{ take.take_number }}</h5>
-                    <span class="text-muted-foreground text-xs">{{ take.generated ? 'Ready for montage' : 'In progress or needs attention' }}</span>
+                    <h5 class="text-sm font-semibold">Дубль {{ take.take_number }}</h5>
+                    <span class="text-muted-foreground text-xs">{{ take.generated ? 'Готов к монтажу' : 'В работе или требует проверки' }}</span>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <template v-for="media in take.media" :key="media.id"
                         ><video
                             v-if="media.collection === 'shot-video'"
                             :src="media.url"
+                            :aria-label="'Видео дубля ' + take.take_number"
                             controls
                             preload="metadata"
                             class="bg-muted max-h-80 w-full rounded-md" /><img
                             v-else-if="media.collection === 'shot-image'"
                             :src="media.url"
-                            alt="Generated opening frame"
+                            :alt="'Первый кадр дубля ' + take.take_number"
                             loading="lazy"
                             class="bg-muted max-h-80 w-full rounded-md object-contain"
                     /></template>
                 </div>
                 <ul class="space-y-1 text-xs">
                     <li v-for="operation in take.operations" :key="operation.id" class="text-muted-foreground">
-                        {{ operation.stage }}: {{ operation.status_label }}<span v-if="operation.error_code"> · {{ operation.error_code }}</span
-                        ><span v-if="operation.cancel_requested_at"> · Stop requested</span>
+                        {{ operation.stage_label }} · {{ operation.status_label
+                        }}<span v-if="operation.cancel_requested_at"> · Запрошена остановка</span>
                     </li>
                 </ul>
                 <p v-if="take.operations.some((item) => item.status === 'submission_unknown')" class="text-destructive text-sm">
-                    The provider may have received this request. Its result needs checking before another submission.
+                    Проверьте результат в кабинете провайдера перед повтором.
                 </p>
                 <Button
                     v-if="!take.generated && take.operations.some((item) => ['planned', 'submitting', 'submitted', 'running'].includes(item.status))"
@@ -106,7 +107,7 @@ function stop(prompt: number) {
                     class="h-11"
                     :disabled="cancelForm.processing"
                     @click="stop(take.id)"
-                    >Stop next steps</Button
+                    >Остановить следующие этапы</Button
                 >
                 <ShotOperationControls v-if="!archived" :take="take" :params="params" />
             </section>

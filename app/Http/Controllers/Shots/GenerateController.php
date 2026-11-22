@@ -44,6 +44,6 @@ class GenerateController
     {
         $action->run($shot, $user, $data->source_prompt_id, $data->request_key, $data->new_take);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
     }
 }

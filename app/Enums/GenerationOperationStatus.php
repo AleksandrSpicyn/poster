@@ -24,4 +24,19 @@ enum GenerationOperationStatus: string
     {
         return in_array($this, [self::PLANNED, self::SUBMITTING, self::SUBMITTED, self::RUNNING, self::SUBMISSION_UNKNOWN], true);
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::PLANNED => 'В очереди',
+            self::SUBMITTING => 'Отправляется',
+            self::SUBMITTED => 'Отправлено',
+            self::RUNNING => 'В работе',
+            self::SUCCEEDED => 'Готово',
+            self::FAILED => 'Ошибка',
+            self::SUBMISSION_UNKNOWN => 'Нужна проверка',
+            self::CANCELLED => 'Остановлено',
+            self::ABANDONED => 'Попытка закрыта',
+        };
+    }
 }

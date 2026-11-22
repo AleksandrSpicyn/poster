@@ -23,6 +23,7 @@ class ShotResource extends JsonResource
             'camera' => $this->camera,
             'dialogue' => $this->dialogue,
             'transition_mode' => $this->transition_mode->value,
+            'transition_mode_label' => $this->transition_mode->label(),
             'source_prompt_id' => $this->source_prompt_id,
             'source_assembly_id' => $this->source_assembly_id,
             'source_anchor' => $this->source_anchor,

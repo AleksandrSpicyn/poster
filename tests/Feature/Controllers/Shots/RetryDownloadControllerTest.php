@@ -52,7 +52,7 @@ test('оператор возобновляет существующую заг�
     Bus::fake();
 
     actingAs($actor)->post(route('shots.download.retry', $params))
-        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]));
+        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]) . '#shots');
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::PLANNED);
     expect($operation->check_count)->toBe(3);

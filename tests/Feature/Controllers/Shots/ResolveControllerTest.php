@@ -53,7 +53,7 @@ test('подтверждённый ID продолжает опрос без н�
     Http::fake(['*contents/generations/tasks/remote-1' => Http::response(['status' => 'running'])]);
 
     actingAs($actor)->post(route('shots.resolve', $params), ['external_id' => 'remote-1', 'note' => 'Verified in console.'])
-        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]));
+        ->assertRedirect(route('episodes.show', ['series' => $params['series'], 'episode' => $params['episode']]) . '#shots');
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUBMITTED);
     expect($operation->external_id)->toBe('remote-1');
