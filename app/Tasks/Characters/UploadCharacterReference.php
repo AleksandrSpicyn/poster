@@ -73,6 +73,7 @@ class UploadCharacterReference
                 ->usingFileName($fileName)
                 ->withCustomProperties([
                     'view' => $data->view->value,
+                    'original_name' => $data->file->getClientOriginalName(),
                     'label' => $label,
                     'checksum' => hash('sha256', $contents),
                     'width' => $dimensions[0],

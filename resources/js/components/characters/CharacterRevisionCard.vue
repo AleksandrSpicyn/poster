@@ -230,8 +230,9 @@ function selectFile(event: Event) {
                             <template #preview>
                                 <div class="flex items-center gap-3">
                                     <img :src="reference.url" alt="" class="h-14 w-20 rounded-md object-cover" /><span
-                                        >{{ reference.file_name || reference.label }} · {{ viewLabel(reference.view) }} · версия
-                                        {{ String(revision.number).padStart(2, '0') }}</span
+                                        ><template v-if="reference.file_name || reference.label"
+                                            >{{ reference.file_name || reference.label }} · </template
+                                        >{{ viewLabel(reference.view) }} · версия {{ String(revision.number).padStart(2, '0') }}</span
                                     >
                                 </div>
                             </template>

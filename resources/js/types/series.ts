@@ -37,7 +37,7 @@ export interface SeriesSummary {
 }
 
 export interface CharacterReference {
-    file_name: string;
+    file_name: string | null;
     id: number;
     label: string;
     view: string;

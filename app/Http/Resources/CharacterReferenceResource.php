@@ -16,7 +16,7 @@ class CharacterReferenceResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'file_name' => $this->file_name,
+            'file_name' => $this->getCustomProperty('original_name'),
             'label' => $this->getCustomProperty('label', $this->name),
             'view' => $this->getCustomProperty('view', 'other'),
             'checksum' => $this->getCustomProperty('checksum'),

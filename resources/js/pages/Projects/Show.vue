@@ -5,7 +5,6 @@ import ChannelIcon from '@/components/ChannelIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import VideoPreview from '@/components/VideoPreview.vue';
 import Heading from '@/components/Heading.vue';
-import ListControls from '@/components/ListControls.vue';
 import ProjectNotice from '@/components/projects/ProjectNotice.vue';
 import ProductionPanel from '@/components/ProductionPanel.vue';
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
@@ -20,19 +19,20 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useListFilters } from '@/composables/useListFilters';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatProjectDate } from '@/lib/formatProjectDate';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectPageProps } from '@/types/projects';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { LoaderCircle, Trash2 } from '@lucide/vue';
+import { Ellipsis, LoaderCircle, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<ProjectPageProps>();
-const { filters, loading, error, applyFilters, changeSort, changePerPage, changePage, refresh } = useListFilters(
+const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters(
     'projects.show',
     () => ({
         sort: page.props.filters.sort,
@@ -47,6 +47,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: page.props.project.name, href: route('projects.show', page.props.project.id) },
 ]);
 const viewingClip = ref(false);
+const managing = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'management');
 const deleteOpen = ref(false);
 const deleteError = ref('');
 const deleteForm = useForm({});
@@ -81,24 +82,38 @@ function destroyProject() {
                 :class="page.props.opusClips || page.props.series ? 'gap-4 sm:flex-row' : 'gap-3 min-[1100px]:flex-row'"
             >
                 <div class="w-full min-w-0 flex-1 space-y-3 [&_h1]:break-words">
-                    <Heading
-                        :title="
-                            page.props.clipWeek
-                                ? page.props.project.name
-                                : page.props.opusClips
-                                  ? 'Библиотека клипов'
-                                  : page.props.series
+                    <div class="flex items-start gap-2">
+                        <Heading
+                            :title="
+                                page.props.clipWeek
                                     ? page.props.project.name
-                                    : 'Проект коротких роликов'
-                        "
-                        :description="
-                            page.props.clipWeek
-                                ? 'Тренды игры'
-                                : viewingClip
-                                  ? page.props.project.name
-                                  : page.props.project.name + (page.props.opusClips ? ' / Источники и клипы' : ' / Производство')
-                        "
-                    />
+                                    : page.props.opusClips
+                                      ? 'Библиотека клипов'
+                                      : page.props.series
+                                        ? page.props.project.name
+                                        : 'Проект коротких роликов'
+                            "
+                            :description="
+                                page.props.clipWeek
+                                    ? 'Тренды игры'
+                                    : viewingClip
+                                      ? page.props.project.name
+                                      : page.props.project.name + (page.props.opusClips ? ' / Источники и клипы' : ' / Производство')
+                            "
+                        />
+                        <DropdownMenu v-if="!page.props.opusClips && !page.props.series">
+                            <DropdownMenuTrigger as-child>
+                                <Button variant="ghost" size="icon" aria-label="Меню проекта"><Ellipsis aria-hidden="true" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem as-child
+                                    ><Link :href="route('projects.show', { project: page.props.project.id, section: 'management' })"
+                                        >Управление проектом</Link
+                                    ></DropdownMenuItem
+                                >
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
                 <Button v-if="page.props.opusClips && !viewingClip && !page.props.clipWeek" as-child class="h-11 shrink-0"
                     ><Link :href="route('clipping.index')">Импортировать</Link></Button
@@ -143,8 +158,11 @@ function destroyProject() {
             >
                 <ProjectArtwork :name="page.props.project.name" :cover="page.props.project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
                 <div class="min-w-0">
-                    <h2 id="project-history-heading" class="mb-4 text-xl font-semibold">История роликов</h2>
-                    <div v-for="prompt in page.props.prompts.data" :key="prompt.id">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                        <h2 id="project-history-heading" class="text-xl font-semibold">История роликов</h2>
+                        <Link :href="route('prompts', { project: page.props.project.id })" class="text-primary text-sm underline">Вся история</Link>
+                    </div>
+                    <div v-for="prompt in page.props.prompts.data.slice(0, 3)" :key="prompt.id">
                         <VideoPreview v-if="prompt.url" :prompt="prompt">
                             <template #trigger>
                                 <button type="button" class="studio-history-row" :aria-label="'Предпросмотр · ' + prompt.title">
@@ -162,33 +180,6 @@ function destroyProject() {
                 </div>
             </section>
 
-            <div v-if="!page.props.series && !page.props.opusClips" class="space-y-3">
-                <ListControls
-                    :sort="filters.sort"
-                    :per-page="filters.perPage"
-                    :directions="page.props.sortDirections"
-                    :disabled="loading"
-                    @sort="changeSort"
-                    @per-page="changePerPage"
-                />
-                <p v-if="error" role="alert">{{ error }}</p>
-                <Button variant="outline" :disabled="loading" @click="refresh">Обновить</Button>
-                <nav v-if="page.props.prompts.meta.last_page > 1" class="flex items-center gap-3" aria-label="Страницы истории роликов">
-                    <Button
-                        variant="outline"
-                        :disabled="loading || page.props.prompts.meta.current_page === 1"
-                        @click="changePage(page.props.prompts.meta.current_page - 1)"
-                        >Назад</Button
-                    >
-                    <span>{{ page.props.prompts.meta.current_page }} из {{ page.props.prompts.meta.last_page }}</span>
-                    <Button
-                        variant="outline"
-                        :disabled="loading || page.props.prompts.meta.current_page >= page.props.prompts.meta.last_page"
-                        @click="changePage(page.props.prompts.meta.current_page + 1)"
-                        >Далее</Button
-                    >
-                </nav>
-            </div>
             <p
                 v-if="!page.props.project.is_active && !page.props.opusClips"
                 role="status"
@@ -197,7 +188,11 @@ function destroyProject() {
                 Проект приостановлен. Для возобновления производства включите его в настройках.
             </p>
 
-            <component :is="page.props.opusClips ? 'details' : 'div'" :class="page.props.opusClips ? 'text-sm' : 'contents'">
+            <component
+                v-if="page.props.opusClips || page.props.series || managing"
+                :is="page.props.opusClips ? 'details' : 'div'"
+                :class="page.props.opusClips ? 'text-sm' : 'contents'"
+            >
                 <summary v-if="page.props.opusClips" class="cursor-pointer">Сведения о проекте</summary>
                 <div v-if="page.props.opusClips" class="space-y-3 py-3">
                     <Link :href="route('projects.edit', page.props.project.id)" class="text-sm underline">Открыть настройки проекта</Link>

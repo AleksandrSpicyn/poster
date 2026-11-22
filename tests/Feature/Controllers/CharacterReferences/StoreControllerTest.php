@@ -22,6 +22,8 @@ test('загрузка сохраняет приватный файл с рак�
     $media = $context['revision']->getMedia(CharacterRevision::REFERENCES)->firstOrFail();
     expect($media->disk)->toBe('local');
     expect($media->getCustomProperty('label'))->toBe('Mira front');
+    expect($media->getCustomProperty('original_name'))->toBe('front.png');
+    expect($media->file_name)->not->toBe('front.png');
     expect($media->getCustomProperty('view'))->toBe('front');
     expect($media->getCustomProperty('checksum'))->toBe(hash_file('sha256', base_path('tests/Fixtures/portrait.png')));
     expect(is_file($media->getPath()))->toBeTrue();
