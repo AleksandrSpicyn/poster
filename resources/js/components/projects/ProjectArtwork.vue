@@ -2,7 +2,7 @@
 import type { ProjectSummary } from '@/types/projects';
 import { computed } from 'vue';
 
-const props = defineProps<{ name: string; cover?: ProjectSummary['cover'] }>();
+const props = withDefaults(defineProps<{ name: string; cover?: ProjectSummary['cover']; loading?: 'eager' | 'lazy' }>(), { loading: 'lazy' });
 const initials = computed(() =>
     props.name
         .trim()
@@ -22,7 +22,7 @@ const initials = computed(() =>
             :style="{ objectPosition: cover.x + '% ' + cover.y + '%' }"
             alt=""
             class="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
+            :loading="loading"
         />
         <span v-else class="text-xl font-bold">{{ initials }}</span>
     </div>

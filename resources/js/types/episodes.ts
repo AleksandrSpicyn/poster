@@ -1,3 +1,4 @@
+import type { ProjectSummary } from '@/types/projects';
 import type { CharacterRevision, SeriesSummary } from '@/types/series';
 
 export interface EpisodeMedia {
@@ -137,7 +138,7 @@ export interface ContinuationSource {
 }
 
 export interface EpisodeWorkspaceProps {
-    project: { id: number; name: string; is_active: boolean };
+    project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover'>;
     series: SeriesSummary;
     episode: EpisodeSummary;
     characters: (CharacterRevision & { character_name?: string })[];

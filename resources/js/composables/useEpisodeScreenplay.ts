@@ -2,11 +2,14 @@ import { createScreenplayScene, createScreenplayShot } from '@/lib/screenplay';
 import type { SharedData } from '@/types';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
+import { useOnline } from '@vueuse/core';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const route = useRoute();
+    const online = useOnline();
+    const draftStored = ref(false);
     const params = { series: props.series.id, episode: props.episode.id };
     const revision = computed(() => props.episode.current_revision);
     const initialScript: Screenplay = props.screenplay ?? {
@@ -46,6 +49,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     });
     const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
     function clearDraft() {
+        draftStored.value = false;
         try {
             sessionStorage.removeItem(draftKey);
         } catch {
@@ -61,6 +65,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
                 typeof draft.text === 'string' &&
                 typeof draft.brief === 'string'
             ) {
+                draftStored.value = true;
                 scriptForm.lock_version = draft.version;
                 generateForm.lock_version = draft.version;
                 scriptForm.script = draft.script;
@@ -82,8 +87,9 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
                                 brief: generateForm.brief,
                             }),
                         );
+                        draftStored.value = true;
                     } catch {
-                        // Storage can also fill up while editing.
+                        draftStored.value = false;
                     }
                 },
                 { deep: true, flush: 'sync' },
@@ -105,6 +111,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         },
     );
     function saveScript() {
+        if (!online.value || scriptForm.processing || editorStale.value) return;
         scriptForm.transform((data) => data).post(route('episodes.scripts.store', params), { preserveState: 'errors', onSuccess: clearDraft });
     }
     function importScript() {
@@ -138,6 +145,8 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             });
     }
     return {
+        online,
+        draftStored,
         scriptForm,
         generateForm,
         approveForm,

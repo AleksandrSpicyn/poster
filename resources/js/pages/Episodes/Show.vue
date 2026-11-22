@@ -6,6 +6,7 @@ import AssemblyCard from '@/components/episodes/AssemblyCard.vue';
 import ShotCard from '@/components/episodes/ShotCard.vue';
 import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -15,7 +16,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<EpisodeWorkspaceProps>();
@@ -35,9 +36,12 @@ const scriptStatusLabels: Record<string, string> = {
     failed: 'Не удалось подготовить сценарий',
     outcome_unknown: 'Результат требует проверки',
 };
+const revisionStatusLabels: Record<string, string> = { draft: 'черновик', approved: 'утверждена', superseded: 'предыдущая версия' };
 const archived = computed(() => !!props.series.archived_at);
 const storyContext = computed(() => revision.value?.context ?? props.sourceAssembly?.continuity_snapshot);
 const {
+    online,
+    draftStored,
     scriptForm,
     generateForm,
     approveForm,
@@ -83,6 +87,14 @@ const releaseSections = [
 ] as const;
 const releaseSection = ref<(typeof releaseSections)[number]['key']>('preview');
 const panel = ref('screenplay');
+const recoveringLine = ref('');
+const dialogueFocus = computed(() => panel.value === 'screenplay' && !!recoveringLine.value);
+function leaveDialogueFocus() {
+    recoveringLine.value = '';
+}
+watch([editorStale, scriptErrors, archived], ([stale, errors, isArchived]) => {
+    if (stale || errors || isArchived) leaveDialogueFocus();
+});
 function restorePanel() {
     const key = window.location.hash.slice(1);
     panel.value = panels.some((item) => item.key === key) ? key : 'screenplay';
@@ -109,10 +121,16 @@ function refresh() {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AppLayout :breadcrumbs="dialogueFocus ? [{ title: 'Сериалы', href: route('series.index') }] : breadcrumbs">
         <Head :title="episode.title" />
-        <div class="workspace-page">
-            <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="workspace-page" :class="{ 'dialogue-workspace': dialogueFocus }" @keydown.esc="leaveDialogueFocus">
+            <header v-if="dialogueFocus" class="space-y-3">
+                <Heading title="Сценарий эпизода" />
+                <button type="button" class="text-muted-foreground text-sm" aria-label="Вернуться в черновик сценария" @click="leaveDialogueFocus">
+                    Черновик
+                </button>
+            </header>
+            <div v-show="!dialogueFocus" class="flex flex-wrap items-start justify-between gap-4">
                 <Heading
                     :title="panelTitles[panel] ?? 'Сценарий эпизода'"
                     :description="series.name + ' / Эпизод ' + episode.number + ' · ' + episode.title"
@@ -150,7 +168,7 @@ function refresh() {
                     ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
                 >
             </div>
-            <nav aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
+            <nav v-show="!dialogueFocus" aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
                 <a
                     v-for="item in panels"
                     :key="item.key"
@@ -175,9 +193,14 @@ function refresh() {
                 Предыдущий принятый эпизод изменился. Проверьте источник и сохраните новую версию сценария перед продолжением или публикацией.
             </p>
             <div
-                class="grid items-start gap-4"
+                class="episode-columns grid items-start gap-4"
                 :class="panel === 'release' ? 'md:grid-cols-[min(25%,276px)_minmax(0,1fr)]' : 'md:grid-cols-[min(34%,400px)_minmax(0,1fr)]'"
             >
+                <aside v-show="dialogueFocus" class="dialogue-preview studio-panel">
+                    <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" class="rounded-lg" />
+                    <h2>{{ series.name }}</h2>
+                    <p>Эпизод {{ String(episode.number).padStart(2, '0') }}</p>
+                </aside>
                 <nav v-if="panel === 'release'" class="studio-panel grid gap-1" aria-label="Разделы публикации">
                     <h2>В этом разделе</h2>
                     <button
@@ -191,7 +214,7 @@ function refresh() {
                         {{ item.label }}
                     </button>
                 </nav>
-                <div v-else-if="preview" class="bg-sidebar rounded-xl border p-3">
+                <div v-else-if="!dialogueFocus && preview" class="bg-sidebar rounded-xl border p-3">
                     <video
                         :src="preview.url"
                         aria-label="Предпросмотр эпизода"
@@ -200,7 +223,7 @@ function refresh() {
                         class="mx-auto max-h-[420px] w-full rounded-lg"
                     />
                 </div>
-                <div v-else class="studio-panel">
+                <div v-else-if="!dialogueFocus" class="studio-panel">
                     <h2>Предпросмотр эпизода</h2>
                     <p>Видео появится после сборки.</p>
                 </div>
@@ -288,7 +311,10 @@ function refresh() {
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <h2 id="script-editor-title" class="text-lg font-semibold">Редактор сценария</h2>
                                 <span v-if="revision" class="text-muted-foreground text-sm"
-                                    >Версия {{ revision.number }} · {{ revision.status }}</span
+                                    >Версия {{ revision.number
+                                    }}<template v-if="revisionStatusLabels[revision.status]">
+                                        · {{ revisionStatusLabels[revision.status] }}</template
+                                    ></span
                                 >
                             </div>
                             <p class="text-muted-foreground text-sm">
@@ -298,13 +324,16 @@ function refresh() {
                             <p v-if="editorStale" role="alert" class="text-destructive text-sm">
                                 Появилась новая версия эпизода. Скопируйте изменения из черновика перед загрузкой новой версии.
                             </p>
-                            <form class="grid gap-5" @submit.prevent="saveScript">
+                            <form class="grid gap-5" @submit.prevent="saveScript" @invalid.capture="leaveDialogueFocus">
                                 <SceneScriptEditor
                                     v-model="scriptForm.script"
+                                    v-model:recovering-line="recoveringLine"
                                     :characters="characters"
                                     :transitions="transitionModes"
                                     :sources="continuationSources"
                                     :errors="editorErrors"
+                                    :online="online"
+                                    :draft-stored="draftStored"
                                     :disabled="archived || scriptForm.processing || editorStale"
                                 />
                                 <InputError :message="scriptErrors" />
@@ -312,7 +341,7 @@ function refresh() {
                                     <Button
                                         type="submit"
                                         class="h-11"
-                                        :disabled="archived || scriptForm.processing || editorStale || !characters.length"
+                                        :disabled="!online || archived || scriptForm.processing || editorStale || !characters.length"
                                         >Сохранить новую версию</Button
                                     ><Button
                                         v-if="revision?.status === 'draft'"
@@ -450,3 +479,80 @@ function refresh() {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.dialogue-workspace {
+    padding-block-start: 12px;
+}
+.dialogue-workspace :deep(.dialogue-focus [role='status']) {
+    min-height: 66px;
+}
+.dialogue-workspace :deep(.dialogue-focus input) {
+    height: 46px;
+}
+
+.dialogue-workspace .episode-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.45fr);
+    gap: 16px;
+}
+.dialogue-preview {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 16px;
+}
+.dialogue-preview > :first-child {
+    aspect-ratio: 2.45;
+}
+.dialogue-preview h2 {
+    margin-block: 12px 4px;
+}
+.dialogue-workspace .episode-columns > :last-child {
+    grid-column: 1;
+    grid-row: 1;
+}
+/* Keep the live input in the document so reconnecting preserves the caret and mobile keyboard. */
+.dialogue-workspace .episode-columns > :last-child :deep(:has(.dialogue-focus)) {
+    display: contents;
+}
+.dialogue-workspace .episode-columns > :last-child :deep(:has(.dialogue-focus) > :not(:has(.dialogue-focus), .dialogue-focus)) {
+    display: none;
+}
+.dialogue-workspace :deep(.dialogue-focus) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    margin: 0;
+    padding: 20px 24px 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+.dialogue-workspace :deep(.dialogue-focus > button[type='submit']) {
+    align-self: start;
+}
+.dialogue-workspace :deep(.dialogue-focus > button:disabled) {
+    color: var(--muted-foreground);
+    background: var(--muted);
+    opacity: 1;
+}
+@media (max-width: 1099px) {
+    .dialogue-workspace .episode-columns {
+        display: block;
+    }
+    .dialogue-preview {
+        display: none;
+    }
+}
+@media (max-width: 767px) {
+    :global([data-slot='sidebar-inset']:has(.dialogue-workspace) > p[role='status']),
+    :global([data-slot='sidebar-inset']:has(.dialogue-workspace) > .studio-top > button),
+    :global([data-slot='sidebar-inset']:has(.dialogue-workspace) ~ .mobile-nav) {
+        display: none;
+    }
+
+    .dialogue-workspace :deep(.dialogue-focus) {
+        padding: 16px;
+    }
+}
+</style>

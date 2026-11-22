@@ -2,8 +2,10 @@ import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/vue3';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { type InjectionKey, type Ref, onMounted, onUnmounted, provide, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
+
+export const workspaceSubscription: InjectionKey<Readonly<Ref<boolean>>> = Symbol('workspaceSubscription');
 
 const liveProps: Record<string, string[]> = {
     PublicationAnalytics: ['analytics'],
@@ -47,6 +49,7 @@ export function useWorkspaceRealtime() {
     const route = useRoute();
     const connected = ref(false);
     const enabled = page.props.realtime.enabled;
+    if (enabled && page.props.realtime.key) provide(workspaceSubscription, connected);
     let echo: Echo<'reverb'> | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let fallback: ReturnType<typeof setInterval> | undefined;
