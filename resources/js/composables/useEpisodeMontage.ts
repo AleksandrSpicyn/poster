@@ -12,6 +12,9 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
     const params = { series: props.series.id, episode: props.episode.id };
     const revision = computed(() => props.episode.current_revision);
     const shots = computed(() => revision.value?.scenes.flatMap((scene) => scene.shots) ?? []);
+    const readyTakes = computed(() =>
+        shots.value.map((shot) => shot.takes.filter((take) => take.generated && take.media.some((media) => media.collection === 'shot-video'))),
+    );
     const latestAssemblyId = computed(
         () => props.assemblies.find((assembly) => assembly.episode_revision_id === revision.value?.id && assembly.status !== 'failed')?.id ?? 0,
     );
@@ -21,11 +24,10 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
         ),
     );
     const serverSelection = computed(() =>
-        shots.value.map((shot) => {
+        shots.value.map((shot, index) => {
             const saved = savedAssembly.value?.selection?.find((item) => item.shot_id === shot.id);
-            const ready = shot.takes.filter((take) => take.generated && take.media.some((media) => media.collection === 'shot-video'));
             return {
-                prompt_id: saved?.prompt_id ?? ready[0]?.id ?? 0,
+                prompt_id: saved?.prompt_id ?? readyTakes.value[index][0]?.id ?? 0,
                 trim_start_ms: saved?.trim_start_ms ?? 0,
                 trim_end_ms: saved?.trim_end_ms ?? shot.duration_ms,
             };
@@ -164,6 +166,7 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
             });
     }
     return {
+        readyTakes,
         assemblyForm,
         assemblyErrors,
         shots,

@@ -67,7 +67,20 @@ export function useWorkspaceRealtime() {
             if (busy || document.hidden || disposed) return;
             const only = (liveProps[page.component] ?? []).filter((prop) => pending.has(prop));
             pending.clear();
-            if (only.length) router.reload({ only, preserveErrors: true });
+            if (only.length) {
+                router.reload({
+                    only,
+                    preserveErrors: true,
+                    replace: true,
+                    onBeforeUpdate(response) {
+                        const current = window.location;
+                        const incoming = new URL(response.url, current.href);
+                        if (incoming.pathname === current.pathname && incoming.search === current.search) {
+                            response.url = current.pathname + current.search + current.hash;
+                        }
+                    },
+                });
+            }
         }, 400);
     }
 
