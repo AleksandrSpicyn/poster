@@ -56,7 +56,7 @@ test('остановка блокирует расписание а явное �
     Storage::fake('local');
     $context = singleVideoFixture();
     Bus::fake([AdvanceProductionJob::class]);
-    $context['run']->update(['input_snapshot' => [...$context['run']->input_snapshot, 'channel_ids' => [], 'manual_delivery' => true]]);
+    $context['run']->update(['input_snapshot' => [...($context['run']->input_snapshot ?? []), 'channel_ids' => [], 'manual_delivery' => true]]);
     app(StopProductionRun::class)->run($context['run']);
 
     $scheduled = app(CreateProductionRun::class)->run($context['project'], $context['series']->refresh(), $context['user'], 'next-schedule');
@@ -102,7 +102,7 @@ test('завершает полную версию без отправки и н
     $run = $context['run'];
     $run->update([
         'stage' => ProductionStage::PUBLICATION, 'series_assembly_id' => $assembly->id,
-        'input_snapshot' => [...$run->input_snapshot, 'channel_ids' => [], 'manual_delivery' => true],
+        'input_snapshot' => [...($run->input_snapshot ?? []), 'channel_ids' => [], 'manual_delivery' => true],
     ]);
     Bus::fake();
 

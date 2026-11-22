@@ -144,7 +144,7 @@ test('сохраняет выбранных получателей и явный
 
     $run = $project->productionRuns()->sole();
     expect($run->deliveryChannelIds())->toBe($ids)
-        ->and($run->input_snapshot['manual_delivery'])->toBeTrue();
+        ->and($run->input_snapshot['manual_delivery'] ?? null)->toBeTrue();
     Bus::assertDispatchedTimes(AdvanceProductionJob::class, 1);
     Http::assertNothingSent();
 })->with(SeriesOutputMode::cases())->with([false, true]);
