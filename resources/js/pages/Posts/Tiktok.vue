@@ -122,6 +122,9 @@ const statusLabels: Record<string, string> = {
     submission_unknown: 'Результат отправки уточняется',
     failed: 'Ошибка отправки',
 };
+const availableInteractions = computed(() =>
+    [props.creator?.comment && 'Комментарии', props.creator?.duet && 'Дуэты', props.creator?.stitch && 'Stitch'].filter(Boolean).join(' · '),
+);
 const privacyLabels: Record<string, string> = {
     SELF_ONLY: 'Только я',
     PUBLIC_TO_EVERYONE: 'Все',
@@ -353,12 +356,15 @@ watch(
                             <label
                                 >Видимость
                                 <select v-model="form.privacy" required class="list-select">
-                                    <option disabled value="">Выберите видимость</option>
+                                    <option disabled value="">Выберите из разрешённых автором</option>
                                     <option v-for="value in creator.privacy" :key="value" :value="value">{{ privacyLabels[value] ?? value }}</option>
                                 </select></label
                             >
-                            <details>
-                                <summary>Взаимодействия</summary>
+                            <details class="interactions">
+                                <summary>
+                                    Взаимодействия
+                                    <span v-if="directDetails">{{ availableInteractions || 'Недоступны для этого аккаунта' }}</span>
+                                </summary>
                                 <div class="grid gap-2 py-2">
                                     <label><input type="checkbox" v-model="form.comment" :disabled="!creator.comment" /> Разрешить комментарии</label>
                                     <label><input type="checkbox" v-model="form.duet" :disabled="!creator.duet" /> Разрешить дуэты</label>
@@ -474,9 +480,35 @@ header > button:disabled {
     border-radius: 10px;
     background: black;
 }
-@media (min-width: 1100px) {
+@media (max-width: 767px) {
+    .direct-video {
+        height: 190px;
+    }
+}
+.direct-details form h2 {
+    margin-bottom: 0;
+}
+.direct-details .interactions summary {
+    display: grid;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
+.direct-details .interactions summary span {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding-inline: 12px;
+    border: 1px solid var(--input);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 16px;
+}
+@media (min-width: 768px) {
     .delivery-grid.direct-details {
-        grid-template-columns: minmax(230px, 30%) minmax(0, 1fr);
+        grid-template-columns: 30% minmax(0, 1fr);
         max-width: none;
     }
     .direct-details form {
