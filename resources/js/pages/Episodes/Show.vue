@@ -180,6 +180,7 @@ function refresh() {
                 'dialogue-workspace': dialogueFocus,
                 'episode-overview-page': overview,
                 'scene-detail-page': panel === 'screenplay' && detail !== null && !dialogueFocus,
+                'takes-detail-page': panel === 'shots' && detail !== null,
                 'trim-detail-page': panel === 'montage' && detail !== null,
             }"
             @keydown.esc="leaveDialogueFocus"
@@ -274,7 +275,12 @@ function refresh() {
                         <h2>{{ series.name }}</h2>
                         <p>Эпизод {{ String(episode.number).padStart(2, '0') }}</p>
                     </aside>
-                    <aside v-if="editingShot && !dialogueFocus" class="studio-panel trim-player">
+                    <aside v-if="panel === 'shots' && detail !== null" class="studio-panel take-project">
+                        <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" />
+                        <h2>{{ project.name }}</h2>
+                        <p>Проект</p>
+                    </aside>
+                    <aside v-else-if="editingShot && !dialogueFocus" class="studio-panel trim-player">
                         <h2>Предпросмотр</h2>
                         <video
                             v-if="editingVideo"
@@ -538,6 +544,7 @@ function refresh() {
                                     :key="shot.id"
                                     v-show="detail === null || shot.id === shots[detail]?.id"
                                     :shot="shot"
+                                    :selected-take-ids="acceptedTakeIds"
                                     :scene-title="scene.title"
                                     :number="shots.findIndex((item) => item.id === shot.id) + 1"
                                     :params="params"
@@ -680,6 +687,46 @@ function refresh() {
 .take-option small {
     display: block;
     color: var(--muted-foreground);
+}
+.takes-detail-page .episode-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr);
+}
+.takes-detail-page #episode-shots-title,
+.takes-detail-page section[aria-labelledby='episode-shots-title'] > section > div:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+.take-project {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+}
+.take-project > div {
+    aspect-ratio: 2.1;
+    border-radius: 8px;
+}
+.take-project h2 {
+    margin-top: 12px;
+}
+.take-project p {
+    color: var(--muted-foreground);
+}
+.takes-detail-page .episode-columns > .min-w-0 {
+    grid-column: 1;
+    grid-row: 1;
+}
+@media (max-width: 767px) {
+    .takes-detail-page .episode-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .take-project {
+        grid-column: 1;
+        grid-row: 2;
+    }
 }
 .scene-detail-page .episode-columns {
     display: block;
