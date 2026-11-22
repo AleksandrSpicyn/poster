@@ -34,7 +34,7 @@ const submit = () => {
             <p>Проверьте входящие и папку «Спам».</p>
         </div>
 
-        <div class="grid" :class="status === 'verification-link-sent' ? 'feedback-address mb-[18px] gap-1' : 'mb-4 gap-px'">
+        <div class="grid" :class="status === 'verification-link-sent' ? 'feedback-address mb-[18px] gap-1' : 'mb-[18px] gap-px'">
             <span class="text-muted-foreground text-sm">{{ status === 'verification-link-sent' ? 'Адрес' : 'Адрес для подтверждения' }}</span>
             <p class="border-input flex min-h-12 items-center rounded-lg border px-3.5 break-all">{{ page.props.auth.user.email }}</p>
         </div>

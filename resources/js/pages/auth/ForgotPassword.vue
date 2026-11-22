@@ -35,7 +35,7 @@ const submit = () => {
         <div class="space-y-6">
             <form @submit.prevent="submit">
                 <div class="grid gap-2">
-                    <Label for="email">Почта</Label>
+                    <Label for="email">{{ status ? 'Почта' : 'Email' }}</Label>
                     <Input
                         id="email"
                         type="email"

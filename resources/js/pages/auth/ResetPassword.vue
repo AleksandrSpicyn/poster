@@ -44,7 +44,7 @@ const submit = () => {
         <form @submit.prevent="submit">
             <div class="grid gap-[19px]">
                 <div class="grid gap-2">
-                    <Label for="email">Почта</Label>
+                    <Label for="email">{{ mismatch ? 'Почта' : 'Email' }}</Label>
                     <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
                     <InputError :message="form.errors.email" class="mt-2" />
                 </div>
@@ -92,5 +92,6 @@ const submit = () => {
                 </Button>
             </div>
         </form>
+        <p v-if="!mismatch" class="text-muted-foreground mt-4 text-sm">Ссылка из письма</p>
     </AuthLayout>
 </template>

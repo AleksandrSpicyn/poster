@@ -34,12 +34,19 @@ const user = computed(() => page.props.auth.user);
     font-size: 23px;
     font-weight: 700;
 }
+.brand :deep(.studio-brand strong) {
+    transform: translate(-2px, -3px);
+}
+.brand :deep(.studio-brand-mark i) {
+    height: 21px;
+}
 .workspace-link {
     margin-left: auto;
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    padding: 0 16px;
+    padding: 0 15px;
+    transform: translateY(1px);
     background: var(--card);
     border: 1px solid var(--input);
     border-radius: 10px;
