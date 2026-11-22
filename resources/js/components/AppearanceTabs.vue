@@ -32,7 +32,7 @@ const choices = [
 button {
     text-align: left;
     min-width: 0;
-    padding: 14px 14px 27px;
+    padding: 12px 14px 27px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -51,12 +51,12 @@ button:focus-visible {
     --preview-row: var(--secondary);
     background: var(--preview-bg);
     display: grid;
-    grid-template-columns: 23% 1fr;
-    gap: 8px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: repeat(3, 18px);
+    gap: 10px 12px;
     height: 122px;
-    padding: 8px;
+    padding: 14px 24px 0 5px;
     margin-bottom: 16px;
-    border: 1px solid var(--border);
     border-radius: 8px;
 }
 .theme-preview.light {
@@ -72,12 +72,20 @@ button:focus-visible {
 .theme-preview::before {
     content: '';
     grid-row: span 3;
+    height: 109px;
+    margin-top: -9px;
     background: var(--preview-nav);
     border-radius: 4px;
 }
 .theme-preview i {
     border-radius: 3px;
     background: var(--preview-row);
+}
+.theme-preview i:nth-of-type(2) {
+    margin-inline-end: 8px;
+}
+.theme-preview i:nth-of-type(3) {
+    margin-inline-end: 16px;
 }
 @media (min-width: 768px) and (max-width: 1099px) {
     .theme-options {

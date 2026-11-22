@@ -680,7 +680,7 @@ function remove() {
     font-weight: 700;
 }
 .new-channel #studio-channel {
-    padding: 24px;
+    padding: 26px 24px 24px;
     min-height: 378px;
 }
 .new-channel #studio-channel > * {
@@ -691,7 +691,7 @@ function remove() {
 }
 .new-channel #studio-channel > div.grid {
     gap: 6px;
-    margin: 20px 0;
+    margin: 21px 0;
 }
 .new-channel #studio-channel :is(input, select) {
     background: var(--background);
@@ -723,6 +723,11 @@ function remove() {
     .new-channel .channel-heading {
         flex-direction: column;
         gap: 16px;
+    }
+}
+@media (max-width: 767px) {
+    .new-channel #studio-channel {
+        padding: 21px 16px 16px;
     }
 }
 </style>

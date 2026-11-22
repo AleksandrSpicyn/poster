@@ -74,8 +74,8 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
                 <h2>Параметры</h2>
                 <Label for="connection-platform">Площадка</Label><Input id="connection-platform" readonly model-value="TikTok" />
                 <Label for="connection-name">Название</Label><Input id="connection-name" readonly :model-value="channel.name" />
-                <Label for="connection-rights">Запрашиваемые права</Label
-                ><Input id="connection-rights" readonly :model-value="requested.map((scope) => names[scope]).join(', ')" />
+                <Label for="connection-rights">Запрашиваемые права</Label>
+                <output id="connection-rights">{{ requested.map((scope) => names[scope]).join(', ') }}</output>
                 <Label for="connection-state">Состояние</Label><Input id="connection-state" readonly :model-value="state" />
             </section>
             <section v-else-if="tab === 'authorization'" class="studio-panel space-y-4">
@@ -129,7 +129,7 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
     justify-content: space-between;
     gap: 16px;
 }
-.connection header > [data-slot="button"] {
+.connection header > [data-slot='button'] {
     min-height: 44px;
     font-weight: 700;
 }
@@ -169,6 +169,16 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
     line-height: 20px;
     color: var(--muted-foreground);
     font-weight: 400;
+}
+.connection-fields output {
+    display: block;
+    padding: 10px 12px;
+    min-height: 48px;
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
+    background: var(--background);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 .connection-fields input {
     height: 48px;
