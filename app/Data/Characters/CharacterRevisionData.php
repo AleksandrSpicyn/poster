@@ -8,6 +8,7 @@ use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Attributes\Validation\Required;
 use Spatie\LaravelData\Data;
+use Spatie\LaravelData\Optional;
 
 class CharacterRevisionData extends Data
 {
@@ -25,6 +26,6 @@ class CharacterRevisionData extends Data
         #[Min(0)]
         public ?int $lock_version = null,
         #[Max(255)]
-        public ?string $title = null,
+        public string|null|Optional $title = new Optional(),
     ) {}
 }

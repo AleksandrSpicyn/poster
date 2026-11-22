@@ -11,6 +11,7 @@ use App\Models\CharacterRevision;
 use App\Repositories\CharacterRepository;
 use App\Repositories\CharacterRevisionRepository;
 use Illuminate\Validation\ValidationException;
+use Spatie\LaravelData\Optional;
 
 class SaveCharacterRevision
 {
@@ -46,7 +47,7 @@ class SaveCharacterRevision
         ]);
         $revision->fill(['description' => $data->description, 'appearance' => $data->appearance, 'voice' => $data->voice]);
 
-        if ($data->title !== null) {
+        if (! $data->title instanceof Optional) {
             $revision->title = $data->title;
         }
 

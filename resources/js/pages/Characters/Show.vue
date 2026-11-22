@@ -238,6 +238,7 @@ function changePage(page: number) {
                         :id="'revision-' + revision.id"
                         @open-upload="showUpload(revision.id)"
                         :revision="revision"
+                        :approved-revision="character.current_revision"
                         :params="params"
                         :reference-views="referenceViews"
                         :archived="archived"

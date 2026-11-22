@@ -24,6 +24,7 @@ defineEmits<{ confirm: [] }>();
         >
         <DialogContent class="studio-confirm" :show-close="false">
             <DialogTitle class="studio-confirm-title">{{ heading }}</DialogTitle>
+            <slot name="preview" />
             <div class="studio-confirm-notice">
                 <CircleAlert aria-hidden="true" />
                 <strong>{{ title }}</strong>

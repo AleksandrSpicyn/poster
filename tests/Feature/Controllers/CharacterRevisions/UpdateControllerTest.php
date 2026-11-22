@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\CharacterRevision;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\patch;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 
@@ -42,4 +43,19 @@ test('утверждённая версия остаётся неизменно�
         ->assertJsonValidationErrors('revision');
 
     expect($approved->refresh()->description)->toBe($original);
+});
+
+test('название версии можно изменить и очистить, а пропуск поля сохраняет его', function (): void {
+    $context = serialCharacterContext();
+    $revision = $context['revision'];
+    $url = route('characters.revisions.update', [...$context['params'], 'revision' => $revision]);
+    actingAs(serialOperator());
+
+    foreach ([['title' => 'Новый образ'], [], ['title' => null]] as $index => $input) {
+        patch($url, [...$input, 'description' => 'Описание ' . $index, 'lock_version' => $revision->lock_version])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        expect($revision->refresh()->title)->toBe($index === 2 ? null : 'Новый образ');
+    }
 });

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,12 +15,14 @@ const props = defineProps<{
     referenceViews: Record<string, string>;
     archived: boolean;
     uploadOnly?: boolean;
+    approvedRevision?: CharacterRevision | null;
 }>();
 const emit = defineEmits<{ openUpload: [] }>();
 const route = useRoute();
 const params = { ...props.params, revision: props.revision.id };
 const editable = computed(() => props.revision.status === 'draft' && !props.archived);
 const editForm = useForm({
+    title: props.revision.title ?? '',
     description: props.revision.description,
     appearance: { ...props.revision.appearance, notes: typeof props.revision.appearance.notes === 'string' ? props.revision.appearance.notes : '' },
     voice: { ...props.revision.voice, description: typeof props.revision.voice.description === 'string' ? props.revision.voice.description : '' },
@@ -48,6 +51,8 @@ function viewLabel(view: string) {
 const fileInput = ref<HTMLInputElement | null>(null);
 const previewUrl = ref('');
 const dragging = ref(false);
+const uploadFailure = ref('');
+const removeFailure = ref('');
 
 watch(
     () => uploadForm.file,
@@ -64,6 +69,7 @@ watch(
 
 function dropFile(event: DragEvent) {
     dragging.value = false;
+    uploadFailure.value = '';
     const files = event.dataTransfer?.files;
     if (busy.value || editForm.isDirty || !fileInput.value || files?.length !== 1) return;
     fileInput.value.files = files;
@@ -75,15 +81,42 @@ function update() {
     editForm.patch(route('characters.revisions.update', params), { preserveScroll: true, preserveState: 'errors' });
 }
 function upload() {
-    uploadForm.post(route('characters.references.store', params), { preserveScroll: true, preserveState: 'errors' });
+    uploadFailure.value = '';
+    uploadForm.post(route('characters.references.store', params), {
+        preserveScroll: true,
+        preserveState: 'errors',
+        onNetworkError: () => {
+            uploadFailure.value = 'Соединение прервалось. Существующие изображения сохранены.';
+            return false;
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            uploadFailure.value = 'Не удалось подтвердить сохранение. Проверьте версию и повторите загрузку.';
+            return false;
+        },
+    });
 }
 function approve() {
     approvalForm.post(route('characters.revisions.approve', params), { preserveScroll: true, preserveState: 'errors' });
 }
 function remove(media: number) {
-    removeForm.delete(route('characters.references.destroy', { ...params, media }), { preserveScroll: true, preserveState: 'errors' });
+    removeFailure.value = '';
+    removeForm.delete(route('characters.references.destroy', { ...params, media }), {
+        preserveScroll: true,
+        preserveState: 'errors',
+        onNetworkError: () => {
+            removeFailure.value = 'Связь прервана. Повторите удаление после подключения.';
+            return false;
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            removeFailure.value = 'Не удалось подтвердить удаление. Обновите версию и попробуйте ещё раз.';
+            return false;
+        },
+    });
 }
 function selectFile(event: Event) {
+    uploadFailure.value = '';
     uploadForm.file = (event.target as HTMLInputElement).files?.[0] ?? null;
     uploadForm.clearErrors('file');
 }
@@ -98,7 +131,22 @@ function selectFile(event: Event) {
                     revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик'
                 }}</span>
             </div>
+            <div v-if="editable && approvedRevision" class="grid gap-3 sm:grid-cols-2" aria-label="Сравнение версий">
+                <div class="bg-muted rounded-lg border p-3">
+                    <strong class="text-primary">Версия {{ String(approvedRevision.number).padStart(2, '0') }}</strong>
+                    <p class="mt-2 whitespace-pre-wrap">Утверждена: {{ approvedRevision.description }}</p>
+                </div>
+                <div class="bg-muted rounded-lg border p-3">
+                    <strong>Версия {{ String(revision.number).padStart(2, '0') }}</strong>
+                    <p class="mt-2 whitespace-pre-wrap">Черновик: {{ revision.description }}</p>
+                </div>
+            </div>
             <form v-if="editable" class="grid gap-4" :aria-busy="editForm.processing" @submit.prevent="update">
+                <div class="grid gap-2">
+                    <Label :for="'revision-title-' + revision.id">Название версии {{ String(revision.number).padStart(2, '0') }}</Label>
+                    <Input :id="'revision-title-' + revision.id" v-model="editForm.title" maxlength="255" :disabled="busy" />
+                    <InputError :message="editForm.errors.title" />
+                </div>
                 <div class="grid gap-2">
                     <Label :for="'revision-description-' + revision.id">Описание героя</Label
                     ><textarea
@@ -132,7 +180,11 @@ function selectFile(event: Event) {
                     </div>
                 </div>
                 <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
-                <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить изменения</Button></div>
+                <div v-if="editForm.isDirty" role="status" class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
+                    <strong>Есть несохранённая правка</strong>
+                    <p>Сначала сохраните изменения версии {{ String(revision.number).padStart(2, '0') }}.</p>
+                </div>
+                <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить версию</Button></div>
             </form>
             <div v-else class="space-y-2">
                 <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
@@ -159,15 +211,35 @@ function selectFile(event: Event) {
                         <figcaption class="text-muted-foreground text-xs break-words">
                             {{ reference.label || viewLabel(reference.view) }}
                         </figcaption>
-                        <Button
+                        <ConfirmationDialog
                             v-if="editable"
-                            type="button"
-                            variant="outline"
-                            class="h-11 w-full"
-                            :disabled="busy || editForm.isDirty"
-                            @click="remove(reference.id)"
-                            >Удалить референс</Button
+                            :heading="revision.references?.length === 3 ? 'Удаление одного из трёх референсов' : 'Удаление референса'"
+                            :title="'Удалить референс «' + viewLabel(reference.view) + '»?'"
+                            description="Остальные изображения останутся в этой версии."
+                            action="Удалить референс"
+                            :processing="removeForm.processing"
+                            :error="removeFailure || removeErrors.revision || removeForm.errors.lock_version"
+                            destructive
+                            @confirm="remove(reference.id)"
                         >
+                            <template #trigger
+                                ><Button type="button" variant="outline" class="h-11 w-full" :disabled="busy || editForm.isDirty"
+                                    >Удалить референс</Button
+                                ></template
+                            >
+                            <template #preview>
+                                <div class="flex items-center gap-3">
+                                    <img :src="reference.url" alt="" class="h-14 w-20 rounded-md object-cover" /><span
+                                        >{{ reference.file_name || reference.label }} · {{ viewLabel(reference.view) }} · версия
+                                        {{ String(revision.number).padStart(2, '0') }}</span
+                                    >
+                                </div>
+                            </template>
+                            <div class="studio-row">
+                                <dt>Сейчас</dt>
+                                <dd>{{ revision.references?.length }} · после удаления останется {{ (revision.references?.length ?? 1) - 1 }}</dd>
+                            </div>
+                        </ConfirmationDialog>
                     </figure>
                 </div>
                 <InputError :message="removeForm.errors.lock_version" /><InputError :message="removeErrors.revision" />
@@ -177,10 +249,14 @@ function selectFile(event: Event) {
             >
         </template>
         <form v-if="editable && uploadOnly" class="grid min-w-0 gap-4" @submit.prevent="upload">
-            <h2 class="text-xl font-semibold">Добавление референса</h2>
-            <slot name="version" />
+            <h2 class="text-xl font-semibold">{{ uploadFailure ? 'Референсы' : 'Добавление референса' }}</h2>
+            <div v-if="uploadFailure && revision.references?.[0]" class="flex items-center gap-3">
+                <img :src="revision.references[0].url" alt="" class="h-14 w-20 rounded-md object-cover" />
+                <strong>{{ viewLabel(revision.references[0].view) }} · текущий референс</strong>
+            </div>
+            <slot v-if="!uploadFailure" name="version" />
             <div class="grid min-w-0 gap-2">
-                <span class="text-muted-foreground text-sm">Загрузить изображение</span>
+                <span class="text-muted-foreground text-sm">{{ uploadFailure ? 'Новый файл' : 'Загрузить изображение' }}</span>
                 <label
                     class="bg-muted focus-within:ring-ring flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-2 text-sm focus-within:ring-2"
                     :class="{ 'border-primary': dragging }"
@@ -188,7 +264,7 @@ function selectFile(event: Event) {
                     @dragleave="dragging = false"
                     @drop.prevent="dropFile"
                 >
-                    Перетащите файл или выберите его с устройства
+                    {{ uploadFailure ? uploadForm.file?.name : 'Перетащите файл или выберите его с устройства' }}
                     <span class="text-primary" aria-hidden="true">↑</span>
                     <input
                         ref="fileInput"
@@ -201,7 +277,7 @@ function selectFile(event: Event) {
                         @change="selectFile"
                     />
                 </label>
-                <div v-if="uploadForm.file" class="flex min-w-0 items-center gap-3" role="status">
+                <div v-if="uploadForm.file && !uploadFailure" class="flex min-w-0 items-center gap-3" role="status">
                     <img v-if="previewUrl" :src="previewUrl" alt="" class="h-14 w-20 shrink-0 rounded-md object-cover" />
                     <strong class="text-sm break-all"
                         >{{ uploadForm.file.name }} · {{ viewLabel(uploadForm.view).toLocaleLowerCase('ru') }} · выбран</strong
@@ -209,7 +285,7 @@ function selectFile(event: Event) {
                 </div>
                 <InputError :message="uploadForm.errors.file" />
             </div>
-            <div class="grid gap-2">
+            <div v-show="!uploadFailure" class="grid gap-2">
                 <Label :for="'reference-view-' + revision.id">Проекция</Label
                 ><select
                     :id="'reference-view-' + revision.id"
@@ -220,7 +296,7 @@ function selectFile(event: Event) {
                     <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value">{{ viewLabel(value) }}</option></select
                 ><InputError :message="uploadForm.errors.view" />
             </div>
-            <div class="grid gap-2">
+            <div v-show="!uploadFailure" class="grid gap-2">
                 <Label :for="'reference-label-' + revision.id">Подпись</Label
                 ><Input
                     :id="'reference-label-' + revision.id"
@@ -230,8 +306,17 @@ function selectFile(event: Event) {
                     placeholder="Например, герой в синем пальто"
                 /><InputError :message="uploadForm.errors.label" />
             </div>
-            <div class="flex items-end">
-                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">Добавить референс</Button>
+            <div v-if="uploadFailure" role="alert" class="bg-muted border-destructive rounded-lg border-l-4 p-4">
+                <strong>Не удалось загрузить файл</strong>
+                <p>{{ uploadFailure }}</p>
+            </div>
+            <div class="flex flex-wrap items-end gap-2">
+                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">{{
+                    uploadFailure ? 'Повторить загрузку' : 'Добавить референс'
+                }}</Button>
+                <Button v-if="uploadFailure" type="button" variant="outline" class="h-11" :disabled="busy" @click="fileInput?.click()"
+                    >Выбрать другой файл</Button
+                >
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError
                 :message="uploadErrors.character"
