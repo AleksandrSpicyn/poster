@@ -213,6 +213,16 @@ const sections = computed((): Record<string, string> =>
 const selectedChannelNames = computed(() =>
     props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
 );
+const clippingUrl = computed(() => route('clipping.index', { view: 'select' }));
+function selectFormat(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement;
+    if (!props.project && select.value === 'clipping') {
+        select.value = form.content_mode;
+        router.visit(clippingUrl.value);
+        return;
+    }
+    form.content_mode = select.value;
+}
 function readSection() {
     const hash = window.location.hash.slice(1);
     section.value =
@@ -426,10 +436,7 @@ function submit() {
                                     }}</small></span
                                 >
                             </label>
-                            <Link
-                                v-if="!project"
-                                :href="route('clipping.index')"
-                                class="flex min-h-14 items-center gap-3 rounded-lg border p-3 font-semibold"
+                            <Link v-if="!project" :href="clippingUrl" class="flex min-h-14 items-center gap-3 rounded-lg border p-3 font-semibold"
                                 >Клиппинг</Link
                             >
                         </fieldset>
@@ -437,13 +444,15 @@ function submit() {
                         <select
                             v-if="section !== 'format'"
                             id="project-mode"
-                            v-model="form.content_mode"
+                            :value="form.content_mode"
+                            @change="selectFormat"
                             :disabled="form.processing || conflict"
                             class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
                         >
                             <option v-for="(label, value) in contentModes" :key="value" :value="value" :disabled="!!series && value !== 'series'">
                                 {{ value === 'series' ? 'Сериал' : value === 'short' ? 'Короткие ролики' : label }}
                             </option>
+                            <option v-if="!project" value="clipping">Клиппинг</option>
                         </select>
                         <InputError :message="form.errors.content_mode" />
                     </div>
