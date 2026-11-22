@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Settings;
 
+use App\Actions\Auth\SendEmailVerificationAction;
 use App\Data\UpdateProfileData;
 use App\Models\User;
 use App\Tasks\Users\SaveUser;
@@ -14,16 +15,20 @@ use App\Tasks\Users\SaveUser;
  */
 readonly class UpdateProfileAction
 {
-    public function __construct(private SaveUser $saveUser) {}
+    public function __construct(private SaveUser $saveUser, private SendEmailVerificationAction $verification) {}
 
-    public function run(User $user, UpdateProfileData $data): void
+    public function run(User $user, UpdateProfileData $data): bool
     {
         $user->fill(['name' => $data->name, 'email' => $data->email]);
 
-        if ($user->isDirty('email')) {
+        $emailChanged = $user->isDirty('email');
+
+        if ($emailChanged) {
             $user->email_verified_at = null;
         }
 
         $this->saveUser->run($user);
+
+        return $emailChanged && $this->verification->run($user);
     }
 }

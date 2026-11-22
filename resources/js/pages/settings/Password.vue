@@ -53,11 +53,16 @@ const updatePassword = () => {
         <Head title="Безопасность" />
 
         <SettingsLayout title="Безопасность" description="Учётная запись / Пароль">
+            <template #action
+                ><Button form="password-form" type="submit" :disabled="form.processing">{{
+                    form.processing ? 'Сохранение…' : 'Обновить пароль'
+                }}</Button></template
+            >
             <div class="space-y-6">
                 <HeadingSmall title="Параметры" />
 
-                <form @submit.prevent="updatePassword" class="space-y-6">
-                    <div class="grid gap-2">
+                <form id="password-form" @submit.prevent="updatePassword">
+                    <div class="grid">
                         <Label for="current_password">Текущий пароль</Label>
                         <Input
                             id="current_password"
@@ -71,7 +76,7 @@ const updatePassword = () => {
                         <InputError :message="form.errors.current_password" />
                     </div>
 
-                    <div class="grid gap-2">
+                    <div class="grid">
                         <Label for="password">Новый пароль</Label>
                         <Input
                             id="password"
@@ -85,7 +90,7 @@ const updatePassword = () => {
                         <InputError :message="form.errors.password" />
                     </div>
 
-                    <div class="grid gap-2">
+                    <div class="grid">
                         <Label for="password_confirmation">Подтверждение</Label>
                         <Input
                             id="password_confirmation"
@@ -99,8 +104,6 @@ const updatePassword = () => {
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <Button :disabled="form.processing">{{ form.processing ? 'Сохранение…' : 'Обновить пароль' }}</Button>
-
                         <Transition
                             enter-active-class="transition ease-in-out"
                             enter-from-class="opacity-0"

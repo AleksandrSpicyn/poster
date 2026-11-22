@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { type BreadcrumbItem, type SharedData, type User } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -19,7 +19,7 @@ interface Props {
     status?: string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -36,6 +36,21 @@ const form = useForm({
     email: user.value.email,
 });
 
+const section = ref('');
+function readSection() {
+    section.value = window.location.hash.slice(1);
+    if (section.value === 'change-email' && user.value.email_verified_at) {
+        void nextTick(() => document.getElementById('email')?.focus());
+    }
+}
+onMounted(() => {
+    readSection();
+    window.addEventListener('hashchange', readSection);
+});
+onUnmounted(() => window.removeEventListener('hashchange', readSection));
+const emailNotice = computed(
+    () => !user.value.email_verified_at && (section.value === 'change-email' || (!section.value && props.status === 'verification-link-sent')),
+);
 const submit = () => {
     form.patch(route('profile.update'), {
         preserveScroll: true,
@@ -48,65 +63,42 @@ const submit = () => {
         <Head title="Профиль" />
 
         <SettingsLayout title="Профиль" description="Личные данные / Учётная запись">
-            <div class="flex flex-col space-y-6">
+            <template #action>
+                <Button v-if="section !== 'delete' && !emailNotice" form="profile-form" type="submit" :disabled="form.processing">{{
+                    form.processing ? 'Сохранение…' : 'Сохранить'
+                }}</Button>
+            </template>
+            <template #navigation>
+                <a href="#profile" :aria-current="section !== 'delete' && section !== 'change-email' ? 'page' : undefined">Профиль</a>
+                <a href="#change-email" :aria-current="section === 'change-email' ? 'page' : undefined">Изменение почты</a>
+                <a href="#delete" :aria-current="section === 'delete' ? 'page' : undefined">Удаление учётной записи</a>
+            </template>
+            <DeleteUser v-if="section === 'delete'" />
+            <section v-else-if="emailNotice" class="space-y-4">
+                <HeadingSmall title="Изменение почты" />
+                <p v-if="status === 'verification-link-sent'" role="status">Адрес сохранён. Письмо отправлено на новый адрес.</p>
+                <Label for="new-email">Новая почта</Label><Input id="new-email" :model-value="user.email" readonly />
+                <p>Требуется подтверждение. Откройте ссылку из письма, чтобы подтвердить адрес.</p>
+                <Link :href="route('verification.send')" method="post" as="button" class="underline">Отправить письмо повторно</Link>
+            </section>
+            <form v-else id="profile-form" @submit.prevent="submit">
                 <HeadingSmall title="Параметры" />
-
-                <form @submit.prevent="submit" class="space-y-6">
-                    <div class="grid gap-2">
-                        <Label for="name">Имя</Label>
-                        <Input id="name" class="mt-1 block w-full" v-model="form.name" required autocomplete="name" placeholder="Имя" />
-                        <InputError class="mt-2" :message="form.errors.name" />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            class="mt-1 block w-full"
-                            v-model="form.email"
-                            required
-                            autocomplete="username"
-                            placeholder="Email"
-                        />
-                        <InputError class="mt-2" :message="form.errors.email" />
-                    </div>
-
-                    <p v-if="user.email_verified_at" class="text-muted-foreground text-sm">Адрес подтверждён</p>
-                    <div v-if="mustVerifyEmail && !user.email_verified_at">
-                        <p class="text-muted-foreground -mt-4 text-sm">
-                            Адрес ещё не подтверждён.
-                            <Link
-                                :href="route('verification.send')"
-                                method="post"
-                                as="button"
-                                class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                            >
-                                Отправить письмо повторно.
-                            </Link>
-                        </p>
-
-                        <div v-if="status === 'verification-link-sent'" class="mt-2 text-sm font-medium text-green-600">
-                            Письмо со ссылкой отправлено.
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <Button :disabled="form.processing">{{ form.processing ? 'Сохранение…' : 'Сохранить' }}</Button>
-
-                        <Transition
-                            enter-active-class="transition ease-in-out"
-                            enter-from-class="opacity-0"
-                            leave-active-class="transition ease-in-out"
-                            leave-to-class="opacity-0"
-                        >
-                            <p v-show="form.recentlySuccessful" role="status" class="text-primary text-sm">Изменения сохранены.</p>
-                        </Transition>
-                    </div>
-                </form>
-            </div>
-
-            <DeleteUser />
+                <Label for="name">Имя</Label><Input id="name" v-model="form.name" required autocomplete="name" />
+                <InputError :message="form.errors.name" />
+                <Label for="email">Email</Label><Input id="email" v-model="form.email" type="email" required autocomplete="email" />
+                <InputError :message="form.errors.email" />
+                <Label for="verified">Подтверждение</Label
+                ><Input id="verified" :model-value="user.email_verified_at ? 'Адрес подтверждён' : 'Адрес ещё не подтверждён'" readonly />
+                <Link
+                    v-if="mustVerifyEmail && !user.email_verified_at"
+                    :href="route('verification.send')"
+                    method="post"
+                    as="button"
+                    class="mt-3 underline"
+                    >Отправить письмо повторно</Link
+                >
+                <p v-if="form.recentlySuccessful" role="status" class="text-primary mt-3 text-sm">Изменения сохранены.</p>
+            </form>
         </SettingsLayout>
     </AppLayout>
 </template>

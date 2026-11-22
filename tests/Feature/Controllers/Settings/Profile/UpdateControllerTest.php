@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\patch;
 use function Pest\Laravel\patchJson;
 
 test('изменение email сбрасывает подтверждение', /** @throws Exception */ function (): void {
+    Notification::fake();
     $user = User::factory()->create();
 
     actingAs($user)
@@ -19,6 +22,7 @@ test('изменение email сбрасывает подтверждение',
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('profile.edit'));
 
+    Notification::assertSentTo($user, VerifyEmail::class);
     $user->refresh();
 
     expect($user->name)
@@ -30,6 +34,7 @@ test('изменение email сбрасывает подтверждение',
 });
 
 test('сохранение прежнего email не сбрасывает подтверждение', /** @throws Exception */ function (): void {
+    Notification::fake();
     $user = User::factory()->create();
 
     actingAs($user)
@@ -40,6 +45,7 @@ test('сохранение прежнего email не сбрасывает по
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('profile.edit'));
 
+    Notification::assertNothingSent();
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 

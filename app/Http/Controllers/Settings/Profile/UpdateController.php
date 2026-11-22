@@ -32,7 +32,9 @@ class UpdateController
      */
     public function __invoke(UpdateProfileData $data, #[CurrentUser] User $user, UpdateProfileAction $action): RedirectResponse
     {
-        $action->run($user, $data);
+        if ($action->run($user, $data)) {
+            return to_route('profile.edit')->with('status', 'verification-link-sent');
+        }
 
         return to_route('profile.edit');
     }

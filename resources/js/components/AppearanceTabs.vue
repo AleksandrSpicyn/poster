@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { useAppearance } from '@/composables/useAppearance';
-const { appearance, appearanceValues, updateAppearance } = useAppearance();
+import type { Appearance } from '@/types';
+defineProps<{ appearance: Appearance }>();
+defineEmits<{ select: [value: Appearance] }>();
 const choices = [
-    { value: appearanceValues.LIGHT, label: 'Светлая' },
-    { value: appearanceValues.DARK, label: 'Тёмная' },
-    { value: appearanceValues.SYSTEM, label: 'Системная' },
-];
+    { value: 'light', label: 'Светлая' },
+    { value: 'dark', label: 'Тёмная' },
+    { value: 'system', label: 'Системная' },
+] as const;
 </script>
 
 <template>
@@ -15,7 +16,7 @@ const choices = [
             :key="choice.value"
             type="button"
             :aria-pressed="appearance === choice.value"
-            @click="updateAppearance(choice.value)"
+            @click="$emit('select', choice.value)"
         >
             <span :class="['theme-preview', choice.value]" aria-hidden="true"><i></i><i></i><i></i></span>
             {{ choice.label }} <span v-if="appearance === choice.value" aria-hidden="true">✓</span>
@@ -26,12 +27,12 @@ const choices = [
 .theme-options {
     display: grid;
     gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 button {
     text-align: left;
     min-width: 0;
-    padding: 12px;
+    padding: 14px 14px 26px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -52,7 +53,7 @@ button:focus-visible {
     display: grid;
     grid-template-columns: 23% 1fr;
     gap: 8px;
-    height: 108px;
+    height: 122px;
     padding: 8px;
     margin-bottom: 16px;
     border: 1px solid var(--border);
@@ -77,5 +78,10 @@ button:focus-visible {
 .theme-preview i {
     border-radius: 3px;
     background: var(--preview-row);
+}
+@media (max-width: 699px) {
+    .theme-options {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

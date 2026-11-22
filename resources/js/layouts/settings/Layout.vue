@@ -8,23 +8,25 @@ const route = useRoute();
 const page = usePage();
 const links = [
     { label: 'Профиль', href: route('profile.edit', undefined, false) },
-    { label: 'Безопасность', href: route('password.edit', undefined, false) },
+    { label: 'Пароль', href: route('password.edit', undefined, false) },
     { label: 'Оформление', href: route('appearance', undefined, false) },
 ];
 </script>
 
 <template>
     <div class="workspace-page">
-        <Heading :title="title" :description="description" />
+        <header class="settings-header"><Heading :title="title" :description="description" /><slot name="action" /></header>
         <div class="settings-grid">
             <nav aria-label="Настройки аккаунта">
                 <h2>В этом разделе</h2>
-                <Link
-                    v-for="item in links"
-                    :key="item.href"
-                    :href="item.href"
-                    :aria-current="page.url.split('?')[0] === item.href ? 'page' : undefined"
-                    >{{ item.label }}</Link
+                <slot name="navigation"
+                    ><Link
+                        v-for="item in links"
+                        :key="item.href"
+                        :href="item.href"
+                        :aria-current="page.url.split('?')[0] === item.href ? 'page' : undefined"
+                        >{{ item.label }}</Link
+                    ></slot
                 >
             </nav>
             <section class="settings-content"><slot /></section>
@@ -46,7 +48,7 @@ nav {
 nav h2 {
     display: none;
 }
-nav a {
+nav :deep(a) {
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -55,7 +57,7 @@ nav a {
     font-size: 14px;
     background: var(--secondary);
 }
-nav a[aria-current='page'] {
+nav :deep(a[aria-current='page']) {
     background: var(--accent);
     color: var(--accent-foreground);
     font-weight: 700;
@@ -80,9 +82,10 @@ nav a[aria-current='page'] {
 }
 @media (min-width: 1100px) {
     .settings-grid {
-        grid-template-columns: min(28%, 276px) minmax(0, 820px);
+        grid-template-columns: min(28%, 276px) minmax(0, 852px);
     }
     nav {
+        min-height: 240px;
         flex-direction: column;
         border: 1px solid var(--border);
         border-radius: 12px;
@@ -95,8 +98,40 @@ nav a[aria-current='page'] {
         font-size: 20px;
         font-weight: 700;
     }
-    nav a {
+    nav :deep(a) {
         background: transparent;
+    }
+}
+
+.settings-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: start;
+    gap: 16px;
+}
+.settings-header :deep(button) {
+    min-height: 44px;
+    font-weight: 700;
+}
+.settings-content :deep(label) {
+    display: block;
+    margin: 12px 0 6px;
+    font-size: 14px;
+    color: var(--muted-foreground);
+    font-weight: 400;
+}
+.settings-content :deep(input) {
+    height: 48px;
+}
+@media (max-width: 1099px) {
+    .settings-header {
+        flex-direction: column;
+    }
+}
+@media (min-width: 1920px) {
+    .settings-grid {
+        grid-template-columns: 276px minmax(0, 820px);
     }
 }
 </style>
