@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -24,6 +24,26 @@ const props = defineProps<{
     release_started: boolean;
 }>();
 const route = useRoute();
+const tabs = { assembly: 'Сборка', parameters: 'Параметры', status: 'Статус' } as const;
+type Tab = keyof typeof tabs;
+const tab = ref<Tab>('assembly');
+function restoreTab() {
+    const hash = window.location.hash.slice(1);
+    tab.value = hash === 'parameters' || hash === 'status' ? hash : 'assembly';
+}
+onMounted(() => {
+    restoreTab();
+    window.addEventListener('hashchange', restoreTab);
+});
+onUnmounted(() => window.removeEventListener('hashchange', restoreTab));
+const statusLabels: Record<string, string> = {
+    draft: 'Черновик',
+    queued: 'В очереди',
+    building: 'Сборка выполняется',
+    ready: 'Сборка готова',
+    accepted: 'Сборка принята',
+    failed: 'Не удалось собрать версию',
+};
 const video = ref<HTMLVideoElement | null>(null);
 const form = useForm({ lock_version: props.assembly.lock_version, boundaries_reviewed: false, review_notes: '' });
 const errors = computed<Record<string, string | undefined>>(() => form.errors);
@@ -59,12 +79,50 @@ async function playBoundary(time: number) {
         <div class="workspace-page">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading title="Сборка сериала" :description="series.name + ' / Полная версия · ' + assembly.number" />
-                <Button v-if="assembly.status === 'ready' && !release_started" form="assembly-review" type="submit" :disabled="form.processing"
+                <Button
+                    v-if="tab === 'assembly' && assembly.status === 'ready' && !release_started"
+                    form="assembly-review"
+                    type="submit"
+                    :disabled="form.processing"
                     >Принять сборку</Button
                 >
             </div>
-            <p v-if="assembly.error_message" role="alert">{{ assembly.error_message }}</p>
-            <div class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+            <nav class="flex flex-wrap gap-2" aria-label="Разделы сборки">
+                <a
+                    v-for="(label, key) in tabs"
+                    :key="key"
+                    :href="'#' + key"
+                    :aria-current="tab === key ? 'page' : undefined"
+                    class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold"
+                    @click="tab = key"
+                    >{{ label }}</a
+                >
+            </nav>
+            <section v-if="tab === 'parameters'" class="studio-panel">
+                <h2>Параметры сборки</h2>
+                <div class="studio-row">
+                    <span>Сериал</span><strong>{{ series.name }}</strong>
+                </div>
+                <div v-for="part in assembly.manifest.parts" :key="part.number" class="studio-row">
+                    <span>Эпизод {{ part.number }}</span
+                    ><span>{{ (part.duration_ms / 1000).toLocaleString('ru') }} с</span>
+                </div>
+                <div class="studio-row">
+                    <span>Порядок</span><span>{{ assembly.manifest.parts?.map((part) => part.number).join(' → ') }}</span>
+                </div>
+            </section>
+            <section v-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
+                <h2>{{ statusLabels[assembly.status] }}</h2>
+                <p>
+                    Версия {{ assembly.number }}<span v-if="assembly.duration_ms"> · {{ (assembly.duration_ms / 1000).toLocaleString('ru') }} с</span>
+                </p>
+                <p v-if="assembly.status === 'failed'" role="alert">Проверьте готовность эпизодов и исходные видео.</p>
+                <p v-else-if="assembly.status === 'building'">Соединяются эпизоды.</p>
+                <p v-if="release_started">Для этого выпуска закреплена отправленная версия файла.</p>
+                <a v-if="assembly.video_url" href="#assembly" class="underline" @click="tab = 'assembly'">Посмотреть сборку</a>
+                <Button v-else variant="outline" @click="router.reload()">Обновить состояние сборки</Button>
+            </section>
+            <div v-show="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
                 <div>
                     <video
                         v-if="assembly.video_url"
@@ -79,7 +137,7 @@ async function playBoundary(time: number) {
                     <p v-if="playbackError" role="alert">Не удалось запустить воспроизведение. Откройте видео через элементы управления плеера.</p>
                 </div>
                 <div class="studio-panel grid gap-4">
-                    <p>{{ assembly.status }} · {{ (assembly.duration_ms ?? 0) / 1000 }} с</p>
+                    <p>{{ statusLabels[assembly.status] }} · {{ (assembly.duration_ms ?? 0) / 1000 }} с</p>
                     <ol class="divide-y">
                         <li v-for="part in assembly.manifest.parts ?? []" :key="part.number" class="flex justify-between gap-4 py-3">
                             <span>Эпизод {{ part.number }}</span

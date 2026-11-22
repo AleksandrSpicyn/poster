@@ -41,3 +41,17 @@ test('отклоняет неполный цикл и изменённый фа�
     expect(fn() => app(SaveSeriesAssembly::class)->run($context['series']))->toThrow(ValidationException::class);
     expect(SeriesAssembly::query()->count())->toBe(0);
 })->with([true, false]);
+
+test('сохраняет однокадровую часть при сборке полного цикла', function (): void {
+    Storage::fake('local');
+    $context = singleVideoFixture();
+    $episode = $context['series']->episodes()->orderBy('number')->firstOrFail();
+    $episode->acceptedAssembly()->firstOrFail()->update(['duration_ms' => 1]);
+    $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
+
+    app(BuildSeriesAssemblyAction::class)->run($assembly->id);
+
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
+    expect(data_get($assembly->manifest, 'parts.0.duration_ms'))->toBe(1);
+    expect($assembly->duration_ms)->toBe(2001);
+});

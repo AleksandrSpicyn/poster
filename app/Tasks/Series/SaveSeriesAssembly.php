@@ -48,7 +48,7 @@ readonly class SaveSeriesAssembly
                 }
 
                 $manifest[] = ['number' => $episode->number, 'episode_id' => $episode->id, 'assembly_id' => $assembly->id,
-                    'media_id' => $media->id, 'checksum' => hash_file('sha256', $media->getPath()) ?: throw new RuntimeException('Missing accepted source'), 'duration_ms' => (int) round(intdiv($assembly->duration_ms * 24, 1000) * 1000 / 24)];
+                    'media_id' => $media->id, 'checksum' => hash_file('sha256', $media->getPath()) ?: throw new RuntimeException('Missing accepted source'), 'duration_ms' => $assembly->duration_ms < 100 ? $assembly->duration_ms : (int) round(intdiv($assembly->duration_ms * 24, 1000) * 1000 / 24)];
             }
 
             $data = new SeriesAssemblyManifestData($manifest, $series->specification_version, Snapshot::hash($series->cycle_plan ?? []));
