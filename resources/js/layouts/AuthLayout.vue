@@ -2,13 +2,14 @@
 import AuthLayout from '@/layouts/auth/AuthSimpleLayout.vue';
 
 defineProps<{
+    feedback?: boolean;
     title?: string;
     description?: string;
 }>();
 </script>
 
 <template>
-    <AuthLayout :title="title" :description="description">
+    <AuthLayout :feedback="feedback" :title="title" :description="description">
         <slot />
     </AuthLayout>
 </template>

@@ -41,6 +41,7 @@ class CreateController
      * @responseField props.appearanceValues.DARK string Тёмное оформление.
      * @responseField props.appearanceValues.SYSTEM string Системное оформление.
      * @responseField props.sidebarOpen boolean props.sidebarOpen.
+     * @responseField props.credentialsError string Сообщение при неверных данных входа.
      * @responseField props.canResetPassword boolean props.canResetPassword.
      * @responseField props.status string props.status. Значение может быть null.
      * @responseField url string url.
@@ -50,6 +51,7 @@ class CreateController
     public function __invoke(Request $request): Response
     {
         return inertia('auth/Login', [
+            'credentialsError' => __('auth.failed'),
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
         ]);

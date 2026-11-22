@@ -22,11 +22,16 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Подтверждение почты" description="Откройте ссылку в письме, чтобы войти в студию">
+    <AuthLayout
+        :feedback="status === 'verification-link-sent'"
+        title="Подтверждение почты"
+        description="Откройте ссылку в письме, чтобы войти в студию"
+    >
         <Head title="Подтверждение почты" />
 
-        <div v-if="status === 'verification-link-sent'" class="mb-4 text-center text-sm font-medium text-green-600">
-            Новое письмо со ссылкой отправлено на вашу почту.
+        <div v-if="status === 'verification-link-sent'" role="status" class="account-message mb-4">
+            <strong>Письмо отправлено повторно</strong>
+            <p>Проверьте входящие и папку «Спам».</p>
         </div>
 
         <div class="mb-[18px] grid gap-1">
@@ -37,7 +42,7 @@ const submit = () => {
         <form @submit.prevent="submit" class="space-y-6 text-center">
             <Button :disabled="form.processing">
                 <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
-                Отправить повторно
+                {{ status === 'verification-link-sent' ? 'Отправить ещё раз' : 'Отправить повторно' }}
             </Button>
 
             <TextLink :href="route('logout')" method="post" as="button" class="block text-sm">Выйти из аккаунта</TextLink>

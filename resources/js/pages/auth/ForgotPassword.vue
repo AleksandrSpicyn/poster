@@ -25,17 +25,17 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Восстановление пароля" description="Отправим ссылку на указанный адрес">
+    <AuthLayout
+        :feedback="!!status"
+        :title="status ? 'Восстановление доступа' : 'Восстановление пароля'"
+        description="Отправим ссылку на указанный адрес"
+    >
         <Head title="Восстановление пароля" />
-
-        <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
-            {{ status }}
-        </div>
 
         <div class="space-y-6">
             <form @submit.prevent="submit">
                 <div class="grid gap-2">
-                    <Label for="email">Email</Label>
+                    <Label for="email">Почта</Label>
                     <Input
                         id="email"
                         type="email"
@@ -43,13 +43,18 @@ const submit = () => {
                         autocomplete="email"
                         required
                         v-model="form.email"
+                        :readonly="!!status"
                         autofocus
                         placeholder="studio@example.test"
                     />
                     <InputError :message="form.errors.email" />
                 </div>
 
-                <div class="my-6 flex items-center justify-start">
+                <div v-if="status" role="status" class="account-message mt-4">
+                    <strong>Запрос принят</strong>
+                    <p>Если этот адрес связан с аккаунтом, на него придёт письмо со ссылкой.</p>
+                </div>
+                <div v-else class="my-6 flex items-center justify-start">
                     <Button class="w-full" :disabled="form.processing">
                         <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                         Отправить ссылку

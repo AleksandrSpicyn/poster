@@ -3,13 +3,20 @@ import AppFeedback from '@/components/AppFeedback.vue';
 import lunarLandscape from '../../../assets/studio/lunar-landscape.webp';
 import PublicHeader from '@/components/PublicHeader.vue';
 
-defineProps<{ title?: string; description?: string }>();
+defineProps<{ title?: string; description?: string; feedback?: boolean }>();
 </script>
 
 <template>
     <div class="access">
         <PublicHeader />
-        <main class="access-main">
+        <main v-if="feedback" class="feedback-main">
+            <h1>{{ title }}</h1>
+            <section class="feedback-form">
+                <h2>Учётная запись</h2>
+                <AppFeedback /><slot />
+            </section>
+        </main>
+        <main v-else class="access-main">
             <section class="access-form" aria-labelledby="access-title">
                 <p class="access-section">Учётная запись</p>
                 <h1 id="access-title">{{ title }}</h1>
@@ -128,5 +135,51 @@ h1 {
         max-width: 1440px;
         width: calc(100% - 80px);
     }
+}
+
+.feedback-main {
+    width: min(100%, 472px);
+    margin: 0 auto;
+    padding-block: 20px 40px;
+}
+.feedback-main h1 {
+    margin: 0 0 16px;
+    font-size: clamp(27px, 2.25vw, 34px);
+    line-height: 1.3;
+}
+.feedback-form {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 16px;
+}
+.feedback-form h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 16px;
+}
+.feedback-form :deep(input:not([type='checkbox'])) {
+    min-height: 44px;
+    width: 100%;
+    background: var(--background);
+}
+.feedback-form :deep([data-slot='button']) {
+    width: fit-content;
+    justify-self: start;
+    min-height: 44px;
+}
+.feedback-form :deep(.account-message) {
+    padding: 12px 14px;
+    border-inline-start: 3px solid var(--ring);
+    background: var(--muted);
+    border-radius: 5px;
+}
+.feedback-form :deep(.account-message[role='alert']) {
+    border-inline-start-color: var(--destructive);
+}
+.feedback-form :deep(.account-message p) {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--muted-foreground);
 }
 </style>
