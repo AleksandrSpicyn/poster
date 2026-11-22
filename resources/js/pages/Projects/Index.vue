@@ -11,6 +11,7 @@ import { formatProjectDate } from '@/lib/formatProjectDate';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { CircleSlash, CircleX } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -208,24 +209,29 @@ function clearSearch() {
                 </aside>
             </div>
             <div v-else-if="results" class="project-information search-results">
-                <section class="studio-panel results-panel grid gap-4">
+                <section class="studio-panel results-panel grid gap-3">
                     <h2 class="text-xl font-bold">Результаты поиска</h2>
                     <p>
-                        <strong>Поиск: {{ filters.search || page.props.filters.search }}</strong>
+                        <a href="#search" class="font-bold hover:underline" aria-label="Изменить поиск" @click="searching = true"
+                            >Поиск: {{ filters.search || page.props.filters.search }}</a
+                        >
                     </p>
-                    <div class="flex gap-2">
+                    <div class="result-chips flex flex-wrap gap-2">
                         <span>{{ filters.active ? 'Активные' : 'Все проекты' }}</span><span>{{
                             filters.alphabetical ? 'По названию' : filters.sort === 'asc' ? 'Сначала старые' : 'Новые сверху'
                         }}</span>
                     </div>
                     <template v-if="error"
                         ><div role="alert" class="result-error">
-                            <strong>Не удалось загрузить страницу {{ filters.page }}</strong>
-                            <p>{{ error }}</p>
+                            <CircleX class="size-4 shrink-0" aria-hidden="true" />
+                            <div>
+                                <strong>Не удалось загрузить страницу {{ filters.page }}</strong>
+                                <p>{{ error.startsWith('Не удалось обновить список') ? 'Поиск, порядок и размер страницы сохранены.' : error }}</p>
+                            </div>
                         </div>
                     </template>
                     <template v-else-if="!page.props.projects.data.length"
-                        ><strong>Совпадений нет</strong>
+                        ><CircleSlash class="empty-symbol" aria-hidden="true" /><strong class="text-xl">Совпадений нет</strong>
                         <p>Попробуйте другое название или измените фильтры.</p>
                         <Button class="justify-self-start" variant="outline" @click="clearSearch">Очистить фильтры</Button></template
                     >
@@ -233,7 +239,7 @@ function clearSearch() {
                         <li v-for="project in page.props.projects.data" :key="project.id" class="border-b py-3">
                             <Link :href="route('projects.show', project.id)" class="font-bold">{{ project.name }}</Link>
                             <p>
-                                {{ formatProjectDate(project.updated_at) }} ·
+                                Изменён {{ formatProjectDate(project.updated_at) }} ·
                                 {{ project.is_clipping ? 'Клиппинг' : project.content_mode === 'series' ? 'Сериал' : 'Короткие ролики' }}
                             </p>
                         </li>
@@ -254,7 +260,7 @@ function clearSearch() {
                         </select></label
                     >
                     <Button v-if="error" class="justify-self-start" @click="refresh">Повторить загрузку</Button>
-                    <nav v-if="!error && page.props.projects.meta.last_page > 1" class="flex items-center gap-3">
+                    <nav v-if="!error && page.props.projects.meta.last_page > 1" class="flex flex-wrap items-center gap-2">
                         <Button variant="outline" :disabled="loading || filters.page <= 1" @click="changePage(filters.page - 1)">Назад</Button>
                         <span class="flex gap-1"
                             ><Button
@@ -278,8 +284,6 @@ function clearSearch() {
                     <p v-if="!error && page.props.projects.meta.total">
                         Показано {{ page.props.projects.meta.to }} из {{ page.props.projects.meta.total }}
                     </p>
-                    <a v-if="!error" href="#search" @click="searching = true" class="underline">Изменить поиск</a
-                    ><Link v-if="!error" :href="route('projects.index')" class="underline">К проектам</Link>
                 </section>
                 <aside v-if="sidebarProject" class="studio-panel hidden min-[1100px]:block">
                     <ProjectArtwork :name="sidebarProject.name" :cover="sidebarProject.cover" class="mb-3 aspect-[2.4] rounded-lg" /><strong>{{
@@ -377,10 +381,60 @@ function clearSearch() {
     display: block;
     color: var(--muted-foreground);
 }
+.results-panel h2 {
+    margin-bottom: 0;
+}
+.results-panel .studio-row {
+    padding-block: 6px;
+    border-top: 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+}
+.results-panel select {
+    border: 0;
+    padding: 0;
+    height: 32px;
+    min-height: 32px;
+    background: transparent;
+    color: var(--foreground);
+}
+.results-panel [data-slot='button'] {
+    min-height: 42px;
+}
+.result-chips span,
+.empty-symbol {
+    background: var(--muted);
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--muted-foreground);
+    font-size: 13px;
+}
+.result-chips span:first-child {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+}
+.empty-symbol {
+    width: 35px;
+    height: 32px;
+    padding: 8px;
+}
 .result-error {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    border-radius: 6px;
     background: var(--muted);
     border-inline-start: 3px solid var(--destructive);
     padding: 10px 14px;
+}
+.result-error svg {
+    align-self: flex-start;
+    margin-top: 3px;
+    color: var(--destructive);
+}
+.result-error p {
+    color: var(--muted-foreground);
+    font-size: 14px;
 }
 .result-error strong {
     color: var(--destructive);
