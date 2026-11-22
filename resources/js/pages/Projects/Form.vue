@@ -698,16 +698,20 @@ function submit() {
                         >
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
-                    <div v-if="!['main', 'access', 'deletion'].includes(section)" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
-                        <Button v-if="!['automation', 'cast', 'format'].includes(section)" as-child variant="outline" class="h-11"
+                    <div
+                        v-if="!['main', 'access', 'deletion'].includes(section)"
+                        :class="section === 'channels' ? 'justify-start' : 'justify-end'"
+                        class="flex flex-wrap items-center gap-3 border-t pt-5"
+                    >
+                        <Button v-if="!['automation', 'cast', 'format', 'channels'].includes(section)" as-child variant="outline" class="h-11"
                             ><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button
                         >
-                        <Button v-if="!project && section === 'format'" as-child class="h-11">
-                            <a href="#main">Сохранить формат</a>
+                        <Button v-if="!project && ['format', 'channels'].includes(section)" as-child class="h-11">
+                            <a href="#main">{{ section === 'channels' ? 'Сохранить каналы' : 'Сохранить формат' }}</a>
                         </Button>
                         <Button v-else type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
-                                v-else-if="!['automation', 'cast', 'format'].includes(section)"
+                                v-else-if="!['automation', 'cast', 'format', 'channels'].includes(section)"
                                 class="size-4"
                                 aria-hidden="true"
                             />{{
