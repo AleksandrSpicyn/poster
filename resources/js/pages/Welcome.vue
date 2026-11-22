@@ -39,7 +39,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
                     <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">Войти в студию</a>
                 </div>
             </header>
-            <main id="main">
+            <main id="main" tabindex="-1">
                 <div class="outer">
                     <section class="hero" aria-labelledby="title">
                         <div class="copy">
@@ -72,7 +72,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
                             </svg>
                         </figure>
                     </section>
-                    <section class="features" id="features" aria-labelledby="cap">
+                    <section class="features" id="features" aria-labelledby="cap" tabindex="-1">
                         <h2 id="cap">Возможности студии</h2>
                         <div class="items">
                             <article class="feature" style="--i: 0">
@@ -181,11 +181,11 @@ figure {
     display: flex;
     align-items: center;
     gap: clamp(25px, 4.2vw, 80px);
-    min-height: clamp(70px, 5.2vw, 92px);
+    min-height: calc(clamp(70px, 5.2vw, 92px) - 1px);
 }
 .logo {
     display: inline-flex;
-    gap: 13px;
+    gap: clamp(0px, calc(1vw - 8.4px), 9px);
     align-items: center;
     line-height: 1;
     flex-basis: calc(3.66em + 52px);
@@ -196,7 +196,7 @@ figure {
 .logo i {
     display: inline-flex;
     gap: 4px;
-    transform: skew(-24deg);
+    transform: skew(-24deg) scaleX(1.08);
     margin-inline: 5px;
 }
 .logo b {
@@ -266,7 +266,7 @@ h1 span:last-child {
 }
 .lede {
     position: relative;
-    top: -0.15em;
+    top: -0.1em;
     max-width: min(24em, 91%);
     margin: clamp(19px, 1.8vw, 36px) 0 clamp(22px, 2.6vw, 42px);
     font-size: clamp(17px, 1.68vw, 29px);
@@ -275,7 +275,7 @@ h1 span:last-child {
 }
 .cta {
     gap: 12px;
-    padding: 12px 16px;
+    padding: 11px clamp(16px, calc(13px + 0.35vw), 18.5px);
     border-radius: 11px;
     background: var(--lime);
     color: #19200d;
@@ -296,7 +296,7 @@ h1 span:last-child {
     position: absolute;
     right: 0.7%;
     width: 60%;
-    top: calc(50% - 2px);
+    top: calc(50% - 1px);
     transform: translateY(-50%);
     pointer-events: none;
 }
@@ -319,7 +319,7 @@ h1 span:last-child {
     padding: 7px 0 0;
     min-height: calc(44px + clamp(23px, 2vw, 34px));
     font-size: clamp(23px, 2vw, 34px);
-    letter-spacing: -0.055em;
+    letter-spacing: -0.04em;
     line-height: 1.2;
 }
 .items {
@@ -349,12 +349,12 @@ h1 span:last-child {
     height: clamp(32px, 3.8vw, 62px);
     width: auto;
     display: block;
-    margin-bottom: 9px;
+    margin-bottom: clamp(3px, calc(7px - 0.3vw), 6px);
 }
 .feature h3 {
     font-size: clamp(20px, 1.85vw, 32px);
     line-height: 1.18;
-    letter-spacing: -0.055em;
+    letter-spacing: -0.04em;
 }
 .feature p {
     margin-top: 5px;
@@ -375,7 +375,7 @@ h1 span:last-child {
     cursor: pointer;
     list-style: none;
     font-size: 25px;
-    min-height: 76px;
+    min-height: 75px;
     font-weight: 700;
     letter-spacing: -0.05em;
 }
@@ -406,7 +406,7 @@ h1 span:last-child {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
-    padding-block: 20px 32px;
+    padding-block: 17px 32px;
     color: var(--muted);
     font-size: 13px;
 }
@@ -458,6 +458,15 @@ h1 span:last-child {
     }
 }
 @media (min-width: 1800px) {
+    .cta {
+        padding-block: 12px;
+    }
+    h1 {
+        top: -0.035em;
+    }
+    .features {
+        padding-bottom: 7px;
+    }
     .landing {
         background-image: url('../../assets/studio/landing-glow-wide.webp');
     }
@@ -467,7 +476,7 @@ h1 span:last-child {
         background-image: url('../../assets/studio/landing-glow-tablet.webp');
     }
     .hero {
-        min-height: 465px;
+        min-height: 466px;
     }
     .copy {
         width: 54%;
@@ -492,7 +501,7 @@ h1 span:last-child {
 }
 @media (max-width: 700px) {
     .nav {
-        min-height: 62px;
+        min-height: 61px;
         gap: 8px;
     }
     .nav nav {
@@ -529,8 +538,8 @@ h1 span:last-child {
         font-size: 17px;
     }
     .cta {
-        min-height: 45px;
-        padding: 9px 15px;
+        min-height: 47px;
+        padding: 9px 15px 9px 16px;
     }
     .art {
         position: relative;
@@ -538,7 +547,7 @@ h1 span:last-child {
         top: auto;
         transform: none;
         width: min(104%, 540px);
-        margin: 7px auto 10px;
+        margin: 7px auto 9px;
         align-self: center;
     }
     .features h2 {
