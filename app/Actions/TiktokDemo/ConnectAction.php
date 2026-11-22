@@ -30,9 +30,15 @@ final readonly class ConnectAction
         $state = Str::random(64);
         $this->session->put('tiktok_demo.state', ['author' => $author, 'value' => $state, 'expires' => now()->addMinutes(10)->timestamp]);
 
-        return 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
+        $parameters = [
             'client_key' => config('tiktok_demo.key'), 'scope' => implode(',', self::scopes()),
             'response_type' => 'code', 'redirect_uri' => $redirect, 'state' => $state,
-        ]);
+        ];
+
+        if (config()->string('tiktok_demo.mode') === 'sandbox') {
+            $parameters['disable_auto_auth'] = 1;
+        }
+
+        return 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query($parameters);
     }
 }
