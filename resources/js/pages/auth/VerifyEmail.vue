@@ -45,7 +45,9 @@ const submit = () => {
                 {{ status === 'verification-link-sent' ? 'Отправить ещё раз' : 'Отправить повторно' }}
             </Button>
 
-            <TextLink :href="route('logout')" method="post" as="button" class="block text-sm">Выйти из аккаунта</TextLink>
+            <TextLink v-if="status !== 'verification-link-sent'" :href="route('logout')" method="post" as="button" class="block text-sm"
+                >Выйти из аккаунта</TextLink
+            >
         </form>
     </AuthLayout>
 </template>

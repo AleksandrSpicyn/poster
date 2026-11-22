@@ -18,6 +18,7 @@ test('оператор видит финальный монтаж и точны�
 
     actingAs($context['user'])->get(route('series_assemblies.show', $assembly))
         ->assertOk()->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->component('SeriesAssemblies/Show')
+        ->where('parameters.can_build', true)->where('parameters.parts.0.ready', true)->where('parameters.parts.2.number', 3)
         ->where('assembly.id', $assembly->id)->has('assembly.manifest.parts', 3)->where('release_started', false));
 });
 
@@ -38,6 +39,23 @@ test('история показывает закреплённую версию 
             ->where('assembly.id', $assembly->id)
             ->where('series.final_assembly_id', $pinned->id)
             ->where('release_started', true));
+});
+
+test('непринятый эпизод занимает своё место и блокирует сборку всего цикла', function (): void {
+    Storage::fake('local');
+    $context = singleVideoFixture();
+    $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
+    $context['series']->episodes()->where('number', 2)->update(['accepted_assembly_id' => null]);
+
+    actingAs($context['user'])
+        ->get(route('series_assemblies.show', $assembly))
+        ->assertOk()
+        ->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page
+            ->where('parameters.can_build', false)
+            ->where('parameters.parts.0.ready', true)
+            ->where('parameters.parts.1.number', 2)
+            ->where('parameters.parts.1.ready', false)
+            ->where('parameters.parts.2.ready', true));
 });
 
 test('итоговый монтаж закрыт для гостя и пользователя без допуска', function (): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Data\Series\SeriesAssemblyManifestData;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
 use App\Enums\ProductionStage;
@@ -17,6 +18,7 @@ use App\Models\EpisodeRevision;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
+use App\Models\SeriesAssembly;
 use App\Models\User;
 
 /** @return array{project: Project, series: Series, run: ProductionRun, channel: Channel, user: User} */
@@ -49,4 +51,13 @@ function singleVideoFixture(int $count = 3): array
             'specification_version' => $series->specification_version, 'specification' => $series->specification]]);
 
     return ['project' => $project, 'series' => $series, 'run' => $run, 'channel' => $channel, 'user' => $user];
+}
+
+function markSeriesBoundariesReviewed(SeriesAssembly $assembly): void
+{
+    $parts = SeriesAssemblyManifestData::fromSnapshot($assembly->manifest)->parts;
+    $boundaries = collect(array_slice($parts, 0, -1))->mapWithKeys(fn(array $part): array => [
+        'after_' . $part['number'] => ['reviewed' => true, 'notes' => 'Переход проверен'],
+    ]);
+    $assembly->update(['review' => ['boundaries' => $boundaries->all()]]);
 }

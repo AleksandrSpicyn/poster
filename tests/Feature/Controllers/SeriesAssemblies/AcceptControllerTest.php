@@ -16,6 +16,21 @@ test('принимает единый ролик после проверки с�
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
     app(BuildSeriesAssemblyAction::class)->run($assembly->id);
     $assembly->refresh();
+    $review = ['lock_version' => $assembly->lock_version, 'boundaries_reviewed' => true, 'review_notes' => 'Проверено со звуком'];
+
+    actingAs($context['user'])
+        ->post(route('series_assemblies.accept', $assembly), $review)
+        ->assertSessionHasErrors('boundaries_reviewed');
+
+    foreach ([1, 2] as $number) {
+        actingAs($context['user'])
+            ->put(route('series_assemblies.boundaries.update', [$assembly, $number]), [
+                'lock_version' => $assembly->refresh()->lock_version, 'reviewed' => true, 'notes' => 'Переход проверен',
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    $assembly->refresh();
     $continuity = $context['series']->continuity_version;
 
     actingAs($context['user'])->post(route('series_assemblies.accept', $assembly), [

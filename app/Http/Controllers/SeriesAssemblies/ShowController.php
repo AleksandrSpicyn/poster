@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\SeriesAssemblies;
 
 use App\Actions\Series\GetSeriesVideoAction;
+use App\Http\Resources\SeriesAssemblyParametersResource;
 use App\Http\Resources\SeriesAssemblyResource;
 use App\Models\SeriesAssembly;
 use Inertia\Response;
@@ -28,6 +29,7 @@ class ShowController
         return inertia('SeriesAssemblies/Show', ['assembly' => SeriesAssemblyResource::make($assembly)->resolve(),
             'series' => ['id' => $assembly->series_id, 'name' => $assembly->series->name, 'project_id' => $assembly->series->project_id,
                 'final_assembly_id' => $assembly->series->final_assembly_id, 'release_started_at' => $assembly->series->release_started_at?->toISOString()],
+            'parameters' => fn(): array => SeriesAssemblyParametersResource::make($assembly->series)->resolve(),
             'release_started' => $assembly->series->release_started_at !== null]);
     }
 }

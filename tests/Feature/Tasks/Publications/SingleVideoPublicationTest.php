@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
+use function Tests\Support\markSeriesBoundariesReviewed;
 use function Tests\Support\singleVideoFixture;
 
 test('запрещает отправку промежуточной части даже ручным запросом', function (): void {
@@ -42,6 +43,7 @@ test('повтор публикации закрепляет один итого
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
     app(BuildSeriesAssemblyAction::class)->run($assembly->id);
     $assembly->refresh();
+    markSeriesBoundariesReviewed($assembly);
     app(AcceptSeriesAssembly::class)->run($assembly, new AcceptSeriesVideoData($assembly->lock_version, true, 'All boundaries checked.'), $context['user']);
     $data = new PublishEpisodeData([$context['channel']->id]);
     $request = app(CreateSeriesPublication::class)->run($assembly, $data, $context['user'])->sole();
@@ -65,6 +67,7 @@ test('единый файл публикуется в два канала по �
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
     app(BuildSeriesAssemblyAction::class)->run($assembly->id);
     $assembly->refresh();
+    markSeriesBoundariesReviewed($assembly);
     app(AcceptSeriesAssembly::class)->run($assembly, new AcceptSeriesVideoData($assembly->lock_version, true, 'All seams reviewed.'), $context['user']);
     Queue::fake([FinishEpisodePublicationJob::class]);
     Event::fake([PostCreated::class]);

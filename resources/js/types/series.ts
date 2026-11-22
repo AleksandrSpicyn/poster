@@ -79,3 +79,8 @@ export interface CharacterRouteParams {
     series: number;
     character: number;
 }
+
+export interface AssemblyParameters {
+    parts: { number: number; title: string | null; version: number | null; ready: boolean }[];
+    can_build: boolean;
+}

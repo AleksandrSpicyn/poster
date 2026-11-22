@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 use function Pest\Laravel\get;
+use function Tests\Support\markSeriesBoundariesReviewed;
 use function Tests\Support\singleVideoFixture;
 
 test('подписанный экспорт доступен только для принятого неизменённого файла', function (): void {
@@ -24,6 +25,7 @@ test('подписанный экспорт доступен только для
     $url = URL::temporarySignedRoute('series_assemblies.export', now()->addHour(), ['assembly' => $assembly->id, 'media' => $media->id, 'owner' => WorkspaceOwner::id($assembly)]);
 
     get($url)->assertNotFound();
+    markSeriesBoundariesReviewed($assembly);
     app(AcceptSeriesAssembly::class)->run($assembly, new AcceptSeriesVideoData($assembly->lock_version, true, 'All seams reviewed.'), $context['user']);
     get($url)->assertOk();
     get(route('series_assemblies.export', ['assembly' => $assembly, 'media' => $media, 'owner' => WorkspaceOwner::id($assembly)]))->assertForbidden();

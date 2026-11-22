@@ -20,6 +20,7 @@ use App\Http\Controllers\Series\StoreController;
 use App\Http\Controllers\Series\UpdateController;
 use App\Http\Controllers\SeriesAssemblies;
 use App\Http\Controllers\SeriesAssemblies\AcceptController;
+use App\Http\Controllers\SeriesAssemblies\BoundaryReviewController;
 use App\Http\Controllers\SeriesAssemblies\ExportController;
 use App\Http\Controllers\SeriesAssemblies\PreviewController;
 use App\Http\Controllers\SeriesAssemblies\PublishController;
@@ -78,10 +79,13 @@ Route::get('series-exports/{assembly}/media/{media}', ExportController::class)
     ->whereNumber(['assembly', 'media'])->scopeBindings()->middleware(['signed', VerifyExportOwner::class])->name('series_assemblies.export');
 
 Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->group(function (): void {
+    Route::get('series/{series}/assemblies/create', SeriesAssemblies\CreateController::class)
+        ->whereNumber('series')->name('series_assemblies.create');
     Route::post('series/{series}/assemblies', SeriesAssemblies\StoreController::class)
         ->whereNumber('series')->name('series_assemblies.store');
     Route::prefix('series-assemblies/{assembly}')->whereNumber('assembly')->name('series_assemblies.')->group(function (): void {
         Route::get('', SeriesAssemblies\ShowController::class)->name('show');
+        Route::put('boundaries/{boundary}', BoundaryReviewController::class)->whereNumber('boundary')->name('boundaries.update');
         Route::post('accept', AcceptController::class)->name('accept');
         Route::post('publish', PublishController::class)->name('publish');
         Route::get('media/{media}', PreviewController::class)->whereNumber('media')->scopeBindings()->name('preview');

@@ -95,6 +95,9 @@ function changePage(page: number) {
         />
         <section v-if="series.cycle_plan" class="bg-card space-y-3 rounded-xl border p-5" aria-label="План полной версии">
             <h2 class="text-lg font-semibold">План полной версии</h2>
+            <Button v-if="series.output_mode === 'single_video'" as-child variant="outline"
+                ><Link :href="route('series_assemblies.create', series.id)">Параметры сборки</Link></Button
+            >
             <p>{{ series.cycle_plan.objective }}</p>
             <ol class="space-y-2">
                 <li v-for="part in series.cycle_plan.parts" :key="part.number" class="text-sm">

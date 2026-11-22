@@ -31,9 +31,9 @@ readonly class SaveSeriesAssembly
             $series = $this->series->findLockedOrFail($series->id);
             $parts = $this->assemblies->parts($series);
 
-            if (! $project->is_active || $series->archived_at !== null || $series->output_mode !== SeriesOutputMode::SINGLE_VIDEO || $series->cycle_plan === null
+            if (! $project->is_active || $series->archived_at !== null || $series->cycle_paused_at !== null || $series->output_mode !== SeriesOutputMode::SINGLE_VIDEO || $series->cycle_plan === null
                 || $series->release_started_at !== null || $parts->count() !== $series->episode_limit) {
-                throw ValidationException::withMessages(['assembly' => 'A complete, unpublished single-video cycle is required.']);
+                throw ValidationException::withMessages(['assembly' => 'Для сборки нужен активный цикл со всеми эпизодами до начала выпуска.']);
             }
 
             $manifest = [];
@@ -44,7 +44,7 @@ readonly class SaveSeriesAssembly
 
                 if ($episode->number !== $index + 1 || $episode->validity !== EpisodeValidity::CURRENT || $assembly?->status !== AssemblyStatus::ACCEPTED
                     || ! $media instanceof Media || $assembly->duration_ms === null || ! is_file($media->getPath()) || hash_file('sha256', $media->getPath()) !== $media->getCustomProperty('checksum')) {
-                    throw ValidationException::withMessages(['assembly' => 'Every part must have its current accepted video and unchanged media.']);
+                    throw ValidationException::withMessages(['assembly' => 'Проверьте, что у каждого эпизода есть готовая принятая версия и её видео доступно.']);
                 }
 
                 $manifest[] = ['number' => $episode->number, 'episode_id' => $episode->id, 'assembly_id' => $assembly->id,

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SeriesAssemblyParameters from '@/components/SeriesAssemblyParameters.vue';
+import type { AssemblyParameters } from '@/types/series';
+import SeriesBoundaryReview from '@/components/SeriesBoundaryReview.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -19,10 +22,11 @@ const props = defineProps<{
         duration_ms: number | null;
         error_message: string | null;
         manifest: { parts?: { number: number; duration_ms: number }[] };
-        review: { notes: string } | null;
+        review: { notes?: string; boundaries?: Record<string, { notes: string; reviewed: boolean }> } | null;
     };
     series: { id: number; name: string; project_id: number; final_assembly_id: number | null; release_started_at: string | null };
     release_started: boolean;
+    parameters: AssemblyParameters;
 }>();
 const route = useRoute();
 const tabs = { assembly: 'Сборка', parameters: 'Параметры', status: 'Статус' } as const;
@@ -64,6 +68,7 @@ const boundaries = computed(() => {
         return { number: part.number, time: elapsed };
     });
 });
+const boundariesComplete = computed(() => boundaries.value.every((part) => props.assembly.review?.boundaries?.['after_' + part.number]?.reviewed));
 async function playBoundary(time: number) {
     if (video.value) {
         video.value.currentTime = Math.max(0, time - 2);
@@ -92,7 +97,7 @@ async function playBoundary(time: number) {
                     v-if="tab === 'assembly' && assembly.status === 'ready' && !release_started"
                     form="assembly-review"
                     type="submit"
-                    :disabled="form.processing"
+                    :disabled="form.processing || !boundariesComplete"
                     >Принять сборку</Button
                 >
             </div>
@@ -107,19 +112,7 @@ async function playBoundary(time: number) {
                     >{{ label }}</a
                 >
             </nav>
-            <section v-if="tab === 'parameters'" class="studio-panel">
-                <h2>Параметры сборки</h2>
-                <div class="studio-row">
-                    <span>Сериал</span><strong>{{ series.name }}</strong>
-                </div>
-                <div v-for="part in assembly.manifest.parts" :key="part.number" class="studio-row">
-                    <span>Эпизод {{ part.number }}</span
-                    ><span>{{ (part.duration_ms / 1000).toLocaleString('ru') }} с</span>
-                </div>
-                <div class="studio-row">
-                    <span>Порядок</span><span>{{ assembly.manifest.parts?.map((part) => part.number).join(' → ') }}</span>
-                </div>
-            </section>
+            <SeriesAssemblyParameters v-if="tab === 'parameters'" :series="series" :parameters="parameters" />
             <section v-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
                 <h2>{{ pinned ? 'Версия ' + assembly.number + ' закреплена' : statusLabels[assembly.status] }}</h2>
                 <template v-if="pinned">
@@ -180,9 +173,19 @@ async function playBoundary(time: number) {
                             Перед приёмкой просмотрите стыки эпизодов со звуком. Проверьте движение, речь и последовательность событий.
                         </p>
                         <div class="flex flex-wrap gap-2">
-                            <Button v-for="boundary in boundaries" :key="boundary.number" variant="outline" @click="playBoundary(boundary.time)"
-                                >Эпизоды {{ boundary.number }} → {{ boundary.number + 1 }}</Button
-                            >
+                            <SeriesBoundaryReview
+                                v-for="boundary in boundaries"
+                                :key="assembly.id + '-' + boundary.number"
+                                :assembly="assembly.id"
+                                :number="boundary.number"
+                                :next="boundary.number + 1"
+                                :time="boundary.time"
+                                :version="assembly.lock_version"
+                                :editable="assembly.status === 'ready' && !release_started"
+                                :saved="assembly.review?.boundaries?.['after_' + boundary.number]"
+                                @play="playBoundary"
+                                @saved="form.lock_version = assembly.lock_version"
+                            />
                         </div>
                     </section>
                     <form
@@ -191,6 +194,9 @@ async function playBoundary(time: number) {
                         class="space-y-4 rounded-lg border p-5"
                         @submit.prevent="form.post(route('series_assemblies.accept', assembly.id), { preserveScroll: true })"
                     >
+                        <p v-if="!boundariesComplete" class="text-muted-foreground text-sm">
+                            Сохраните проверку каждого стыка перед приёмкой сборки.
+                        </p>
                         <label class="flex items-center gap-3 text-sm"
                             ><input v-model="form.boundaries_reviewed" type="checkbox" required class="size-4" />Я проверил видео и переходы между
                             эпизодами со звуком</label
@@ -208,7 +214,7 @@ async function playBoundary(time: number) {
 
                         <p class="text-muted-foreground text-sm">Действующий производственный запуск отправит принятую сборку в выбранные каналы.</p>
                     </form>
-                    <p v-if="assembly.review" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
+                    <p v-if="assembly.review?.notes" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
                     <p v-if="release_started" class="text-muted-foreground">
                         {{ pinned ? 'Для этого выпуска закреплена эта версия.' : 'Для этого выпуска закреплена другая версия.' }}
                     </p>
