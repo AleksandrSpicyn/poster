@@ -27,7 +27,7 @@ class CreateProductionRun
 
     public function run(Project $project, ?Series $series, User $actor, string $requestKey, bool $onlyFirstRun = false, bool $scheduled = false): ?ProductionRun
     {
-        return $this->forTargets($project, $series === null ? [] : [$series->id], $actor, $requestKey, $onlyFirstRun, $scheduled)->first();
+        return $this->forTargets($project, $series instanceof Series ? [$series->id] : [], $actor, $requestKey, $onlyFirstRun, $scheduled)->first();
     }
 
     /**

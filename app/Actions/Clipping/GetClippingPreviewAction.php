@@ -6,6 +6,7 @@ namespace App\Actions\Clipping;
 
 use App\Http\Resources\ProjectResource;
 use App\Models\ClippingConnection;
+use App\Models\Project;
 use App\Repositories\ClippingAccountRepository;
 use App\Repositories\ClippingConnectionRepository;
 use Illuminate\Support\Arr;
@@ -38,7 +39,7 @@ final readonly class GetClippingPreviewAction
         $project = $preview->project_id === null ? null : $this->connections->reviewProject($connection, $preview->project_id);
 
         return [
-            'project' => $project === null ? null : Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover']),
+            'project' => $project instanceof Project ? Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover']) : null,
             'existingClipIds' => $preview->external_id === null || $preview->imported_at !== null ? [] : $this->connections->existingClipIds($connection, $preview),
             'accountNames' => (object) $accountNames,
             'connection' => $connection->only(['id', 'name']), 'preview' => $preview,

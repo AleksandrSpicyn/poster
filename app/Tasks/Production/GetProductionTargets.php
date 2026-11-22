@@ -25,7 +25,7 @@ readonly class GetProductionTargets
     /** @return list<ProductionTargetData> */
     public function run(Project $project, ?int $seriesId, ?User $actor): array
     {
-        $scheduled = $actor === null && $seriesId === null && $project->relationLoaded('automatedSeries') && $project->relationLoaded('owner');
+        $scheduled = ! $actor instanceof User && $seriesId === null && $project->relationLoaded('automatedSeries') && $project->relationLoaded('owner');
 
         if (! $scheduled) {
             $this->projects->refresh($project);

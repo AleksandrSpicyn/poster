@@ -47,7 +47,7 @@ readonly class StartProductionAction
             return $runs;
         }
 
-        $runs = $this->create->forTargets($project, $ids, $operator, $requestKey, scheduled: $actor === null);
+        $runs = $this->create->forTargets($project, $ids, $operator, $requestKey, scheduled: ! $actor instanceof User);
 
         foreach ($runs as $run) {
             if ($run->wasRecentlyCreated) {

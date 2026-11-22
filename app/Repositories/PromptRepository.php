@@ -33,9 +33,9 @@ readonly class PromptRepository extends EloquentRepository
     {
         $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
 
-        $query = $project === null ? Prompt::query()->with('project') : $project->prompts()->chaperone('project');
+        $query = $project?->prompts()->chaperone('project') ?? Prompt::query()->with('project');
 
-        if ($project === null && is_int($dto->project)) {
+        if (! $project instanceof Project && is_int($dto->project)) {
             $query->where('project_id', $dto->project);
         }
 
