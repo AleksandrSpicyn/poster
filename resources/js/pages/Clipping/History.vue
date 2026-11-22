@@ -6,7 +6,7 @@ import { CircleAlert, CircleCheck, CircleDashed, Clock3 } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 type Source = {
@@ -60,6 +60,7 @@ const selectedArea = ref<Area | ''>('');
 const openArea = ref<Area | null>(null);
 const hash = ref('');
 const refreshPending = ref(false);
+const refreshError = ref('');
 const updateHash = () => {
     hash.value = location.hash;
 };
@@ -102,28 +103,32 @@ const summaryTitle = computed(() =>
             : 'Синхронизация источника',
 );
 const statuses = computed(() => props.metricStatuses.filter((status) => !connectionId.value || status.connection_id === connectionId.value));
-const filteredAreas = computed(() => (Object.keys(areas) as Area[]).filter((area) => !selectedArea.value || area === selectedArea.value));
+const filteredAreas = computed(() =>
+    (Object.keys(areas) as Area[]).filter((area) => !selectedArea.value || area === selectedArea.value).map((area) => ({ area, ...status(area) })),
+);
 function status(area: Area) {
     if (area === 'accounts') {
-        if (previews.value.some((preview) => !preview.imported_at && preview.account_count > 0)) return 'Нужно сопоставление';
+        if (previews.value.some((preview) => !preview.imported_at && preview.account_count > 0))
+            return { label: 'Нужно сопоставление', tone: 'warning' };
         const n = previews.value.filter((run) => run.imported_at).reduce((sum, run) => sum + run.account_count, 0);
-        return n ? 'Подтверждено в импортах · ' + n : 'Нет сопоставлений';
+        return n ? { label: 'Подтверждено в импортах · ' + n, tone: 'success' } : { label: 'Нет сопоставлений' };
     }
     if (area === 'metrics') {
-        if (statuses.value.some((item) => item.status === 'rate_limited')) return 'Пауза по лимиту API';
-        if (statuses.value.some((item) => item.status === 'no_permission')) return 'Требуется доступ к статистике';
-        if (statuses.value.some((item) => item.status === 'temporary_error')) return 'Временная ошибка сбора';
+        if (statuses.value.some((item) => item.status === 'rate_limited')) return { label: 'Пауза по лимиту API', tone: 'warning' };
+        if (statuses.value.some((item) => item.status === 'no_permission')) return { label: 'Требуется доступ к статистике', tone: 'warning' };
+        if (statuses.value.some((item) => item.status === 'temporary_error')) return { label: 'Временная ошибка сбора', tone: 'warning' };
         const n = latest.value.reduce((sum, run) => sum + Number(run.metrics_added), 0);
-        return n ? 'Получено наблюдений · ' + n : 'Нет новых наблюдений';
+        return n ? { label: 'Получено наблюдений · ' + n, tone: 'success' } : { label: 'Нет новых наблюдений' };
     }
     const pending = sources.value.filter((source) => (area === 'publications' ? source.publications_pending : !source.publications_pending));
-    if (pending.some((source) => source.sync_paused_at)) return 'Синхронизация приостановлена';
-    if (pending.some((source) => source.sync_error === 'HTTP 429')) return 'Пауза по лимиту API';
-    if (pending.some((source) => source.sync_error)) return 'Ожидает повторной загрузки';
-    if (area === 'publications' && pending.length) return 'Частичное обновление';
-    if (!latest.value.length) return 'Нет результатов запуска';
+    if (pending.some((source) => source.sync_paused_at)) return { label: 'Синхронизация приостановлена', tone: 'warning' };
+    if (pending.some((source) => source.sync_error === 'HTTP 429')) return { label: 'Пауза по лимиту API', tone: 'warning' };
+    if (pending.some((source) => source.sync_error)) return { label: 'Ожидает повторной загрузки', tone: 'warning' };
+    if (area === 'publications' && pending.length) return { label: 'Частичное обновление', tone: 'warning' };
+    if (!latest.value.length) return { label: 'Нет результатов запуска' };
     const n = latest.value.reduce((sum, run) => sum + (area === 'clips' ? run.clips_received : run.publications_added), 0);
-    return area === 'clips' ? 'Получено клипов · ' + n : 'Добавлено публикаций · ' + n;
+    const complete = latest.value.every((run) => (area === 'clips' ? run.clips_completed_at || run.completed_at : run.completed_at));
+    return { label: area === 'clips' ? 'Получено клипов · ' + n : 'Добавлено публикаций · ' + n, tone: complete ? 'success' : undefined };
 }
 function clearFilters() {
     connectionId.value = 0;
@@ -132,10 +137,33 @@ function clearFilters() {
     openArea.value = null;
 }
 function refresh() {
-    if (!refreshPending.value) {
-        refreshPending.value = true;
-        router.reload({ onFinish: () => (refreshPending.value = false) });
-    }
+    if (refreshPending.value) return;
+    refreshPending.value = true;
+    router.reload({
+        onSuccess: async () => {
+            const restoreFocus = document.activeElement?.id === 'history-retry';
+            refreshError.value = '';
+            if (restoreFocus) {
+                await nextTick();
+                document.getElementById('history-refresh')?.focus();
+            }
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            refreshError.value =
+                response.status === 403
+                    ? 'Доступ к списку ограничен.'
+                    : 'Не удалось обновить список. На экране остались последние загруженные данные.';
+            return false;
+        },
+        onNetworkError: () => {
+            refreshError.value = 'Нет связи. Проверьте подключение и повторите попытку.';
+            return false;
+        },
+        onFinish: () => {
+            refreshPending.value = false;
+        },
+    });
 }
 </script>
 <template>
@@ -149,9 +177,21 @@ function refresh() {
                         source ? (paused ? 'Синхронизация' : partial ? 'Ход выполнения' : 'Результат') : 'Основной импорт / Последние запуски'
                     "
                 />
-                <Button v-if="!source" :disabled="refreshPending" @click="refresh">{{ refreshPending ? 'Обновление…' : 'Обновить' }}</Button>
+                <Button v-if="!source" id="history-refresh" :aria-disabled="refreshPending" @click="refresh">{{
+                    refreshPending ? 'Обновление…' : 'Обновить'
+                }}</Button>
             </div>
             <template v-if="!source">
+                <div
+                    v-if="refreshError"
+                    role="alert"
+                    class="border-destructive/20 bg-destructive/5 text-destructive flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-3 text-sm"
+                >
+                    <p>{{ refreshError }}</p>
+                    <Button id="history-retry" variant="outline" size="sm" class="h-11 sm:h-9" :aria-disabled="refreshPending" @click="refresh"
+                        >Повторить</Button
+                    >
+                </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" class="history-chip" :aria-pressed="!selectedArea && !connectionId" @click="clearFilters">Все</button>
                     <button
@@ -180,14 +220,14 @@ function refresh() {
                 </div>
                 <section id="history">
                     <h2>Область данных</h2>
-                    <div v-for="area in filteredAreas" :key="area" class="history-resource">
+                    <div v-for="{ area, label, tone } in filteredAreas" :key="area" class="history-resource">
                         <button
                             class="history-row"
                             type="button"
                             :aria-expanded="openArea === area"
                             @click="openArea = openArea === area ? null : area"
                         >
-                            <strong>{{ areas[area] }}</strong><span>{{ status(area) }}</span>
+                            <strong>{{ areas[area] }}</strong><span :data-status="tone">{{ label }}</span>
                         </button>
                         <div v-if="openArea === area" class="grid gap-2 py-3">
                             <template v-if="area === 'accounts' || area === 'clips'">
@@ -389,6 +429,15 @@ function refresh() {
 .history-row span {
     color: var(--muted-foreground);
     font-size: 14px;
+}
+.history-resource:first-of-type {
+    margin-top: 14px;
+}
+.history-row [data-status='success'] {
+    color: var(--sidebar-accent-foreground);
+}
+.history-row [data-status='warning'] {
+    color: light-dark(#84482e, #e6bba4);
 }
 .history-link {
     width: fit-content;

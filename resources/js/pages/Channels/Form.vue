@@ -551,12 +551,12 @@ function remove() {
     font-size: 20px;
 }
 .overview-fields dt {
-    margin: 12px 0 6px;
+    margin: 14px 0 6px;
     color: var(--muted-foreground);
     font-size: 14px;
 }
 .overview-fields dt:first-child {
-    margin-top: 20px;
+    margin-top: 21px;
 }
 .overview-fields dd {
     padding: 10px 12px;
@@ -593,7 +593,15 @@ function remove() {
         font-weight: 400;
     }
 }
+@media (min-width: 768px) and (max-width: 1099px) {
+    .overview-fields dt:first-child {
+        margin-top: 24px;
+    }
+}
 @media (max-width: 767px) {
+    .overview-fields dt:first-child {
+        margin-top: 27px;
+    }
     .overview-fields {
         padding: 16px;
     }
