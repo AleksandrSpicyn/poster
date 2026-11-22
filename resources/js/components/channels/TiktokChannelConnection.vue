@@ -129,7 +129,7 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
     justify-content: space-between;
     gap: 16px;
 }
-.connection header > :last-child {
+.connection header > [data-slot="button"] {
     min-height: 44px;
     font-weight: 700;
 }

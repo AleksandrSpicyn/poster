@@ -509,6 +509,9 @@ function remove() {
 </template>
 
 <style scoped>
+.channel-overview .channel-heading > [data-slot="button"] {
+    font-weight: 700;
+}
 .overview-nav {
     display: flex;
     flex-wrap: wrap;
@@ -567,9 +570,12 @@ function remove() {
         border: 1px solid var(--border);
         border-radius: 12px;
     }
+    .new-channel nav.overview-nav {
+        padding-inline: 8px;
+    }
     .overview-nav h2 {
         display: block;
-        padding: 0 8px 8px;
+        padding: 0 14px 8px;
     }
     .overview-nav a:not([aria-current]),
     .overview-nav :deep(button) {
