@@ -8,11 +8,23 @@ use App\Classes\Tiktok\TiktokClient;
 use App\Data\Tiktok\CreatorSettingsData;
 use App\Models\Channel;
 use App\Support\Integrations\Payload;
+use Illuminate\Http\Client\ConnectionException;
 use RuntimeException;
 
 final readonly class CreatorSettings
 {
     public function __construct(private TiktokClient $client) {}
+
+    public function available(Channel $channel): ?CreatorSettingsData
+    {
+        try {
+            $settings = $this->run($channel);
+        } catch (RuntimeException|ConnectionException) {
+            return null;
+        }
+
+        return $settings->privacy === [] ? null : $settings;
+    }
 
     public function run(Channel $channel): CreatorSettingsData
     {

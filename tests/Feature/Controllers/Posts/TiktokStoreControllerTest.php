@@ -121,3 +121,14 @@ test('потеря доступа после подтверждения блок
     expect($request->refresh()->status)->toBe(PublicationStatus::FAILED);
     Http::assertNothingSent();
 });
+
+test('сбой проверки перед отправкой не создаёт заявку или задание', function (): void {
+    [$channel, $fields] = tiktokShortForm();
+    Http::fake(['*/creator_info/query/' => Http::failedConnection()]);
+
+    post(route('posts.tiktok.store', $channel), $fields)
+        ->assertSessionHasErrors('mode');
+
+    expect(PublicationRequest::query()->count())->toBe(0);
+    Queue::assertNothingPushed();
+});

@@ -6,6 +6,7 @@ namespace App\Actions\Publications;
 
 use App\Classes\Story\Snapshot;
 use App\Data\Episodes\PublishEpisodeData;
+use App\Data\Tiktok\CreatorSettingsData;
 use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\TiktokDeliveryMode;
 use App\Jobs\PublishEpisodeJob;
@@ -43,7 +44,13 @@ readonly class RequestTiktokPublicationAction
         $media = $this->media->publishingVideo($channel, $data->media_id);
 
         if ($data->mode === TiktokDeliveryMode::DIRECT) {
-            $this->validate->run($data, $this->settings->run($channel), $media->getPath());
+            $settings = $this->settings->available($channel);
+
+            if (! $settings instanceof CreatorSettingsData) {
+                throw ValidationException::withMessages(['mode' => 'Не удалось получить настройки прямой публикации. Повторите проверку аккаунта.']);
+            }
+
+            $this->validate->run($data, $settings, $media->getPath());
         }
 
         return DB::transaction(function () use ($channel, $data, $owner): PublicationRequest {

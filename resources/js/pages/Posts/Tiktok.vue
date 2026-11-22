@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -11,6 +11,7 @@ const props = defineProps<{
     accountId: string;
     creator: { nickname: string; privacy: string[]; comment: boolean; duet: boolean; stitch: boolean; duration: number } | null;
     inbox: boolean;
+    directUnavailable: boolean;
     videos: { data: { id: number; label: string; url: string }[]; next_page_url: string | null; prev_page_url: string | null };
 }>();
 const route = useRoute();
@@ -29,7 +30,36 @@ const form = useForm({
     partner: false,
     ai: false,
 });
-const title = computed(() => (form.mode === 'direct' ? 'Прямая публикация в TikTok' : 'Публикация в TikTok'));
+watch(
+    () => [props.accountId, props.inbox, props.creator] as const,
+    ([account, inbox, creator]) => {
+        if (form.account_id !== account) {
+            form.account_id = account;
+            form.privacy = '';
+            form.own_brand = false;
+            form.partner = false;
+            form.disclose = false;
+        }
+        if (!inbox && creator) form.mode = 'direct';
+        if (!creator && inbox) form.mode = 'inbox';
+        if (!creator?.privacy.includes(form.privacy)) form.privacy = '';
+        if (!creator?.comment) form.comment = false;
+        if (!creator?.duet) form.duet = false;
+        if (!creator?.stitch) form.stitch = false;
+        form.consent = false;
+    },
+);
+const rechecking = ref(false);
+function retryCreator() {
+    rechecking.value = true;
+    router.reload({
+        only: ['creator', 'directUnavailable', 'inbox', 'account', 'accountId'],
+        onFinish: () => {
+            rechecking.value = false;
+        },
+    });
+}
+const title = computed(() => (form.mode === 'direct' && props.creator ? 'Прямая публикация в TikTok' : 'Публикация в TikTok'));
 const video = computed(() => props.videos.data.find((item) => item.id === form.media_id));
 watch(
     () => [
@@ -71,8 +101,12 @@ watch(
         <div class="workspace-page">
             <h1 class="text-3xl font-bold md:text-[40px]">{{ title }}</h1>
             <p class="text-muted-foreground">Аккаунт · {{ creator?.nickname ?? account }}</p>
+            <section v-if="directUnavailable" class="studio-panel space-y-3" aria-label="Проверка аккаунта">
+                <p role="status">Не удалось получить настройки прямой публикации для этого аккаунта.</p>
+                <Button variant="outline" :disabled="rechecking" @click="retryCreator">{{ rechecking ? 'Проверяем…' : 'Проверить ещё раз' }}</Button>
+            </section>
             <p v-if="!videos.data.length">Привяжите канал к проекту с готовым видео.</p>
-            <div v-else class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+            <div v-else-if="inbox || creator" class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
                 <video
                     v-if="video"
                     :src="video.url"

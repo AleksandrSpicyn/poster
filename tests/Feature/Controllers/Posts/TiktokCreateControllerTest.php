@@ -33,3 +33,38 @@ test('владелец видит только доступные режимы �
         ->where('account', 'Alpha')->where('inbox', $inbox)->has('videos.data', 0)
         ->where('creator', fn($value): bool => ($value !== null) === $direct));
 })->with([[false, true], [true, false], [false, false]]);
+
+test('ошибка проверки прямой публикации сохраняет только полученные способы доставки', function (bool $inbox): void {
+    config(['services.tiktok.direct_post' => true]);
+    $owner = User::factory()->create();
+    $channel = Channel::factory()->recycle($owner)->create([
+        'type' => ChannelType::TIKTOK,
+        'credentials' => [
+            'channel_id' => 'alpha',
+            'scope' => $inbox ? 'video.publish,video.upload' : 'video.publish',
+            'access_token' => 'private-token',
+            'expires_at' => now()->addHour()->toIso8601String(),
+        ],
+    ]);
+    Http::fakeSequence('*/creator_info/query/')
+        ->pushStatus(503)
+        ->push(tiktokCreatorResponse());
+
+    actingAs($owner)
+        ->get(route('posts.tiktok.create', $channel))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('inbox', $inbox)
+            ->where('creator', null)
+            ->where('directUnavailable', true));
+
+    actingAs($owner)
+        ->get(route('posts.tiktok.create', $channel))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('inbox', $inbox)
+            ->where('creator.nickname', 'Alpha')
+            ->where('directUnavailable', false));
+
+    Http::assertSentCount(2);
+})->with([true, false]);

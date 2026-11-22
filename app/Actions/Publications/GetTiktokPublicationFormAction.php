@@ -8,9 +8,7 @@ use App\Data\Tiktok\CreatorSettingsData;
 use App\Models\Channel;
 use App\Repositories\MediaRepository;
 use App\Tasks\Tiktok\CreatorSettings;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Pagination\LengthAwarePaginator;
-use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 readonly class GetTiktokPublicationFormAction
@@ -25,21 +23,19 @@ readonly class GetTiktokPublicationFormAction
         return $path;
     }
 
-    /** @return array{account: string, accountId: string, inbox: bool, creator: CreatorSettingsData|null, videos: LengthAwarePaginator<int, array{id: int, label: string, url: string}>} */
+    /** @return array{account: string, accountId: string, inbox: bool, directUnavailable: bool, creator: CreatorSettingsData|null, videos: LengthAwarePaginator<int, array{id: int, label: string, url: string}>} */
     public function run(Channel $channel, int $page): array
     {
-        abort_unless($channel->canDirectPostTiktok() || $channel->canSendTiktokInboxVideo(), 403);
+        $direct = $channel->canDirectPostTiktok();
+        abort_unless($direct || $channel->canSendTiktokInboxVideo(), 403);
 
-        try {
-            $creator = $channel->canDirectPostTiktok() ? $this->settings->run($channel) : null;
-        } catch (RuntimeException|ConnectionException) {
-            $creator = null;
-        }
+        $creator = $direct ? $this->settings->available($channel) : null;
 
         return [
             'account' => is_string($name = $channel->credentials['account_name'] ?? null) ? $name : $channel->name,
             'accountId' => is_string($account = $channel->credentials['channel_id'] ?? null) ? $account : '',
             'inbox' => $channel->canSendTiktokInboxVideo(),
+            'directUnavailable' => $direct && ! $creator instanceof CreatorSettingsData,
             'creator' => $creator,
             'videos' => $this->media->publishingVideos($channel, $page)->through(static fn(Media $media): array => [
                 'id' => $media->id, 'label' => $media->name . ' (#' . $media->id . ')',
