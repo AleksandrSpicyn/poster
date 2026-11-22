@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from '@lucide/vue';
+import { CircleCheck, LoaderCircle } from '@lucide/vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -51,7 +51,7 @@ const submit = () => {
                 </div>
 
                 <div v-if="status" role="status" class="account-message mt-4">
-                    <strong>Запрос принят</strong>
+                    <CircleCheck aria-hidden="true" /><strong>Запрос принят</strong>
                     <p>Если этот адрес связан с аккаунтом, на него придёт письмо со ссылкой.</p>
                 </div>
                 <div v-else class="my-6 flex items-center justify-start">
@@ -64,6 +64,7 @@ const submit = () => {
 
             <div class="text-muted-foreground text-sm">
                 <TextLink :href="route('login')">Вернуться ко входу</TextLink>
+                <p v-if="status" class="mt-1">Введите пароль после восстановления</p>
             </div>
         </div>
     </AuthLayout>

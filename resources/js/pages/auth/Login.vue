@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from '@lucide/vue';
+import { CircleX, LoaderCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -65,7 +65,7 @@ const submit = () => {
                 </div>
 
                 <div v-if="invalidCredentials" id="credential-error" role="alert" class="account-message">
-                    <strong>Не удалось войти</strong>
+                    <CircleX aria-hidden="true" /><strong>Не удалось войти</strong>
                     <p>Проверьте введённые данные и повторите попытку.</p>
                 </div>
                 <div class="flex items-center justify-between">

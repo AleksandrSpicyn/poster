@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import type { SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { LoaderCircle } from '@lucide/vue';
+import { CircleCheck, LoaderCircle } from '@lucide/vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -30,17 +30,17 @@ const submit = () => {
         <Head title="Подтверждение почты" />
 
         <div v-if="status === 'verification-link-sent'" role="status" class="account-message mb-4">
-            <strong>Письмо отправлено повторно</strong>
+            <CircleCheck aria-hidden="true" /><strong>Письмо отправлено повторно</strong>
             <p>Проверьте входящие и папку «Спам».</p>
         </div>
 
-        <div class="mb-[18px] grid gap-1">
-            <span class="text-muted-foreground text-sm">Адрес для подтверждения</span>
+        <div class="mb-[18px] grid gap-1" :class="{ 'feedback-address': status === 'verification-link-sent' }">
+            <span class="text-muted-foreground text-sm">{{ status === 'verification-link-sent' ? 'Адрес' : 'Адрес для подтверждения' }}</span>
             <p class="border-input flex min-h-12 items-center rounded-lg border px-3.5 break-all">{{ page.props.auth.user.email }}</p>
         </div>
 
-        <form @submit.prevent="submit" class="space-y-6 text-center">
-            <Button :disabled="form.processing">
+        <form @submit.prevent="submit" :class="status === 'verification-link-sent' ? 'space-y-3 text-left' : 'space-y-6 text-center'">
+            <Button :variant="status === 'verification-link-sent' ? 'outline' : 'default'" :disabled="form.processing">
                 <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                 {{ status === 'verification-link-sent' ? 'Отправить ещё раз' : 'Отправить повторно' }}
             </Button>

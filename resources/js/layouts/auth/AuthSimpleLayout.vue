@@ -7,24 +7,21 @@ defineProps<{ title?: string; description?: string; feedback?: boolean }>();
 </script>
 
 <template>
-    <div class="access">
+    <div class="access" :class="{ 'access-feedback': feedback }">
         <PublicHeader />
-        <main v-if="feedback" class="feedback-main">
-            <h1>{{ title }}</h1>
-            <section class="feedback-form">
-                <h2>Учётная запись</h2>
-                <AppFeedback /><slot />
-            </section>
-        </main>
-        <main v-else class="access-main">
-            <section class="access-form" aria-labelledby="access-title">
-                <p class="access-section">Учётная запись</p>
-                <h1 id="access-title">{{ title }}</h1>
-                <p class="access-description">{{ description }}</p>
+        <main :class="feedback ? 'feedback-main' : 'access-main'">
+            <h1 v-if="feedback" id="feedback-title">{{ title }}</h1>
+            <section :class="feedback ? 'feedback-form' : 'access-form'" :aria-labelledby="feedback ? 'feedback-title' : 'access-title'">
+                <h2 v-if="feedback">Учётная запись</h2>
+                <template v-else>
+                    <p class="access-section">Учётная запись</p>
+                    <h1 id="access-title">{{ title }}</h1>
+                    <p class="access-description">{{ description }}</p>
+                </template>
                 <AppFeedback />
                 <slot />
             </section>
-            <img class="access-art" :src="lunarLandscape" alt="" />
+            <img v-if="!feedback" class="access-art" :src="lunarLandscape" alt="" />
         </main>
     </div>
 </template>
@@ -137,49 +134,117 @@ h1 {
     }
 }
 
+.access-feedback :deep(.access-header) {
+    height: 64px;
+}
 .feedback-main {
-    width: min(100%, 472px);
+    width: min(100%, 470px);
     margin: 0 auto;
-    padding-block: 20px 40px;
+    padding-block: 16px 40px;
 }
 .feedback-main h1 {
-    margin: 0 0 16px;
-    font-size: clamp(27px, 2.25vw, 34px);
-    line-height: 1.3;
+    margin: 0 0 20px;
+    font-size: 30px;
+    line-height: 43px;
 }
 .feedback-form {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
-    padding: 16px;
+    padding: 13px 16px 20px;
 }
 .feedback-form h2 {
     font-size: 20px;
+    line-height: 26px;
     font-weight: 700;
     margin: 0 0 16px;
 }
+.feedback-form :deep(form > .grid) {
+    gap: 12px;
+}
+.feedback-form :deep(form > .grid > .grid) {
+    gap: 8px;
+}
+.feedback-form :deep(label) {
+    color: var(--muted-foreground);
+    font-size: 14px;
+    line-height: 20px;
+}
 .feedback-form :deep(input:not([type='checkbox'])) {
-    min-height: 44px;
+    height: 46px;
+    margin: 0;
     width: 100%;
     background: var(--background);
+    font-size: 15px;
 }
 .feedback-form :deep([data-slot='button']) {
     width: fit-content;
     justify-self: start;
-    min-height: 44px;
+    height: 44px;
+    margin-top: 4px;
+    font-weight: 700;
 }
 .feedback-form :deep(.account-message) {
-    padding: 12px 14px;
-    border-inline-start: 3px solid var(--ring);
+    position: relative;
+    padding: 8px 12px 14px 46px;
     background: var(--muted);
-    border-radius: 5px;
+    border-radius: 8px;
 }
-.feedback-form :deep(.account-message[role='alert']) {
-    border-inline-start-color: var(--destructive);
+.feedback-form :deep(.account-message strong),
+.feedback-form :deep(a) {
+    color: var(--ring);
+    font-weight: 700;
+}
+.feedback-form :deep(a) {
+    text-decoration: none;
+}
+.feedback-form :deep(a::after) {
+    content: ' ↗';
+}
+.feedback-form :deep(.account-message[role='alert'] strong) {
+    color: var(--destructive);
+}
+.feedback-form :deep(.account-message::before) {
+    content: '';
+    position: absolute;
+    inset: 7px auto 7px 2px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--ring);
+}
+.feedback-form :deep(.account-message[role='alert']::before) {
+    background: var(--destructive);
+}
+.feedback-form :deep(.account-message svg) {
+    position: absolute;
+    top: 13px;
+    left: 12px;
+    width: 20px;
+    height: 20px;
+    color: var(--ring);
+    stroke-width: 1.5;
+}
+.feedback-form :deep(.account-message[role='alert'] svg) {
+    color: var(--destructive);
 }
 .feedback-form :deep(.account-message p) {
-    margin-top: 4px;
-    font-size: 14px;
+    margin-top: 7px;
+    font-size: 15px;
+    line-height: 18px;
     color: var(--muted-foreground);
+}
+.feedback-form :deep(.feedback-address) {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.feedback-form :deep(.feedback-address p) {
+    border: 0;
+    padding: 0;
+    min-height: 0;
+}
+@media (max-width: 639px) {
+    .feedback-main {
+        width: 100%;
+    }
 }
 </style>

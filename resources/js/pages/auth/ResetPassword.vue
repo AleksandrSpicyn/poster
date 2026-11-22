@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from '@lucide/vue';
+import { CircleX, LoaderCircle } from '@lucide/vue';
 import { ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -83,7 +83,7 @@ const submit = () => {
                 </div>
 
                 <div v-if="mismatch" id="password-mismatch" role="alert" class="account-message">
-                    <strong>Пароли не совпадают</strong>
+                    <CircleX aria-hidden="true" /><strong>Пароли не совпадают</strong>
                     <p>Введите одинаковое значение в обоих полях.</p>
                 </div>
                 <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
