@@ -25,7 +25,7 @@ readonly class GetChannels
     /** @return Collection<int, Channel> */
     public function selection(User $owner): Collection
     {
-        return $this->channels->forSelection($owner);
+        return $this->channels->forSelection($owner, withProjects: true);
     }
 
     /** @return list<int> */

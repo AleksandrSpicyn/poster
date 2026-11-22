@@ -48,13 +48,16 @@ function resetFilters() {
                 <div>
                     <Heading title="Публикации" />
                     <p class="text-muted-foreground mt-2 text-sm">
-                        <a href="#channels" class="hover:underline">{{ channelLabel }}</a><template v-if="section !== 'channels'">
-                            / {{ periodLabel }}</template
-                        >
+                        {{ channelLabel }}<template v-if="section !== 'channels'"> / {{ periodLabel }}</template>
                     </p>
                 </div>
                 <Button v-if="section !== 'channels'" as-child class="h-11"><a href="#filters">Фильтры</a></Button>
             </header>
+            <nav aria-label="Публикации" class="tabs flex flex-wrap gap-2">
+                <a href="#all" :aria-current="section !== 'filters' && section !== 'channels' ? 'page' : undefined">Все</a>
+                <a href="#filters" :aria-current="section === 'filters' ? 'page' : undefined">Фильтры</a>
+                <a href="#channels" :aria-current="section === 'channels' ? 'page' : undefined">Все каналы</a>
+            </nav>
             <section v-if="section === 'channels'" class="studio-panel overview">
                 <h2>Все каналы</h2>
                 <h3>Запросы на отправку</h3>
@@ -99,10 +102,6 @@ function resetFilters() {
                 </template>
             </section>
             <template v-else>
-                <nav aria-label="Публикации" class="tabs flex gap-2">
-                    <a href="#all" :aria-current="section !== 'filters' ? 'page' : undefined">Все</a
-                    ><a href="#filters" :aria-current="section === 'filters' ? 'page' : undefined">Фильтры</a>
-                </nav>
                 <form v-if="section === 'filters'" class="studio-panel flex flex-wrap items-end gap-4" role="search" @submit.prevent="applyFilters">
                     <label>Название ролика<Input v-model="filters.search" type="search" maxlength="200" /></label>
                     <label

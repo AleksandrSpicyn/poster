@@ -171,15 +171,12 @@ onMounted(() => {
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
 const sections = computed((): Record<string, string> =>
-    isSeries.value
+    isSeries.value && section.value !== 'format'
         ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация' }
         : props.project
           ? { main: 'Основное', automation: 'Автоматизация', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
 );
-watch(isSeries, (series) => {
-    if (series && section.value === 'format') window.location.hash = 'main';
-});
 const selectedChannelNames = computed(() =>
     props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
 );
@@ -352,8 +349,31 @@ function submit() {
                         "
                         class="grid gap-2"
                     >
-                        <Label for="project-mode">Формат</Label>
+                        <fieldset v-if="section === 'format'" class="grid gap-2">
+                            <legend class="mb-2 text-sm font-semibold">Формат производства</legend>
+                            <label
+                                v-for="(label, value) in contentModes"
+                                :key="value"
+                                class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3"
+                            >
+                                <input
+                                    type="radio"
+                                    v-model="form.content_mode"
+                                    :value="value"
+                                    :disabled="form.processing || conflict || (!!series && value !== 'series')"
+                                    name="format-choice"
+                                />
+                                <span
+                                    ><strong>{{ value === 'series' ? 'Сериал' : value === 'short' ? 'Короткие ролики' : label }}</strong>
+                                    <small class="text-muted-foreground block">{{
+                                        value === 'series' ? 'Повторяющиеся герои и связанные эпизоды' : 'Независимые сценарии и монтаж'
+                                    }}</small></span
+                                >
+                            </label>
+                        </fieldset>
+                        <Label v-else for="project-mode">Формат</Label>
                         <select
+                            v-if="section !== 'format'"
                             id="project-mode"
                             v-model="form.content_mode"
                             :disabled="form.processing || conflict"
@@ -489,7 +509,7 @@ function submit() {
                         class="space-y-3 rounded-lg border p-4 sm:p-5"
                     >
                         <legend class="px-2 text-sm font-semibold">Каналы публикации</legend>
-                        <p class="text-muted-foreground text-sm">Выберите каналы. Каждый из них можно использовать в нескольких проектах.</p>
+                        <p class="text-muted-foreground text-sm">Снятие выбора затронет только этот проект.</p>
                         <div v-if="channels.length" class="grid gap-2">
                             <label
                                 v-for="channel in channels"
@@ -505,9 +525,14 @@ function submit() {
                                 />
                                 <ChannelIcon :channel="channel.type" />
                                 <span class="min-w-0 flex-1 text-sm"
-                                    ><span class="block font-medium break-words">{{ channel.name }}</span
+                                    ><span class="block font-medium break-words">{{ channel.name }} · {{ channel.type_label }}</span
                                     ><span class="text-muted-foreground block text-xs"
-                                        >{{ channel.type_label }} ·
+                                        >{{
+                                            channel.projects?.length
+                                                ? 'Выбран в проектах ' + channel.projects.map((project) => '«' + project.name + '»').join(', ')
+                                                : 'Доступен для подключения'
+                                        }}
+                                        ·
                                         {{
                                             !channel.is_active
                                                 ? 'Приостановлен'
