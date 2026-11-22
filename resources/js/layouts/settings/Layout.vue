@@ -49,7 +49,7 @@ nav {
 nav h2 {
     display: none;
 }
-nav :deep(a) {
+nav :deep(:is(a, button)) {
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -99,7 +99,7 @@ nav :deep(a[aria-current='page']) {
         font-size: 20px;
         font-weight: 700;
     }
-    nav :deep(a) {
+    nav :deep(:is(a, button)) {
         background: transparent;
     }
 }
@@ -158,5 +158,18 @@ nav :deep(a[aria-current='page']) {
     .settings-grid.detail aside {
         display: none;
     }
+}
+.settings-content:has(.account-form) {
+    padding-block-start: 16px;
+}
+.settings-content :deep(.account-form) {
+    display: grid;
+    gap: 21px;
+}
+.settings-content :deep(.account-form > h2) {
+    margin-bottom: 8px;
+}
+.settings-content :deep(.account-form label) {
+    margin: 0 0 6px;
 }
 </style>
