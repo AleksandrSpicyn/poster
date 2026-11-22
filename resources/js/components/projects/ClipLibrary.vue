@@ -227,6 +227,9 @@ const metricLabels: Record<string, string> = {
     font-weight: 700;
     margin-block: 12px;
 }
+.clip-library > nav + h2 {
+    margin-block: 16px 20px;
+}
 .clip-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -240,8 +243,10 @@ const metricLabels: Record<string, string> = {
     border-radius: 12px;
 }
 .clip-cover {
-    width: 100%;
+    width: calc(100% + 2px);
+    margin-inline: -1px;
     aspect-ratio: 1.85;
+    max-height: 246px;
 }
 .clip-card strong,
 .clip-card span {
@@ -255,7 +260,7 @@ const metricLabels: Record<string, string> = {
 .clip-card span {
     font-size: 14px;
     color: var(--muted-foreground);
-    margin: 4px 14px 14px;
+    margin: 4px 14px 24px;
 }
 .clip-library footer {
     display: flex;
@@ -366,6 +371,9 @@ const metricLabels: Record<string, string> = {
     cursor: pointer;
 }
 @media (max-width: 1099px) {
+    .clip-library > nav + h2 {
+        margin-bottom: 22px;
+    }
     .clip-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -374,6 +382,9 @@ const metricLabels: Record<string, string> = {
     }
 }
 @media (max-width: 699px) {
+    .clip-library > nav + h2 {
+        margin-bottom: 24px;
+    }
     .clip-sheet:has(.clip-empty) {
         padding-bottom: 32px;
     }

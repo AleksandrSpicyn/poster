@@ -81,14 +81,21 @@ function destroyProject() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="page.props.project.name" />
-        <div class="workspace-page" :class="{ 'selected-clip': viewingClip, 'short-project': !page.props.opusClips && !page.props.series }">
+        <div
+            class="workspace-page"
+            :class="{
+                'clip-project-page': !!page.props.opusClips && !page.props.clipWeek && !viewingClip,
+                'selected-clip': viewingClip,
+                'short-project': !page.props.opusClips && !page.props.series,
+            }"
+        >
             <ProjectNotice />
             <div
-                class="flex flex-col items-start justify-between"
-                :class="page.props.opusClips || page.props.series ? 'gap-4 sm:flex-row' : 'gap-3 min-[1100px]:flex-row'"
+                class="project-header flex flex-col items-start justify-between"
+                :class="page.props.series ? 'gap-4 sm:flex-row' : 'gap-3 min-[1100px]:flex-row'"
             >
                 <div class="w-full min-w-0 flex-1 space-y-3 [&_h1]:break-words">
-                    <div class="flex items-start gap-2">
+                    <div class="project-title-row flex items-start gap-2">
                         <Heading
                             :title="
                                 page.props.clipWeek
@@ -120,6 +127,9 @@ function destroyProject() {
                                     >
                                         Просмотры клипов за неделю
                                     </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem v-if="!page.props.opusClips" as-child>
+                                    <Link :href="route('prompts', { project: page.props.project.id })">Вся история</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem as-child
                                     ><Link :href="route('projects.show', { project: page.props.project.id, section: 'management' })"
@@ -181,7 +191,6 @@ function destroyProject() {
                 <div class="min-w-0">
                     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <h2 id="project-history-heading" class="text-xl font-semibold">История роликов</h2>
-                        <Link :href="route('prompts', { project: page.props.project.id })" class="text-primary text-sm underline">Вся история</Link>
                     </div>
                     <div v-for="prompt in page.props.prompts.data.slice(0, 3)" :key="prompt.id">
                         <VideoPreview v-if="prompt.url" :prompt="prompt">
@@ -362,6 +371,9 @@ function destroyProject() {
 </template>
 
 <style scoped>
+.project-header > [data-slot='button'] {
+    font-weight: 700;
+}
 .selected-clip {
     gap: 14px;
 }
@@ -374,11 +386,39 @@ function destroyProject() {
     }
 }
 @media (max-width: 767px) {
+    .clip-project-page {
+        padding-top: 16px;
+    }
+    .clip-project-page .project-title-row {
+        position: relative;
+    }
+    .clip-project-page .project-title-row > :first-child {
+        width: 100%;
+    }
+    .clip-project-page .project-title-row > button {
+        position: absolute;
+        right: 0;
+        bottom: -3px;
+        height: 32px;
+    }
+    .clip-project-page .project-title-row :deep(p) {
+        padding-right: 34px;
+    }
     .selected-clip {
         gap: 13px;
     }
     .short-project {
-        gap: 19px;
+        padding-top: 15px;
+        gap: 28px;
+    }
+    .short-project [aria-labelledby='project-history-heading'] {
+        row-gap: 18px;
+    }
+    .short-project #project-history-heading {
+        margin-bottom: 3px;
+    }
+    .short-project .studio-history-row {
+        min-height: 68px;
     }
 }
 </style>
