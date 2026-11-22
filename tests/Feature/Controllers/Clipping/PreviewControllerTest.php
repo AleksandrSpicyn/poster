@@ -18,6 +18,7 @@ test('предпросмотр сохраняет выбранные данны�
     $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
     Http::fake([
         '*/clip-projects*' => Http::response(['list' => [['projectId' => 'game', 'title' => 'Игра']]]),
+        '*/social-accounts*' => Http::response(['data' => [['postAccountId' => 'forest', 'platform' => 'YOUTUBE', 'extUserId' => 'UCtest', 'extUserName' => 'Forest stories']]]),
         '*/exportable-clips*' => Http::response([['id' => 'A', 'title' => 'Финиш']]),
         '*/post-tasks*' => Http::response(['data' => ['data' => []]]),
     ]);
@@ -28,9 +29,16 @@ test('предпросмотр сохраняет выбранные данны�
     $preview = ClippingImport::query()->sole();
     $response->assertRedirect(route('clipping.preview.show', [$connection, $preview->id]));
     expect($preview->clips[0]['title'])->toBe('Финиш')
+        ->and($preview->unmapped_accounts)->toBe([['id' => 'forest', 'name' => 'Forest stories', 'platform' => 'youtube']])
+        ->and($preview->accounts)->toBe([])
         ->and($preview->imported_at)->toBeNull()
         ->and(OpusClip::query()->count())->toBe(0);
     assertDatabaseCount('projects', 0);
+
+    post(route('clipping.import', [$connection, $preview->id]))->assertRedirect();
+
+    assertDatabaseCount('clipping_account_mappings', 0);
+    assertDatabaseCount('channels', 0);
 });
 
 test('не допускает чужой проект при сопоставлении', function (): void {

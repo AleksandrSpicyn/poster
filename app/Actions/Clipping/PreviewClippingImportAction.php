@@ -38,8 +38,16 @@ final readonly class PreviewClippingImportAction
         $reader = $this->readers->forConnection($connection);
 
         try {
-            $available = $data->accounts !== [] && $reader::readsAccounts() ? $reader->accounts() : [];
+            $available = $connection->import_accounts && $reader::readsAccounts() ? $reader->accounts() : [];
+        } catch (RuntimeException) {
+            if ($data->accounts !== []) {
+                throw ValidationException::withMessages(['accounts' => 'Провайдер не вернул выбранные аккаунты. Повторите попытку.']);
+            }
 
+            $available = [];
+        }
+
+        try {
             if ($connection->import_projects) {
                 foreach ($this->readers->sources($reader, $connection) as $candidate) {
                     if ($candidate->id === $data->external_id) {
@@ -58,6 +66,16 @@ final readonly class PreviewClippingImportAction
             throw ValidationException::withMessages(['external_id' => 'Источник недоступен этому подключению.']);
         }
 
-        return $this->connections->preview($connection, $source ?? null, $data, $clips ?? null, $this->accounts->preview($connection, $data->accounts, $available));
+        $selected = $this->accounts->preview($connection, $data->accounts, $available);
+        $selectedIds = array_fill_keys(array_column($selected, 'id'), true);
+        $unmapped = [];
+
+        foreach ($available as $account) {
+            if (! isset($selectedIds[$account['id']])) {
+                $unmapped[] = ['id' => $account['id'], 'name' => $account['name'], 'platform' => $account['platform']];
+            }
+        }
+
+        return $this->connections->preview($connection, $source ?? null, $data, $clips ?? null, $selected, $unmapped);
     }
 }

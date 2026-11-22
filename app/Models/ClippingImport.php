@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $source_name
  * @property string|null $game
  * @property list<array{id: string, platform: string, external_id: string, name: string, channel_id: int|null}>|null $accounts
+ * @property list<array{id: string, name: string, platform: string}>|null $unmapped_accounts
  * @property int $scope_version
  * @property int $clip_count
  * @property Carbon|null $imported_at
@@ -26,5 +27,5 @@ class ClippingImport extends Model
 
     protected $hidden = ['clips'];
 
-    protected $casts = ['clips' => 'array', 'accounts' => 'array', 'imported_at' => 'datetime'];
+    protected $casts = ['clips' => 'array', 'accounts' => 'array', 'unmapped_accounts' => 'array', 'imported_at' => 'datetime'];
 }

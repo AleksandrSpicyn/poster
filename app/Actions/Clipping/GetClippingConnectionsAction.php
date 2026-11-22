@@ -25,7 +25,17 @@ final readonly class GetClippingConnectionsAction
     /** @return array<string, mixed> */
     public function run(User $owner): array
     {
-        return ['connections' => $this->connections->owned($owner)];
+        return [
+            'drivers' => $this->readers->labels(),
+            'connections' => $this->connections->owned($owner)->map(static function (ClippingConnection $connection): array {
+                $access = $connection->getAttribute('access_result');
+
+                return [
+                    ...$connection->only(['id', 'name', 'driver']),
+                    'access' => is_array($access) ? Arr::only($access, ['projects', 'clips', 'accounts', 'metrics']) : null,
+                ];
+            }),
+        ];
     }
 
     /** @return array<string, mixed> */

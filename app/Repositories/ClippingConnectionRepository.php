@@ -16,6 +16,7 @@ use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,7 @@ final readonly class ClippingConnectionRepository
     /** @return Collection<int, ClippingConnection> */
     public function owned(User $owner): Collection
     {
-        return ClippingConnection::query()->where('owner_id', $owner->id)->orderBy('name')->get(['id', 'name', 'driver']);
+        return ClippingConnection::query()->where('owner_id', $owner->id)->orderBy('name')->get(['id', 'name', 'driver', 'access_result']);
     }
 
     /** @return LazyCollection<int, OpusSource> */
@@ -173,9 +174,37 @@ final readonly class ClippingConnectionRepository
     /** @return Collection<int, Project> */
     public function projects(ClippingConnection $connection): Collection
     {
+        return $this->availableProjects($connection)->with('media', 'coverFrame')->orderBy('name')->get();
+    }
+
+    /** @return Builder<Project> */
+    private function availableProjects(ClippingConnection $connection): Builder
+    {
         return Project::query()->where('owner_id', $connection->owner_id)->whereNull('opus_source_id')
             ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))
-            ->where('content_mode', 'short')->orderBy('name')->get(['id', 'name']);
+            ->where('content_mode', 'short');
+    }
+
+    /** @return Collection<int, OpusSource> */
+    public function mappedSources(ClippingConnection $connection): Collection
+    {
+        return OpusSource::query()->where('clipping_connection_id', $connection->id)
+            ->whereRelation('project', 'owner_id', $connection->owner_id)
+            ->select(['id', 'project_id', 'external_id'])->addSelect(['clips_count' => OpusClip::query()->selectRaw('count(*)')->whereColumn('opus_source_id', 'opus_sources.id')])->get();
+    }
+
+    public function reviewProject(ClippingConnection $connection, int $id): ?Project
+    {
+        return $this->availableProjects($connection)->with('media', 'coverFrame')->find($id);
+    }
+
+    /** @return list<string> */
+    public function existingClipIds(ClippingConnection $connection, ClippingImport $preview): array
+    {
+        return array_values(OpusClip::query()->whereHas('source', fn(Builder $source) => $source
+            ->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)
+            ->whereRelation('project', 'owner_id', $connection->owner_id))
+            ->whereIn('clip_id', array_column($preview->clips, 'id'))->get(['clip_id'])->map(static fn(OpusClip $clip): string => $clip->clip_id)->all());
     }
 
     public function getPreview(ClippingConnection $connection, int $id): ClippingImport
@@ -220,10 +249,11 @@ final readonly class ClippingConnectionRepository
     /**
      * @param SupportCollection<int, ImportedClipData>|null $clips
      * @param list<array{id: string, platform: string, external_id: string, name: string, channel_id: int|null}> $accounts
+     * @param list<array{id: string, name: string, platform: string}> $unmapped
      */
-    public function preview(ClippingConnection $connection, ?OpusSourceData $source, ClippingImportData $data, ?SupportCollection $clips, array $accounts): ClippingImport
+    public function preview(ClippingConnection $connection, ?OpusSourceData $source, ClippingImportData $data, ?SupportCollection $clips, array $accounts, array $unmapped): ClippingImport
     {
-        return DB::transaction(function () use ($connection, $source, $data, $clips, $accounts): ClippingImport {
+        return DB::transaction(function () use ($connection, $source, $data, $clips, $accounts, $unmapped): ClippingImport {
             $version = $connection->scope_version;
             $connection = ClippingConnection::query()->where('owner_id', $connection->owner_id)->lockForUpdate()->findOrFail($connection->id);
 
@@ -247,7 +277,7 @@ final readonly class ClippingConnectionRepository
             return ClippingImport::query()->create([
                 'clipping_connection_id' => $connection->id, 'project_id' => $projectId, 'external_id' => $source?->id,
                 'scope_version' => $connection->scope_version, 'source_name' => $source?->title, 'game' => $data->game, 'clip_count' => $clips?->count() ?? 0,
-                'accounts' => $accounts, 'clips' => $clips?->map(static fn(ImportedClipData $clip): array => get_object_vars($clip))->values()->all() ?? [],
+                'accounts' => $accounts, 'unmapped_accounts' => $unmapped, 'clips' => $clips?->map(static fn(ImportedClipData $clip): array => get_object_vars($clip))->values()->all() ?? [],
             ]);
         });
     }

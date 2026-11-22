@@ -55,3 +55,15 @@ test('драйвер без аккаунтов предоставляет про
     expect(OpusClip::query()->sole()->title)->toBe('Тестовый клип');
     Http::assertNothingSent();
 });
+
+test('не открывает настройки сопоставления по предпросмотру другого подключения', function (): void {
+    $owner = User::factory()->create();
+    $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    $foreign = ClippingConnection::factory()->create();
+    $preview = ClippingImport::query()->create(['clipping_connection_id' => $foreign->id, 'clips' => [], 'clip_count' => 0]);
+    actingAs($owner);
+
+    get(route('clipping.sources', ['connection' => $connection, 'preview' => $preview->id]))->assertNotFound();
+
+    Http::assertNothingSent();
+});

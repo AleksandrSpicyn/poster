@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
+import ImportProjectCard from '@/components/ImportProjectCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import type { SharedData } from '@/types';
+import type { ProjectSummary } from '@/types/projects';
+import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
-
 const props = defineProps<{
     connection: { id: number; name: string };
     preview: {
@@ -13,11 +15,14 @@ const props = defineProps<{
         external_id: string | null;
         source_name: string | null;
         project_id: number | null;
-        accounts: { id: string; name: string; external_id: string; channel_id: number | null }[] | null;
+        accounts: { id: string; name: string; channel_id: number | null }[] | null;
+        unmapped_accounts: { id: string; name: string; platform: string }[] | null;
         imported_at: string | null;
     };
-    accountNames: Record<string, string>;
+    project: Pick<ProjectSummary, 'id' | 'name' | 'cover'> | null;
     projectName: string | null;
+    accountNames: Record<string, string>;
+    existingClipIds: string[];
     clips: {
         id: string;
         title: string | null;
@@ -25,9 +30,17 @@ const props = defineProps<{
         publications: { platform: string; status: string | null; url: string | null }[];
     }[];
 }>();
-const route = useRoute();
-const form = useForm({});
-const page = usePage<SharedData>();
+const route = useRoute(),
+    form = useForm({}),
+    page = usePage<SharedData>();
+const empty = computed(() => props.preview.external_id !== null && !props.clips.length);
+const confirmed = computed(() => props.preview.imported_at !== null);
+const title = computed(() => (confirmed.value ? 'Предпросмотр импорта' : empty.value ? 'Выбор источника' : 'Сопоставление импорта'));
+const name = computed(() => props.projectName || props.preview.source_name || 'Проект без названия');
+const existing = computed(() => new Set(props.existingClipIds));
+function change(step: string, account?: string) {
+    return route('clipping.sources', { connection: props.connection.id, preview: props.preview.id, step, ...(account ? { account } : {}) });
+}
 function confirm() {
     form.post(route('clipping.import', [props.connection.id, props.preview.id]));
 }
@@ -39,63 +52,203 @@ function confirm() {
             { title: 'Сопоставление', href: route('clipping.preview.show', [connection.id, preview.id]) },
         ]"
     >
-        <Head title="Сопоставление импорта" />
-        <div class="workspace-page">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading title="Сопоставление импорта" :description="connection.name" />
-                <Button v-if="!preview.imported_at" @click="confirm" :disabled="form.processing">Подтвердить импорт</Button>
-                <Button v-else disabled>Подтвердить импорт</Button>
-                <Button v-if="preview.imported_at && preview.project_id !== null" as-child
-                    ><Link :href="route('projects.show', preview.project_id)">Открыть клипы проекта</Link></Button
+        <Head :title="title" />
+        <div class="workspace-page import-review" :class="{ compact: confirmed || empty }">
+            <header>
+                <Heading :title="title" :description="confirmed ? 'Результат' : empty ? 'Предпросмотр' : name + ' / Предпросмотр'" /><Button
+                    v-if="!confirmed && !empty"
+                    :disabled="form.processing"
+                    @click="confirm"
+                    >Подтвердить импорт</Button
                 >
+            </header>
+            <p
+                v-for="error in [page.props.errors.project_id, page.props.errors.accounts].filter(Boolean)"
+                :key="error"
+                class="text-destructive"
+                role="alert"
+            >
+                {{ error }}
+            </p>
+            <div v-if="confirmed || empty" class="review-columns">
+                <section class="studio-panel state-panel">
+                    <template v-if="confirmed"
+                        ><h2>Результат</h2>
+                        <div role="status" class="state-notice">
+                            <strong>Импорт уже подтверждён</strong>
+                            <p>{{ new Date(preview.imported_at!).toLocaleString('ru-RU') }}. Те же клипы повторно не добавятся.</p>
+                        </div>
+                        <div class="result-row">
+                            <span>Проект Poster</span><strong>{{ name }}</strong>
+                        </div>
+                        <div class="result-row">
+                            <span>Результат</span
+                            ><span>Клипов: {{ clips.length }} · Сопоставлений аккаунтов: {{ preview.accounts?.length ?? 0 }}</span>
+                        </div>
+                        <Button disabled>Подтвердить импорт</Button
+                        ><Link v-if="project" :href="route('projects.show', project.id)" class="project-link">Открыть клипы проекта ↗</Link
+                        ><small>{{ name }}</small></template
+                    >
+                    <template v-else
+                        ><h2>Предпросмотр</h2>
+                        <span class="secondary">Проект провайдера</span>
+                        <div class="source-name">{{ preview.source_name || 'Проект без названия' }}</div>
+                        <span class="empty-symbol" aria-hidden="true">○</span><strong>В источнике нет клипов</strong>
+                        <p>Подтвердите привязку. Новые клипы появятся после обновления.</p>
+                        <Button variant="outline" as-child><Link :href="change('source')">Выбрать другой источник</Link></Button
+                        ><Button :disabled="form.processing" @click="confirm">Подтвердить импорт</Button></template
+                    >
+                </section>
+                <ImportProjectCard :name="name" :cover="project?.cover" />
             </div>
-            <section v-if="preview.imported_at" class="studio-panel space-y-2" role="status">
-                <h2>Импорт уже подтверждён</h2>
-                <p>{{ new Date(preview.imported_at).toLocaleString('ru-RU') }}. Те же клипы повторно не добавятся.</p>
-                <div class="studio-row">
-                    <span>Проект Poster</span><strong>{{ projectName }}</strong>
-                </div>
-                <div class="studio-row">
-                    <span>Результат</span><strong>Клипов: {{ clips.length }} · Сопоставлений: {{ preview.accounts?.length ?? 0 }}</strong>
-                </div>
-            </section>
-            <p v-if="page.props.errors.project_id" role="alert" class="text-destructive">{{ page.props.errors.project_id }}</p>
-            <section class="studio-panel">
+            <section v-else class="mappings">
                 <h2>Источник → Poster</h2>
-                <div class="studio-row">
-                    <strong>{{ preview.source_name || (preview.external_id ? 'Проект без названия' : 'Связи с аккаунтами') }}</strong><span>{{
-                        projectName || 'Новый проект'
-                    }}</span>
-                </div>
-                <div v-for="account in preview.accounts" :key="account.id" class="studio-row">
-                    <span>{{ account.name || 'Аккаунт без названия' }}</span><span>{{
-                        accountNames[account.id] || (preview.imported_at ? 'Без права отправки' : 'Создать канал без права отправки')
-                    }}</span>
-                </div>
-                <p v-if="page.props.errors.accounts" role="alert" class="text-destructive">{{ page.props.errors.accounts }}</p>
-            </section>
-            <section v-if="preview.external_id" class="studio-panel">
-                <h2>Клипы · {{ clips.length }}</h2>
-                <div v-if="!clips.length" class="space-y-2">
-                    <strong>В источнике нет клипов</strong>
-                    <p>
-                        {{
-                            preview.imported_at
-                                ? 'Источник сохранён. Новые клипы появятся после обновления.'
-                                : 'Подтвердите импорт, чтобы сохранить источник для следующих обновлений.'
-                        }}
-                    </p>
-                    <Link :href="route('clipping.sources', connection.id)" class="underline">Выбрать другой источник</Link>
-                </div>
-                <article v-for="clip in clips" :key="clip.id" class="studio-row">
-                    <div>
-                        <strong>{{ clip.title || 'Клип без названия' }}</strong>
+                <Link v-if="preview.external_id" class="map-row" :href="change('map-project')"
+                    ><strong>{{ preview.source_name || 'Проект без названия' }}</strong
+                    ><i>→</i><span>{{ projectName || 'Новый проект' }}</span></Link
+                >
+                <Link class="map-row" v-for="a in preview.accounts" :key="a.id" :href="change('map-channel', a.id)"
+                    ><strong>{{ a.name || 'Аккаунт без названия' }}</strong
+                    ><i>→</i><span>{{ accountNames[a.id] || 'Создать канал без права отправки' }}</span></Link
+                >
+                <Link v-for="account in preview.unmapped_accounts" :key="account.id" class="map-row" :href="change('map-channel', account.id)"
+                    ><strong>{{ account.name || 'Аккаунт без названия' }}</strong
+                    ><i>→</i><span class="unmapped">Выберите канал</span></Link
+                >
+                <details v-for="clip in clips" :key="clip.id">
+                    <summary class="map-row">
+                        <strong>{{ clip.title || 'Клип без названия' }}</strong><i>→</i
+                        ><span>{{ existing.has(clip.id) ? 'Обновить клип' : 'Новый клип' }}</span>
+                    </summary>
+                    <div class="studio-panel">
+                        <p v-if="clip.durationMs != null">Длительность: {{ (clip.durationMs / 1000).toLocaleString('ru') }} с</p>
+                        <p v-for="(pub, i) in clip.publications" :key="i">{{ pub.platform }} · {{ pub.status || 'Статус неизвестен' }}</p>
+                        <p v-if="!clip.publications.length">Публикаций нет</p>
                     </div>
-                    <div>
-                        <p v-for="(post, index) in clip.publications" :key="index">{{ post.platform }} · {{ post.status || 'Статус неизвестен' }}</p>
-                    </div>
-                </article>
+                </details>
             </section>
-        </div>
-    </AppLayout>
+        </div></AppLayout
+    >
 </template>
+<style scoped>
+.import-review header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.import-review header [data-slot='button'] {
+    min-height: 44px;
+    font-weight: 700;
+}
+.import-review h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+.map-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.86fr) 64px minmax(0, 1fr);
+    align-items: center;
+    min-height: 68px;
+    padding: 12px 16px;
+    gap: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 8px 0;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.map-row .unmapped {
+    color: #e8ac7d;
+}
+.map-row i {
+    color: var(--muted-foreground);
+    font-style: normal;
+}
+.map-row:hover {
+    border-color: var(--primary);
+}
+.map-row span,
+.secondary,
+.state-panel small,
+.state-panel p {
+    color: var(--muted-foreground);
+}
+.compact {
+    padding-top: 14px;
+}
+.review-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+.state-panel {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+.state-panel h2 {
+    margin: 0;
+}
+.empty-symbol {
+    font-size: 20px;
+    color: var(--muted-foreground);
+}
+.state-notice {
+    border-left: 3px solid var(--primary);
+    background: var(--muted);
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+}
+.result-row {
+    display: grid;
+    grid-template-columns: 36% minmax(0, 1fr);
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+    padding: 10px 0;
+}
+.result-row span:first-child {
+    color: var(--muted-foreground);
+}
+.source-name {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    width: 100%;
+    background: var(--background);
+}
+.project-link {
+    color: var(--primary);
+    font-weight: 700;
+}
+.state-panel [data-slot='button'] {
+    min-height: 44px;
+    font-weight: 700;
+}
+@media (max-width: 1099px) {
+    .review-columns {
+        grid-template-columns: 1fr;
+    }
+    .import-review header {
+        display: grid;
+        justify-items: start;
+    }
+}
+@media (max-width: 767px) {
+    .map-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+    .map-row i {
+        display: none;
+    }
+    .result-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
