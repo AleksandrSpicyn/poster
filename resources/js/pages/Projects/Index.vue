@@ -46,16 +46,6 @@ watch(
         if (projects[0]) sidebarProject.value = projects[0];
     },
 );
-const preview = computed(() => {
-    if (!!filters.archived !== !!page.props.filters.archived) return null;
-    if (filters.search === page.props.filters.search) return { total: page.props.projects.meta.total, first: page.props.projects.data[0] };
-    if (page.props.filters.search || page.props.projects.meta.total !== page.props.projects.data.length) return null;
-    const term = (filters.search ?? '').trim().toLocaleLowerCase('ru');
-    const matches = page.props.projects.data.filter((project) =>
-        [project.name, project.prompt].some((field) => field?.toLocaleLowerCase('ru').includes(term)),
-    );
-    return { total: matches.length, first: matches[0] };
-});
 const information = computed(() => page.props.information);
 function order(value: string) {
     filters.alphabetical = Number(value === 'name');
@@ -63,6 +53,50 @@ function order(value: string) {
     filters.sort = value === 'oldest' ? 'asc' : 'desc';
 }
 const searching = ref(false);
+const preview = ref<{ total: number; name?: string }>();
+watch(
+    () => [searching.value, filters.search, filters.archived, filters.active, filters.clipping, page.props.projects] as const,
+    ([open, search, archived, active, clipping, projects], _, onCleanup) => {
+        preview.value = undefined;
+        if (!open) return;
+        if (
+            search === page.props.filters.search &&
+            !!archived === !!page.props.filters.archived &&
+            !!active === !!page.props.filters.active &&
+            !!clipping === !!page.props.filters.clipping
+        ) {
+            preview.value = { total: projects.meta.total, name: projects.data[0]?.name };
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = window.setTimeout(async () => {
+            try {
+                const url = route('projects.index', { search, archived, active, clipping, perPage: 1 });
+                const response = await fetch(url, {
+                    signal: controller.signal,
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Inertia': 'true',
+                        'X-Inertia-Partial-Component': page.component,
+                        'X-Inertia-Partial-Data': 'projects',
+                        ...(page.version ? { 'X-Inertia-Version': page.version } : {}),
+                    },
+                });
+                if (!response.ok || !response.headers.has('X-Inertia')) return;
+                const result: { props: Pick<ProjectsPageProps, 'projects'> } = await response.json();
+                const matches = result.props.projects;
+                if (!controller.signal.aborted && matches) preview.value = { total: matches.meta.total, name: matches.data[0]?.name };
+            } catch {
+                // The full search remains available when its background preview is interrupted.
+            }
+        }, 220);
+        onCleanup(() => {
+            window.clearTimeout(timer);
+            controller.abort();
+        });
+    },
+);
 function restoreSearch() {
     searching.value = location.hash === '#search';
 }
@@ -222,12 +256,12 @@ function clearSearch() {
                         />
                         В архиве
                     </label>
-                    <p v-if="preview" class="studio-row">
+                    <p class="studio-row" aria-live="polite">
                         <strong>Найдено</strong
-                        ><span
+                        ><span v-if="preview"
                             >{{ counted(preview.total, 'проект', 'проекта', 'проектов')
-                            }}<template v-if="preview.total === 1"> · {{ preview.first?.name }}</template></span
-                        >
+                            }}<template v-if="preview.total === 1"> · {{ preview.name }}</template></span
+                        ><span v-else>—</span>
                     </p>
                     <Button type="submit" class="justify-self-start" :disabled="loading">Применить</Button>
                 </form>
