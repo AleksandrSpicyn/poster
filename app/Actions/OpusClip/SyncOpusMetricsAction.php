@@ -6,6 +6,7 @@ namespace App\Actions\OpusClip;
 
 use App\Classes\OpusClip\ChannelMetricsClient;
 use App\Classes\OpusClip\VideoReference;
+use App\Events\WorkspaceUpdated;
 use App\Models\Channel;
 use App\Models\Project;
 use App\Repositories\OpusClipRepository;
@@ -38,6 +39,10 @@ final readonly class SyncOpusMetricsAction
                 $this->metrics->observe($clip, $channel->type, (string) $id, $metrics);
                 $count++;
             }
+        }
+
+        if ($count > 0 && $project->owner_id !== null && $project->owner_id === $channel->owner_id) {
+            WorkspaceUpdated::dispatch($project->owner_id, 'OpusClipMetric', $project->id, (int) now()->format('Uu'));
         }
 
         return $count;

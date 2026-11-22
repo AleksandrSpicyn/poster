@@ -2,10 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\ChannelType;
+use App\Models\Channel;
+use App\Models\OpusClip;
+use App\Models\OpusSource;
 use App\Models\Post;
+use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Shot;
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -85,4 +91,40 @@ test('обзор считает всю историю и ограничивае�
             ->where('recentPosts.data.0.id', $posts->last()?->id)
             ->where('recentPosts.data.0.channel', $posts->last()?->channel?->type->value)
             ->missing('recentPosts.data.0.credentials'));
+});
+
+test('считает одну публикацию из двух источников и оставляет пропуск на графике', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $otherGame = Project::factory()->create(['owner_id' => $owner->id]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'game-account']);
+    $channel->projects()->attach($otherGame);
+    $foreign = Project::factory()->create();
+    Channel::factory()->for($foreign)->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'other-account']);
+
+    foreach ([$project, $otherGame, $foreign] as $game) {
+        $clip = OpusClip::factory()->for(OpusSource::factory()->for($game), 'source')->create();
+
+        foreach ([7 => 100, 5 => 145, 4 => 142] as $days => $value) {
+            $clip->latestMetrics()->create([
+                'platform' => 'youtube', 'media_id' => 'abc12345678', 'observed_on' => now('UTC')->subDays($days)->toDateString(),
+                'metrics' => ['views' => $value, 'likes' => 0],
+            ]);
+        }
+    }
+
+    actingAs($owner);
+
+    get(route('dashboard'))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 1)
+            ->where('analytics.change', 42)->where('analytics.publications.0.intervals.0.change', 45)
+            ->where('analytics.daily.' . now('UTC')->subDays(5)->toDateString(), null)
+            ->where('analytics.daily.' . now('UTC')->subDays(4)->toDateString(), -3));
+    get(route('dashboard', ['metric' => 'likes']))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('analytics.change', 0));
+    get(route('dashboard', ['metric' => 'shares']))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('analytics.change', null));
+    get(route('dashboard', ['platform' => 'tiktok']))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 0));
+    Http::assertNothingSent();
 });

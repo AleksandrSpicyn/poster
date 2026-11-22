@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, int|float> $metrics
+ * @property string $observed_on
+ * @property string $platform
+ * @property string $media_id
+ * @property-read string $account Selected account from the dashboard query.
+ * @property-read string|null $clip_title Selected clip title from the dashboard query.
  * @property-read OpusClip $clip
  */
 class OpusClipMetric extends Model
