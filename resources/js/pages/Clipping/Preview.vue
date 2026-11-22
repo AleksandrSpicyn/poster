@@ -10,7 +10,7 @@ const props = defineProps<{
     connection: { id: number; name: string };
     preview: {
         id: number;
-        external_id: string;
+        external_id: string | null;
         source_name: string | null;
         project_id: number | null;
         accounts: { id: string; name: string; external_id: string; channel_id: number | null }[] | null;
@@ -63,7 +63,9 @@ function confirm() {
             <section class="studio-panel">
                 <h2>Источник → Poster</h2>
                 <div class="studio-row">
-                    <strong>{{ preview.source_name || 'Проект без названия' }}</strong><span>{{ projectName || 'Новый проект' }}</span>
+                    <strong>{{ preview.source_name || (preview.external_id ? 'Проект без названия' : 'Связи с аккаунтами') }}</strong><span>{{
+                        projectName || 'Новый проект'
+                    }}</span>
                 </div>
                 <div v-for="account in preview.accounts" :key="account.id" class="studio-row">
                     <span>{{ account.name || 'Аккаунт без названия' }}</span><span>{{
@@ -72,7 +74,7 @@ function confirm() {
                 </div>
                 <p v-if="page.props.errors.accounts" role="alert" class="text-destructive">{{ page.props.errors.accounts }}</p>
             </section>
-            <section class="studio-panel">
+            <section v-if="preview.external_id" class="studio-panel">
                 <h2>Клипы · {{ clips.length }}</h2>
                 <div v-if="!clips.length" class="space-y-2">
                     <strong>В источнике нет клипов</strong>

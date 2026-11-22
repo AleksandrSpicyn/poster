@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\ClippingConnection;
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
@@ -145,4 +146,14 @@ test('пустые проекты с одинаковым названием с�
     assertDatabaseCount('projects', 3);
     assertDatabaseCount('opus_sources', 3);
     assertDatabaseCount('opus_clips', 0);
+});
+
+test('выключение проектов останавливает прежний серверный импорт до запроса к провайдеру', function (): void {
+    $connection = ClippingConnection::factory()->create(['uses_server_key' => true, 'import_projects' => false]);
+    Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+
+    consoleCommand('opus:sync')->assertSuccessful();
+
+    Http::assertNothingSent();
+    assertDatabaseCount('opus_sources', 0);
 });

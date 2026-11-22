@@ -17,6 +17,8 @@ use Illuminate\Support\LazyCollection;
 
 final readonly class OpusMetricRepository
 {
+    public function __construct(private ClippingSyncRunRepository $syncRuns) {}
+
     /** @return Collection<int, OpusClipMetric> */
     public function observations(Project $project, string $day): Collection
     {
@@ -52,9 +54,16 @@ final readonly class OpusMetricRepository
     /** @param array<string, int|float> $metrics */
     public function observe(OpusClip $clip, ChannelType $platform, string $mediaId, array $metrics, ?string $accountId = null): void
     {
-        OpusClipMetric::query()->updateOrCreate([
-            'opus_clip_id' => $clip->id, 'platform' => $platform->value, 'media_id' => $mediaId,
-            'observed_on' => now('UTC')->toDateString(),
-        ], ['metrics' => $metrics, 'account_id' => $accountId]);
+        DB::transaction(function () use ($clip, $platform, $mediaId, $metrics, $accountId): void {
+            $day = now('UTC')->toDateString();
+            $observation = OpusClipMetric::query()->updateOrCreate([
+                'opus_clip_id' => $clip->id, 'platform' => $platform->value, 'media_id' => $mediaId, 'observed_on' => $day,
+            ], ['metrics' => $metrics, 'account_id' => $accountId]);
+
+            if ($observation->wasRecentlyCreated) {
+                $key = ClippingSyncRunRepository::observationKey($platform->value, $accountId ?? '', $mediaId, $day);
+                $this->syncRuns->observations([$key => [$clip->id]]);
+            }
+        }, attempts: 3);
     }
 }

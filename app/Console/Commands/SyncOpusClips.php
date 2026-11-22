@@ -8,6 +8,7 @@ use App\Actions\OpusClip\SyncOpusClipsAction;
 use App\Classes\OpusClip\OpusClipClient;
 use App\Data\OpusClip\ImportedClipData;
 use App\Data\OpusClip\OpusSourceData;
+use App\Repositories\OpusClipRepository;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use RuntimeException;
@@ -18,7 +19,7 @@ class SyncOpusClips extends Command
 
     protected $description = 'Import OpusClip projects and their clips, creating a Poster project for each new source';
 
-    public function handle(OpusClipClient $client, SyncOpusClipsAction $action): int
+    public function handle(OpusClipClient $client, SyncOpusClipsAction $action, OpusClipRepository $clips): int
     {
         $id = $this->option('source');
         $game = $this->option('game');
@@ -28,6 +29,12 @@ class SyncOpusClips extends Command
             $this->error('Use --source=PROJECT_ID with an optional --game=NAME (1–255 characters).');
 
             return self::INVALID;
+        }
+
+        if (! $clips->allowsServerImport()) {
+            $this->info('Server import is disabled for this workspace.');
+
+            return self::SUCCESS;
         }
 
         $result = self::SUCCESS;

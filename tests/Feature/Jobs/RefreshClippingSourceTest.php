@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Jobs\RefreshClippingSource;
 use App\Models\ClippingConnection;
+use App\Models\ClippingSyncRun;
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
@@ -72,11 +73,54 @@ test('после лимита продолжает с публикаций и с
         ->and($existing->refresh()->title)->toBe('Ночная поездка')
         ->and($existing->publications[0]['status'])->toBe('PROCESSING');
 
+    $partial = ClippingSyncRun::query()->sole();
+
+    expect($partial->clips_received)->toBe(1)
+        ->and($partial->clips_added)->toBe(0)
+        ->and($partial->publications_added)->toBe(0)
+        ->and($partial->failed_at)->not->toBeNull()
+        ->and($partial->completed_at)->toBeNull();
+
     RefreshClippingSource::dispatchSync($connection->id, $source->id, 'game');
 
+    expect($partial->refresh()->resumed_at)->not->toBeNull()
+        ->and($partial->completed_at)->not->toBeNull()
+        ->and($partial->clips_received)->toBe(1)
+        ->and($partial->publications_added)->toBe(1)
+        ->and(ClippingSyncRun::query()->count())->toBe(1);
     Http::assertSentCount(3);
     expect($source->refresh()->publication_sync_checkpoint)->toBeNull()
         ->and($source->last_synced_at)->not->toBeNull()
         ->and(OpusClip::query()->where('opus_source_id', $source->id)->count())->toBe(1)
         ->and($existing->refresh()->publications[0]['url'])->toBe('https://youtu.be/abcdefghijk');
+});
+
+test('отключение проектов после постановки в очередь сохраняет источник без чтения клипов', function (): void {
+    $connection = ClippingConnection::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id]);
+    $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'race']);
+    $job = new RefreshClippingSource($connection->id, $source->id, 'race');
+    $connection->forceFill(['import_projects' => false])->save();
+
+    app()->call($job->handle(...));
+
+    Http::assertNothingSent();
+    expect($source->refresh()->last_synced_at)->toBeNull();
+});
+
+test('отказ старого ключа не останавливает обновлённое подключение', function (): void {
+    $connection = ClippingConnection::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id]);
+    $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'game']);
+    Http::fake(function () use ($connection) {
+        $connection->increment('scope_version');
+
+        return Http::response([], 403);
+    });
+
+    RefreshClippingSource::dispatchSync($connection->id, $source->id, 'game');
+
+    expect($source->refresh()->sync_paused_at)->toBeNull()
+        ->and($source->sync_error)->toBeNull()
+        ->and(ClippingSyncRun::query()->count())->toBe(0);
 });

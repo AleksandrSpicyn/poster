@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $name
  * @property string $driver
  * @property string|null $api_key
+ * @property bool $import_projects
+ * @property bool $import_accounts
+ * @property bool $import_archives
+ * @property int $scope_version
  * @property bool $uses_server_key
  */
 class ClippingConnection extends Model
@@ -25,5 +29,5 @@ class ClippingConnection extends Model
 
     protected $hidden = ['api_key'];
 
-    protected $casts = ['api_key' => 'encrypted', 'uses_server_key' => 'boolean'];
+    protected $casts = ['access_checked_at' => 'datetime', 'access_result' => 'array', 'api_key' => 'encrypted', 'uses_server_key' => 'boolean', 'import_projects' => 'boolean', 'import_accounts' => 'boolean', 'import_archives' => 'boolean', 'scope_version' => 'integer'];
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Classes\Clipping;
 
+use App\Data\OpusClip\OpusSourceData;
 use App\Models\ClippingConnection;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,28 @@ final readonly class ClippingReaders
     public function labels(): array
     {
         return array_map(static fn(array $driver): string => $driver['label'], $this->drivers);
+    }
+
+    public function supportsArchives(string $driver): bool
+    {
+        return is_a($this->drivers[$driver]['reader'] ?? '', ArchivedClippingReader::class, true);
+    }
+
+    public function supportsAccounts(string $driver): bool
+    {
+        $reader = $this->drivers[$driver]['reader'] ?? null;
+
+        return $reader !== null && $reader::readsAccounts();
+    }
+
+    /** @return iterable<int, OpusSourceData> */
+    public function sources(ClippingReader $reader, ClippingConnection $connection): iterable
+    {
+        $sources = $connection->import_archives && $reader instanceof ArchivedClippingReader ? $reader->sourcesIncludingArchives() : $reader->sources();
+
+        foreach ($sources as $source) {
+            yield $source;
+        }
     }
 
     public function forConnection(ClippingConnection $connection): ClippingReader

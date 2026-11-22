@@ -21,11 +21,18 @@ use RuntimeException;
 /** @extends EloquentRepository<OpusClip> */
 final readonly class OpusClipRepository extends EloquentRepository
 {
-    public function __construct(private ClippingAccountRepository $accounts) {}
+    public function __construct(private ClippingAccountRepository $accounts, private ClippingSyncRunRepository $runs) {}
 
     protected function model(): string
     {
         return OpusClip::class;
+    }
+
+    public function allowsServerImport(): bool
+    {
+        return ! Project::query()->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)
+            ->join('clipping_connections', 'clipping_connections.id', '=', 'projects.clipping_connection_id')
+            ->where(fn($query) => $query->where('clipping_connections.import_projects', false)->orWhere('clipping_connections.uses_server_key', false))->exists();
     }
 
     /** @param iterable<ImportedClipData> $clips */
@@ -41,6 +48,12 @@ final readonly class OpusClipRepository extends EloquentRepository
             $connectionId = $project->clipping_connection_id;
 
             if ($connectionId !== null) {
+                $legacy = ClippingConnection::query()->lockForUpdate()->findOrFail($connectionId);
+
+                if (! $legacy->import_projects || ! $legacy->uses_server_key) {
+                    throw new RuntimeException('This workspace is not configured for the server import.');
+                }
+
                 $mapped = OpusSource::query()->where('clipping_connection_id', $connectionId)->where('external_id', $source->id)->first();
 
                 if ($mapped !== null) {
@@ -58,6 +71,11 @@ final readonly class OpusClipRepository extends EloquentRepository
     public function refreshSource(ClippingConnection $connection, int $sourceId, string $externalId, iterable $clips, ?string $expectedCheckpoint = null, ?string $nextCheckpoint = null): bool
     {
         return DB::transaction(function () use ($connection, $sourceId, $externalId, $clips, $expectedCheckpoint, $nextCheckpoint): bool {
+            if (! ClippingConnection::query()->whereKey($connection->id)->where('owner_id', $connection->owner_id)
+                ->where('import_projects', true)->where('scope_version', $connection->scope_version)->lockForUpdate()->first()) {
+                return false;
+            }
+
             $origin = OpusSource::query()->whereKey($sourceId)->where('clipping_connection_id', $connection->id)
                 ->where('external_id', $externalId)->where('publication_sync_checkpoint', $expectedCheckpoint)->whereNull('sync_paused_at')->lockForUpdate()->first();
 
@@ -86,6 +104,20 @@ final readonly class OpusClipRepository extends EloquentRepository
 
             if ($preview->imported_at !== null) {
                 return $projects->findOrFail($preview->project_id);
+            }
+
+            if ($preview->scope_version !== $connection->scope_version) {
+                throw ValidationException::withMessages(['project_id' => 'Область импорта изменилась. Повторите предпросмотр.']);
+            }
+
+            if ($preview->external_id === null) {
+                $project = $projects->whereNull('opus_source_id')->where('content_mode', 'short')
+                    ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))->findOrFail($preview->project_id);
+                $this->accounts->attach($connection, $project, $preview);
+                $preview->imported_at = now();
+                $preview->save();
+
+                return $project;
             }
 
             if (ClippingImport::query()->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)
@@ -135,6 +167,7 @@ final readonly class OpusClipRepository extends EloquentRepository
         }
 
         $origin->game = $source->game ?? $origin->game;
+        $publicationStage = $origin->publication_sync_checkpoint !== null;
         $origin->publication_sync_checkpoint = $nextCheckpoint;
 
         if ($nextCheckpoint === null) {
@@ -156,8 +189,15 @@ final readonly class OpusClipRepository extends EloquentRepository
             Project::query()->where('opus_source_id', $origin->id)->where('owner_id', $project->owner_id)->where('name', $oldName)->update(['name' => $name]);
         }
 
+        $received = 0;
+        $added = 0;
+        $publications = 0;
+
         foreach ($clips as $clip) {
             $record = $this->query()->firstOrNew(['opus_source_id' => $origin->id, 'clip_id' => $clip->id]);
+            $received++;
+            $added += (int) ! $record->exists;
+            $oldUrls = array_column($record->publications ?? [], 'url');
             $oldLinks = collect($record->publications ?? [])
                 ->filter(fn(array $post): bool => $post['url'] !== null)
                 ->whereNotIn('url', array_column($clip->publications, 'url'));
@@ -168,6 +208,29 @@ final readonly class OpusClipRepository extends EloquentRepository
                 'score' => $clip->score ?? $record->score,
                 'publications' => $nextCheckpoint !== null ? ($record->publications ?? []) : [...$clip->publications, ...$oldLinks->values()->all()],
             ])->save();
+            $publications += count(array_diff(array_unique(array_filter(array_column($record->publications, 'url'))), $oldUrls));
+        }
+
+        if ($connectionId !== null) {
+            $run = $this->runs->open($origin);
+
+            if ($run->failed_at !== null && $run->resumed_at === null) {
+                $run->resumed_at = now();
+            }
+
+            $run->clips_received += $publicationStage ? $added : $received;
+            $run->clips_added += $added;
+            $run->publications_added += $publications;
+
+            if (! $publicationStage) {
+                $run->clips_completed_at = now();
+            }
+
+            if ($nextCheckpoint === null) {
+                $run->completed_at = now();
+            }
+
+            $run->save();
         }
     }
 

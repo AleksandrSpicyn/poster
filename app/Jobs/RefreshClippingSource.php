@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Classes\Clipping\ArchivedClippingReader;
 use App\Classes\Clipping\ClippingReaders;
 use App\Classes\Clipping\ClippingResourceReader;
 use App\Exceptions\ClippingProviderException;
@@ -42,7 +43,7 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
     {
         $connection = $connections->find($this->connectionId);
 
-        if (! $connection instanceof ClippingConnection) {
+        if (! $connection instanceof ClippingConnection || ! $connection->import_projects) {
             return;
         }
 
@@ -56,6 +57,10 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
 
         try {
             $reader = $readers->forConnection($connection);
+
+            if ($reader instanceof ArchivedClippingReader && ! collect($readers->sources($reader, $connection))->contains('id', $this->externalId)) {
+                return;
+            }
 
             if ($reader instanceof ClippingResourceReader) {
                 if ($checkpoint === null) {

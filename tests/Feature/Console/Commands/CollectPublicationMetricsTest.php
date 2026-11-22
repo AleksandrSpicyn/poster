@@ -6,6 +6,7 @@ use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\ClippingAccountMapping;
 use App\Models\ClippingConnection;
+use App\Models\ClippingSyncRun;
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Post;
@@ -37,6 +38,7 @@ test('объединяет собственный ролик и импорт п�
     $clip = OpusClip::factory()->for(OpusSource::factory()->for($project)->state(['clipping_connection_id' => $connection->id]), 'source')
         ->create(['publications' => [['platform' => 'youtube', 'url' => 'https://www.youtube.com/shorts/abcdefghijk']]]);
 
+    $run = ClippingSyncRun::query()->create(['opus_source_id' => $clip->opus_source_id, 'completed_at' => now()]);
     $clip->latestMetrics()->create(['platform' => 'youtube', 'media_id' => 'abcdefghijk', 'observed_on' => now('UTC')->toDateString(), 'metrics' => ['views' => 77]]);
     Http::fake(['*/youtube/v3/videos*' => Http::response(['items' => [
         ['id' => 'abcdefghijk', 'snippet' => ['channelId' => 'UC-studio'], 'statistics' => ['viewCount' => '77', 'likeCount' => '0']],
@@ -46,6 +48,8 @@ test('объединяет собственный ролик и импорт п�
     consoleCommand('publications:metrics')->assertSuccessful();
     consoleCommand('publications:metrics')->assertSuccessful();
 
+    assertDatabaseCount('clipping_sync_observations', 1);
+    assertDatabaseHas('clipping_sync_observations', ['clipping_sync_run_id' => $run->id, 'opus_source_id' => $clip->opus_source_id]);
     assertDatabaseCount('publication_observations', 1);
     assertDatabaseCount('publication_metric_origins', 2);
     $observation = PublicationObservation::query()->sole();
@@ -86,4 +90,18 @@ test('продолжает сбор после таймаута и пропус�
     assertDatabaseHas('channel_metric_syncs', ['channel_id' => $youtube->id, 'status' => 'temporary_error']);
     assertDatabaseHas('channel_metric_syncs', ['channel_id' => $tiktok->id, 'status' => 'no_permission']);
     assertDatabaseHas('channel_metric_syncs', ['channel_id' => $instagram->id, 'status' => 'collected']);
+});
+
+test('фиксирует ограничение платформы отдельно от временных ошибок', function (): void {
+    $project = Project::factory()->create();
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE,
+        'credentials' => ['channel_id' => 'studio', 'access_token' => 'fake', 'created' => now()->timestamp, 'expires_in' => 3600]]);
+    $prompt = Prompt::factory()->for($project)->create();
+    Post::factory()->for($prompt)->for($channel)->create(['url' => 'https://youtu.be/abcdefghijk']);
+    Http::fake(['*/youtube/v3/videos*' => Http::response([], 429)]);
+
+    consoleCommand('publications:metrics')->assertFailed();
+
+    assertDatabaseHas('channel_metric_syncs', ['channel_id' => $channel->id, 'status' => 'rate_limited']);
+    assertDatabaseCount('clipping_sync_observations', 0);
 });

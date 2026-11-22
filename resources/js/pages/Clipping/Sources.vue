@@ -4,7 +4,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -15,12 +15,18 @@ const props = defineProps<{
     accounts: { id: string; external_id: string; name: string; platform: string }[];
     channels: { id: number; name: string; type: string }[];
     mappings: Record<string, number>;
+    importProjects: boolean;
+    importAccounts: boolean;
     readsAccounts: boolean;
     accountError: string | null;
 }>();
 const route = useRoute();
 const choices = reactive<Record<string, string>>(Object.fromEntries(Object.entries(props.mappings).map(([key, id]) => [key, String(id)])));
-const form = useForm({ external_id: '', project_id: null as number | null, accounts: [] as { id: string; channel_id: number | null }[] });
+const form = useForm({
+    external_id: null as string | null,
+    project_id: props.projects.find((item) => String(item.id) === String(route().params.project_id))?.id ?? (null as number | null),
+    accounts: [] as { id: string; channel_id: number | null }[],
+});
 function submit() {
     form.accounts = props.accounts
         .filter((account) => choices[account.id])
@@ -39,16 +45,20 @@ function submit() {
         <div class="workspace-page">
             <Heading title="Выбор источника" :description="connection.name" />
             <form class="studio-panel studio-form" @submit.prevent="submit">
-                <Label for="external-project">Проект провайдера</Label>
-                <select id="external-project" v-model="form.external_id" required class="list-select">
-                    <option value="" disabled>Выберите проект</option>
-                    <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.title || 'Проект без названия' }}</option>
-                </select>
-                <InputError :message="form.errors.external_id" />
-                <p v-if="!sources.length">Доступных проектов нет.</p>
+                <template v-if="importProjects">
+                    <Label for="external-project">Проект провайдера</Label>
+                    <select id="external-project" v-model="form.external_id" required class="list-select">
+                        <option :value="null" disabled>Выберите проект</option>
+                        <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.title || 'Проект без названия' }}</option>
+                    </select>
+                    <InputError :message="form.errors.external_id" />
+                    <p v-if="!sources.length">Доступных проектов нет.</p>
+                </template>
                 <Label for="local-project">Проект Poster</Label>
                 <select id="local-project" v-model="form.project_id" class="list-select">
-                    <option :value="null">Использовать сопоставление или создать новый</option>
+                    <option :value="null" :disabled="!importProjects">
+                        {{ importProjects ? 'Использовать сопоставление или создать новый' : 'Выберите проект Poster' }}
+                    </option>
                     <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
                 </select>
                 <InputError :message="form.errors.project_id" />
@@ -72,11 +82,18 @@ function submit() {
                     </label>
                 </fieldset>
                 <InputError :message="form.errors.accounts" />
-                <Button :disabled="!form.external_id || form.processing">Предпросмотр импорта</Button>
+                <Button
+                    :disabled="form.processing || (importProjects ? !form.external_id : !form.project_id || !Object.values(choices).some(Boolean))"
+                    >Предпросмотр импорта</Button
+                >
             </form>
             <section class="studio-panel">
                 <h2>Аккаунты провайдера</h2>
                 <p v-if="accountError" role="status">{{ accountError }}</p>
+                <p v-else-if="!importAccounts">
+                    Связи с аккаунтами исключены из области импорта.
+                    <Link class="underline" :href="route('clipping.edit', connection.id)">Параметры подключения</Link>
+                </p>
                 <p v-else-if="!readsAccounts">Драйвер не предоставляет список аккаунтов.</p>
                 <p v-else-if="!accounts.length">Доступных аккаунтов нет.</p>
                 <article v-for="account in accounts" :key="account.id" class="studio-row">

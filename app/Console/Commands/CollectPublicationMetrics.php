@@ -34,8 +34,12 @@ class CollectPublicationMetrics extends Command
                 $count = $action->run($owner, $channel);
                 $this->info("Channel {$channel->id}: $count observations.");
             } catch (ConnectionException|RequestException|RuntimeException $exception) {
-                $denied = $exception instanceof RequestException && in_array($exception->response->status(), [401, 403], true);
-                $observations->mark($channel, $denied ? MetricCollectionStatus::NO_PERMISSION : MetricCollectionStatus::TEMPORARY_ERROR);
+                $providerStatus = $exception instanceof RequestException ? $exception->response->status() : null;
+                $observations->mark($channel, match ($providerStatus) {
+                    401, 403 => MetricCollectionStatus::NO_PERMISSION,
+                    429 => MetricCollectionStatus::RATE_LIMITED,
+                    default => MetricCollectionStatus::TEMPORARY_ERROR,
+                });
                 $status = self::FAILURE;
                 $this->error("Channel {$channel->id}: could not collect metrics. Check authorization and provider availability.");
             }

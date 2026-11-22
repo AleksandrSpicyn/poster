@@ -28,7 +28,10 @@ const route = useRoute();
                         <strong>{{ connection.name }}</strong>
                         <p>{{ connection.driver }}</p>
                     </div>
-                    <Link :href="route('clipping.sources', connection.id)" class="underline">Выбрать источник</Link>
+                    <div class="flex flex-wrap gap-4">
+                        <Link :href="route('clipping.edit', connection.id)" class="underline">Параметры подключения</Link>
+                        <Link :href="route('clipping.sources', connection.id)" class="underline">Выбрать источник</Link>
+                    </div>
                 </article>
             </section>
             <Link :href="route('clipping.history')" class="underline">История импорта</Link>

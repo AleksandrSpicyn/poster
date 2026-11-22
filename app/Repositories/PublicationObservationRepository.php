@@ -24,6 +24,8 @@ use Illuminate\Support\LazyCollection;
 
 final readonly class PublicationObservationRepository
 {
+    public function __construct(private ClippingSyncRunRepository $syncRuns) {}
+
     /** @return LazyCollection<int, Channel> */
     public function channels(): LazyCollection
     {
@@ -98,6 +100,7 @@ final readonly class PublicationObservationRepository
                 'owner_id' => $channel->owner_id, 'publication_key' => $identity, 'observed_on' => now('UTC')->toDateString(),
             ]);
             $linked = false;
+            $clipIds = [];
 
             foreach ($target->origins as $origin) {
                 if (! Project::query()->whereKey($origin->projectId)->where('owner_id', $channel->owner_id)->exists()) {
@@ -113,6 +116,7 @@ final readonly class PublicationObservationRepository
                     $observation->post_id = $origin->id;
                 } else {
                     $observation->opus_clip_id = $origin->id;
+                    $clipIds[] = $origin->id;
                 }
 
                 $linked = true;
@@ -126,6 +130,11 @@ final readonly class PublicationObservationRepository
                 'channel_id' => $channel->id, 'platform' => $channel->type->value, 'account' => $account,
                 'media_id' => $target->mediaId, 'title' => mb_substr($target->title, 0, 255), 'metrics' => $metrics,
             ])->save();
+
+            if ($observation->wasRecentlyCreated && $clipIds !== []) {
+                $key = ClippingSyncRunRepository::observationKey($channel->type->value, $account, $target->mediaId, $observation->observed_on);
+                $this->syncRuns->observations([$key => $clipIds]);
+            }
 
             return true;
         }, attempts: 3);

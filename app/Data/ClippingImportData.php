@@ -14,7 +14,7 @@ class ClippingImportData extends Data
 {
     /** @param list<ClippingAccountSelectionData> $accounts */
     public function __construct(
-        #[Regex('/^[\w-]{1,128}$/D')] public string $external_id,
+        #[Regex('/^[\w-]{1,128}$/D')] public ?string $external_id = null,
         #[Min(1)] public ?int $project_id = null,
         #[Max(255)] public ?string $game = null,
         #[DataCollectionOf(ClippingAccountSelectionData::class), Max(100)] public array $accounts = [],

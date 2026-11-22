@@ -15,6 +15,7 @@ enum MetricCollectionStatus: string
     case NO_PERMISSION = 'no_permission';
     case UNSUPPORTED = 'unsupported';
     case TEMPORARY_ERROR = 'temporary_error';
+    case RATE_LIMITED = 'rate_limited';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum MetricCollectionStatus: string
             self::NO_DATA => 'Нет доступных наблюдений',
             self::NO_PERMISSION => 'Требуется подключение с правами чтения',
             self::UNSUPPORTED => 'Сбор пока недоступен для площадки',
+            self::RATE_LIMITED => 'Пауза по лимиту API',
             self::TEMPORARY_ERROR => 'Временная ошибка сбора',
         };
     }
