@@ -26,7 +26,7 @@ class UpdateController
      * @response 303
      * @bodyParam name string required Имя до 255 символов. Example: Demo User
      * @bodyParam email string required Уникальный email в нижнем регистре до 255 символов. Example: demo@example.com
-     * @response 422 scenario="Validation error (JSON)" {"message": "The name field is required.", "errors": {"name": ["The name field is required."]}}
+     * @response 422 scenario="Validation error (JSON)" {"message": "Введите имя.", "errors": {"name": ["Введите имя."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */

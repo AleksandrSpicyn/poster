@@ -35,7 +35,7 @@ test('неверный текущий пароль запрещает смену
             'password' => 'new-password',
             'password_confirmation' => 'new-password',
         ])
-        ->assertSessionHasErrors('current_password')
+        ->assertSessionHasErrors(['current_password' => 'Пароль не подошёл'])
         ->assertRedirect(route('password.edit'));
 });
 
@@ -46,7 +46,7 @@ test('гость не получает доступ к маршруту', functi
     putJson($url)->assertUnauthorized();
 });
 
-test('невалидный новый пароль не меняет учётные данные', function (array $input): void {
+test('невалидный новый пароль не меняет учётные данные', function (array $input, string $message): void {
     $user = User::factory()->create();
 
     actingAs($user)
@@ -54,13 +54,13 @@ test('невалидный новый пароль не меняет учётн�
             'current_password' => 'password', 'password' => 'new-password', 'password_confirmation' => 'new-password',
         ], $input))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors('password');
+        ->assertJsonPath('errors.password.0', $message);
 
     expect(Hash::check('password', $user->refresh()->password))->toBeTrue();
 })->with([
-    'отсутствует' => [['password' => '']],
-    'короткий' => [['password' => 'short']],
-    'не подтверждён' => [['password_confirmation' => 'different']],
+    'отсутствует' => [['password' => ''], 'Введите новый пароль.'],
+    'короткий' => [['password' => 'short', 'password_confirmation' => 'short'], 'Новый пароль должен содержать не менее 8 символов.'],
+    'не подтверждён' => [['password_confirmation' => 'different'], 'Подтверждение не совпадает с новым паролем.'],
 ]);
 
 test('невалидный текущий пароль не меняет учётные данные', function (mixed $password): void {
