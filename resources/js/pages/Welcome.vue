@@ -124,7 +124,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
 <style scoped>
 .landing {
     color-scheme: dark;
-    --bg: #12111c;
+    --bg: #13111d;
     --ink: #fbf6ed;
     --muted: #d1cddc;
     --edge: #514c62;
@@ -165,7 +165,18 @@ figure {
 }
 .top {
     overflow: hidden;
-    background: radial-gradient(ellipse at 72% 38%, #392569 0%, #24203d 26%, #151420 49%, #12111c 75%);
+    background: radial-gradient(
+        ellipse 103vw 72svh at 72.3vw 36.2svh,
+        #3e296a 0%,
+        #3a2762 12%,
+        #2e204d 25%,
+        #211936 38%,
+        #181427 50%,
+        #14121f 63%,
+        #13111d 76%,
+        #13111d 90%,
+        #13111d 100%
+    );
 }
 .outer {
     max-width: 1780px;
@@ -248,6 +259,8 @@ figure {
 }
 h1 {
     font-size: clamp(64px, 7.15vw, 128px);
+    position: relative;
+    top: -0.05em;
     letter-spacing: -0.075em;
     line-height: 0.96;
 }
@@ -293,7 +306,7 @@ h1 span:last-child {
     position: absolute;
     right: 0.7%;
     width: 60%;
-    top: 50%;
+    top: calc(50% - 2px);
     transform: translateY(-50%);
     pointer-events: none;
 }
@@ -321,7 +334,7 @@ h1 span:last-child {
 }
 .features h2 {
     border-top: 1px solid #797286;
-    padding: 12px 0 25px;
+    padding: 7px 0 25px;
     font-size: clamp(23px, 2vw, 34px);
     letter-spacing: -0.055em;
     line-height: 1.2;
@@ -354,7 +367,6 @@ h1 span:last-child {
 }
 .feature p {
     margin-top: 5px;
-    max-width: 30ch;
     line-height: 1.32;
     color: var(--muted);
     letter-spacing: -0.02em;
@@ -519,7 +531,7 @@ h1 span:last-child {
     }
     .art {
         position: relative;
-        right: auto;
+        right: 2%;
         top: auto;
         transform: none;
         width: min(104%, 540px);
@@ -527,7 +539,7 @@ h1 span:last-child {
         align-self: center;
     }
     .features h2 {
-        padding: 14px 0 22px;
+        padding: 10px 0 22px;
     }
     .items {
         grid-template-columns: 1fr 1fr;
@@ -551,7 +563,18 @@ h1 span:last-child {
         gap: 12px;
     }
     .top {
-        background: radial-gradient(ellipse at 72% 48%, #342453, transparent 48%), #13121c;
+        background: radial-gradient(
+            ellipse 180vw 78.3svh at 72.4vw 45.2svh,
+            #41296d 0%,
+            #3b2663 12%,
+            #2d1e49 25%,
+            #1e1730 38%,
+            #161323 50%,
+            #13111e 63%,
+            #13111d 76%,
+            #13111d 90%,
+            #13111d 100%
+        );
     }
 }
 @media (prefers-reduced-motion: reduce) {
