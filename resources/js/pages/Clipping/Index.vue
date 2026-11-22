@@ -18,7 +18,7 @@ type Connection = {
 const props = defineProps<{ connections: Connection[]; drivers: Record<string, string> }>();
 const page = usePage<SharedData>();
 const route = useRoute();
-const filtering = ref(false);
+const filtering = ref(new URL(page.url, 'http://poster.local').searchParams.get('view') === 'select');
 const selectedConnection = ref(props.connections[0]?.id ?? null);
 const sourceTitle = ref('');
 function findSources() {
