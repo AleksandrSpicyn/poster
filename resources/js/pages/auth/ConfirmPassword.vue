@@ -29,7 +29,7 @@ const submit = () => {
         <Head title="Подтверждение пароля" />
 
         <form @submit.prevent="submit">
-            <div class="space-y-6">
+            <div class="space-y-[17px]">
                 <div class="grid gap-2">
                     <Label for="password">Текущий пароль</Label>
                     <Input

@@ -43,7 +43,7 @@ const submit = () => {
         </div>
 
         <form @submit.prevent="submit" class="flex flex-col gap-6">
-            <div class="grid gap-[18px]">
+            <div class="grid gap-[19px]">
                 <div class="grid gap-2">
                     <Label for="email">Почта</Label>
                     <Input id="email" type="email" required autofocus autocomplete="email" v-model="form.email" placeholder="studio@example.test" />
@@ -77,7 +77,7 @@ const submit = () => {
                     </Label>
                 </div>
 
-                <Button type="submit" class="w-full" :disabled="form.processing">
+                <Button type="submit" class="-mt-px w-full" :disabled="form.processing">
                     <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                     Войти
                 </Button>

@@ -54,7 +54,7 @@ const submit = () => {
                     <CircleCheck aria-hidden="true" /><strong>Запрос принят</strong>
                     <p>Если этот адрес связан с аккаунтом, на него придёт письмо со ссылкой.</p>
                 </div>
-                <div v-else class="my-6 flex items-center justify-start">
+                <div v-else class="mt-[18px] mb-6 flex items-center justify-start md:mt-[17px]">
                     <Button class="w-full" :disabled="form.processing">
                         <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                         Отправить ссылку

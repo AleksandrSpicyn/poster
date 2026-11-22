@@ -42,7 +42,7 @@ const submit = () => {
         <Head title="Новый пароль" />
 
         <form @submit.prevent="submit">
-            <div class="grid gap-6">
+            <div class="grid gap-[19px]">
                 <div class="grid gap-2">
                     <Label for="email">Почта</Label>
                     <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
@@ -86,7 +86,7 @@ const submit = () => {
                     <CircleX aria-hidden="true" /><strong>Пароли не совпадают</strong>
                     <p>Введите одинаковое значение в обоих полях.</p>
                 </div>
-                <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
+                <Button type="submit" class="-mt-px w-full" :disabled="form.processing">
                     <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                     Сохранить пароль
                 </Button>
