@@ -16,6 +16,7 @@ export interface SeriesSpecification {
 }
 
 export interface SeriesSummary {
+    last_episode_number?: number | null;
     id: number;
     project_id: number;
     name: string;
