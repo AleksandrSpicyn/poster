@@ -609,7 +609,7 @@ function submit() {
                             >
                             <div class="studio-row">
                                 <dt>Проект</dt>
-                                <dd>{{ project.name }}</dd>
+                                <dd>{{ project.name }} · {{ project.content_mode === 'series' ? 'сериал' : 'короткие ролики' }}</dd>
                             </div>
                             <div class="studio-row">
                                 <dt>Активные задания</dt>

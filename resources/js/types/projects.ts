@@ -59,7 +59,7 @@ export interface ProjectPageProps extends SharedData {
         publications: { media_id: string | null; platform: string; status: string | null; url: string | null; publish_at: string | null }[];
         observations: { platform: string; media_id: string; date: string; metrics: Record<string, number> }[];
     }> | null;
-    project: ProjectSummary & { channels: ProjectChannel[] };
+    project: ProjectSummary & { channels: ProjectChannel[]; blocking_runs_count: number };
     prompts: PaginatedResource<PromptSummary>;
     filters: { sort: string; updated?: boolean; active?: boolean };
     sortDirections: Record<string, string>;
