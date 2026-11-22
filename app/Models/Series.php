@@ -41,6 +41,7 @@ use Illuminate\Support\Carbon;
  * @property-read Project|null $project
  * @property-read Collection<int, Character> $characters
  * @property-read Collection<int, Episode> $episodes
+ * @property-read SeriesAssembly|null $latestAssembly
  * @property-read EpisodeAssembly|null $canonicalAssembly
  * @property-read User|null $automationUser
  * @property-read Collection<int, ProductionRun> $productionRuns
@@ -132,6 +133,12 @@ class Series extends Model
     public function finalAssembly(): BelongsTo
     {
         return $this->belongsTo(SeriesAssembly::class, 'final_assembly_id');
+    }
+
+    /** @return HasOne<SeriesAssembly, $this> */
+    public function latestAssembly(): HasOne
+    {
+        return $this->hasOne(SeriesAssembly::class)->ofMany('number', 'max');
     }
 
     /** @return HasMany<SeriesAssembly, $this> */

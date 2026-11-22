@@ -40,6 +40,28 @@ test('история показывает закреплённую версию 
         ->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page
             ->where('assembly.id', $assembly->id)
             ->where('series.final_assembly_id', $pinned->id)
+            ->where('series.newer_assembly', null)
+            ->where('release_started', true));
+});
+
+test('закреплённый выпуск сохраняет версию и показывает последний монтаж своего сериала', function (): void {
+    Storage::fake('local');
+    $context = singleVideoFixture();
+    $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
+    $newer = $assembly->replicate();
+    $newer->number++;
+    $newer->manifest_hash = hash('sha256', 'next-version');
+    $newer->save();
+    $context['series']->update(['final_assembly_id' => $assembly->id, 'release_started_at' => now()]);
+
+    actingAs($context['user'])
+        ->get(route('series_assemblies.show', $assembly))
+        ->assertOk()
+        ->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page
+            ->where('assembly.id', $assembly->id)
+            ->where('series.newer_assembly.number', $newer->number)
+            ->where('series.newer_assembly.status', $newer->status->value)
+            ->has('project.cover')
             ->where('release_started', true));
 });
 

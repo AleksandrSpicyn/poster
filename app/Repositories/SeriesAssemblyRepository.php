@@ -80,6 +80,10 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
     {
         $assembly = SeriesAssembly::query()->with('series.project', 'media')->findOrFail($id);
 
+        if ($includeParts && $assembly->series->release_started_at !== null && $assembly->series->final_assembly_id === $assembly->id) {
+            $assembly->series->load('latestAssembly:id,series_id,number,status');
+        }
+
         if ($includeParts) {
             $assembly->load(['episodeAssemblies' => fn($query) => $query
                 ->whereRelation('episodeRevision.episode', 'series_id', $assembly->series_id)
