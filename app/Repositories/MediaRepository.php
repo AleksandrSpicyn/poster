@@ -11,6 +11,8 @@ use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
 use App\Models\SeriesAssembly;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -25,7 +27,15 @@ readonly class MediaRepository extends EloquentRepository
     /** @return LengthAwarePaginator<int, Media> */
     public function publishingVideos(Channel $channel, int $page): LengthAwarePaginator
     {
-        return $this->publishingQuery($channel)->latest('id')->paginate(20, page: $page);
+        $receipts = ['publications' => fn(HasMany $query) => $query->where('channel_id', $channel->id)->where('created_by', $channel->owner_id)->with('post')->latest('id')];
+
+        return $this->publishingQuery($channel)
+            ->with(['model' => fn(MorphTo $source) => $source->morphWith([
+                Prompt::class => ['project.media', 'project.coverFrame', ...$receipts],
+                EpisodeAssembly::class => ['episodeRevision.episode.series.project.media', 'episodeRevision.episode.series.project.coverFrame', ...$receipts],
+                SeriesAssembly::class => ['series.project.media', 'series.project.coverFrame', ...$receipts],
+            ])])
+            ->latest('id')->paginate(20, page: $page);
     }
 
     public function publishingVideo(Channel $channel, int $id): Media

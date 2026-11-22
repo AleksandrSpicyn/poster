@@ -42,6 +42,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property Carbon|null $updated_at
  * @property-read MediaCollection<int, Media> $media
  * @property-read int|null $media_count
+ * @property-read Collection<int, PublicationRequest> $publications
  * @property-read Collection<int, Post> $posts
  * @property-read int|null $posts_count
  * @property-read Project|null $project
@@ -88,6 +89,12 @@ class Prompt extends Model implements HasMedia
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /** @return HasMany<PublicationRequest, $this> */
+    public function publications(): HasMany
+    {
+        return $this->hasMany(PublicationRequest::class);
     }
 
     /** @return HasMany<Post, $this> */

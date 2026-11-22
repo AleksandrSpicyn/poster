@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\Post;
+use App\Models\Project;
+use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -68,3 +73,27 @@ test('ошибка проверки прямой публикации сохра
 
     Http::assertSentCount(2);
 })->with([true, false]);
+
+test('видео показывает квитанцию выбранного канала владельца', function (): void {
+    Storage::fake('local');
+    $owner = User::factory()->create();
+    $project = Project::factory()->for($owner, 'owner')->create();
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'credentials' => ['channel_id' => 'qa', 'scope' => 'video.upload', 'access_token' => 'fake-access']]);
+    $other = Channel::factory()->for($project)->create();
+    $prompt = Prompt::factory()->for($project)->create(['generated' => true]);
+    $media = $prompt->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection('default', 'local');
+    $receipt = PublicationRequest::create(['prompt_id' => $prompt->id, 'channel_id' => $channel->id, 'created_by' => $owner->id,
+        'status' => 'published', 'payload' => [], 'published_at' => now()]);
+    Post::factory()->for($channel)->create(['publication_request_id' => $receipt->id, 'url' => 'https://example.test/confirmed']);
+    PublicationRequest::create(['prompt_id' => $prompt->id, 'channel_id' => $other->id, 'created_by' => $owner->id, 'status' => 'inbox', 'payload' => []]);
+
+    actingAs($owner)
+        ->get(route('posts.tiktok.create', $channel))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('videos.data.0.id', $media->id)
+            ->where('videos.data.0.project.id', $project->id)
+            ->where('videos.data.0.receipt.id', $receipt->id)
+            ->where('videos.data.0.receipt.status', 'published')
+            ->where('videos.data.0.receipt.url', 'https://example.test/confirmed'));
+});

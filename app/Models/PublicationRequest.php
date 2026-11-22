@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\PublicationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $scheduled_at
  * @property Carbon|null $submitted_at
  * @property Carbon|null $published_at
+ * @property-read Post|null $post
  * @property-read Channel|null $channel
  * @property-read EpisodeAssembly|null $assembly
  */
@@ -33,6 +35,12 @@ class PublicationRequest extends Model
     protected $fillable = ['prompt_id', 'series_assembly_id', 'release_key', 'episode_assembly_id', 'channel_id', 'created_by', 'production_run_id', 'status', 'payload', 'container_id', 'error_message', 'scheduled_at', 'submitted_at', 'published_at'];
 
     protected $casts = ['status' => PublicationStatus::class, 'payload' => 'array', 'scheduled_at' => 'datetime', 'submitted_at' => 'datetime', 'published_at' => 'datetime'];
+
+    /** @return HasOne<Post, $this> */
+    public function post(): HasOne
+    {
+        return $this->hasOne(Post::class);
+    }
 
     /** @return BelongsTo<Prompt, $this> */
     public function prompt(): BelongsTo

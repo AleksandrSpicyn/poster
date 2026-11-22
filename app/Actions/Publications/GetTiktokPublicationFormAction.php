@@ -23,7 +23,7 @@ readonly class GetTiktokPublicationFormAction
         return $path;
     }
 
-    /** @return array{account: string, accountId: string, inbox: bool, directUnavailable: bool, creator: CreatorSettingsData|null, videos: LengthAwarePaginator<int, array{id: int, label: string, url: string}>} */
+    /** @return array{account: string, accountId: string, inbox: bool, directUnavailable: bool, creator: CreatorSettingsData|null, videos: LengthAwarePaginator<int, Media>} */
     public function run(Channel $channel, int $page): array
     {
         $direct = $channel->canDirectPostTiktok();
@@ -37,10 +37,7 @@ readonly class GetTiktokPublicationFormAction
             'inbox' => $channel->canSendTiktokInboxVideo(),
             'directUnavailable' => $direct && ! $creator instanceof CreatorSettingsData,
             'creator' => $creator,
-            'videos' => $this->media->publishingVideos($channel, $page)->through(static fn(Media $media): array => [
-                'id' => $media->id, 'label' => $media->name . ' (#' . $media->id . ')',
-                'url' => route('posts.tiktok.preview', ['channel' => $channel, 'media' => $media]),
-            ]),
+            'videos' => $this->media->publishingVideos($channel, $page),
         ];
     }
 }
