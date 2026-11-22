@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { useSidebar } from '@/components/ui/sidebar';
+import StudioMoreMenu from '@/components/StudioMoreMenu.vue';
+import { useMediaQuery } from '@vueuse/core';
 import { useNavigation } from '@/composables/useNavigation';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { Menu } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const { main } = useNavigation();
-const { openMobile, setOpenMobile } = useSidebar();
+const page = usePage();
+const mobile = useMediaQuery('(max-width: 767px)');
 const primaryPaths: string[] = ['dashboard', 'projects.index', 'posts'].map((name) => route(name, undefined, false));
-const inMore = computed(() => main.value.some((item) => item.isActive && !primaryPaths.includes(item.href)));
+const inMore = computed(() => page.url.startsWith('/settings/') || main.value.some((item) => item.isActive && !primaryPaths.includes(item.href)));
 const links = computed(() => main.value.filter((item) => primaryPaths.includes(item.href)));
 </script>
 
@@ -19,9 +21,13 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
         <Link v-for="item in links" :key="item.href" :href="item.href" :aria-current="item.isActive ? 'page' : undefined">
             <component :is="item.icon" aria-hidden="true" />{{ item.title }}
         </Link>
-        <button type="button" :class="{ active: inMore }" :aria-expanded="openMobile" aria-haspopup="dialog" @click="setOpenMobile(true)">
-            <Menu aria-hidden="true" />Ещё
-        </button>
+        <StudioMoreMenu :visible="mobile"
+            ><template #default="{ open }"
+                ><button type="button" :class="{ active: inMore }" :aria-expanded="open" aria-haspopup="dialog">
+                    <Menu aria-hidden="true" />Ещё
+                </button></template
+            ></StudioMoreMenu
+        >
     </nav>
 </template>
 

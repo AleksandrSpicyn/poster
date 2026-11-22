@@ -78,13 +78,13 @@ function allProjects() {
                     <VideoPreview v-if="prompt.url" :prompt="prompt"
                         ><template #trigger
                             ><button class="generation-row" type="button">
-                                <strong>{{ prompt.title }}</strong><span>{{ prompt.stage_label }}</span>
+                                <strong>{{ prompt.title }}</strong><span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
                             </button></template
                         ></VideoPreview
                     >
                     <details v-else>
                         <summary class="generation-row">
-                            <strong>{{ prompt.title }}</strong><span>{{ prompt.stage_label }}</span>
+                            <strong>{{ prompt.title }}</strong><span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
                         </summary>
                         <p>{{ prompt.project }} · {{ prompt.created_at }}</p>
                     </details>
@@ -151,5 +151,20 @@ details p {
     .workspace-page {
         padding-block-start: 16px;
     }
+}
+.generation-row span[data-stage='ready'] {
+    color: var(--sidebar-accent-foreground);
+}
+.generation-row span[data-stage='image'],
+.generation-row span[data-stage='video'],
+.generation-row span[data-stage='audio'],
+.generation-row span[data-stage='media'] {
+    color: #605588;
+}
+.dark .generation-row span[data-stage='image'],
+.dark .generation-row span[data-stage='video'],
+.dark .generation-row span[data-stage='audio'],
+.dark .generation-row span[data-stage='media'] {
+    color: #c7c2e0;
 }
 </style>

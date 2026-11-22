@@ -538,6 +538,8 @@ function refresh() {
                                     :key="shot.id"
                                     v-show="detail === null || shot.id === shots[detail]?.id"
                                     :shot="shot"
+                                    :scene-title="scene.title"
+                                    :number="shots.findIndex((item) => item.id === shot.id) + 1"
                                     :params="params"
                                     :revision-id="revision.id"
                                     :approved="revision.status === 'approved'"

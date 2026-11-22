@@ -2,10 +2,11 @@
 import InputError from '@/components/InputError.vue';
 import ShotOperationControls from '@/components/episodes/ShotOperationControls.vue';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import type { EpisodeRouteParams, ShotSummary } from '@/types/episodes';
 import { useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -16,12 +17,22 @@ const props = defineProps<{
     archived: boolean;
     projectEnabled: boolean;
     requestKey: string;
+    sceneTitle?: string;
+    number?: number;
     sourceOptions: { id: number; label: string }[];
 }>();
 const route = useRoute();
 const params = { ...props.params, revision: props.revisionId, scene: props.shot.scene_id, shot: props.shot.id };
 const form = useForm({ source_prompt_id: props.shot.source_prompt_id ?? '', request_key: props.requestKey + '-' + props.shot.id, new_take: false });
 const cancelForm = useForm({});
+const stopping = ref<number | null>(null);
+const savedTakes = computed(() =>
+    props.shot.takes
+        .filter((take) => take.generated)
+        .map((take) => String(take.take_number).padStart(2, '0'))
+        .sort()
+        .join(', '),
+);
 const hasActiveRequest = computed(() =>
     props.shot.takes.some((take) =>
         take.operations.some((operation) => ['planned', 'submitting', 'submitted', 'running', 'submission_unknown'].includes(operation.status)),
@@ -36,14 +47,23 @@ function generate(newTake: boolean) {
     );
 }
 function stop(prompt: number) {
-    cancelForm.post(route('shots.cancel', { ...params, prompt }), { preserveScroll: true, preserveState: 'errors' });
+    if (cancelForm.processing || stopping.value !== prompt) return;
+    cancelForm.post(route('shots.cancel', { ...params, prompt }), {
+        preserveScroll: true,
+        preserveState: 'errors',
+        onSuccess: () => {
+            stopping.value = null;
+        },
+    });
 }
 </script>
 
 <template>
     <article class="bg-card space-y-4 rounded-xl border p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
-            <h4 class="font-semibold">Кадр {{ shot.position }} · {{ (shot.duration_ms / 1000).toLocaleString('ru') }} с</h4>
+            <h4 class="font-semibold">
+                Кадр {{ String(number ?? shot.position).padStart(2, '0') }} · {{ (shot.duration_ms / 1000).toLocaleString('ru') }} с
+            </h4>
             <span class="text-muted-foreground text-xs">{{ shot.transition_mode_label }}</span>
         </div>
         <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ shot.action }}</p>
@@ -100,15 +120,45 @@ function stop(prompt: number) {
                 <p v-if="take.operations.some((item) => item.status === 'submission_unknown')" class="text-destructive text-sm">
                     Проверьте результат в кабинете провайдера перед повтором.
                 </p>
-                <Button
-                    v-if="!take.generated && take.operations.some((item) => ['planned', 'submitting', 'submitted', 'running'].includes(item.status))"
-                    type="button"
-                    variant="outline"
-                    class="h-11"
-                    :disabled="cancelForm.processing"
-                    @click="stop(take.id)"
-                    >Остановить следующие этапы</Button
+                <Dialog
+                    v-if="
+                        !archived &&
+                        !take.generated &&
+                        take.operations.some(
+                            (item) => ['planned', 'submitting', 'submitted', 'running'].includes(item.status) && !item.cancel_requested_at,
+                        )
+                    "
+                    :open="stopping === take.id"
+                    @update:open="
+                        (open) => {
+                            stopping = open ? take.id : null;
+                        }
+                    "
                 >
+                    <DialogTrigger as-child><Button type="button" variant="outline" class="h-11">Остановить следующие шаги</Button></DialogTrigger>
+                    <DialogContent class="studio-confirm" :show-close="false">
+                        <DialogTitle>Остановить шаги дубля {{ String(take.take_number).padStart(2, '0') }}?</DialogTitle>
+                        <DialogDescription>Уже отправленный запрос может завершиться у провайдера.</DialogDescription>
+                        <dl>
+                            <div class="studio-row">
+                                <dt>Кадр</dt>
+                                <dd>{{ sceneTitle }} · {{ String(number ?? shot.position).padStart(2, '0') }}</dd>
+                            </div>
+                            <div v-if="savedTakes" class="studio-row">
+                                <dt>Сохранённые дубли</dt>
+                                <dd>{{ savedTakes }} останутся доступны</dd>
+                            </div>
+                        </dl>
+                        <InputError :message="Object.values(cancelForm.errors).join(' ')" />
+                        <DialogFooter
+                            ><Button type="button" variant="destructive" :disabled="cancelForm.processing" @click="stop(take.id)"
+                                >Остановить шаги</Button
+                            ><DialogClose as-child
+                                ><Button type="button" variant="outline" :disabled="cancelForm.processing">Оставить в работе</Button></DialogClose
+                            ></DialogFooter
+                        >
+                    </DialogContent>
+                </Dialog>
                 <ShotOperationControls v-if="!archived" :take="take" :params="params" />
             </section>
         </div>
