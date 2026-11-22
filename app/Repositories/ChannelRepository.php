@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Data\Channels\GetChannelListData;
 use App\Data\Episodes\PublishEpisodeData;
 use App\Data\PublishVideoData;
 use App\Enums\ChannelType;
+use App\Enums\SortDirection;
 use App\Models\Channel;
 use App\Models\Project;
 use App\Models\Prompt;
@@ -26,9 +28,17 @@ readonly class ChannelRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Channel> */
-    public function paginate(User $owner): LengthAwarePaginator
+    public function paginate(User $owner, GetChannelListData $filters): LengthAwarePaginator
     {
-        return Channel::query()->where('owner_id', $owner->id)->with(['projects' => fn($query) => $query->where('projects.owner_id', $owner->id)->select('projects.id', 'name')])->withCount('posts', 'publicationRequests')->orderBy('name')->orderBy('id')->paginate(20);
+        return Channel::query()->where('owner_id', $owner->id)->with(['projects' => fn($query) => $query->where('projects.owner_id', $owner->id)->select('projects.id', 'name')])->withCount('posts', 'publicationRequests')
+            ->when(filled($filters->search), fn(Builder $query) => $query->whereLike('name', '%' . $filters->search . '%'))
+            ->when($filters->active !== null, fn(Builder $query) => $query->where('is_active', $filters->active))
+            ->when(
+                $filters->sort,
+                fn(Builder $query, SortDirection $sort) => $query->orderBy('created_at', $sort->value),
+                fn(Builder $query) => $query->orderBy('name'),
+            )
+            ->orderBy('id')->paginate($filters->perPage, page: $filters->page)->withQueryString();
     }
 
     /** @return Collection<int, Channel> */

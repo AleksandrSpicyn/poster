@@ -44,7 +44,7 @@ export interface ListFilters {
     type?: string;
     search?: string;
     days?: number;
-    active?: number;
+    active?: number | null;
     updated?: number;
 }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tasks\Channels;
 
+use App\Data\Channels\GetChannelListData;
 use App\Models\Channel;
 use App\Models\Project;
 use App\Models\User;
@@ -16,9 +17,9 @@ readonly class GetChannels
     public function __construct(private ChannelRepository $channels) {}
 
     /** @return LengthAwarePaginator<int, Channel> */
-    public function run(User $owner): LengthAwarePaginator
+    public function run(User $owner, GetChannelListData $filters): LengthAwarePaginator
     {
-        return $this->channels->paginate($owner);
+        return $this->channels->paginate($owner, $filters);
     }
 
     /** @return Collection<int, Channel> */

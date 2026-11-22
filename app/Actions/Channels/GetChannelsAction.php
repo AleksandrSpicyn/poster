@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Channels;
 
+use App\Data\Channels\GetChannelListData;
 use App\Models\Channel;
 use App\Models\User;
 use App\Tasks\Channels\GetChannels;
@@ -15,10 +16,10 @@ readonly class GetChannelsAction
     public function __construct(private GetChannels $task) {}
 
     /** @return LengthAwarePaginator<int, Channel> */
-    public function run(User $owner): LengthAwarePaginator
+    public function run(User $owner, GetChannelListData $filters): LengthAwarePaginator
     {
         Gate::authorize('manageChannels');
 
-        return $this->task->run($owner);
+        return $this->task->run($owner, $filters);
     }
 }

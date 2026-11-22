@@ -14,7 +14,7 @@ import type { BreadcrumbItem, ChannelType, SharedData } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Link2, LoaderCircle, Save, Trash2 } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -57,11 +57,25 @@ onMounted(() => {
 });
 onUnmounted(() => window.removeEventListener('hashchange', readTab));
 const connectionPage = computed(() => props.channel?.type === 'tiktok' && ['platform', 'authorization', 'account'].includes(tab.value));
+function revealInvalidField(event: Event) {
+    const input = event.target;
+    if (props.channel || !(input instanceof HTMLInputElement) || input.id !== 'channel-name' || tab.value !== 'oauth-settings') return;
+    event.preventDefault();
+    tab.value = 'channel-name';
+    window.location.hash = 'channel-name';
+    void nextTick(() => {
+        input.focus();
+        input.reportValidity();
+    });
+}
 function submit() {
     requestError.value = '';
     form.submit(props.channel ? 'patch' : 'post', props.channel ? route('channels.update', props.channel.id) : route('channels.store'), {
         preserveScroll: 'errors',
         onSuccess: () => form.reset('client_secret'),
+        onError: (errors) => {
+            if (!props.channel) window.location.hash = errors.client_id || errors.client_secret ? 'oauth-settings' : 'channel-name';
+        },
         onNetworkError: () => {
             requestError.value = 'Связь прервана. Повторите сохранение после подключения.';
             return false;
@@ -99,25 +113,45 @@ function remove() {
             @save="submit"
             @disconnect="disconnect"
         />
-        <div v-else class="workspace-page">
+        <div v-else class="workspace-page" :class="{ 'new-channel': !channel }">
             <ProjectNotice />
-            <div class="flex items-start justify-between gap-3">
+            <div class="channel-heading flex items-start justify-between gap-3">
                 <Heading
                     :title="channel ? 'Настройки канала' : 'Новый канал'"
-                    :description="channel ? channel.name + ' / Подключение' : 'Подключение аккаунта для публикаций'"
+                    :description="channel ? channel.name + ' / Подключение' : 'Подключение аккаунта для постинга'"
                 />
                 <Button type="submit" form="studio-channel" class="h-11" :disabled="form.processing">{{
                     channel ? 'Сохранить' : 'Создать канал'
                 }}</Button>
             </div>
             <p v-if="requestError" role="alert" class="text-destructive text-sm">{{ requestError }}</p>
-            <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
+            <div class="channel-layout grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
                 <nav
                     aria-label="Разделы канала"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
                     <h2 class="hidden text-lg font-bold min-[1100px]:block">В этом разделе</h2>
-                    <a href="#channel-name" class="bg-sidebar-accent text-sidebar-accent-foreground rounded-lg p-3 text-sm">Основное</a>
+                    <a
+                        href="#channel-name"
+                        class="rounded-lg p-3 text-sm"
+                        :class="tab !== 'oauth-settings' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'bg-muted'"
+                        >{{ channel ? 'Основное' : 'Создание' }}</a
+                    >
+                    <a
+                        v-if="!channel"
+                        href="#oauth-settings"
+                        class="rounded-lg p-3 text-sm"
+                        :class="tab === 'oauth-settings' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'bg-muted'"
+                        >Авторизация у площадки</a
+                    >
+                    <button
+                        v-if="!channel"
+                        class="text-muted-foreground rounded-lg p-3 text-left text-sm"
+                        disabled
+                        title="Сначала создайте канал и подключите аккаунт"
+                    >
+                        Проверка прав
+                    </button>
                     <a v-if="channel" :href="channel.type === 'tiktok' ? '#platform' : '#connection-heading'" class="bg-muted rounded-lg p-3 text-sm"
                         >Подключение</a
                     >
@@ -128,9 +162,11 @@ function remove() {
                         id="studio-channel"
                         class="bg-card min-w-0 space-y-6 rounded-xl border p-5 sm:p-7"
                         :aria-busy="form.processing"
+                        @invalid.capture="revealInvalidField"
                         @submit.prevent="submit"
                     >
-                        <div class="grid gap-2">
+                        <h2 v-if="!channel" class="text-xl font-bold">{{ tab === 'oauth-settings' ? 'Настройки приложения' : 'Параметры' }}</h2>
+                        <div v-show="channel || tab !== 'oauth-settings'" class="grid gap-2">
                             <Label for="channel-name">Название</Label
                             ><Input
                                 id="channel-name"
@@ -144,7 +180,7 @@ function remove() {
                                 class="h-11"
                             /><InputError :message="form.errors.name" />
                         </div>
-                        <div class="grid gap-2">
+                        <div v-show="channel || tab !== 'oauth-settings'" class="grid gap-2">
                             <Label for="channel-type">Площадка</Label
                             ><select
                                 id="channel-type"
@@ -155,7 +191,7 @@ function remove() {
                                 <option v-for="(label, value) in channelTypes" :key="value" :value="value">{{ label }}</option></select
                             ><InputError :message="form.errors.type" />
                         </div>
-                        <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-4"
+                        <label v-if="channel" class="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-4"
                             ><input
                                 v-model="form.is_active"
                                 type="checkbox"
@@ -168,11 +204,18 @@ function remove() {
                                 ></span
                             ></label
                         >
+                        <div v-else-if="tab !== 'oauth-settings'" class="grid gap-2">
+                            <Label for="channel-state">Состояние</Label>
+                            <select id="channel-state" v-model="form.is_active" class="border-input bg-background h-12 rounded-md border px-3">
+                                <option :value="true">Активен</option>
+                                <option :value="false">Приостановлен</option>
+                            </select>
+                        </div>
                         <InputError :message="form.errors.is_active" />
                         <details
-                            v-if="oauthSupported"
+                            v-if="oauthSupported && (channel || tab === 'oauth-settings')"
                             class="space-y-4 border-t pt-5"
-                            :open="!!form.errors.client_id || !!form.errors.client_secret || (!!channel && !channel.oauth_configured)"
+                            :open="!channel || !!form.errors.client_id || !!form.errors.client_secret || (!!channel && !channel.oauth_configured)"
                         >
                             <summary class="cursor-pointer text-sm font-semibold">Настройки приложения OAuth</summary>
                             <p class="text-muted-foreground text-sm">
@@ -225,7 +268,7 @@ function remove() {
                                 <p class="text-muted-foreground text-xs">Укажите этот адрес возврата в настройках приложения площадки.</p>
                             </div>
                         </details>
-                        <div class="flex flex-wrap justify-end gap-3 border-t pt-5">
+                        <div v-if="channel" class="flex flex-wrap justify-end gap-3 border-t pt-5">
                             <Button as-child variant="outline" class="h-11"><Link :href="route('channels.index')">Отмена</Link></Button
                             ><Button type="submit" :disabled="form.processing" class="h-11"
                                 ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
@@ -347,3 +390,52 @@ function remove() {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.new-channel #studio-channel {
+    padding: 24px;
+    min-height: 378px;
+}
+.new-channel #studio-channel > * {
+    margin: 0;
+}
+.new-channel #studio-channel > h2 {
+    margin-bottom: 18px;
+}
+.new-channel #studio-channel > div.grid {
+    gap: 6px;
+    margin: 20px 0;
+}
+.new-channel #studio-channel :is(input, select) {
+    background: var(--background);
+    height: 48px;
+    font-size: 16px;
+}
+.new-channel #studio-channel label {
+    font-weight: 400;
+    color: var(--muted-foreground);
+}
+@media (min-width: 1100px) {
+    .new-channel .channel-layout {
+        grid-template-columns: 276px minmax(0, 852px);
+    }
+    .new-channel nav {
+        min-height: 240px;
+        padding: 16px;
+    }
+    .new-channel nav .bg-muted {
+        background: transparent;
+    }
+}
+@media (min-width: 1920px) {
+    .new-channel .channel-layout {
+        grid-template-columns: 276px minmax(0, 820px);
+    }
+}
+@media (max-width: 1099px) {
+    .new-channel .channel-heading {
+        flex-direction: column;
+        gap: 16px;
+    }
+}
+</style>

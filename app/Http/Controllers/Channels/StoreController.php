@@ -37,7 +37,7 @@ class StoreController
     public function __invoke(#[CurrentUser] User $owner, ChannelData $data, SaveChannelAction $action): RedirectResponse
     {
         $channel = $action->run($owner, $data);
-        Inertia::flash('success', 'Channel created. Add this connection to your projects.');
+        Inertia::flash('success', 'Канал создан. Теперь его можно привязать к проектам.');
 
         return to_route('channels.edit', $channel);
     }

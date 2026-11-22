@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\GetChannelsAction;
+use App\Data\Channels\GetChannelListData;
 use App\Http\Resources\ChannelResource;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -25,8 +26,8 @@ class IndexController
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"This action is unauthorized."}
      */
-    public function __invoke(#[CurrentUser] User $owner, GetChannelsAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, GetChannelListData $filters, GetChannelsAction $action): Response
     {
-        return inertia('Channels/Index', ['channels' => ChannelResource::collection($action->run($owner))->response()->getData(true)]);
+        return inertia('Channels/Index', ['filters' => $filters, 'channels' => ChannelResource::collection($action->run($owner, $filters))->response()->getData(true)]);
     }
 }

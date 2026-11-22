@@ -40,3 +40,18 @@ test('гость и неподтверждённый пользователь н
 
     actingAs(User::factory()->unverified()->create())->get(route('channels.index'))->assertRedirect(route('verification.notice'));
 });
+
+test('применяет строку поиска и состояние к каналам текущего владельца', function (): void {
+    $owner = workspaceOwner();
+    $matching = Channel::factory()->recycle($owner)->create(['name' => 'Лесная почта', 'is_active' => false]);
+    Channel::factory()->recycle($owner)->create(['name' => 'Лесная студия', 'is_active' => true]);
+    Channel::factory()->recycle(User::factory()->create())->create(['name' => 'Лесная почта', 'is_active' => false]);
+
+    actingAs($owner)
+        ->get(route('channels.index', ['search' => 'Лесная', 'active' => 0, 'sort' => 'desc', 'perPage' => 10]))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('channels.meta.total', 1)
+            ->where('channels.data.0.id', $matching->id)
+            ->where('filters.active', false)
+            ->where('filters.search', 'Лесная'));
+});

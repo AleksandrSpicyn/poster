@@ -40,7 +40,7 @@ class UpdateController
     public function __invoke(#[CurrentUser] User $owner, Channel $channel, ChannelData $data, SaveChannelAction $action): RedirectResponse
     {
         $action->run($owner, $data, $channel);
-        Inertia::flash('success', 'Channel settings saved.');
+        Inertia::flash('success', 'Настройки канала сохранены.');
 
         return to_route('channels.edit', $channel);
     }
