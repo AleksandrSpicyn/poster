@@ -66,6 +66,12 @@ const panelTitles: Record<string, string> = {
     montage: 'Монтаж эпизода',
     release: 'Публикация эпизода',
 };
+const releaseSections = [
+    { key: 'preview', label: 'Предпросмотр' },
+    { key: 'recipients', label: 'Получатели' },
+    { key: 'confirmation', label: 'Подтверждение' },
+] as const;
+const releaseSection = ref<(typeof releaseSections)[number]['key']>('preview');
 const panel = ref('screenplay');
 function restorePanel() {
     const key = window.location.hash.slice(1);
@@ -118,8 +124,24 @@ function refresh() {
             >
                 An earlier accepted episode changed. Review the source and save a new screenplay before continuing or publishing this episode.
             </p>
-            <div class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
-                <div v-if="preview" class="bg-sidebar rounded-xl border p-3">
+            <div
+                class="grid items-start gap-4"
+                :class="panel === 'release' ? 'md:grid-cols-[min(25%,276px)_minmax(0,1fr)]' : 'md:grid-cols-[min(34%,400px)_minmax(0,1fr)]'"
+            >
+                <nav v-if="panel === 'release'" class="studio-panel grid gap-1" aria-label="Разделы публикации">
+                    <h2>В этом разделе</h2>
+                    <button
+                        v-for="item in releaseSections"
+                        :key="item.key"
+                        type="button"
+                        class="aria-pressed:bg-sidebar-accent min-h-10 rounded-lg px-3 text-left text-sm"
+                        :aria-pressed="releaseSection === item.key"
+                        @click="releaseSection = item.key"
+                    >
+                        {{ item.label }}
+                    </button>
+                </nav>
+                <div v-else-if="preview" class="bg-sidebar rounded-xl border p-3">
                     <video
                         :src="preview.url"
                         aria-label="Предпросмотр эпизода"
@@ -360,12 +382,14 @@ function refresh() {
                         </form>
                     </section>
                     <section v-show="panel === 'release'" class="space-y-5" aria-labelledby="episode-montages-title">
-                        <h2 id="episode-montages-title" class="text-lg font-semibold">Сборки и публикация</h2>
+                        <h2 id="episode-montages-title" class="sr-only">Сборки и публикация</h2>
                         <p v-if="!allAssemblies.length" class="text-muted-foreground text-sm">Здесь появятся сборки для просмотра и приёмки.</p>
                         <AssemblyCard
                             v-for="assembly in allAssemblies"
                             :key="assembly.id + ':' + assembly.lock_version"
                             :assembly="assembly"
+                            :section="releaseSection"
+                            @navigate="releaseSection = $event"
                             :params="params"
                             :channels="channels.filter((channel) => ['youtube', 'instagram', 'tiktok'].includes(channel.type))"
                             :publications="publications.filter((publication) => publication.episode_assembly_id === assembly.id)"

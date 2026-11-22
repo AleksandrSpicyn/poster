@@ -16,19 +16,19 @@ function resolve() {
     form.post(route('episodes.publications.resolve', { ...props.params, publication: props.publication.id }), {
         preserveScroll: true,
         preserveState: 'errors',
+        onSuccess: () => window.location.replace('#release'),
     });
 }
 </script>
 
 <template>
     <details class="mt-3 rounded-lg border p-3">
-        <summary class="cursor-pointer text-sm font-medium">Verify an existing published video</summary>
+        <summary class="cursor-pointer text-sm font-medium">Сверить результат отправки</summary>
         <p class="text-muted-foreground mt-3 text-xs">
-            If this video is already visible in the connected account, enter its platform video ID. The account and video are checked without
-            publishing again.
+            Если ролик уже появился в подключённом аккаунте, введите его идентификатор. Poster сверит его с площадкой.
         </p>
         <form class="mt-3 grid gap-3" @submit.prevent="resolve">
-            <Label :for="'publication-id-' + publication.id">Published video ID</Label
+            <Label :for="'publication-id-' + publication.id">Идентификатор опубликованного видео</Label
             ><Input
                 :id="'publication-id-' + publication.id"
                 v-model="form.external_id"
@@ -36,7 +36,7 @@ function resolve() {
                 maxlength="128"
                 :disabled="form.processing"
             /><InputError :message="errors" />
-            <div><Button type="submit" variant="outline" class="h-11" :disabled="form.processing">Verify existing publication</Button></div>
+            <div><Button type="submit" variant="outline" class="h-11" :disabled="form.processing">Проверить публикацию</Button></div>
         </form>
     </details>
 </template>

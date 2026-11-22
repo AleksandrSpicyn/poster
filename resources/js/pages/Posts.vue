@@ -6,6 +6,7 @@ import ListPanel from '@/components/ListPanel.vue';
 import PublicationItem from '@/components/PublicationItem.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useListFilters } from '@/composables/useListFilters';
+import { publicationStates } from '@/lib/publicationStatus';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { PostsPageProps } from '@/types/content';
@@ -21,16 +22,6 @@ const { filters, loading, error, applyFilters, changeSort, changePerPage, change
     perPage: page.props.posts.meta.per_page,
     page: page.props.posts.meta.current_page,
 }));
-const requestStates: Record<string, string> = {
-    planned: 'Запланировано',
-    submitting: 'Отправка',
-    processing: 'В обработке',
-    publishing_container: 'Площадка готовит публикацию',
-    inbox: 'Доставлено во входящие',
-    published: 'Опубликовано',
-    submission_unknown: 'Требует сверки',
-    failed: 'Ошибка отправки',
-};
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Публикации', href: route('posts') }];
 </script>
 
@@ -53,7 +44,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Публикации', href: ro
                 <h2 class="font-semibold">Последние запросы на отправку</h2>
                 <ul class="divide-y">
                     <li v-for="item in page.props.requests" :key="item.id" class="py-2">
-                        #{{ item.id }} · {{ item.channel_name }} · {{ requestStates[item.status] ?? item.status }}
+                        #{{ item.id }} · {{ item.channel_name }} · {{ publicationStates[item.status] ?? item.status }}
                         <span v-if="item.error_message">{{ item.error_message }}</span>
                         <Form
                             v-if="item.status === 'submission_unknown'"
