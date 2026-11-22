@@ -7,6 +7,7 @@ namespace App\Support;
 use App\Models\Channel;
 use App\Models\Character;
 use App\Models\CharacterRevision;
+use App\Models\ClippingConnection;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
@@ -28,7 +29,7 @@ final class WorkspaceOwner
     public static function id(?Model $model): ?int
     {
         return match (true) {
-            $model instanceof Project, $model instanceof Channel => $model->owner_id,
+            $model instanceof Project, $model instanceof Channel, $model instanceof ClippingConnection => $model->owner_id,
             $model instanceof Media => self::id($model->model),
             $model instanceof Post, $model instanceof PublicationRequest => self::id($model->channel),
             $model instanceof Prompt, $model instanceof ProductionRun, $model instanceof Series => self::id($model->project),

@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Models\Channel;
 use App\Models\Chat;
+use App\Models\ClippingConnection;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -37,6 +38,7 @@ readonly class UserRepository extends EloquentRepository
     {
         return Project::query()->where('owner_id', $owner->id)->exists()
             || Channel::query()->where('owner_id', $owner->id)->exists()
+            || ClippingConnection::query()->where('owner_id', $owner->id)->exists()
             || Chat::query()->where('owner_id', $owner->id)->exists();
     }
 

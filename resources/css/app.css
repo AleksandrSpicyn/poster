@@ -302,3 +302,32 @@
         }
     }
 }
+
+@layer components {
+    .studio-panel {
+        @apply bg-card min-w-0 rounded-xl border p-4 md:p-6;
+    }
+    .studio-panel h2 {
+        @apply mb-4 text-xl font-bold;
+    }
+    .studio-row {
+        @apply flex flex-wrap items-center justify-between gap-3 border-t py-4;
+        overflow-wrap: anywhere;
+    }
+    .studio-row p {
+        @apply text-muted-foreground text-sm;
+    }
+    .studio-form {
+        @apply grid w-full max-w-3xl gap-2;
+    }
+    .studio-form label:not(:first-child) {
+        @apply mt-3;
+    }
+    .studio-form [data-slot='input'],
+    .studio-form select {
+        @apply h-12;
+    }
+    .studio-form [data-slot='button'] {
+        @apply mt-4 min-h-11 justify-self-start;
+    }
+}

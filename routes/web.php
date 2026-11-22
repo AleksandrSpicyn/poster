@@ -56,6 +56,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(func
     });
 });
 
+require __DIR__ . '/clipping.php';
 require __DIR__ . '/channel-management.php';
 require __DIR__ . '/settings.php';
 require __DIR__ . '/publication-operations.php';

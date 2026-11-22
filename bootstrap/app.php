@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $schedule->command('opus:sync')->hourly()->when($hasClippingWorkspace)->withoutOverlapping(60);
         }
 
+        $schedule->command('clipping:refresh')->hourly()->withoutOverlapping(60);
         $schedule->command('opus:trends')->dailyAt('06:30')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
         $schedule->command('opus:metrics')->dailyAt('06:15')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
 
@@ -56,5 +57,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->dontFlash(['client_secret']);
+        $exceptions->dontFlash(['client_secret', 'api_key']);
     })->create();

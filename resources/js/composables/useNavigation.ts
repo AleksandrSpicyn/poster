@@ -1,6 +1,6 @@
 import type { NavItem, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Clapperboard, Film, FolderOpen, GlobeLock, Handshake, LayoutGrid, ListOrdered, Logs, Radio, Send } from '@lucide/vue';
+import { Clapperboard, Film, FolderOpen, GlobeLock, Handshake, LayoutGrid, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -13,6 +13,7 @@ export function useNavigation() {
             { title: 'Проекты', href: route('projects.index', undefined, false), icon: FolderOpen },
             ...(page.props.auth.can_manage_series ? [{ title: 'Сериалы', href: route('series.index', undefined, false), icon: Film }] : []),
             { title: 'Генерации', href: route('prompts', undefined, false), icon: Clapperboard },
+            { title: 'Клиппинг', href: route('clipping.index', undefined, false), icon: Scissors },
             { title: 'Публикации', href: route('posts', undefined, false), icon: Send },
             ...(page.props.auth.can_manage_channels ? [{ title: 'Каналы', href: route('channels.index', undefined, false), icon: Radio }] : []),
         ];

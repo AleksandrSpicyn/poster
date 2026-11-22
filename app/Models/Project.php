@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $owner_id
  * @property int $id
  * @property int|null $opus_source_id
+ * @property int|null $clipping_connection_id
  * @property string|null $clipping_workspace
  * @property string $name
  * @property string $prompt
@@ -46,7 +47,7 @@ class Project extends Model
 
     public function isClippingProject(): bool
     {
-        return $this->clipping_workspace !== null || $this->opus_source_id !== null;
+        return $this->clipping_connection_id !== null || $this->clipping_workspace !== null || $this->opus_source_id !== null;
     }
 
     /** @return HasMany<OpusSource, $this> */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Classes\OpusClip;
 
+use App\Classes\Clipping\ClippingReader;
 use App\Data\OpusClip\ImportedClipData;
 use App\Data\OpusClip\OpusSourceData;
 use App\Support\Integrations\Payload;
@@ -11,9 +12,32 @@ use Generator;
 use Illuminate\Support\Collection;
 use UnexpectedValueException;
 
-final readonly class OpusClipClient
+final readonly class OpusClipClient implements ClippingReader
 {
     public function __construct(private OpusClipApi $api) {}
+
+    public static function withKey(string $key): self
+    {
+        return new self(new OpusClipApi($key));
+    }
+
+    public static function readsAccounts(): bool
+    {
+        return true;
+    }
+
+    public function accounts(): array
+    {
+        return array_map(static fn(array $row): array => [
+            'id' => Payload::string($row['postAccountId'] ?? null, 'postAccountId'),
+            'platform' => match ($platform = Payload::string($row['platform'] ?? null, 'platform')) {
+                'YOUTUBE' => 'youtube', 'TIKTOK_BUSINESS' => 'tiktok', 'INSTAGRAM_BUSINESS' => 'instagram',
+                default => strtolower($platform),
+            },
+            'external_id' => Payload::string($row['extUserId'] ?? null, 'extUserId'),
+            'name' => is_string($row['extUserName'] ?? null) ? $row['extUserName'] : '',
+        ], $this->api->rows('social-accounts', ['q' => 'mine']));
+    }
 
     /** @return Generator<int, OpusSourceData> */
     public function sources(): Generator
