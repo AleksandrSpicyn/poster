@@ -91,7 +91,7 @@ function changePage(page: number) {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="character.name" />
-        <div class="workspace-page" :class="{ 'character-overview': !uploadRevision && !newVersion }">
+        <div class="workspace-page" :class="{ 'character-overview': !uploadRevision && !newVersion, 'reference-upload': uploadRevision }">
             <div class="character-header">
                 <Heading
                     :title="uploadRevision || newVersion ? character.name : 'Персонаж'"
@@ -299,6 +299,22 @@ function changePage(page: number) {
 </template>
 
 <style scoped>
+.reference-upload {
+    padding-top: 14px;
+}
+.reference-upload aside {
+    padding: 16px;
+}
+.reference-upload aside img {
+    aspect-ratio: 2.85;
+}
+@media (max-width: 767px) {
+    .reference-upload {
+        padding-top: 12px;
+        gap: 20px;
+    }
+}
+
 .character-overview {
     gap: 23px;
 }

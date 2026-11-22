@@ -90,7 +90,7 @@ function selectFile(event: Event) {
 </script>
 
 <template>
-    <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7">
+    <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7" :class="{ 'upload-panel': uploadOnly }">
         <template v-if="!uploadOnly">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h2 class="font-semibold">Версия {{ revision.number }}</h2>
@@ -248,3 +248,45 @@ function selectFile(event: Event) {
         </form>
     </section>
 </template>
+
+<style scoped>
+.upload-panel {
+    padding: 20px 24px 28px;
+}
+.upload-panel :deep(select),
+.upload-panel :deep([data-slot='input']) {
+    height: 46px;
+    background: var(--background);
+    font-size: 16px;
+}
+.upload-panel [data-slot='input'] {
+    height: 44px;
+}
+.upload-panel form > button,
+.upload-panel button[type='submit'] {
+    font-weight: 650;
+    padding-inline: 16px;
+}
+.upload-panel label:has(input[type='file']) {
+    border-color: var(--input);
+    border-style: solid;
+    padding-inline: 12px;
+    font-size: 16px;
+    line-height: 1.4;
+}
+.upload-panel :deep(label:not(:has(input[type='file']))) {
+    color: var(--muted-foreground);
+    font-weight: 400;
+}
+.upload-panel :deep(select) {
+    color: var(--foreground);
+}
+@media (max-width: 767px) {
+    .upload-panel {
+        padding: 12px 15px 20px;
+    }
+    .upload-panel form {
+        gap: 14px;
+    }
+}
+</style>
