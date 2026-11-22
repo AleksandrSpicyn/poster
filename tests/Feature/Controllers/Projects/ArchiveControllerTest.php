@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Events\WorkspaceUpdated;
 use App\Models\Channel;
 use App\Models\Post;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\patch;
@@ -45,4 +47,18 @@ test('архив проекта принимает только владельц
     actingAs($owner)->patchJson($url, ['archived' => 'invalid'])->assertUnprocessable()->assertJsonValidationErrors('archived');
     patchJson($url, [])->assertUnprocessable()->assertJsonValidationErrors('archived');
     expect($project->refresh()->archived_at)->toBeNull();
+});
+
+test('архив оповещает только студию владельца при изменении состояния', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    Event::fake([WorkspaceUpdated::class]);
+    $url = route('projects.archive', $project);
+
+    actingAs($owner)->patch($url, ['archived' => true])->assertRedirect();
+    patch($url, ['archived' => true])->assertRedirect();
+
+    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastOn()[0]->name === 'private-workspace.' . $owner->id
+        && $event->broadcastWith()['resource'] === 'Project' && $event->broadcastWith()['id'] === $project->id);
+    Event::assertDispatchedTimes(WorkspaceUpdated::class, 1);
 });
