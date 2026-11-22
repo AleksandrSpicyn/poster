@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import Heading from '@/components/Heading.vue';
+import TiktokPublicationReceipt from '@/components/TiktokPublicationReceipt.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -22,7 +23,14 @@ const props = defineProps<{
             label: string;
             url: string;
             project: Pick<ProjectSummary, 'id' | 'name' | 'cover'> | null;
-            receipt: { status: string; submitted_at: string | null; published_at: string | null; url: string | null } | null;
+            assembly_number: number | null;
+            receipt: {
+                status: string;
+                current_recipient: boolean;
+                submitted_at: string | null;
+                published_at: string | null;
+                url: string | null;
+            } | null;
         }[];
         next_page_url: string | null;
         prev_page_url: string | null;
@@ -77,10 +85,70 @@ const directDetails = ref(false);
 watch(directDetails, (open) => {
     if (open) consentChanged.value = false;
 });
-const title = computed(() => (directDetails.value ? 'Прямая публикация в TikTok' : 'Публикация в TikTok'));
+
 const tabs = ['Предпросмотр', 'Параметры', 'Статус'] as const;
 const tab = ref<(typeof tabs)[number]>('Параметры');
 const video = computed(() => props.videos.data.find((item) => item.id === form.media_id));
+const finalReceipt = computed(() => {
+    const receipt = video.value?.receipt;
+    return tab.value === 'Статус' && (receipt?.status === 'inbox' || receipt?.status === 'published') ? receipt : null;
+});
+const title = computed(() =>
+    finalReceipt.value ? 'Результат отправки' : directDetails.value ? 'Прямая публикация в TikTok' : 'Публикация в TikTok',
+);
+function selectTab(next: (typeof tabs)[number]) {
+    if (next === 'Статус' && video.value && ['inbox', 'published'].includes(video.value.receipt?.status ?? '')) {
+        window.history.replaceState(window.history.state, '', '#video-' + video.value.id + (tab.value === 'Предпросмотр' ? '-preview' : '-settings'));
+        window.location.hash = 'receipt-' + video.value.id;
+        return;
+    }
+    tab.value = next;
+}
+function restoreReceipt() {
+    const result = /^#receipt-(\d+)$/.exec(window.location.hash);
+    const selection = /^#video-(\d+)-(preview|settings)$/.exec(window.location.hash);
+    const id = result?.[1] ?? selection?.[1];
+    const item = props.videos.data.find((entry) => entry.id === Number(id));
+    if (!item) return;
+    form.media_id = item.id;
+    directDetails.value = false;
+    if (result && item.receipt && ['inbox', 'published'].includes(item.receipt.status)) {
+        tab.value = 'Статус';
+    } else if (selection) {
+        tab.value = selection[2] === 'preview' ? 'Предпросмотр' : 'Параметры';
+        void nextTick(() => document.getElementById('publication-status')?.focus());
+    }
+}
+onMounted(() => {
+    restoreReceipt();
+    window.addEventListener('hashchange', restoreReceipt);
+});
+onUnmounted(() => window.removeEventListener('hashchange', restoreReceipt));
+
+const refreshingReceipt = ref(false);
+const receiptError = ref('');
+function refreshReceipt() {
+    if (refreshingReceipt.value) return;
+    refreshingReceipt.value = true;
+    router.reload({
+        only: ['videos'],
+        onSuccess: () => {
+            receiptError.value = '';
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            receiptError.value = 'Не удалось обновить статус. Повторите проверку.';
+            return false;
+        },
+        onNetworkError: () => {
+            receiptError.value = 'Нет связи. Проверьте подключение и повторите попытку.';
+            return false;
+        },
+        onFinish: () => {
+            refreshingReceipt.value = false;
+        },
+    });
+}
 const project = computed(() => {
     if (video.value) return video.value.project;
     if (props.videos.next_page_url || props.videos.prev_page_url) return null;
@@ -136,6 +204,7 @@ const privacyLabels: Record<string, string> = {
 watch(
     () => form.media_id,
     () => {
+        receiptError.value = '';
         duration.value = 0;
         durationError.value = false;
     },
@@ -186,13 +255,30 @@ watch(
 
 <template>
     <AppLayout
-        :breadcrumbs="[
-            { title: 'Публикации', href: route('posts') },
-            { title: 'TikTok', href: route('posts.tiktok.create', channelId) },
-        ]"
+        :breadcrumbs="
+            finalReceipt
+                ? [{ title: 'Публикации', href: route('posts') }]
+                : [
+                      { title: 'Публикации', href: route('posts') },
+                      { title: 'TikTok', href: route('posts.tiktok.create', channelId) },
+                  ]
+        "
     >
         <Head :title="title" />
-        <div class="workspace-page" :class="{ 'direct-publication': directDetails }">
+        <div v-if="finalReceipt && video" class="workspace-page receipt-screen">
+            <Heading :title="title" description="Статус" />
+            <TiktokPublicationReceipt
+                :receipt="finalReceipt"
+                :recipient="finalReceipt.current_recipient ? account : null"
+                :title="video.label"
+                :project="video.project"
+                :assembly="video.assembly_number"
+                :busy="refreshingReceipt"
+                :error="receiptError"
+                @refresh="refreshReceipt"
+            />
+        </div>
+        <div v-else class="workspace-page" :class="{ 'direct-publication': directDetails }">
             <header class="flex flex-wrap items-start justify-between gap-3">
                 <Heading
                     :title="title"
@@ -206,12 +292,14 @@ watch(
                                 : 'Статус отправки'
                     "
                 />
-                <Button v-if="directDetails" class="direct-action" form="tiktok-delivery-form" type="submit" :disabled="!canSubmit">Опубликовать</Button>
+                <Button v-if="directDetails" class="direct-action" form="tiktok-delivery-form" type="submit" :disabled="!canSubmit"
+                    >Опубликовать</Button
+                >
                 <Button
                     v-else-if="tab === 'Предпросмотр' && video"
                     class="preview-action"
                     @click="
-                        tab = video.receipt ? 'Статус' : 'Параметры';
+                        selectTab(video.receipt ? 'Статус' : 'Параметры');
                         directDetails = !video.receipt && form.mode === 'direct';
                     "
                     >{{ video.receipt ? 'Статус' : form.mode === 'inbox' ? 'Отправить во входящие' : 'Прямая публикация' }}</Button
@@ -229,7 +317,8 @@ watch(
                         :key="item"
                         :variant="tab === item ? 'secondary' : 'outline'"
                         :aria-current="tab === item ? 'page' : undefined"
-                        @click="tab = item"
+                        :id="item === 'Статус' ? 'publication-status' : undefined"
+                        @click="selectTab(item)"
                         >{{ item }}</Button
                     >
                 </nav>
@@ -244,9 +333,15 @@ watch(
                     />
                     <section>
                         <h2>Предпросмотр</h2>
-                        <p class="studio-row"><strong>Видео</strong><span>{{ video.label }}</span></p>
-                        <p class="studio-row"><strong>Аккаунт</strong><span>{{ account }}</span></p>
-                        <p class="studio-row"><strong>Способ доставки</strong><span>{{ delivery }}</span></p>
+                        <p class="studio-row">
+                            <strong>Видео</strong><span>{{ video.label }}</span>
+                        </p>
+                        <p class="studio-row">
+                            <strong>Аккаунт</strong><span>{{ account }}</span>
+                        </p>
+                        <p class="studio-row">
+                            <strong>Способ доставки</strong><span>{{ delivery }}</span>
+                        </p>
                     </section>
                 </div>
                 <div v-else class="delivery-grid" :class="{ 'direct-details': directDetails }">
@@ -262,46 +357,16 @@ watch(
                     />
                     <section v-if="tab === 'Статус'" class="studio-panel grid gap-4" aria-live="polite">
                         <h2>Статус отправки</h2>
-                        <div v-if="video?.receipt?.status === 'inbox'" class="grid gap-4">
-                            <div>
-                                <strong>Доставлено во входящие</strong>
-                                <p>TikTok получил видео в режиме загрузки.</p>
-                            </div>
-                            <p class="studio-row">
-                                <strong>Отправлено во входящие</strong
-                                ><span v-if="video.receipt.submitted_at">{{ new Date(video.receipt.submitted_at).toLocaleString('ru') }}</span>
-                            </p>
-                            <div>
-                                <strong>Действие автора</strong>
-                                <p>Откройте входящие TikTok и завершите публикацию.</p>
-                            </div>
-                            <div>
-                                <strong>Публичная ссылка</strong>
-                                <p>Появится после подтверждённой публикации.</p>
-                            </div>
-                        </div>
-                        <div v-else-if="video?.receipt?.status === 'published'" class="grid gap-4">
-                            <div>
-                                <strong>Опубликовано</strong>
-                                <p>Площадка подтвердила размещение ролика.</p>
-                            </div>
-                            <p v-if="video.receipt.submitted_at" class="studio-row">
-                                <strong>Видео принято</strong>{{ new Date(video.receipt.submitted_at).toLocaleString('ru') }}
-                            </p>
-                            <p v-if="video.receipt.published_at" class="studio-row">
-                                <strong>Публикация подтверждена</strong>{{ new Date(video.receipt.published_at).toLocaleString('ru') }} ·
-                                {{ account }}
-                            </p>
-                            <a v-if="video.receipt.url" :href="video.receipt.url" target="_blank" rel="noopener">Открыть ролик на площадке</a>
-                        </div>
-                        <strong v-else>{{ video?.receipt ? statusLabels[video.receipt.status] : 'Видео ещё не отправлено' }}</strong>
+                        <strong>{{ video?.receipt ? statusLabels[video.receipt.status] : 'Видео ещё не отправлено' }}</strong>
                         <Button variant="outline" @click="router.reload({ only: ['videos'] })">Проверить статус</Button>
                     </section>
                     <form v-else id="tiktok-delivery-form" class="studio-panel grid min-w-0 content-start gap-4" @submit.prevent="submit">
                         <h2 v-if="directDetails">Аккаунт · {{ creator?.nickname ?? account }}</h2>
                         <template v-else>
                             <h2>Способ доставки</h2>
-                            <p class="studio-row"><strong>Аккаунт</strong><span>{{ account }}</span> · TikTok</p>
+                            <p class="studio-row">
+                                <strong>Аккаунт</strong><span>{{ account }}</span> · TikTok
+                            </p>
                             <fieldset class="mode-switch">
                                 <legend class="sr-only">Способ доставки</legend>
                                 <label v-if="inbox"
@@ -367,7 +432,9 @@ watch(
                                 >Видимость
                                 <select v-model="form.privacy" required class="list-select">
                                     <option disabled value="">Выберите из разрешённых автором</option>
-                                    <option v-for="value in creator.privacy" :key="value" :value="value">{{ privacyLabels[value] ?? value }}</option>
+                                    <option v-for="value in creator.privacy" :key="value" :value="value">
+                                        {{ privacyLabels[value] ?? value }}
+                                    </option>
                                 </select></label
                             >
                             <details class="interactions">
@@ -427,6 +494,15 @@ watch(
 </template>
 
 <style scoped>
+.receipt-screen {
+    gap: 20px;
+    padding-block-start: 18px;
+}
+@media (max-width: 767px) {
+    .receipt-screen {
+        padding-block-start: 12px;
+    }
+}
 form > label:has(select),
 form > label:has(textarea) {
     display: grid;
