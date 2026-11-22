@@ -15,11 +15,11 @@ const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
 const page = usePage();
 const route = useRoute();
 const filters = computed(() => props.report.filters);
-type View = 'overview' | 'filters' | 'drill' | 'partial' | 'publication' | 'data' | 'coverage';
+type View = 'overview' | 'filters' | 'drill' | 'publication' | 'data' | 'coverage';
 const params = computed(() => new URLSearchParams(page.url.split('?')[1] ?? ''));
 const view = computed<View>(() => {
     const v = params.value.get('view');
-    return v && ['filters', 'drill', 'partial', 'publication', 'data', 'coverage'].includes(v) ? (v as View) : 'overview';
+    return v && ['filters', 'drill', 'publication', 'data', 'coverage'].includes(v) ? (v as View) : 'overview';
 });
 const filterProject = ref<number | null>(filters.value.project);
 const project = computed(() => props.report.projects.find((p) => p.id === (view.value === 'filters' ? filterProject.value : filters.value.project)));
@@ -45,15 +45,7 @@ const scope = computed(() =>
 );
 const mainTitle = computed(() => (view.value === 'drill' ? 'Публикации по показателю' : props.detail ? 'Аналитика публикаций' : 'Обзор студии'));
 const subtitle = computed(() =>
-    view.value === 'overview'
-        ? scope.value
-        : view.value === 'filters'
-          ? 'Фильтры'
-          : view.value === 'drill'
-            ? names[metric.value]
-            : view.value === 'partial'
-              ? 'За период'
-              : undefined,
+    view.value === 'overview' ? scope.value : view.value === 'filters' ? 'Фильтры' : view.value === 'drill' ? names[metric.value] : undefined,
 );
 function url(v: View, patch: Partial<AnalyticsFilters> = {}, item?: PublicationTimeline, detail = props.detail) {
     return route(detail ? 'dashboard.analytics' : 'dashboard', {
@@ -71,25 +63,10 @@ const platforms = computed(() => {
     const total = [...sums.values()].reduce((s, n) => s + Math.max(n, 0), 0);
     return [...sums].map(([key, value]) => ({ key, value, pct: total ? (100 * Math.max(value, 0)) / total : 0 })).sort((a, b) => b.value - a.value);
 });
-function entry(label: string, key: Counter, partial = false) {
-    const total = props.report.totals[key],
-        delta = props.report.summaries[key];
-    return {
-        label,
-        value: partial ? total : delta,
-        href: url('drill', { metric: key }),
-        note: !partial
-            ? undefined
-            : total === null
-              ? 'Нет наблюдений'
-              : delta === null
-                ? 'Нет базы сравнения'
-                : delta === 0
-                  ? 'Получено от API'
-                  : signed(delta) + ' за период',
-    };
+function entry(label: string, key: Counter) {
+    return { label, value: props.report.summaries[key], href: url('drill', { metric: key }) };
 }
-const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter, view.value === 'partial')));
+const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter)));
 const selectedWatch = computed(() => {
     const rows = props.report.publications;
     const minutes = rows.map((p) => p.watchMinutesChange);
@@ -185,34 +162,6 @@ const tabs: { name: string; view: View }[] = [
                 <p v-if="!list.length" class="secondary">За выбранный период нет публикаций с наблюдениями.</p>
             </section>
         </template>
-        <template v-else-if="view === 'partial'">
-            <section class="studio-panel partial-panel">
-                <h2>Показатели за {{ filters.days === 7 && !filters.from ? 'неделю' : 'период' }}</h2>
-                <PublicationCounters :items="dashboardCards" />
-                <dl>
-                    <div>
-                        <dt>Производство</dt>
-                        <dd>Проектов: {{ report.production?.projects ?? 0 }} · Эпизодов в работе: {{ report.production?.openEpisodes ?? 0 }}</dd>
-                    </div>
-                    <div>
-                        <dt>Последняя генерация</dt>
-                        <dd>
-                            <Link :href="route('prompts')"
-                                >{{ report.production?.latestGeneration ?? 'Нет генераций'
-                                }}{{ report.production?.generationStage ? ' · ' + report.production.generationStage : '' }}</Link
-                            >
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Последняя публикация</dt>
-                        <dd>
-                            <Link :href="route('posts')">{{ report.production?.latestPublication ?? 'Нет публикаций' }}</Link>
-                        </dd>
-                    </div>
-                </dl>
-                <Button variant="outline" as-child><Link :href="url('filters')">Изменить фильтр</Link></Button>
-            </section></template
-        >
         <template v-else>
             <nav v-if="['publication', 'data', 'coverage'].includes(view)" class="analytics-tabs" aria-label="Отчёт">
                 <Link
@@ -253,7 +202,8 @@ const tabs: { name: string; view: View }[] = [
                 <section v-else-if="view === 'coverage'" class="studio-panel">
                     <h2>Состояние сбора по каналам</h2>
                     <div v-for="c in report.coverage" :key="c.id" class="coverage-row" :data-state="c.state">
-                        <strong>{{ c.name }} · {{ platformNames[c.platform] ?? c.platform }}</strong
+                        <Link :href="route('dashboard.analytics', { ...filters, channel: c.id })" class="font-bold hover:underline"
+                            >{{ c.name }} · {{ platformNames[c.platform] ?? c.platform }}</Link
                         ><small
                             >{{ c.status
                             }}{{
@@ -383,8 +333,7 @@ const tabs: { name: string; view: View }[] = [
 .analytics-header h1 {
     overflow-wrap: anywhere;
 }
-.analytics-header [data-slot='button'],
-.partial-panel > [data-slot='button'] {
+.analytics-header [data-slot='button'] {
     min-height: 44px;
     font-weight: 700;
 }
@@ -398,7 +347,6 @@ const tabs: { name: string; view: View }[] = [
 }
 .analytics-panels h2,
 .analytics-columns h2,
-.partial-panel h2,
 .best-publications h2 {
     margin: 0 0 10px;
     font-size: 20px;
@@ -512,25 +460,18 @@ const tabs: { name: string; view: View }[] = [
     margin: 12px 0;
 }
 .drill-row,
-.report-row,
-.partial-panel dl > div {
+.report-row {
     display: grid;
     gap: 4px;
     padding: 10px 0;
     border-bottom: 1px solid var(--border);
     overflow-wrap: anywhere;
 }
-.report-row,
-.partial-panel dl > div {
+.report-row {
     grid-template-columns: minmax(0, 0.6fr) minmax(0, 1fr);
     font-size: 14px;
 }
-.partial-panel dl {
-    margin: 8px 0 16px;
-}
-.partial-panel dt {
-    color: var(--muted-foreground);
-}
+
 .report-link {
     display: inline-flex;
     padding: 12px 0;
@@ -572,9 +513,7 @@ const tabs: { name: string; view: View }[] = [
     .analytics-screen[data-view='publication'] .report-row {
         min-height: 47px;
     }
-    .partial-panel dl > div {
-        min-height: 48px;
-    }
+
     .analytics-screen[data-view='coverage'] .coverage-row {
         min-height: 64px;
     }
@@ -592,9 +531,7 @@ const tabs: { name: string; view: View }[] = [
 .observation-gap span:first-child {
     font-weight: 700;
 }
-.partial-panel :deep(.metric-tile) {
-    background: var(--muted);
-}
+
 .coverage-row[data-state='collected'] {
     border-color: var(--primary);
 }
@@ -618,7 +555,6 @@ const tabs: { name: string; view: View }[] = [
     .analytics-panels,
     .analytics-screen > .publication-counters,
     .best-publications,
-    .partial-panel,
     .analytics-columns {
         max-width: 1440px;
         width: 100%;
@@ -667,8 +603,7 @@ const tabs: { name: string; view: View }[] = [
     .chart-panel {
         padding: 16px;
     }
-    .report-row,
-    .partial-panel dl > div {
+    .report-row {
         grid-template-columns: 1fr;
     }
     .analytics-tabs :is(a, span) {
