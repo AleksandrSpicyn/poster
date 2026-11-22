@@ -85,7 +85,7 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
                     <p>{{ error }}</p>
                 </div>
                 <div class="studio-row">
-                    <span>Канал</span><strong>{{ channel.name }} · TikTok</strong>
+                    <span>{{ error ? 'Аккаунт' : 'Канал' }}</span><strong>{{ channel.name }} · TikTok</strong>
                 </div>
                 <div v-if="!error" class="notice">
                     <strong>Авторизация у площадки</strong>
@@ -93,7 +93,7 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
                 </div>
                 <div class="studio-row">
                     <span>{{ error ? 'Соединение' : 'Запрошено' }}</span><strong>{{
-                        error ? state : requested.map((scope) => names[scope]).join(', ')
+                        error ? (channel.connected ? state : 'Отключено · права не получены') : requested.map((scope) => names[scope]).join(', ')
                     }}</strong>
                 </div>
                 <Button :disabled="!canAuthorize" @click="$emit('authorize')">{{ error ? 'Подключить повторно' : 'Перейти к авторизации' }}</Button>

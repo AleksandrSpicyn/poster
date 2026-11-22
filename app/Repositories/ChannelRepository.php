@@ -42,9 +42,12 @@ readonly class ChannelRepository extends EloquentRepository
     }
 
     /** @return Collection<int, Channel> */
-    public function forSelection(User $owner): Collection
+    public function forSelection(User $owner, bool $withProjects = false): Collection
     {
-        return Channel::query()->where('owner_id', $owner->id)->orderBy('name')->orderBy('id')->get();
+        return Channel::query()->where('owner_id', $owner->id)
+            ->when($withProjects, fn(Builder $query) => $query->with(['projects' => fn($projects) => $projects
+                ->where('projects.owner_id', $owner->id)->select('projects.id', 'name', 'content_mode')->orderBy('name')]))
+            ->orderBy('name')->orderBy('id')->get();
     }
 
     public function forManagement(Channel $channel): Channel

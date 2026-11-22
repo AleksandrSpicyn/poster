@@ -60,6 +60,7 @@ test('страница показывает только историю прое
     $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create([
         'type' => ChannelType::YOUTUBE,
         'client_secret' => 'private-channel-secret',
+        'is_active' => true,
         'credentials' => ['access_token' => 'private-access-token'],
     ]);
     Post::factory()->recycle(workspaceOwner())->for($channel)->for($latest)->create();
@@ -81,7 +82,7 @@ test('страница показывает только историю прое
             ->where('project.can_delete', false)
             ->where('project.channels.0', [
                 'id' => $channel->id, 'name' => $channel->name,
-                'type' => 'youtube', 'type_label' => 'YouTube', 'posts_count' => 1,
+                'type' => 'youtube', 'type_label' => 'YouTube', 'posts_count' => 1, 'can_receive_production' => true,
             ])
             ->where('prompts.meta.total', 2)
             ->has('prompts.data', 1)
