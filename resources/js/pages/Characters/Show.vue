@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterRevision, CharacterSummary, SeriesSummary } from '@/types/series';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -20,6 +20,16 @@ const props = defineProps<{
     referenceViews: Record<string, string>;
 }>();
 const route = useRoute();
+const newVersion = ref(false);
+const descriptionField = ref<HTMLTextAreaElement | null>(null);
+const portrait = computed(
+    () => props.character.current_revision?.references?.[0] ?? props.revisions.data.flatMap((version) => version.references ?? [])[0],
+);
+async function openVersion() {
+    newVersion.value = true;
+    await nextTick();
+    descriptionField.value?.focus();
+}
 const params = { project: props.project.id, series: props.series.id, character: props.character.id };
 const archived = !!props.character.archived_at || !!props.series.archived_at;
 const nameForm = useForm({ name: props.character.name, lock_version: props.character.lock_version });
@@ -27,7 +37,7 @@ const revisionForm = useForm({ description: '', appearance: { notes: '' }, voice
 const revisionErrors = computed<Record<string, string | undefined>>(() => revisionForm.errors);
 const archiveForm = useForm({ lock_version: props.character.lock_version });
 const breadcrumbs = [
-    { title: 'Projects', href: route('projects.index') },
+    { title: 'Проекты', href: route('projects.index') },
     { title: props.project.name, href: route('projects.show', props.project.id) },
     { title: props.character.name, href: route('characters.show', params) },
 ];
@@ -38,7 +48,7 @@ function createRevision() {
     revisionForm.post(route('characters.revisions.store', params), { preserveState: 'errors' });
 }
 function archive() {
-    if (window.confirm('Archive this character? Previous appearance versions and episode history will remain.'))
+    if (window.confirm('Перенести персонажа в архив? Его версии и история эпизодов сохранятся.'))
         archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
 }
 function changePage(page: number) {
@@ -50,103 +60,121 @@ function changePage(page: number) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="character.name" />
         <div class="workspace-page max-w-6xl">
-            <Heading
-                :title="character.name"
-                :description="
-                    character.current_revision
-                        ? 'Current approved appearance: version ' + character.current_revision.number
-                        : 'Create a version, add reference views and approve the appearance.'
-                "
-            />
-            <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-                This character or series is archived. Previous versions remain available.
-            </p>
-            <form v-if="!archived" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="saveName">
-                <div class="grid min-w-48 flex-1 gap-2">
-                    <Label for="character-edit-name">Character name</Label
-                    ><Input id="character-edit-name" v-model="nameForm.name" required maxlength="255" :disabled="nameForm.processing" /><InputError
-                        :message="nameForm.errors.name"
-                    /><InputError :message="nameForm.errors.lock_version" />
-                </div>
-                <Button type="submit" variant="outline" class="h-11" :disabled="nameForm.processing">Save name</Button>
-            </form>
-            <section v-if="!archived" class="bg-card space-y-4 rounded-xl border p-5 sm:p-7">
-                <h2 class="font-semibold">Create an appearance version</h2>
-                <p class="text-muted-foreground text-sm">
-                    Describe the identity first, then add the reference views. Approved versions remain attached to the episodes that used them.
-                </p>
-                <form class="grid gap-4" @submit.prevent="createRevision">
-                    <div class="grid gap-2">
-                        <Label for="new-revision-description">Appearance and personality</Label
-                        ><textarea
-                            id="new-revision-description"
-                            v-model="revisionForm.description"
-                            required
-                            maxlength="10000"
-                            rows="4"
-                            :disabled="revisionForm.processing"
-                            class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
-                        /><InputError :message="revisionForm.errors.description" /><InputError :message="revisionErrors.character" />
-                    </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="grid gap-2">
-                            <Label for="new-revision-appearance">Visual details</Label
-                            ><Input
-                                id="new-revision-appearance"
-                                v-model="revisionForm.appearance.notes"
-                                placeholder="Clothes, face, body proportions"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="new-revision-voice">Voice and delivery</Label
-                            ><Input id="new-revision-voice" v-model="revisionForm.voice.description" placeholder="Tone, accent, pace" />
-                        </div>
-                    </div>
-                    <div><Button type="submit" class="h-11" :disabled="revisionForm.processing">Create draft version</Button></div>
-                </form>
-            </section>
-            <div class="space-y-6">
-                <CharacterRevisionCard
-                    v-for="revision in revisions.data"
-                    :key="revision.id + ':' + revision.lock_version"
-                    :revision="revision"
-                    :params="params"
-                    :reference-views="referenceViews"
-                    :archived="archived"
-                />
-                <p v-if="!revisions.data.length" class="text-muted-foreground p-5 text-sm">No appearance versions yet.</p>
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <Heading title="Персонаж" :description="series.name + ' / Персонажи / ' + character.name" />
+                <Button v-if="!archived" class="h-11" @click="openVersion">Новая версия</Button>
             </div>
-            <nav v-if="revisions.meta.last_page > 1" class="flex flex-wrap items-center justify-between gap-3" aria-label="Appearance version pages">
-                <Button
-                    variant="outline"
-                    class="h-11"
-                    :disabled="revisions.meta.current_page <= 1"
-                    @click="changePage(revisions.meta.current_page - 1)"
-                    >Previous versions</Button
-                >
-                <p class="text-muted-foreground text-sm">Page {{ revisions.meta.current_page }} of {{ revisions.meta.last_page }}</p>
-                <Button
-                    variant="outline"
-                    class="h-11"
-                    :disabled="revisions.meta.current_page >= revisions.meta.last_page"
-                    @click="changePage(revisions.meta.current_page + 1)"
-                    >More versions</Button
-                >
-            </nav>
-            <form v-if="!archived" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="archive">
-                <div>
-                    <p class="text-muted-foreground text-sm">Keep previous versions and remove this character from future casting.</p>
-                    <InputError :message="archiveForm.errors.lock_version" />
+            <div class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+                <img
+                    v-if="portrait"
+                    :src="portrait.url"
+                    :alt="portrait.label || character.name"
+                    class="aspect-[3/4] w-full rounded-xl object-cover"
+                />
+                <div v-else class="studio-panel">
+                    <h2>{{ character.name }}</h2>
+                    <p>Здесь появится референс персонажа.</p>
                 </div>
-                <Button type="submit" variant="outline" class="h-11" :disabled="archiveForm.processing">Archive character</Button>
-            </form>
-            <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
-                Upload all reference views before leaving. Automation approves the latest appearance after two minutes without changes, then continues
-                the episode.
-            </p>
-            <Button as-child variant="outline" class="h-11 self-start"
-                ><Link :href="route('projects.show', project.id)">Back to project</Link></Button
-            >
+                <div class="grid min-w-0 gap-4">
+                    <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+                        Персонаж или сериал в архиве. Версии доступны для просмотра.
+                    </p>
+                    <form v-if="!archived" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="saveName">
+                        <div class="grid min-w-48 flex-1 gap-2">
+                            <Label for="character-edit-name">Имя персонажа</Label
+                            ><Input
+                                id="character-edit-name"
+                                v-model="nameForm.name"
+                                required
+                                maxlength="255"
+                                :disabled="nameForm.processing"
+                            /><InputError :message="nameForm.errors.name" /><InputError :message="nameForm.errors.lock_version" />
+                        </div>
+                        <Button type="submit" variant="outline" class="h-11" :disabled="nameForm.processing">Сохранить имя</Button>
+                    </form>
+                    <section v-if="!archived && (newVersion || revisionForm.hasErrors)" class="bg-card space-y-4 rounded-xl border p-5 sm:p-7">
+                        <h2 class="font-semibold">Новая версия образа</h2>
+                        <p class="text-muted-foreground text-sm">
+                            Опишите героя и добавьте ракурсы. Эпизоды сохранят версию образа, использованную при создании.
+                        </p>
+                        <form class="grid gap-4" @submit.prevent="createRevision">
+                            <div class="grid gap-2">
+                                <Label for="new-revision-description">Внешность и характер</Label
+                                ><textarea
+                                    id="new-revision-description"
+                                    ref="descriptionField"
+                                    v-model="revisionForm.description"
+                                    required
+                                    maxlength="10000"
+                                    rows="4"
+                                    :disabled="revisionForm.processing"
+                                    class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm leading-relaxed outline-none focus-visible:ring-2"
+                                /><InputError :message="revisionForm.errors.description" /><InputError :message="revisionErrors.character" />
+                            </div>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <Label for="new-revision-appearance">Детали внешности</Label
+                                    ><Input
+                                        id="new-revision-appearance"
+                                        v-model="revisionForm.appearance.notes"
+                                        placeholder="Одежда, черты лица, пропорции"
+                                    />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="new-revision-voice">Голос и манера речи</Label
+                                    ><Input id="new-revision-voice" v-model="revisionForm.voice.description" placeholder="Тембр, акцент, темп" />
+                                </div>
+                            </div>
+                            <div><Button type="submit" class="h-11" :disabled="revisionForm.processing">Создать черновик</Button></div>
+                        </form>
+                    </section>
+                    <div class="space-y-6">
+                        <CharacterRevisionCard
+                            v-for="revision in revisions.data"
+                            :key="revision.id + ':' + revision.lock_version"
+                            :revision="revision"
+                            :params="params"
+                            :reference-views="referenceViews"
+                            :archived="archived"
+                        />
+                        <p v-if="!revisions.data.length" class="text-muted-foreground p-5 text-sm">Пока нет версий образа.</p>
+                    </div>
+                    <nav
+                        v-if="revisions.meta.last_page > 1"
+                        class="flex flex-wrap items-center justify-between gap-3"
+                        aria-label="Страницы версий образа"
+                    >
+                        <Button
+                            variant="outline"
+                            class="h-11"
+                            :disabled="revisions.meta.current_page <= 1"
+                            @click="changePage(revisions.meta.current_page - 1)"
+                            >Предыдущие версии</Button
+                        >
+                        <p class="text-muted-foreground text-sm">Страница {{ revisions.meta.current_page }} из {{ revisions.meta.last_page }}</p>
+                        <Button
+                            variant="outline"
+                            class="h-11"
+                            :disabled="revisions.meta.current_page >= revisions.meta.last_page"
+                            @click="changePage(revisions.meta.current_page + 1)"
+                            >Следующие версии</Button
+                        >
+                    </nav>
+                    <form v-if="!archived" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="archive">
+                        <div>
+                            <p class="text-muted-foreground text-sm">После архивации персонаж останется в прежних эпизодах.</p>
+                            <InputError :message="archiveForm.errors.lock_version" />
+                        </div>
+                        <Button type="submit" variant="outline" class="h-11" :disabled="archiveForm.processing">В архив</Button>
+                    </form>
+                    <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
+                        Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
+                    </p>
+                    <Button as-child variant="outline" class="h-11 self-start"
+                        ><Link :href="route('series.show', { project: project.id, series: series.id })">К сериалу</Link></Button
+                    >
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>

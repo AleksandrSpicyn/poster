@@ -46,12 +46,12 @@ function selectFile(event: Event) {
 <template>
     <section class="bg-card space-y-6 rounded-xl border p-5 sm:p-7">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 class="font-semibold">Appearance version {{ revision.number }}</h2>
+            <h2 class="font-semibold">Версия {{ revision.number }}</h2>
             <span class="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs">{{ revision.status }}</span>
         </div>
         <form v-if="editable" class="grid gap-4" :aria-busy="editForm.processing" @submit.prevent="update">
             <div class="grid gap-2">
-                <Label :for="'revision-description-' + revision.id">Appearance, personality and identity</Label
+                <Label :for="'revision-description-' + revision.id">Описание героя</Label
                 ><textarea
                     :id="'revision-description-' + revision.id"
                     v-model="editForm.description"
@@ -64,7 +64,7 @@ function selectFile(event: Event) {
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
-                    <Label :for="'revision-notes-' + revision.id">Visual details</Label
+                    <Label :for="'revision-notes-' + revision.id">Детали внешности</Label
                     ><Input
                         :id="'revision-notes-' + revision.id"
                         v-model="editForm.appearance.notes"
@@ -73,27 +73,25 @@ function selectFile(event: Event) {
                     />
                 </div>
                 <div class="grid gap-2">
-                    <Label :for="'revision-voice-' + revision.id">Voice and delivery</Label
+                    <Label :for="'revision-voice-' + revision.id">Голос и манера речи</Label
                     ><Input
                         :id="'revision-voice-' + revision.id"
                         v-model="editForm.voice.description"
                         :disabled="busy"
-                        placeholder="Tone, accent, pace"
+                        placeholder="Тембр, акцент, темп"
                     />
                 </div>
             </div>
             <InputError :message="editForm.errors.lock_version" /><InputError :message="editErrors.revision" />
-            <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Save draft details</Button></div>
+            <div><Button type="submit" variant="outline" class="h-11" :disabled="busy">Сохранить изменения</Button></div>
         </form>
         <div v-else class="space-y-2">
             <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
-            <p class="text-muted-foreground text-xs">Approved versions stay unchanged. Create a new version to update this character.</p>
+            <p class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
         </div>
         <div class="space-y-3">
-            <h3 class="text-sm font-semibold">Reference views</h3>
-            <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">
-                Upload front, profile and full-body views created in your other application.
-            </p>
+            <h3 class="text-sm font-semibold">Референсы</h3>
+            <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">Добавьте изображения анфас, в профиль и в полный рост.</p>
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 <figure v-for="reference in revision.references ?? []" :key="reference.id" class="min-w-0 space-y-2">
                     <a
@@ -103,7 +101,7 @@ function selectFile(event: Event) {
                         class="focus-visible:ring-ring/50 block overflow-hidden rounded-lg border outline-none focus-visible:ring-2"
                         ><img
                             :src="reference.url"
-                            :alt="reference.label || 'Character reference: ' + reference.view"
+                            :alt="reference.label || 'Образ персонажа · ' + reference.view"
                             loading="lazy"
                             class="bg-muted aspect-square w-full object-contain"
                     /></a>
@@ -117,7 +115,7 @@ function selectFile(event: Event) {
                         class="h-11 w-full"
                         :disabled="busy || editForm.isDirty"
                         @click="remove(reference.id)"
-                        >Remove reference</Button
+                        >Удалить референс</Button
                     >
                 </figure>
             </div>
@@ -125,7 +123,7 @@ function selectFile(event: Event) {
         </div>
         <form v-if="editable" class="grid gap-4 border-t pt-5 sm:grid-cols-2" @submit.prevent="upload">
             <div class="grid gap-2">
-                <Label :for="'reference-file-' + revision.id">Image file</Label
+                <Label :for="'reference-file-' + revision.id">Файл изображения</Label
                 ><Input
                     :id="'reference-file-' + revision.id"
                     type="file"
@@ -134,11 +132,11 @@ function selectFile(event: Event) {
                     :disabled="busy || editForm.isDirty"
                     @change="selectFile"
                 />
-                <p class="text-muted-foreground text-xs">PNG, JPEG or WebP, up to 10 MB. Save edited draft details before uploading.</p>
+                <p class="text-muted-foreground text-xs">PNG, JPEG или WebP до 10 МБ. Перед загрузкой сохраните изменения образа.</p>
                 <InputError :message="uploadForm.errors.file" />
             </div>
             <div class="grid gap-2">
-                <Label :for="'reference-view-' + revision.id">View</Label
+                <Label :for="'reference-view-' + revision.id">Ракурс</Label
                 ><select
                     :id="'reference-view-' + revision.id"
                     v-model="uploadForm.view"
@@ -149,17 +147,17 @@ function selectFile(event: Event) {
                 ><InputError :message="uploadForm.errors.view" />
             </div>
             <div class="grid gap-2">
-                <Label :for="'reference-label-' + revision.id">Reference label</Label
+                <Label :for="'reference-label-' + revision.id">Подпись</Label
                 ><Input
                     :id="'reference-label-' + revision.id"
                     v-model="uploadForm.label"
                     maxlength="255"
                     :disabled="busy"
-                    placeholder="For example, Mira in her blue coat"
+                    placeholder="Например, герой в синем пальто"
                 /><InputError :message="uploadForm.errors.label" />
             </div>
             <div class="flex items-end">
-                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">Upload reference</Button>
+                <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">Загрузить референс</Button>
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError
                 :message="uploadErrors.character"
@@ -167,12 +165,12 @@ function selectFile(event: Event) {
         </form>
         <form v-if="editable" class="flex flex-wrap items-center justify-between gap-4 border-t pt-5" @submit.prevent="approve">
             <div class="max-w-prose">
-                <p class="text-muted-foreground text-sm">Approve this version when the appearance and references are ready for use in episodes.</p>
+                <p class="text-muted-foreground text-sm">Утвердите версию, когда образ и референсы готовы к использованию в эпизодах.</p>
                 <InputError :message="approvalForm.errors.lock_version" /><InputError :message="approvalErrors.revision" /><InputError
                     :message="approvalErrors.references"
                 /><InputError :message="approvalErrors.character" />
             </div>
-            <Button type="submit" class="h-11" :disabled="busy || editForm.isDirty">Approve version</Button>
+            <Button type="submit" class="h-11" :disabled="busy || editForm.isDirty">Утвердить версию</Button>
         </form>
     </section>
 </template>
