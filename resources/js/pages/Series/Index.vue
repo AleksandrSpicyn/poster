@@ -31,10 +31,10 @@ function listUrl(active: boolean, updated: boolean) {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Мои сериалы" />
-        <div class="workspace-page">
+        <div class="workspace-page series-catalog">
             <div class="flex flex-col items-start justify-between gap-4 lg:flex-row">
                 <Heading title="Мои сериалы" description="Сериалы студии / Все состояния" />
-                <Button as-child class="h-11"><Link :href="route('projects.create', { format: 'series' })">Создать сериал</Link></Button>
+                <Button as-child class="h-11 font-bold"><Link :href="route('projects.create', { format: 'series' })">Создать сериал</Link></Button>
             </div>
             <nav aria-label="Фильтры сериалов" class="catalog-tabs flex flex-wrap gap-2">
                 <Link :href="listUrl(false, filters.updated)" :aria-current="!filters.active ? 'true' : undefined" preserve-scroll>Все</Link>
@@ -44,7 +44,7 @@ function listUrl(active: boolean, updated: boolean) {
                 >
             </nav>
             <section aria-labelledby="series-catalog">
-                <h2 id="series-catalog" class="mb-5 text-xl font-bold">В производстве</h2>
+                <h2 id="series-catalog" class="mb-[19px] text-xl font-bold">В производстве</h2>
                 <div v-if="props.series.data.length" class="grid grid-cols-1 gap-4 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
                     <article v-for="item in props.series.data" :key="item.id" class="bg-card overflow-hidden rounded-xl border">
                         <Link
@@ -79,6 +79,14 @@ function listUrl(active: boolean, updated: boolean) {
 </template>
 
 <style scoped>
+.series-catalog {
+    gap: 22px;
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .series-catalog {
+        gap: 21px;
+    }
+}
 .catalog-tabs a {
     display: inline-flex;
     align-items: center;
