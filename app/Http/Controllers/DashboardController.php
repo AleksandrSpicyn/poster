@@ -86,7 +86,7 @@ class DashboardController
         $dashboard = $action->run($owner);
 
         return inertia('Dashboard', [
-            'analytics' => fn(): PublicationMetricsData => $action->metrics($owner, $period),
+            'analytics' => fn(): PublicationMetricsData => $action->metrics($owner, $period, includeProduction: true),
             'stats' => [
                 'prompts' => $dashboard->promptCount,
                 'pending' => $dashboard->pendingCount,

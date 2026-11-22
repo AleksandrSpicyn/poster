@@ -72,12 +72,22 @@ final readonly class PublicationObservationRepository
     public function period(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
     {
         return PublicationObservation::query()->select('publication_observations.*')->addSelect([
+            'report_project_id' => DB::table('publication_metric_origins as origin')->select('origin.project_id')
+                ->join('projects as origin_project', 'origin_project.id', '=', 'origin.project_id')
+                ->where('origin_project.owner_id', $owner->id)->where('origin.owner_id', $owner->id)
+                ->whereColumn('origin.publication_key', 'publication_observations.publication_key')
+                ->when($filters->project, fn($query) => $query->where('origin.project_id', $filters->project))
+                ->when($filters->format, fn($query) => $query->where('origin_project.content_mode', $filters->format?->value))
+                ->orderBy('origin.project_id')->limit(1),
             'post_url' => Post::query()->select('url')->whereColumn('id', 'publication_observations.post_id')
                 ->whereRelation('channel', 'owner_id', $owner->id)->limit(1),
             'clip_publications' => OpusClip::query()->select('publications')->whereColumn('id', 'publication_observations.opus_clip_id')
                 ->whereRelation('source.project', 'owner_id', $owner->id)->limit(1),
         ])->withCasts(['clip_publications' => 'array'])->where('owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
             ->when($filters->platform, fn($query) => $query->where('platform', $filters->platform?->value))
+            ->when($filters->format, fn($query) => $query->whereIn('publication_observations.publication_key', DB::table('publication_metric_origins as origin')
+                ->join('projects', 'projects.id', '=', 'origin.project_id')->where('projects.owner_id', $owner->id)->where('origin.owner_id', $owner->id)
+                ->where('projects.content_mode', $filters->format?->value)->when($filters->project, fn($origin) => $origin->where('origin.project_id', $filters->project))->select('origin.publication_key')))
             ->when($filters->project, fn($query) => $query->whereIn('publication_key', DB::table('publication_metric_origins')
                 ->where('owner_id', $owner->id)->where('project_id', $filters->project)->select('publication_key')))
             ->orderBy('observed_on')->orderBy('id')->cursor();

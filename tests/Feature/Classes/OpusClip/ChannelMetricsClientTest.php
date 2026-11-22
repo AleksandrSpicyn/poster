@@ -29,13 +29,14 @@ test('читает отчёт игрового YouTube после обновле
         'credentials' => ['channel_id' => 'UCgaming', 'access_token' => 'expired', 'refresh_token' => 'test-refresh']]);
     Http::fake([
         'oauth2.googleapis.com/token' => Http::response(['access_token' => 'fresh']),
-        'youtubeanalytics.googleapis.com/*' => Http::response(['columnHeaders' => [['name' => 'video'], ['name' => 'engagedViews']],
-            'rows' => [['abcdefghijk', 12]]]),
+        'youtubeanalytics.googleapis.com/*' => Http::response(['columnHeaders' => [['name' => 'video'], ['name' => 'engagedViews'], ['name' => 'estimatedMinutesWatched']],
+            'rows' => [['abcdefghijk', 12, 36]]]),
     ]);
 
     $metrics = iterator_to_array(app(ChannelMetricsClient::class)->read($channel, ['abcdefghijk', 'lmnopqrstuv']));
 
-    expect($metrics)->toBe(['abcdefghijk' => ['engagedViews' => 12]]);
+    expect($metrics)->toBe(['abcdefghijk' => ['engagedViews' => 12, 'estimatedMinutesWatched' => 36]]);
     Http::assertSent(fn(Request $request): bool => $request->hasHeader('Authorization', 'Bearer fresh')
+        && is_string($request['metrics']) && in_array('estimatedMinutesWatched', explode(',', $request['metrics']), true)
         && $request['ids'] === 'channel==UCgaming' && $request['filters'] === 'video==abcdefghijk,lmnopqrstuv');
 });

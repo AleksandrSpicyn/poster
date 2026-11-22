@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use App\Enums\ChannelType;
 use App\Models\Channel;
+use App\Models\Episode;
 use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Post;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -131,4 +133,32 @@ test('считает одну публикацию из двух источни�
     get(route('dashboard', ['platform' => 'tiktok']))
         ->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 0));
     Http::assertNothingSent();
+});
+
+test('ограничивает производство выбранными проектом и каналом', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $another = Project::factory()->create(['owner_id' => $owner->id]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE]);
+    $anotherChannel = Channel::factory()->for($another)->create(['type' => ChannelType::INSTAGRAM]);
+    $series = Series::factory()->for($project)->create();
+    Episode::factory()->for($series)->create();
+    $prompt = Prompt::factory()->for($project)->create();
+    $post = Post::factory()->for($channel)->for($prompt)->create();
+    Post::factory()->for($anotherChannel)->for(Prompt::factory()->for($another))->create();
+    actingAs($owner);
+
+    get(route('dashboard', ['project' => $project->id, 'platform' => 'youtube']))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('analytics.production.projects', 1)
+            ->where('analytics.production.openEpisodes', 1)
+            ->where('analytics.production.latestGeneration', $prompt->prompt)
+            ->where('analytics.production.latestPublication', $post->title));
+
+    get(route('dashboard', ['project' => $project->id, 'exclude_channels' => [$channel->id]]))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('analytics.production.projects', 0)
+            ->where('analytics.production.openEpisodes', 0)
+            ->where('analytics.production.latestGeneration', null)
+            ->where('analytics.production.latestPublication', null));
 });

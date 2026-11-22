@@ -1,180 +1,681 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
+import Heading from '@/components/Heading.vue';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
+import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue';
+import PublicationCounters from '@/components/PublicationCounters.vue';
+import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
+import { Button } from '@/components/ui/button';
+import { amount, counterNames, dateLabel, platformNames, rangeLabel, signed } from '@/types/analytics';
+import type { AnalyticsFilters, Counter, MetricsReport, PublicationTimeline } from '@/types/analytics';
 
-type Counter = 'views' | 'likes' | 'shares' | 'comments';
-type Filters = { days: number; metric: Counter; platform: string | null; project: number | null };
-type Timeline = {
-    account: string;
-    platform: string;
-    mediaId: string;
-    url: string | null;
-    title: string;
-    change: number | null;
-    snapshots: Record<string, number>;
-    intervals: { from: string; to: string; change: number }[];
-};
-export type MetricsReport = {
-    from: string;
-    to: string;
-    updatedAt: string | null;
-    filters: Filters;
-    change: number | null;
-    summaries: Record<Counter, number | null>;
-    daily: Record<string, number | null>;
-    publications: Timeline[];
-    projects: { id: number; name: string }[];
-    coverage: { name: string; status: string; last_success_at: string | null }[];
-};
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
+const page = usePage();
 const route = useRoute();
-const counters: Record<Counter, string> = { views: 'Просмотры', likes: 'Лайки', shares: 'Репосты', comments: 'Комментарии' };
-const chart = computed(() => {
-    const days = Object.entries(props.report.daily);
-    const values = days.flatMap(([, value]) => (value === null ? [] : [value]));
-    const low = Math.min(0, ...values);
-    const high = Math.max(0, ...values);
-    const y = (value: number) => (high === low ? 72 : 134 - ((value - low) / (high - low)) * 120);
-    const points = [];
-    let path = '';
-    let startsSegment = true;
-    for (const [index, [date, value]] of days.entries()) {
-        if (value === null) {
-            startsSegment = true;
-            continue;
-        }
-        const x = 12 + (index / Math.max(1, days.length - 1)) * 976;
-        path += `${startsSegment ? 'M' : 'L'}${x},${y(value)} `;
-        points.push({ date, value, x, y: y(value) });
-        startsSegment = false;
-    }
-    return { path, points, zero: y(0) };
+const filters = computed(() => props.report.filters);
+type View = 'overview' | 'filters' | 'drill' | 'partial' | 'publication' | 'data' | 'coverage';
+const params = computed(() => new URLSearchParams(page.url.split('?')[1] ?? ''));
+const view = computed<View>(() => {
+    const v = params.value.get('view');
+    return v && ['filters', 'drill', 'partial', 'publication', 'data', 'coverage'].includes(v) ? (v as View) : 'overview';
 });
-const format = new Intl.NumberFormat('ru', { signDisplay: 'exceptZero' });
-function filter(key: keyof Filters, event: Event) {
-    const value = (event.target as HTMLSelectElement).value;
-    const filters = { ...props.report.filters, [key]: key === 'days' ? Number(value) : value || null };
-    router.get(route(props.detail ? 'dashboard.analytics' : 'dashboard'), filters, {
-        preserveScroll: true,
-        preserveState: true,
-        only: ['analytics'],
+const filterProject = ref<number | null>(filters.value.project);
+const project = computed(() => props.report.projects.find((p) => p.id === (view.value === 'filters' ? filterProject.value : filters.value.project)));
+const selected = computed(() => {
+    const key = params.value.get('publication');
+    return key ? props.report.publications.find((p) => p.key === key) : props.report.publications[0];
+});
+const selectedProject = computed(() => props.report.projects.find((p) => p.id === selected.value?.projectId) ?? project.value);
+const start = computed(() => Object.keys(props.report.daily)[0] ?? props.report.from);
+const interval = computed(() => rangeLabel(start.value, props.report.to));
+const period = computed(() => (filters.value.from ? interval.value : filters.value.days + ' дней'));
+const names = counterNames;
+const metric = computed(() => filters.value.metric);
+const list = computed(() => [...props.report.publications].sort((a, b) => (b.change ?? -Infinity) - (a.change ?? -Infinity)));
+const scope = computed(() =>
+    [
+        project.value?.name ?? 'Все проекты',
+        filters.value.platform ? platformNames[filters.value.platform] : null,
+        props.detail ? period.value : filters.value.from ? interval.value : 'Последние ' + period.value,
+    ]
+        .filter(Boolean)
+        .join(' / '),
+);
+const mainTitle = computed(() => (view.value === 'drill' ? 'Публикации по показателю' : props.detail ? 'Аналитика публикаций' : 'Обзор студии'));
+const subtitle = computed(() =>
+    view.value === 'overview'
+        ? scope.value
+        : view.value === 'filters'
+          ? 'Фильтры'
+          : view.value === 'drill'
+            ? names[metric.value]
+            : view.value === 'partial'
+              ? 'За период'
+              : undefined,
+);
+function url(v: View, patch: Partial<AnalyticsFilters> = {}, item?: PublicationTimeline, detail = props.detail) {
+    return route(detail ? 'dashboard.analytics' : 'dashboard', {
+        ...filters.value,
+        ...patch,
+        view: v === 'overview' ? undefined : v,
+        publication: item?.key,
     });
 }
+const platforms = computed(() => {
+    const sums = new Map<string, number>();
+    for (const p of list.value) {
+        if (p.change !== null) sums.set(p.platform, (sums.get(p.platform) ?? 0) + p.change);
+    }
+    const total = [...sums.values()].reduce((s, n) => s + Math.max(n, 0), 0);
+    return [...sums].map(([key, value]) => ({ key, value, pct: total ? (100 * Math.max(value, 0)) / total : 0 })).sort((a, b) => b.value - a.value);
+});
+function entry(label: string, key: Counter, partial = false) {
+    const total = props.report.totals[key],
+        delta = props.report.summaries[key];
+    return {
+        label,
+        value: partial ? total : delta,
+        href: url('drill', { metric: key }),
+        note: !partial
+            ? undefined
+            : total === null
+              ? 'Нет наблюдений'
+              : delta === null
+                ? 'Нет базы сравнения'
+                : delta === 0
+                  ? 'Получено от API'
+                  : signed(delta) + ' за период',
+    };
+}
+const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter, view.value === 'partial')));
+const selectedWatch = computed(() => {
+    const rows = props.report.publications;
+    const minutes = rows.map((p) => p.watchMinutesChange);
+    return {
+        duration: rows.length === 1 ? (rows[0].latest.averageViewDuration ?? null) : null,
+        percent: rows.length === 1 ? (rows[0].latest.averageViewPercentage ?? null) : null,
+        hours: minutes.length && minutes.every((v): v is number => v != null) ? minutes.reduce((s, v) => s + v, 0) / 60 : null,
+    };
+});
+const detailCards = computed(() => [
+    entry('Просмотры', 'views'),
+    { label: 'Время просмотра', value: selectedWatch.value.hours, unit: 'ч' },
+    entry('Репосты', 'shares'),
+    { label: 'Ср. просмотр', value: selectedWatch.value.duration, unit: 'с', description: 'Последний отчёт площадки по ролику' },
+]);
+const selectedDays = computed(() =>
+    Object.keys(props.report.daily).map((date) => ({
+        date,
+        value: selected.value?.snapshots[date] ?? null,
+        interval: selected.value?.intervals.find((i) => i.to === date),
+    })),
+);
+const snapshotSeries = computed(() => Object.fromEntries(selectedDays.value.map((d) => [d.date, d.value])));
+const tabs: { name: string; view: View }[] = [
+    { name: 'Обзор', view: 'overview' },
+    { name: 'Отчёт ролика', view: 'publication' },
+    { name: 'Данные графика', view: 'data' },
+    { name: 'Состояние сбора по каналам', view: 'coverage' },
+];
 </script>
 <template>
-    <section class="studio-panel" aria-labelledby="analytics-heading">
-        <header class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <h2 id="analytics-heading">{{ detail ? 'Наблюдения за период' : 'Аналитика публикаций' }}</h2>
-                <Link v-if="!detail" :href="route('dashboard.analytics', report.filters)" class="underline">Подробный отчёт</Link>
-                <p>{{ report.from }} — {{ report.to }} · UTC</p>
-            </div>
-            <div class="flex flex-wrap gap-3">
-                <label
-                    >Проект<select aria-label="Проект" :value="report.filters.project ?? ''" @change="filter('project', $event)">
-                        <option value="">Все проекты</option>
-                        <option v-for="project in report.projects" :key="project.id" :value="project.id">{{ project.name }}</option>
-                    </select></label
-                >
-                <label
-                    >Период
-                    <select aria-label="Период" :value="report.filters.days" @change="filter('days', $event)">
-                        <option v-for="period in [7, 30, 90]" :key="period" :value="period">{{ period }} дней</option>
-                    </select>
-                </label>
-                <label
-                    >Площадка
-                    <select aria-label="Площадка" :value="report.filters.platform ?? ''" @change="filter('platform', $event)">
-                        <option value="">Все площадки</option>
-                        <option value="youtube">YouTube</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="tiktok">TikTok</option>
-                    </select>
-                </label>
-                <label
-                    >Показатель
-                    <select aria-label="Показатель" :value="report.filters.metric" @change="filter('metric', $event)">
-                        <option v-for="(name, key) in counters" :key="key" :value="key">{{ name }}</option>
-                    </select>
-                </label>
-            </div>
+    <div class="workspace-page analytics-screen" :data-view="view" :class="{ 'analytics-state': view !== 'overview' }">
+        <header class="analytics-header">
+            <Heading :title="mainTitle" :description="subtitle" />
+            <Button v-if="view === 'overview'" as-child
+                ><Link :href="url('filters')">{{ detail ? 'Изменить фильтры' : 'Выбрать период' }}</Link></Button
+            >
         </header>
-        <h3 class="mt-5 font-semibold">{{ counters[report.filters.metric] }} · наблюдаемый прирост</h3>
-        <p class="text-3xl font-semibold tabular-nums">{{ report.change === null ? 'Нет базы сравнения' : format.format(report.change) }}</p>
-        <p v-if="report.updatedAt">Последнее наблюдение {{ new Date(report.updatedAt).toLocaleString('ru', { timeZone: 'UTC' }) }} UTC</p>
-        <figure v-if="chart.points.length" class="mt-4 rounded-lg border px-4 py-3">
-            <figcaption class="font-semibold">{{ counters[report.filters.metric] }} по дням</figcaption>
-            <svg
-                viewBox="0 0 1000 150"
-                preserveAspectRatio="none"
-                class="text-primary mt-3 h-40 w-full"
-                role="img"
-                aria-label="Суточный прирост по соседним наблюдениям"
-            >
-                <line v-for="row in [14, 74, 134]" :key="row" x1="0" x2="1000" :y1="row" :y2="row" stroke="var(--border)" />
-                <line x1="0" x2="1000" :y1="chart.zero" :y2="chart.zero" stroke="var(--muted-foreground)" stroke-dasharray="3 6" />
-                <path :d="chart.path" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
-                <circle v-for="point in chart.points" :key="point.date" :cx="point.x" :cy="point.y" r="3" fill="currentColor">
-                    <title>{{ point.date }} · {{ format.format(point.value) }}</title>
-                </circle>
-            </svg>
-            <div class="text-muted-foreground flex justify-between text-xs">
-                <time>{{ report.from }}</time><time>{{ report.to }}</time>
-            </div>
-            <details class="mt-3 text-sm">
-                <summary class="cursor-pointer">Данные графика</summary>
-                <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4">
-                    <template v-for="(value, date) in report.daily" :key="date">
-                        <dt>{{ date }}</dt>
-                        <dd>{{ value === null ? 'Нет суточной пары' : format.format(value) }}</dd>
+        <template v-if="view === 'overview'">
+            <PublicationCounters :items="detail ? detailCards : dashboardCards" />
+            <div class="analytics-panels">
+                <section class="studio-panel chart-panel">
+                    <h2>
+                        <Link :href="selected ? url('data', {}, selected, true) : url('drill')">{{
+                            detail ? names[metric] + ' по дням' : metric === 'views' ? 'Динамика просмотров' : names[metric] + ' по дням'
+                        }}</Link>
+                    </h2>
+                    <p class="secondary">{{ interval }} · По дням</p>
+                    <PublicationMetricChart :values="report.daily" :label="names[metric] + ' по дням'" />
+                </section>
+                <section class="studio-panel platforms-panel">
+                    <h2>
+                        <Link :href="url('coverage', {}, selected, true)">{{
+                            detail ? 'Метрики ' + (filters.platform ? platformNames[filters.platform] : 'площадок') : 'Каналы'
+                        }}</Link>
+                    </h2>
+                    <template v-if="!detail">
+                        <Link
+                            v-for="row in platforms"
+                            :key="row.key"
+                            :href="url('overview', { platform: row.key }, undefined, true)"
+                            class="platform-row"
+                        >
+                            <span>{{ platformNames[row.key] ?? row.key }}</span><strong>{{ amount(row.value) }}</strong
+                            ><i :class="'bar-' + row.key" :style="{ '--progress': row.pct + '%' }"
+                        /></Link>
+                        <p v-if="!platforms.length" class="secondary">Нет измерений за период</p>
                     </template>
-                </dl>
-            </details>
-        </figure>
-        <p v-if="report.publications.length" class="mt-2 text-sm">
-            График учитывает соседние дни. Прирост за пропущенные дни указан в интервалах публикации.
-        </p>
-        <p v-else class="mt-4">За выбранный период сохранённых наблюдений нет.</p>
-        <details v-if="report.coverage.length" class="mt-2 border-t py-2">
-            <summary class="cursor-pointer">Состояние сбора по каналам</summary>
-            <ul class="mt-2 space-y-2">
-                <li v-for="(channel, index) in report.coverage" :key="index">
-                    {{ channel.name }} · {{ channel.status }}
-                    <small v-if="channel.last_success_at">
-                        · {{ new Date(channel.last_success_at).toLocaleString('ru', { timeZone: 'UTC' }) }} UTC</small
+                    <template v-else>
+                        <div class="platform-row">
+                            <span title="Последний отчёт площадки по ролику">Средний процент просмотра</span
+                            ><strong>{{ amount(selectedWatch.percent) }}{{ selectedWatch.percent !== null ? ' %' : '' }}</strong
+                            ><i :style="{ '--progress': Math.min(100, selectedWatch.percent ?? 0) + '%' }" />
+                        </div>
+                        <Link v-for="key in ['likes', 'comments'] as const" :key="key" :href="url('drill', { metric: key })" class="platform-row"
+                            ><span>{{ names[key] }}</span
+                            ><strong>{{ amount(report.summaries[key]) }}</strong></Link
+                        >
+                    </template>
+                </section>
+            </div>
+            <section class="best-publications">
+                <h2>Лучшие публикации</h2>
+                <Link v-for="p in list" :key="p.key" class="publication-link" :href="url('publication', {}, p, true)">
+                    <ProjectArtwork :name="p.title" :cover="report.projects.find((x) => x.id === p.projectId)?.cover" /><span
+                        ><strong>{{ p.title }}</strong
+                        ><small
+                            >{{ platformNames[p.platform] ?? p.platform }} ·
+                            {{ p.change === null ? 'Нет базы сравнения' : amount(p.change) + ' · ' + names[metric].toLowerCase() }}</small
+                        ></span
                     >
-                </li>
-            </ul>
-        </details>
-        <details v-for="item in report.publications" :key="JSON.stringify([item.platform, item.account, item.mediaId])" class="mt-2 border-t py-2">
-            <summary class="cursor-pointer">
-                {{ item.title }} · {{ item.platform }} · {{ item.change === null ? 'Нет базы сравнения' : format.format(item.change) }}
-            </summary>
-            <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="inline-block py-2 underline"
-                >Открыть публикацию на площадке <span class="sr-only">(в новой вкладке)</span></a
-            >
-            <p class="break-all">{{ item.account }} · {{ item.mediaId }}</p>
-            <p v-if="!Object.keys(item.snapshots).length">Площадка не вернула показатель.</p>
-            <dl v-else class="grid grid-cols-[auto_1fr] gap-x-4">
-                <template v-for="(value, date) in item.snapshots" :key="date"
-                    ><dt>{{ date }}</dt>
-                    <dd>{{ value.toLocaleString('ru') }}</dd></template
+                </Link>
+                <p v-if="!list.length" class="secondary">За выбранный период нет публикаций с наблюдениями.</p>
+            </section>
+        </template>
+        <template v-else-if="view === 'partial'">
+            <section class="studio-panel partial-panel">
+                <h2>Показатели за {{ filters.days === 7 && !filters.from ? 'неделю' : 'период' }}</h2>
+                <PublicationCounters :items="dashboardCards" />
+                <dl>
+                    <div>
+                        <dt>Производство</dt>
+                        <dd>Проектов: {{ report.production?.projects ?? 0 }} · Эпизодов в работе: {{ report.production?.openEpisodes ?? 0 }}</dd>
+                    </div>
+                    <div>
+                        <dt>Последняя генерация</dt>
+                        <dd>
+                            <Link :href="route('prompts')"
+                                >{{ report.production?.latestGeneration ?? 'Нет генераций'
+                                }}{{ report.production?.generationStage ? ' · ' + report.production.generationStage : '' }}</Link
+                            >
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Последняя публикация</dt>
+                        <dd>
+                            <Link :href="route('posts')">{{ report.production?.latestPublication ?? 'Нет публикаций' }}</Link>
+                        </dd>
+                    </div>
+                </dl>
+                <Button variant="outline" as-child><Link :href="url('filters')">Изменить фильтр</Link></Button>
+            </section></template
+        >
+        <template v-else>
+            <nav v-if="['publication', 'data', 'coverage'].includes(view)" class="analytics-tabs" aria-label="Отчёт">
+                <Link
+                    v-for="tab in tabs"
+                    :key="tab.view"
+                    :aria-current="view === tab.view ? 'page' : undefined"
+                    :href="url(tab.view, {}, selected, true)"
+                    >{{ tab.name }}</Link
                 >
-            </dl>
-            <p v-for="interval in item.intervals" :key="interval.to">
-                {{ interval.from }} — {{ interval.to }} · {{ format.format(interval.change) }}
-            </p>
-        </details>
-    </section>
+            </nav>
+            <div class="analytics-columns" :class="{ 'tabbed-report': ['publication', 'data', 'coverage'].includes(view) }">
+                <PublicationMetricsFilter
+                    v-if="view === 'filters'"
+                    :report="report"
+                    :detail="detail"
+                    :interval="interval"
+                    @select-project="filterProject = $event"
+                />
+                <section v-else-if="view === 'drill'" class="studio-panel">
+                    <h2>{{ names[metric] }}</h2>
+                    <strong>{{ names[metric] }} · {{ amount(report.change) }}</strong>
+                    <div class="analytics-tabs filter-chips">
+                        <span>{{ project?.name ?? 'Все проекты' }}</span><span v-if="filters.platform">{{ platformNames[filters.platform] }}</span
+                        ><span>{{ interval }}</span>
+                    </div>
+                    <Link v-for="p in list" :key="p.key" class="drill-row" :href="url('publication', {}, p, true)"
+                        ><strong>{{ p.title }}</strong
+                        ><small
+                            >{{ amount(p.change) }} ·
+                            {{ p.intervals.length ? dateLabel(p.intervals[p.intervals.length - 1].to) : 'Нет базы сравнения' }}</small
+                        ></Link
+                    >
+                    <div class="report-row">
+                        <span>Всего по выборке</span><span>{{ amount(report.change) }} · Публикаций: {{ list.length }}</span>
+                    </div>
+                    <Link :href="url('overview')" class="report-link">Вернуться в обзор ↗</Link>
+                </section>
+                <section v-else-if="view === 'coverage'" class="studio-panel">
+                    <h2>Состояние сбора по каналам</h2>
+                    <div v-for="c in report.coverage" :key="c.id" class="coverage-row" :data-state="c.state">
+                        <strong>{{ c.name }} · {{ platformNames[c.platform] ?? c.platform }}</strong
+                        ><small
+                            >{{ c.status
+                            }}{{
+                                c.last_success_at
+                                    ? ' · ' +
+                                      dateLabel(c.last_success_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+                                      ' UTC'
+                                    : ''
+                            }}</small
+                        >
+                    </div>
+                    <p v-if="!report.coverage.length">В этой выборке нет каналов.</p>
+                    <div class="report-row">
+                        <span>Период отчёта</span><span>{{ interval }}</span>
+                    </div>
+                </section>
+                <section v-else class="studio-panel">
+                    <h2>{{ view === 'data' ? 'Данные графика' : (selected?.title ?? 'Отчёт ролика') }}</h2>
+                    <template v-if="selected">
+                        <div v-if="view === 'publication'" class="publication-link">
+                            <ProjectArtwork :name="selected.title" :cover="selectedProject?.cover" /><strong>{{
+                                [selected.title, selectedProject?.name].filter(Boolean).join(' · ')
+                            }}</strong>
+                        </div>
+                        <div v-if="view === 'publication'" class="report-row">
+                            <span>Источник</span
+                            ><span>{{ [platformNames[selected.platform], selected.channelName, 'Наблюдения API'].filter(Boolean).join(' · ') }}</span>
+                        </div>
+                        <strong>{{
+                            view === 'data'
+                                ? 'Наблюдения ' + { views: 'просмотров', likes: 'лайков', shares: 'репостов', comments: 'комментариев' }[metric]
+                                : names[metric] + ' на дату'
+                        }}</strong>
+                        <p class="secondary">{{ interval }} · UTC</p>
+                        <PublicationMetricChart snapshots :values="snapshotSeries" :label="names[metric] + ' по наблюдениям'" />
+                        <template v-if="view === 'data'"
+                            ><div
+                                v-for="day in selectedDays"
+                                :key="day.date"
+                                class="report-row"
+                                :class="{ 'coverage-row observation-gap': day.value === null }"
+                            >
+                                <span>{{ dateLabel(day.date) }}</span><span>{{
+                                    day.value === null
+                                        ? 'Нет наблюдения'
+                                        : amount(day.value) +
+                                          ' · ' +
+                                          (day.interval
+                                              ? (new Date(day.interval.to).getTime() - new Date(day.interval.from).getTime() > 86400000
+                                                    ? 'прирост за ' + rangeLabel(day.interval.from, day.interval.to) + ' '
+                                                    : 'прирост ') + signed(day.interval.change)
+                                              : 'первое наблюдение')
+                                }}</span>
+                            </div></template
+                        >
+                        <template v-else
+                            ><div class="report-row">
+                                <span>Наблюдения</span
+                                ><span>{{
+                                    selectedDays
+                                        .map(
+                                            (d) =>
+                                                dateLabel(d.date, { day: '2-digit', month: '2-digit' }) +
+                                                ' — ' +
+                                                (d.value === null ? 'пропуск' : amount(d.value)),
+                                        )
+                                        .join(' · ')
+                                }}</span>
+                            </div>
+                            <div
+                                v-for="i in selected.intervals.filter((i) => new Date(i.to).getTime() - new Date(i.from).getTime() > 86400000)"
+                                :key="i.to"
+                                class="report-row"
+                            >
+                                <span>{{ rangeLabel(i.from, i.to) }}</span><span
+                                    >{{ signed(i.change) }} за интервал · разбивка по дням неизвестна</span
+                                >
+                            </div>
+                            <a v-if="selected.url" class="report-link" :href="selected.url" target="_blank" rel="noopener noreferrer"
+                                >Открыть публикацию на площадке ↗</a
+                            >
+                            <small v-if="selected.url" class="secondary"
+                                >{{ platformNames[selected.platform] }} · {{ selected.title }}</small
+                            ></template
+                        >
+                    </template>
+                    <p v-else>За выбранный период публикация недоступна.</p>
+                </section>
+                <aside class="studio-panel report-card">
+                    <template v-if="view === 'coverage'"
+                        ><h2>Период сбора</h2>
+                        <small>Проект</small>
+                        <p>{{ project?.name ?? 'Все проекты' }}</p>
+                        <small>Время</small>
+                        <p>UTC</p></template
+                    >
+                    <template v-else-if="view === 'filters' || view === 'drill'"
+                        ><ProjectArtwork v-if="project" :name="project.name" :cover="project.cover" />
+                        <h2>{{ project?.name ?? 'Все проекты' }}</h2>
+                        <small v-if="project">{{
+                            project.is_clipping ? 'Клиппинг' : project.content_mode === 'series' ? 'Сериал' : 'Короткие видео'
+                        }}</small></template
+                    >
+                    <template v-else-if="selected"
+                        ><ProjectArtwork :name="selected.title" :cover="selectedProject?.cover" />
+                        <h2>{{ selected.title }}</h2>
+                        <small>Проект</small>
+                        <p>{{ selectedProject?.name ?? '—' }}</p>
+                        <small>Источник отчёта</small>
+                        <p>{{ platformNames[selected.platform] }}</p></template
+                    >
+                </aside>
+            </div></template
+        >
+    </div>
 </template>
 <style scoped>
-select {
+.analytics-screen {
+    gap: 20px;
+}
+.analytics-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.analytics-header h1 {
+    overflow-wrap: anywhere;
+}
+.analytics-header [data-slot='button'],
+.partial-panel > [data-slot='button'] {
+    min-height: 44px;
+    font-weight: 700;
+}
+.analytics-panels {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+    gap: 16px;
+}
+.analytics-panels .studio-panel {
+    min-height: 322px;
+}
+.analytics-panels h2,
+.analytics-columns h2,
+.partial-panel h2,
+.best-publications h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: 700;
+}
+.secondary,
+.publication-link small,
+.report-card small,
+.drill-row small,
+.coverage-row small {
     display: block;
-    padding: 0.375rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-    background: var(--background);
-    color: var(--foreground);
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
+.chart-panel {
+    padding: 16px 24px;
+}
+.platform-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+.platform-row i {
+    grid-column: 1/-1;
+    background: var(--muted);
+    height: 4px;
+}
+.platform-row i::before {
+    display: block;
+    content: '';
+    height: 100%;
+    width: var(--progress);
+    background: var(--primary);
+}
+.platform-row .bar-instagram::before {
+    background: #beb2e2;
+}
+.platform-row .bar-tiktok::before {
+    background: #e8ac7d;
+}
+.best-publications h2 {
+    margin-bottom: 14px;
+}
+.publication-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+}
+.publication-link > div:first-child {
+    height: 54px;
+    width: 80px;
+    border-radius: 8px;
+    flex: none;
+}
+.publication-link small,
+.filter-channel small,
+.drill-row small {
+    margin-top: 4px;
+}
+.analytics-state {
+    padding-top: 18px;
+    gap: 20px;
+}
+.analytics-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.analytics-state:has(.tabbed-report) {
+    padding-top: 15px;
+}
+.analytics-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.analytics-tabs :is(a, span) {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--muted);
+    font-size: 14px;
+}
+.analytics-tabs a[aria-current='page'] {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, var(--card));
+}
+.report-row > span:first-child {
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+.report-card {
+    padding: 16px;
+}
+.report-card > div {
+    height: 112px;
+    border-radius: 8px;
+}
+.report-card h2 {
+    margin: 12px 0 4px;
+}
+.report-card small {
+    margin: 10px 0 0;
+}
+.filter-chips {
+    margin: 12px 0;
+}
+.drill-row,
+.report-row,
+.partial-panel dl > div {
+    display: grid;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-wrap: anywhere;
+}
+.report-row,
+.partial-panel dl > div {
+    grid-template-columns: minmax(0, 0.6fr) minmax(0, 1fr);
+    font-size: 14px;
+}
+.partial-panel dl {
+    margin: 8px 0 16px;
+}
+.partial-panel dt {
+    color: var(--muted-foreground);
+}
+.report-link {
+    display: inline-flex;
+    padding: 12px 0;
+    color: var(--primary);
+    font-weight: 700;
+}
+.coverage-row {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-inline-start: 3px solid var(--border);
+    border-radius: 6px;
+    background: var(--muted);
+}
+.observation-gap {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin: 4px 0;
+    padding-inline-start: 38px;
+    position: relative;
+    border-inline-start-color: #e8ac7d;
+}
+.observation-gap::before {
+    content: '!';
+    position: absolute;
+    inset: 12px auto auto 11px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    line-height: 14px;
+    text-align: center;
+    color: #e8ac7d;
+}
+.analytics-screen .observation-gap > span:first-child {
+    color: #e8ac7d;
+}
+@media (min-width: 768px) {
+    .analytics-screen[data-view='data'] .report-row:not(.observation-gap),
+    .analytics-screen[data-view='publication'] .report-row {
+        min-height: 47px;
+    }
+    .partial-panel dl > div {
+        min-height: 48px;
+    }
+    .analytics-screen[data-view='coverage'] .coverage-row {
+        min-height: 64px;
+    }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .analytics-screen:not(.analytics-state) > .publication-counters {
+        margin-top: 5px;
+    }
+}
+@media (min-width: 1920px) {
+    .analytics-panels {
+        grid-template-columns: minmax(0, 1.835fr) minmax(0, 1fr);
+    }
+}
+.observation-gap span:first-child {
+    font-weight: 700;
+}
+.partial-panel :deep(.metric-tile) {
+    background: var(--muted);
+}
+.coverage-row[data-state='collected'] {
+    border-color: var(--primary);
+}
+.coverage-row[data-state='no_permission'] {
+    border-color: var(--destructive);
+}
+.coverage-row[data-state='temporary_error'],
+.coverage-row[data-state='rate_limited'] {
+    border-color: #e8ac7d;
+}
+@media (min-width: 1100px) {
+    .analytics-screen:not(.analytics-state) > .publication-counters {
+        margin-top: 3px;
+    }
+    .analytics-columns.tabbed-report {
+        grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
+        gap: 20px;
+    }
+}
+@media (min-width: 1920px) {
+    .analytics-panels,
+    .analytics-screen > .publication-counters,
+    .best-publications,
+    .partial-panel,
+    .analytics-columns {
+        max-width: 1440px;
+        width: 100%;
+    }
+}
+@media (min-width: 1920px) {
+    .analytics-columns.tabbed-report {
+        max-width: 1236px;
+        grid-template-columns: minmax(0, 2.43fr) minmax(0, 1fr);
+        gap: 22px;
+    }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+    .analytics-panels {
+        grid-template-columns: 1fr;
+    }
+    .analytics-panels .platforms-panel {
+        min-height: 247px;
+    }
+}
+@media (max-width: 1099px) {
+    .analytics-columns {
+        grid-template-columns: 1fr;
+    }
+    .report-card {
+        display: none;
+    }
+    .analytics-header {
+        display: grid;
+        justify-content: start;
+    }
+    .analytics-header > [data-slot='button'] {
+        justify-self: start;
+    }
+}
+@media (max-width: 767px) {
+    .analytics-panels {
+        grid-template-columns: 1fr;
+    }
+    .analytics-panels .studio-panel {
+        min-height: 0;
+    }
+    .analytics-header {
+        gap: 14px;
+    }
+    .chart-panel {
+        padding: 16px;
+    }
+    .report-row,
+    .partial-panel dl > div {
+        grid-template-columns: 1fr;
+    }
+    .analytics-tabs :is(a, span) {
+        font-size: 13px;
+    }
+    .analytics-screen {
+        gap: 18px;
+    }
 }
 </style>

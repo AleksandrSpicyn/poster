@@ -10,6 +10,7 @@ final class PublicationTimelineData extends Data
 {
     /**
      * @param array<string, int|float> $snapshots
+     * @param array<string, int|float> $latest
      * @param list<array{from: string, to: string, change: int|float}> $intervals
      */
     public function __construct(
@@ -21,5 +22,10 @@ final class PublicationTimelineData extends Data
         public array $snapshots = [],
         public array $intervals = [],
         public int|float|null $change = null,
+        public ?int $projectId = null,
+        public ?string $channelName = null,
+        public array $latest = [],
+        public string $key = '',
+        public int|float|null $watchMinutesChange = null,
     ) {}
 }

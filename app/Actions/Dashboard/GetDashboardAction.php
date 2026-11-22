@@ -15,9 +15,9 @@ readonly class GetDashboardAction
 {
     public function __construct(private GetDashboard $getDashboard, private GetPublicationMetrics $metrics) {}
 
-    public function metrics(User $owner, MetricPeriodData $period): PublicationMetricsData
+    public function metrics(User $owner, MetricPeriodData $period, bool $includeProduction = false): PublicationMetricsData
     {
-        return $this->metrics->run($owner, $period);
+        return $this->metrics->run($owner, $period, $includeProduction);
     }
 
     public function run(User $owner): DashboardData

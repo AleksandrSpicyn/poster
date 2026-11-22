@@ -54,7 +54,7 @@ final readonly class YoutubeMetrics
         foreach (array_chunk($references, 100) as $ids) {
             $report = $http->withoutRedirecting()->timeout(30)->get('https://youtubeanalytics.googleapis.com/v2/reports', [
                 'ids' => 'channel==' . $account, 'startDate' => '2005-01-01', 'endDate' => now('America/Los_Angeles')->toDateString(),
-                'metrics' => 'views,engagedViews,averageViewDuration,averageViewPercentage,shares', 'dimensions' => 'video',
+                'metrics' => 'views,engagedViews,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,shares', 'dimensions' => 'video',
                 'filters' => 'video==' . implode(',', $ids), 'maxResults' => count($ids),
             ])->throw();
             $headers = $report->json('columnHeaders');

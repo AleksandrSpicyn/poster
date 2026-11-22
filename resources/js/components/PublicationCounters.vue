@@ -1,27 +1,56 @@
 <script setup lang="ts">
-import type { MetricsReport } from '@/components/PublicationMetrics.vue';
 import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
-
-defineProps<{ report: MetricsReport }>();
-const route = useRoute();
-const names = { views: 'Просмотры', likes: 'Лайки', comments: 'Комментарии', shares: 'Репосты' };
-const format = new Intl.NumberFormat('ru', { signDisplay: 'exceptZero' });
+import { amount } from '@/types/analytics';
+defineProps<{ items: { label: string; value: number | null; unit?: string; note?: string; description?: string; href?: string }[] }>();
 </script>
-
 <template>
-    <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Прирост показателей за период">
-        <Link
-            v-for="(name, metric) in names"
-            :key="metric"
-            :href="route('dashboard.analytics', { ...report.filters, metric })"
-            class="studio-panel hover:border-primary min-w-0 focus-visible:ring-2"
+    <div class="publication-counters">
+        <component
+            :is="item.href ? Link : 'div'"
+            v-for="item in items"
+            :key="item.label"
+            :href="item.href"
+            class="metric-tile"
+            :title="item.description"
         >
-            <span class="text-muted-foreground text-sm">{{ name }}</span>
-            <strong class="mt-2 block text-2xl tabular-nums md:text-3xl">{{
-                report.summaries[metric] === null ? '—' : format.format(report.summaries[metric])
-            }}</strong>
-            <small v-if="report.summaries[metric] === null" class="text-muted-foreground">Нет базы сравнения</small>
-        </Link>
-    </section>
+            <span>{{ item.label }}</span><strong>{{ amount(item.value) }}{{ item.value !== null && item.unit ? ' ' + item.unit : '' }}</strong>
+            <small v-if="item.note">{{ item.note }}</small>
+        </component>
+    </div>
 </template>
+<style scoped>
+.publication-counters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+.metric-tile {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-height: 88px;
+    padding: 10px 13px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 12px;
+}
+.metric-tile span,
+.metric-tile small {
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+.metric-tile strong {
+    font-size: 24px;
+    line-height: 1.4;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+a.metric-tile:hover {
+    border-color: var(--primary);
+}
+@media (max-width: 1099px) {
+    .publication-counters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+</style>

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * @property-read int|null $report_project_id
  * @property-read list<array{url?: string|null}>|null $clip_publications
  * @property array<string, int|float> $metrics
  * @property string $observed_on

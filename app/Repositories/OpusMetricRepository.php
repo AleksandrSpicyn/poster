@@ -45,7 +45,8 @@ final readonly class OpusMetricRepository
             ->when($filters->project, fn($query) => $query->where('projects.id', $filters->project))
             ->whereBetween('opus_clip_metrics.observed_on', [$from, $to])
             ->when($filters->platform instanceof ChannelType, fn($query) => $query->where('opus_clip_metrics.platform', $filters->platform?->value))
-            ->select('opus_clip_metrics.*', 'opus_clips.title as clip_title', 'opus_clips.publications as clip_publications')
+            ->when($filters->format, fn($query) => $query->where('projects.content_mode', $filters->format?->value))
+            ->select('opus_clip_metrics.*', 'projects.id as report_project_id', 'opus_clips.title as clip_title', 'opus_clips.publications as clip_publications')
             ->withCasts(['clip_publications' => 'array'])
             ->selectRaw('coalesce(opus_clip_metrics.account_id, assigned.account) as account')
             ->orderBy('observed_on')->orderBy('opus_clip_metrics.updated_at')->orderBy('opus_clip_metrics.id')->cursor();
