@@ -19,7 +19,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Обзор', href: route('dashb
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Обзор студии" />
-        <div v-if="!page.props.analytics.projects.length" class="workspace-page">
+        <div v-if="!page.props.analytics.projects.length" class="workspace-page first-workspace">
             <header class="first-header">
                 <Heading title="Первый вход" description="В студии пока нет проектов" />
                 <Button as-child class="h-11"><Link :href="route('projects.create')">Создать первый проект</Link></Button>
@@ -41,6 +41,12 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Обзор', href: route('dashb
 </template>
 
 <style scoped>
+.first-workspace {
+    gap: 26px;
+}
+.first-header [data-slot='button'] {
+    font-weight: 700;
+}
 .first-header {
     display: flex;
     flex-wrap: wrap;
@@ -53,13 +59,14 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Обзор', href: route('dashb
 }
 .first-steps {
     display: grid;
-    gap: 10px;
+    gap: 11px;
 }
 .first-steps a {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 16px;
+    min-height: 56px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -72,12 +79,26 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Обзор', href: route('dashb
     width: 16px;
     height: 16px;
 }
+@media (min-width: 768px) and (max-width: 1099px) {
+    .first-workspace {
+        gap: 28px;
+    }
+}
 @media (max-width: 1099px) {
     .first-header {
         flex-direction: column;
     }
 }
 @media (max-width: 767px) {
+    .first-workspace {
+        gap: 27px;
+    }
+    .first-workspace section {
+        row-gap: 21px;
+    }
+    .first-workspace h2 {
+        margin-bottom: 19px;
+    }
     .first-cover {
         height: 210px;
     }

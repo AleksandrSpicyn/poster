@@ -227,7 +227,7 @@ figure {
     margin-left: auto;
     border: 1.5px solid currentColor;
     border-radius: 11px;
-    padding: 6px 21px;
+    padding: 6px 20px;
 }
 .login:hover {
     background: var(--ink);
@@ -350,6 +350,18 @@ h1 span:last-child {
     width: auto;
     display: block;
     margin-bottom: clamp(3px, calc(7px - 0.3vw), 6px);
+}
+.feature:first-child path {
+    transform: translate(-2px, 1px) scale(1, 0.93);
+}
+.feature:nth-child(2) path {
+    transform: translate(-3px, -1px);
+}
+.feature:nth-child(3) path {
+    transform: translate(0, 1px) scale(0.92, 0.9);
+}
+.feature:nth-child(4) path {
+    transform: translate(-2px, 1px) scale(0.9);
 }
 .feature h3 {
     font-size: clamp(20px, 1.85vw, 32px);
@@ -508,7 +520,7 @@ h1 span:last-child {
         display: none;
     }
     .login {
-        padding: 5px 13px;
+        padding: 5px 12px;
         font-size: 14px;
         border-radius: 9px;
     }
