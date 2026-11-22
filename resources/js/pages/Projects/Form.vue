@@ -210,6 +210,7 @@ const sections = computed((): Record<string, string> =>
           ? { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
 );
+const formatOptions = computed(() => ['series', 'short'].filter((value) => Object.hasOwn(props.contentModes, value)));
 const selectedChannelNames = computed(() =>
     props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
 );
@@ -313,7 +314,12 @@ function submit() {
         <Head :title="title" />
         <div
             class="workspace-page project-editor"
-            :class="{ 'project-detail': detailSection, 'schedule-editor': section === 'automation', 'cast-editor': section === 'cast' }"
+            :class="{
+                'project-detail': detailSection,
+                'schedule-editor': section === 'automation',
+                'cast-editor': section === 'cast',
+                'format-editor': section === 'format',
+            }"
         >
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading
@@ -341,6 +347,7 @@ function submit() {
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
                 <nav
+                    v-if="section !== 'format'"
                     aria-label="Разделы проекта"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
@@ -423,7 +430,7 @@ function submit() {
                         <fieldset v-if="section === 'format'" class="grid gap-2">
                             <legend class="sr-only">Формат производства</legend>
                             <label
-                                v-for="(label, value) in contentModes"
+                                v-for="value in formatOptions"
                                 :key="value"
                                 class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3"
                             >
@@ -435,14 +442,18 @@ function submit() {
                                     name="format-choice"
                                 />
                                 <span
-                                    ><strong>{{ value === 'series' ? 'Сериал' : value === 'short' ? 'Короткие ролики' : label }}</strong>
+                                    ><strong>{{ value === 'series' ? 'Сериал' : 'Короткие ролики' }}</strong>
                                     <small class="text-muted-foreground block">{{
                                         value === 'series' ? 'Повторяющиеся герои и связанные эпизоды' : 'Независимые сценарии и монтаж'
                                     }}</small></span
                                 >
                             </label>
                             <Link v-if="!project" :href="clippingUrl" class="flex min-h-14 items-center gap-3 rounded-lg border p-3 font-semibold"
-                                >Клиппинг</Link
+                                ><span class="format-circle" aria-hidden="true"></span
+                                ><span
+                                    ><strong>Клиппинг</strong
+                                    ><small class="text-muted-foreground block font-normal">Импорт готовых клипов из источника</small></span
+                                ></Link
                             >
                         </fieldset>
                         <Label v-else for="project-mode">Формат</Label>
@@ -688,12 +699,15 @@ function submit() {
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
                     <div v-if="!['main', 'access', 'deletion'].includes(section)" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
-                        <Button v-if="!['automation', 'cast'].includes(section)" as-child variant="outline" class="h-11"
+                        <Button v-if="!['automation', 'cast', 'format'].includes(section)" as-child variant="outline" class="h-11"
                             ><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button
                         >
-                        <Button type="submit" class="h-11" :disabled="form.processing || conflict"
+                        <Button v-if="!project && section === 'format'" as-child class="h-11">
+                            <a href="#main">Сохранить формат</a>
+                        </Button>
+                        <Button v-else type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
-                                v-else-if="!['automation', 'cast'].includes(section)"
+                                v-else-if="!['automation', 'cast', 'format'].includes(section)"
                                 class="size-4"
                                 aria-hidden="true"
                             />{{
@@ -918,6 +932,41 @@ function submit() {
         max-width: 1236px;
         grid-template-columns: minmax(0, 860px) minmax(0, 354px);
         gap: 22px;
+    }
+}
+.format-editor #project-form > .grid {
+    margin-top: 4px;
+}
+.format-editor fieldset {
+    gap: 0;
+}
+.format-editor fieldset > :is(label, a) {
+    padding: 12px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    min-height: 64px;
+}
+.format-editor fieldset input,
+.format-circle {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+.format-circle {
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.format-editor #project-form > div:last-child {
+    margin-top: 12px;
+    border: 0;
+    padding: 0;
+    justify-content: start;
+}
+@media (min-width: 1100px) {
+    .project-editor.project-detail > .grid {
+        grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
     }
 }
 </style>
