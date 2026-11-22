@@ -3,7 +3,15 @@ import { Pause, Play } from '@lucide/vue';
 import { ref, watch } from 'vue';
 
 const props = withDefaults(
-    defineProps<{ src: string; poster?: string; label?: string; playerLabel?: string; playLabel?: string; pauseLabel?: string }>(),
+    defineProps<{
+        src: string;
+        poster?: string;
+        label?: string;
+        playerLabel?: string;
+        playLabel?: string;
+        pauseLabel?: string;
+        timeline?: boolean;
+    }>(),
     {
         label: 'Предпросмотр эпизода',
         playerLabel: 'Проигрыватель эпизода',
@@ -11,6 +19,7 @@ const props = withDefaults(
         pauseLabel: 'Приостановить эпизод',
     },
 );
+const emit = defineEmits<{ progress: [video: HTMLVideoElement] }>();
 const video = ref<HTMLVideoElement | null>(null);
 const duration = ref(0);
 const time = ref(0);
@@ -26,6 +35,12 @@ watch(
         playing.value = false;
     },
 );
+function syncProgress() {
+    if (!video.value) return;
+    duration.value = Number.isFinite(video.value.duration) ? video.value.duration : 0;
+    time.value = video.value.currentTime;
+    emit('progress', video.value);
+}
 function updateControls() {
     if (video.value) video.value.controls = document.fullscreenElement === video.value;
 }
@@ -68,11 +83,25 @@ async function play() {
             @keyup.f="fullscreen"
             @dblclick="fullscreen"
             @fullscreenchange="updateControls"
-            @loadedmetadata="duration = video?.duration || 0"
-            @timeupdate="time = video?.currentTime || 0"
+            @loadedmetadata="syncProgress"
+            @timeupdate="syncProgress"
             @playing="playing = true"
             @pause="playing = false"
             @error="error = true"
+        />
+        <input
+            v-if="timeline"
+            type="range"
+            min="0"
+            :max="duration"
+            step="0.001"
+            :value="time"
+            :disabled="!duration"
+            class="preview-timeline"
+            aria-label="Позиция воспроизведения"
+            :aria-valuetext="format(time) + ' из ' + format(duration)"
+            :style="{ '--position': (duration ? (time / duration) * 100 : 0) + '%' }"
+            @input="seek(Number(($event.target as HTMLInputElement).value))"
         />
         <div class="controls">
             <button type="button" :aria-label="playing ? pauseLabel : playLabel" @click="play">
@@ -118,6 +147,27 @@ async function play() {
 .controls button svg {
     width: 13px;
     height: 13px;
+}
+.preview-timeline {
+    display: block;
+    width: calc(100% - 20px);
+    height: 16px;
+    margin: 0 10px;
+    appearance: none;
+    cursor: pointer;
+    background: linear-gradient(to right, var(--primary) 0 var(--position), #373c3d var(--position) 100%) center / 100% 3px no-repeat;
+}
+.preview-timeline::-webkit-slider-thumb {
+    appearance: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0;
+}
+.preview-timeline:hover::-webkit-slider-thumb,
+.preview-timeline:focus-visible::-webkit-slider-thumb {
+    opacity: 1;
 }
 .episode-preview p {
     padding: 4px 12px;
