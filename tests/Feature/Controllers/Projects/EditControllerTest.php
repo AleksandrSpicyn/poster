@@ -88,3 +88,16 @@ test('следующий запуск учитывает пропущенный 
         Carbon::setTestNow();
     }
 });
+
+test('роль владельца в настройках проекта определяется адресом администратора', function (bool $admin): void {
+    $owner = workspaceOwner();
+    $project = Project::factory()->for($owner, 'owner')->create();
+    $other = Project::factory()->create();
+    config(['services.admin.email' => $admin ? $owner->email : 'other-admin@example.test']);
+
+    actingAs($owner)->get(route('projects.edit', $project))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('auth.user.email', $owner->email)
+            ->where('auth.can_view_logs', $admin));
+    actingAs($owner)->get(route('projects.edit', $other))->assertNotFound();
+})->with([true, false]);
