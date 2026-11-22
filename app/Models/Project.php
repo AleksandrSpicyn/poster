@@ -34,6 +34,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property string $name
  * @property string $prompt
  * @property ProjectContentMode $content_mode
+ * @property Carbon|null $archived_at
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -107,7 +108,7 @@ class Project extends Model implements HasMedia
         'is_active',
     ];
 
-    protected $casts = ['content_mode' => ProjectContentMode::class, 'is_active' => 'boolean'];
+    protected $casts = ['content_mode' => ProjectContentMode::class, 'is_active' => 'boolean', 'archived_at' => 'datetime'];
 
     protected $attributes = ['settings_version' => 1, 'content_mode' => ProjectContentMode::SHORT->value, 'is_active' => true];
 

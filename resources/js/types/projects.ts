@@ -14,6 +14,7 @@ export interface ProjectSummary {
     content_mode: string;
     content_mode_label: string;
     is_active: boolean;
+    archived_at: string | null;
     latest_production?: ProductionRun | null;
     prompts_count: number;
     ready_prompts_count: number;
@@ -35,7 +36,7 @@ export interface ProjectChannel {
 export interface ProjectsPageProps extends SharedData {
     projects: PaginatedResource<ProjectSummary>;
     information: { project: ProjectSummary & { channels: ProjectChannel[] }; owner: string; episodes: number; accepted: number } | null;
-    filters: { search: string; sort: string; active?: boolean; updated?: boolean; clipping?: boolean; alphabetical?: boolean };
+    filters: { search: string; sort: string; active?: boolean; archived?: boolean; updated?: boolean; clipping?: boolean; alphabetical?: boolean };
     sortDirections: Record<string, string>;
 }
 
@@ -67,7 +68,14 @@ export interface ProjectPageProps extends SharedData {
     episodes: EpisodeSummary[];
 }
 
+export interface ProjectSchedule {
+    enabled: boolean;
+    time: string;
+    timezone: string;
+}
+
 export interface ProjectFormProps extends SharedData {
+    scheduleSettings?: ProjectSchedule & { configured: boolean; next: string | null; timezones: string[] };
     project:
         | (Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at' | 'can_delete'> & {
               blocking_runs_count: number;

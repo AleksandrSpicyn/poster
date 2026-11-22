@@ -26,6 +26,7 @@ class GetProjectsListData extends Data
         public bool $updated = false,
         public bool $alphabetical = false,
         public bool $clipping = false,
+        public bool $archived = false,
         #[IntegerType, Min(1)] public ?int $info = null,
     ) {}
 }
