@@ -1,6 +1,6 @@
 import type { ListFilters } from '@/types/content';
-import { router } from '@inertiajs/vue3';
-import { reactive, ref, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 /** Keeps filters in sync with server props, including browser back/forward navigation. */
@@ -10,11 +10,14 @@ export function useListFilters(
     routeParameters?: () => Record<string, string | number>,
 ) {
     const route = useRoute();
-    const filters = reactive(serverFilters());
+    const page = usePage();
+    const committed = computed(serverFilters);
+    const filters = reactive({ ...committed.value });
+    const keys = Object.keys(filters) as (keyof ListFilters)[];
     const loading = ref(false);
     const error = ref('');
 
-    watch(serverFilters, (value) => Object.assign(filters, value));
+    watch([() => page.url, ...keys.map((key) => () => committed.value[key])], () => Object.assign(filters, committed.value));
 
     function refresh() {
         router.get(

@@ -6,10 +6,10 @@ import { Head, Link } from '@inertiajs/vue3';
 <template>
     <div class="public-frame">
         <PublicHeader workspace-link />
-        <main class="legal-copy" lang="en">
+        <main class="legal-copy pt-[13px] min-[700px]:pt-[18px]" lang="en">
             <Head title="Privacy Policy" />
-            <h1 class="mt-8 text-4xl font-semibold tracking-tight">Privacy Policy</h1>
-            <p class="mt-2 text-sm">Updated November 22, 2026</p>
+            <h1>Privacy Policy</h1>
+            <p class="mt-[17px] text-sm min-[700px]:mt-[21px]">Updated November 22, 2026</p>
             <p class="mt-6 leading-relaxed">
                 This policy explains how Aleksandr Olegovich Spitsyn, the operator of Poster, handles information when you visit the site, work on
                 videos, or connect a social account to the creator workspace.

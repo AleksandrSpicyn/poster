@@ -124,7 +124,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
 <style scoped>
 .landing {
     color-scheme: dark;
-    --bg: #13111d;
+    --bg: #12111c;
     --ink: #fbf6ed;
     --muted: #d1cddc;
     --edge: #514c62;
@@ -165,18 +165,9 @@ figure {
 }
 .top {
     overflow: hidden;
-    background: radial-gradient(
-        ellipse 103vw 72svh at 72.3vw 36.2svh,
-        #3e296a 0%,
-        #3a2762 12%,
-        #2e204d 25%,
-        #211936 38%,
-        #181427 50%,
-        #14121f 63%,
-        #13111d 76%,
-        #13111d 90%,
-        #13111d 100%
-    );
+}
+.landing {
+    background: var(--bg) url('../../assets/studio/landing-glow-desktop.webp') center top / 100% 100svh no-repeat;
 }
 .outer {
     max-width: 1780px;
@@ -197,6 +188,7 @@ figure {
     gap: 13px;
     align-items: center;
     line-height: 1;
+    flex-basis: calc(3.66em + 52px);
     font-size: clamp(29px, 3vw, 48px);
     letter-spacing: -0.072em;
     font-weight: 700;
@@ -223,7 +215,7 @@ figure {
     align-items: center;
     min-height: 44px;
     font-weight: 700;
-    letter-spacing: -0.04em;
+    letter-spacing: normal;
 }
 .nav nav a {
     font-size: clamp(14px, 1.4vw, 22px);
@@ -270,22 +262,20 @@ h1 span {
 }
 h1 span:last-child {
     width: fit-content;
-    color: #f5eaff;
-    background: linear-gradient(179deg, #fbf6ed 47%, #dec5ff 94%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #eadfff;
 }
 .lede {
-    max-width: 23em;
+    position: relative;
+    top: -0.15em;
+    max-width: min(24em, 91%);
     margin: clamp(19px, 1.8vw, 36px) 0 clamp(22px, 2.6vw, 42px);
     font-size: clamp(17px, 1.68vw, 29px);
     line-height: 1.28;
-    letter-spacing: -0.034em;
+    letter-spacing: normal;
 }
 .cta {
     gap: 12px;
-    padding: 12px clamp(16px, 1.65vw, 28px);
+    padding: 12px 16px;
     border-radius: 11px;
     background: var(--lime);
     color: #19200d;
@@ -310,31 +300,24 @@ h1 span:last-child {
     transform: translateY(-50%);
     pointer-events: none;
 }
-.art::before {
-    content: '';
-    position: absolute;
-    inset: 5% -3% -2%;
-    background: radial-gradient(ellipse at 55% 48%, #7444deaa, transparent 62%), radial-gradient(ellipse at 76% 75%, #266a922e, transparent 52%);
-    filter: blur(14px);
-}
 .art svg {
     position: relative;
     display: block;
     width: 100%;
     height: auto;
     overflow: visible;
-    filter: drop-shadow(0 14px 10px #07051185);
 }
 .sheet {
     transform-box: fill-box;
     transform-origin: 50% 90%;
 }
 .features {
-    padding-bottom: clamp(36px, 4vw, 70px);
+    padding-bottom: 25px;
 }
 .features h2 {
     border-top: 1px solid #797286;
-    padding: 7px 0 25px;
+    padding: 7px 0 0;
+    min-height: calc(44px + clamp(23px, 2vw, 34px));
     font-size: clamp(23px, 2vw, 34px);
     letter-spacing: -0.055em;
     line-height: 1.2;
@@ -342,10 +325,18 @@ h1 span:last-child {
 .items {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(140px, auto);
 }
 .feature {
-    padding: 0 clamp(15px, 1.9vw, 34px);
+    position: relative;
+    padding: 0 9px 0 15px;
+}
+.feature + .feature::before {
+    position: absolute;
+    inset: 0 auto auto 0;
+    height: min(105px, 100%);
     border-left: 1px solid #655e73;
+    content: '';
 }
 .feature:first-child {
     padding-left: 0;
@@ -369,11 +360,11 @@ h1 span:last-child {
     margin-top: 5px;
     line-height: 1.32;
     color: var(--muted);
-    letter-spacing: -0.02em;
+    letter-spacing: normal;
     font-size: clamp(14px, 1.16vw, 19px);
 }
 .flow {
-    padding-block: clamp(28px, 3vw, 50px);
+    padding-block: 0;
     border-top: 1px solid var(--edge);
 }
 .flow summary {
@@ -383,7 +374,8 @@ h1 span:last-child {
     gap: 20px;
     cursor: pointer;
     list-style: none;
-    font-size: clamp(22px, 2.1vw, 34px);
+    font-size: 25px;
+    min-height: 76px;
     font-weight: 700;
     letter-spacing: -0.05em;
 }
@@ -465,7 +457,15 @@ h1 span:last-child {
             color 0.17s;
     }
 }
+@media (min-width: 1800px) {
+    .landing {
+        background-image: url('../../assets/studio/landing-glow-wide.webp');
+    }
+}
 @media (max-width: 900px) and (min-width: 701px) {
+    .landing {
+        background-image: url('../../assets/studio/landing-glow-tablet.webp');
+    }
     .hero {
         min-height: 465px;
     }
@@ -480,7 +480,10 @@ h1 span:last-child {
     }
     .items {
         grid-template-columns: 1fr 1fr;
-        gap: 26px 0;
+        row-gap: 0;
+    }
+    .feature:nth-child(3)::before {
+        display: none;
     }
     .feature:nth-child(3) {
         border: 0;
@@ -521,7 +524,7 @@ h1 span:last-child {
         display: block;
     }
     .lede {
-        max-width: 31ch;
+        max-width: min(100%, 19.8em);
         margin: 16px 0;
         font-size: 17px;
     }
@@ -539,14 +542,18 @@ h1 span:last-child {
         align-self: center;
     }
     .features h2 {
-        padding: 10px 0 22px;
+        padding: 10px 0 0;
     }
     .items {
         grid-template-columns: 1fr 1fr;
-        gap: 23px 0;
+        row-gap: 0;
+        grid-auto-rows: minmax(132px, auto);
     }
     .feature {
-        padding-inline: 12px;
+        padding-inline: 15px 9px;
+    }
+    .feature:nth-child(3)::before {
+        display: none;
     }
     .feature:nth-child(3) {
         border: 0;
@@ -562,19 +569,8 @@ h1 span:last-child {
         grid-template-columns: 1fr;
         gap: 12px;
     }
-    .top {
-        background: radial-gradient(
-            ellipse 180vw 78.3svh at 72.4vw 45.2svh,
-            #41296d 0%,
-            #3b2663 12%,
-            #2d1e49 25%,
-            #1e1730 38%,
-            #161323 50%,
-            #13111e 63%,
-            #13111d 76%,
-            #13111d 90%,
-            #13111d 100%
-        );
+    .landing {
+        background-image: url('../../assets/studio/landing-glow-phone.webp');
     }
 }
 @media (prefers-reduced-motion: reduce) {
