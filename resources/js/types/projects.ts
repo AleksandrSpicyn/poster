@@ -65,7 +65,11 @@ export interface ProjectPageProps extends SharedData {
 }
 
 export interface ProjectFormProps extends SharedData {
-    project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at'> | null;
+    project:
+        | (Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at' | 'can_delete'> & {
+              blocking_runs_count: number;
+          })
+        | null;
     contentModes: Record<string, string>;
     series: SeriesSummary | null;
     channels: ManagedChannel[];

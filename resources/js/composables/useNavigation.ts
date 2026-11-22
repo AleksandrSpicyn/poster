@@ -6,7 +6,7 @@ import { useRoute } from 'ziggy-js';
 
 export function useNavigation() {
     const route = useRoute();
-    const page = usePage<SharedData>();
+    const page = usePage<SharedData & { project?: { content_mode: string } | null }>();
     const main = computed<NavItem[]>(() => {
         const items: NavItem[] = [
             { title: 'Обзор', href: route('dashboard', undefined, false), icon: LayoutGrid },
@@ -17,8 +17,14 @@ export function useNavigation() {
             ...(page.props.auth.can_manage_channels ? [{ title: 'Каналы', href: route('channels.index', undefined, false), icon: Radio }] : []),
             { title: 'Источники', href: route('clipping.index', undefined, false), icon: Scissors },
         ];
-        const path = page.url.split('?')[0];
-        const section = path.match(/^\/projects\/\d+\/series(?:\/|$)/) ? route('series.index', undefined, false) : path;
+        const url = new URL(page.url, 'http://poster.local');
+        const path = url.pathname;
+        const seriesForm =
+            page.component === 'Projects/Form' && (page.props.project?.content_mode === 'series' || url.searchParams.get('format') === 'series');
+        const section =
+            seriesForm || path.startsWith('/series-assemblies/') || /^\/projects\/\d+\/series(?:\/|$)/.test(path)
+                ? route('series.index', undefined, false)
+                : path;
         return items.map((item) => ({ ...item, isActive: section === item.href || section.startsWith(item.href + '/') }));
     });
     const footer = computed<NavItem[]>(() => [

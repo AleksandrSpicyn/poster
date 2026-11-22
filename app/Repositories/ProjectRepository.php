@@ -29,6 +29,7 @@ readonly class ProjectRepository extends EloquentRepository
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $owner->id), 'series',
+            'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
         ]);
 
         if ($data->search !== null && $data->search !== '') {
@@ -62,6 +63,7 @@ readonly class ProjectRepository extends EloquentRepository
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $project->owner_id), 'series',
+            'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
         ]);
         $project->setRelation('channels', $project
             ->channels()
@@ -80,7 +82,10 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function forSettings(Project $project): Project
     {
-        return $project->load('seriesDefinition', 'media', 'coverFrame');
+        return $project->load('seriesDefinition', 'media', 'coverFrame')->loadCount([
+            'prompts', 'channels', 'series',
+            'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
+        ]);
     }
 
     public function hasSeries(Project $project): bool
@@ -90,7 +95,8 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function hasDependencies(Project $project): bool
     {
-        return $project->isClippingProject() || $project->prompts()->exists() || $project->channels()->exists() || $project->series()->exists();
+        return $project->isClippingProject() || $project->prompts()->exists() || $project->channels()->exists() || $project->series()->exists()
+            || $project->productionRuns()->whereIn('status', ProductionStatus::blockingValues())->exists();
     }
 
     public function withBlockingProductionRuns(Project $project): Project

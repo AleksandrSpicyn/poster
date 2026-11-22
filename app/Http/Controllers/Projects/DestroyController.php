@@ -30,12 +30,12 @@ class DestroyController
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
-     * @response 409 {"message":"This project has generations or publishing channels and cannot be deleted."}
+     * @response 409 {"message":"Удаление недоступно, пока у проекта есть связанные данные или активное производство."}
      */
     public function __invoke(Project $project, Request $request, DeleteProjectAction $action): RedirectResponse|JsonResponse
     {
         if (! $action->run($project)) {
-            $message = 'This project has generations or publishing channels and cannot be deleted.';
+            $message = 'Удаление недоступно, пока у проекта есть связанные данные или активное производство.';
 
             if ($request->expectsJson()) {
                 return response()->json(['message' => $message], 409);
@@ -46,7 +46,7 @@ class DestroyController
             return to_route('projects.show', $project);
         }
 
-        Inertia::flash('success', 'Project deleted.');
+        Inertia::flash('success', 'Проект удалён.');
 
         return to_route('projects.index');
     }

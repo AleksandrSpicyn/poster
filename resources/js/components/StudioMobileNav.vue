@@ -10,6 +10,7 @@ const route = useRoute();
 const { main } = useNavigation();
 const { openMobile, setOpenMobile } = useSidebar();
 const primaryPaths: string[] = ['dashboard', 'projects.index', 'posts'].map((name) => route(name, undefined, false));
+const inMore = computed(() => main.value.some((item) => item.isActive && !primaryPaths.includes(item.href)));
 const links = computed(() => main.value.filter((item) => primaryPaths.includes(item.href)));
 </script>
 
@@ -18,7 +19,9 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
         <Link v-for="item in links" :key="item.href" :href="item.href" :aria-current="item.isActive ? 'page' : undefined">
             <component :is="item.icon" aria-hidden="true" />{{ item.title }}
         </Link>
-        <button type="button" :aria-expanded="openMobile" aria-haspopup="dialog" @click="setOpenMobile(true)"><Menu aria-hidden="true" />Ещё</button>
+        <button type="button" :class="{ active: inMore }" :aria-expanded="openMobile" aria-haspopup="dialog" @click="setOpenMobile(true)">
+            <Menu aria-hidden="true" />Ещё
+        </button>
     </nav>
 </template>
 
@@ -45,7 +48,8 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
     font-size: 11px;
 }
 .mobile-nav [aria-current='page'],
-.mobile-nav [aria-expanded='true'] {
+.mobile-nav [aria-expanded='true'],
+.mobile-nav button.active {
     color: var(--ring);
 }
 .mobile-nav svg {

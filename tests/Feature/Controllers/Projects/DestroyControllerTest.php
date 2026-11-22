@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Channel;
 use App\Models\Post;
+use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
@@ -23,7 +24,7 @@ test('удаляет пустой проект', function (): void {
         ->assertRedirect(route('projects.index'));
 
     assertDatabaseMissing('projects', ['id' => $project->id]);
-    expect(Inertia::getFlashed())->toBe(['success' => 'Project deleted.']);
+    expect(Inertia::getFlashed())->toBe(['success' => 'Проект удалён.']);
 });
 
 test('проект с генерацией не удаляется', function (): void {
@@ -33,7 +34,7 @@ test('проект с генерацией не удаляется', function ()
     actingAs(workspaceOwner())
         ->deleteJson(route('projects.destroy', $project))
         ->assertConflict()
-        ->assertJsonPath('message', 'This project has generations or publishing channels and cannot be deleted.');
+        ->assertJsonPath('message', 'Удаление недоступно, пока у проекта есть связанные данные или активное производство.');
 
     assertDatabaseHas('projects', ['id' => $project->id]);
     assertDatabaseHas('prompts', ['id' => $prompt->id, 'project_id' => $project->id]);
@@ -87,4 +88,17 @@ test('неподтверждённый пользователь не удаля�
         ->assertRedirect(route('verification.notice'));
 
     assertDatabaseHas('projects', ['id' => $project->id]);
+});
+
+test('производство в очереди защищает пустой проект от удаления', function (): void {
+    $owner = workspaceOwner();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $run = ProductionRun::factory()->for($project)->create(['actor_id' => $owner->id]);
+
+    actingAs($owner)
+        ->deleteJson(route('projects.destroy', $project))
+        ->assertConflict();
+
+    assertDatabaseHas('projects', ['id' => $project->id]);
+    assertDatabaseHas('production_runs', ['id' => $run->id]);
 });

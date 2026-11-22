@@ -37,7 +37,8 @@ test('форма редактирования возвращает исходн�
             ->where('project.id', $project->id)
             ->where('project.prompt', $project->prompt)
             ->missing('project.channels')
-            ->missing('project.can_delete'));
+            ->where('project.blocking_runs_count', 0)
+            ->where('project.can_delete', true));
 });
 
 test('несуществующий проект не открывается для редактирования', function (): void {

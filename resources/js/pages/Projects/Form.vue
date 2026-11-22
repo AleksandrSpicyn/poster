@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
@@ -11,13 +12,31 @@ import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps } from '@/types/projects';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<ProjectFormProps>();
 const route = useRoute();
 const formElement = ref<HTMLFormElement | null>(null);
 const requestError = ref('');
+const deletion = useForm({});
+const deleteError = ref('');
+function deleteProject() {
+    if (!props.project?.can_delete || props.project.blocking_runs_count || deletion.processing) return;
+    deleteError.value = '';
+    deletion.delete(route('projects.destroy', props.project.id), {
+        onSuccess: clearDraft,
+        onNetworkError: () => {
+            deleteError.value = 'Связь прервана. Повторите удаление после подключения.';
+            return false;
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            deleteError.value = 'Не удалось удалить проект. Обновите страницу и попробуйте ещё раз.';
+            return false;
+        },
+    });
+}
 const initialMode =
     new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series' && 'series' in props.contentModes
         ? 'series'
@@ -48,7 +67,8 @@ const form = useForm({
     episode_limit: props.series?.episode_limit ?? '',
     channel_ids: props.auth.can_manage_channels ? [...props.selectedChannelIds] : null,
 });
-const draftKey = `poster:project:${props.auth.user.id}:${props.project?.id ?? 'new'}`;
+const legacyDraftKey = `poster:project:${props.auth.user.id}:new`;
+const draftKey = props.project ? `poster:project:${props.auth.user.id}:${props.project.id}` : `${legacyDraftKey}:${initialMode}`;
 const serverData = form.data();
 type Fields = typeof serverData;
 type FieldKey = keyof Fields;
@@ -104,7 +124,15 @@ function keepDraft() {
 }
 onMounted(() => {
     try {
-        const stored = sessionStorage.getItem(draftKey);
+        let stored = sessionStorage.getItem(draftKey);
+        if (!props.project && !stored) {
+            const legacy = sessionStorage.getItem(legacyDraftKey);
+            if (legacy && JSON.parse(legacy)?.fields?.content_mode === initialMode) {
+                sessionStorage.setItem(draftKey, legacy);
+                sessionStorage.removeItem(legacyDraftKey);
+                stored = legacy;
+            }
+        }
         if (stored) {
             const saved = JSON.parse(stored);
             const base = typeof saved?.base === 'string' ? JSON.parse(saved.base) : saved?.base;
@@ -141,13 +169,42 @@ onMounted(() => {
     );
 });
 const isSeries = computed(() => form.content_mode === 'series');
+const section = ref('main');
+const sections = computed((): Record<string, string> =>
+    isSeries.value
+        ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация' }
+        : props.project
+          ? { main: 'Основное', automation: 'Автоматизация', deletion: 'Удаление проекта' }
+          : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
+);
+watch(isSeries, (series) => {
+    if (series && section.value === 'format') window.location.hash = 'main';
+});
+const selectedChannelNames = computed(() =>
+    props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
+);
+function readSection() {
+    const hash = window.location.hash.slice(1);
+    section.value = ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) ? hash : 'main';
+}
+onMounted(() => {
+    readSection();
+    window.addEventListener('hashchange', readSection);
+});
+onUnmounted(() => window.removeEventListener('hashchange', readSection));
+function revealRequiredField(event: Event) {
+    const input = event.target;
+    if (!(input instanceof HTMLElement) || !['project-name', 'project-prompt'].includes(input.id) || section.value === 'main') return;
+    event.preventDefault();
+    section.value = 'main';
+    window.location.hash = 'main';
+    void nextTick(() => input.focus());
+}
 const formErrors = computed<Record<string, string | undefined>>(() => form.errors);
 const title = computed(() => (isSeries.value ? 'Паспорт сериала' : props.project ? 'Настройки проекта' : 'Новый проект'));
 const cancelUrl = computed(() => (props.project ? route('projects.show', props.project.id) : route('projects.index')));
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Проекты', href: route('projects.index') },
-    ...(props.project ? [{ title: props.project.name, href: route('projects.show', props.project.id) }] : []),
-    { title: title.value, href: props.project ? route('projects.edit', props.project.id) : route('projects.create') },
+    isSeries.value ? { title: 'Сериалы', href: route('series.index') } : { title: 'Проекты', href: route('projects.index') },
 ]);
 
 function submit() {
@@ -162,6 +219,19 @@ function submit() {
         preserveScroll: 'errors',
         onSuccess: clearDraft,
         onError: (errors) => {
+            if (errors.name || errors.prompt) window.location.hash = 'main';
+            else if (errors.channel_ids || Object.keys(errors).some((key) => key.startsWith('channel_ids.'))) window.location.hash = 'channels';
+            else if (isSeries.value && !errors.settings_version)
+                window.location.hash = Object.keys(errors).some((key) =>
+                    [
+                        'series_specification.audio_mode',
+                        'series_specification.visual_style',
+                        'series_specification.language',
+                        'series_specification.audience',
+                    ].includes(key),
+                )
+                    ? 'cast'
+                    : 'plan';
             if (errors.settings_version && props.project)
                 router.visit(route('projects.edit', props.project.id), { replace: true, preserveState: false, preserveScroll: true });
         },
@@ -186,11 +256,16 @@ function submit() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
-        <div class="workspace-page">
+        <div class="workspace-page project-editor">
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading :title="title" :description="project ? project.name + ' / Настройки' : 'Создание / Основные сведения'" />
-                <Button type="submit" form="project-form" class="h-11" :disabled="form.processing || conflict">{{
-                    project ? 'Сохранить' : 'Создать проект'
+                <Heading
+                    :title="title"
+                    :description="
+                        isSeries ? 'Создание или изменение проекта сериала' : project ? project.name + ' / Настройки' : 'Создание / Основные сведения'
+                    "
+                />
+                <Button v-if="section !== 'deletion'" type="submit" form="project-form" class="h-11" :disabled="form.processing || conflict">{{
+                    isSeries ? 'Сохранить сериал' : project ? 'Сохранить' : 'Создать проект'
                 }}</Button>
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
@@ -198,22 +273,34 @@ function submit() {
                     aria-label="Разделы проекта"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
-                    <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="bg-muted rounded-lg p-3 text-sm"
-                        >Обложка проекта</Link
-                    >
                     <h2 class="hidden text-lg font-bold min-[1100px]:block">В этом разделе</h2>
-                    <a href="#project-name" class="bg-sidebar-accent text-sidebar-accent-foreground rounded-lg p-3 text-sm">Основное</a>
-                    <a href="#project-active" class="bg-muted rounded-lg p-3 text-sm">Состояние</a>
-                    <a v-if="auth.can_manage_channels" href="#publishing-channels" class="bg-muted rounded-lg p-3 text-sm">Каналы</a>
+                    <a
+                        v-for="(label, key) in sections"
+                        :key="key"
+                        :href="'#' + key"
+                        :aria-current="section === key ? 'page' : undefined"
+                        class="project-tab"
+                        >{{ label }}</a
+                    >
+                    <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
                 </nav>
                 <form
                     ref="formElement"
                     id="project-form"
                     class="bg-card min-w-0 space-y-6 rounded-xl border p-5 sm:p-7"
                     :aria-busy="form.processing"
+                    @invalid.capture="revealRequiredField"
                     @submit.prevent="submit"
                 >
-                    <h2 class="text-xl font-bold">Параметры</h2>
+                    <h2 class="text-xl font-bold">
+                        {{
+                            section === 'main'
+                                ? 'Параметры'
+                                : section === 'channels'
+                                  ? 'Каналы проекта'
+                                  : (sections[section] ?? (section === 'format' ? 'Формат производства' : ''))
+                        }}
+                    </h2>
                     <section v-if="conflict" role="alert" class="bg-muted border-l-4 border-amber-500 p-4">
                         <h3 class="font-semibold">Серверная версия изменилась</h3>
                         <p>
@@ -240,8 +327,8 @@ function submit() {
                         <strong class="block">Сохранение не выполнено</strong>{{ requestError }}
                         <Button type="submit" variant="outline" :disabled="form.processing || conflict">Повторить сохранение</Button>
                     </p>
-                    <div class="grid gap-2">
-                        <Label for="project-name">Название <span class="text-muted-foreground font-normal">(обязательно)</span></Label>
+                    <div v-show="section === 'main'" class="grid gap-2">
+                        <Label for="project-name">Название</Label>
                         <Input
                             id="project-name"
                             v-model="form.name"
@@ -253,12 +340,18 @@ function submit() {
                             placeholder="Например, Лунный атлас"
                             class="h-11"
                             :aria-invalid="!!form.errors.name"
-                            :aria-describedby="form.errors.name ? 'project-name-help project-name-error' : 'project-name-help'"
+                            :aria-describedby="form.errors.name ? 'project-name-error' : undefined"
                         />
-                        <p id="project-name-help" class="text-muted-foreground text-xs">A recognizable name for your content project.</p>
                         <InputError id="project-name-error" :message="form.errors.name" />
                     </div>
-                    <div class="grid gap-2">
+                    <div
+                        v-if="
+                            section === 'format' ||
+                            (project && section === 'automation' && !series) ||
+                            (!project && initialMode !== 'series' && section === 'main')
+                        "
+                        class="grid gap-2"
+                    >
                         <Label for="project-mode">Формат</Label>
                         <select
                             id="project-mode"
@@ -270,34 +363,12 @@ function submit() {
                                 {{ value === 'series' ? 'Сериал' : value === 'short' ? 'Короткие ролики' : label }}
                             </option>
                         </select>
-                        <p class="text-muted-foreground text-xs">Для сериала каждый запуск по расписанию создаёт следующий эпизод.</p>
                         <InputError :message="form.errors.content_mode" />
                     </div>
-                    <div class="space-y-2 rounded-lg border p-4">
-                        <label for="project-active" class="flex min-h-11 cursor-pointer items-start gap-3">
-                            <input
-                                id="project-active"
-                                v-model="form.is_active"
-                                type="checkbox"
-                                class="accent-primary mt-1 size-4 shrink-0"
-                                :disabled="form.processing || conflict"
-                                aria-describedby="project-active-help"
-                            />
-                            <span class="text-sm">
-                                <span class="font-medium">Проект активен</span>
-                                <span id="project-active-help" class="text-muted-foreground mt-1 block leading-relaxed">
-                                    Расписание пропускает приостановленный проект. Уже отправленные задания могут завершиться.
-                                </span>
-                            </span>
-                        </label>
-                        <InputError :message="form.errors.is_active" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="project-prompt"
-                            >{{ isSeries ? 'Мир и завязка' : 'Базовый промпт' }}
-                            <span class="text-muted-foreground font-normal">(обязательно)</span></Label
-                        >
+                    <div v-show="section === 'main'" class="grid gap-2">
+                        <Label for="project-prompt">{{ isSeries ? 'Завязка' : project ? 'Базовый промпт' : 'Описание' }}</Label>
                         <textarea
+                            rows="1"
                             id="project-prompt"
                             v-model="form.prompt"
                             name="prompt"
@@ -305,21 +376,100 @@ function submit() {
                             :maxlength="limits.prompt"
                             :disabled="form.processing || conflict"
                             :aria-invalid="!!form.errors.prompt"
-                            :aria-describedby="form.errors.prompt ? 'project-prompt-help project-prompt-error' : 'project-prompt-help'"
-                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 min-h-28 w-full resize-y rounded-md border px-3 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            :aria-describedby="form.errors.prompt ? 'project-prompt-error' : undefined"
+                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 min-h-12 w-full resize-y rounded-md border px-3 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
                             :class="{ 'border-destructive': !!form.errors.prompt }"
                             placeholder="Опишите тему, аудиторию и настроение будущих роликов."
                         />
-                        <div class="text-muted-foreground flex flex-wrap justify-between gap-2 text-xs">
-                            <p id="project-prompt-help" class="max-w-prose">Используется при подготовке новых идей.</p>
-                            <span class="tabular-nums">{{ form.prompt.length.toLocaleString() }} / {{ limits.prompt.toLocaleString() }}</span>
-                        </div>
                         <InputError id="project-prompt-error" :message="form.errors.prompt" /><InputError
                             :message="form.errors.series_specification"
                         /><InputError :message="formErrors['series_specification.premise']" />
                     </div>
+                    <div
+                        v-if="
+                            section === 'plan' || (!isSeries && (section === 'automation' || section === 'format' || (project && section === 'main')))
+                        "
+                        class="grid gap-2"
+                    >
+                        <Label for="project-active">Состояние</Label>
+                        <select id="project-active" v-model="form.is_active" class="list-select" :disabled="form.processing || conflict">
+                            <option :value="true">Активен</option>
+                            <option :value="false">Приостановлен</option>
+                        </select>
+                        <InputError :message="form.errors.is_active" />
+                    </div>
+                    <div v-if="isSeries && section === 'main'" class="grid gap-2">
+                        <Label for="episode-limit">Число эпизодов</Label>
+                        <Input
+                            id="episode-limit"
+                            v-model="form.episode_limit"
+                            type="number"
+                            min="1"
+                            max="1000"
+                            placeholder="Без ограничения"
+                            :disabled="form.processing || conflict"
+                        />
+                        <InputError :message="form.errors.episode_limit" />
+                    </div>
+                    <div v-if="isSeries && section === 'main'" class="grid gap-2">
+                        <Label for="passport-output">Режим выпуска</Label>
+                        <select id="passport-output" v-model="form.output_mode" class="list-select" :disabled="form.processing || conflict">
+                            <option v-for="(_, mode) in outputModes" :key="mode" :value="mode">
+                                {{ mode === 'episodes' ? 'По эпизодам' : 'Одно полное видео' }}
+                            </option>
+                        </select>
+                        <InputError :message="form.errors.output_mode" />
+                    </div>
+                    <div v-if="((!isSeries && section === 'main') || section === 'plan') && auth.can_manage_channels" class="grid gap-2">
+                        <span class="text-muted-foreground text-sm">Каналы</span>
+                        <a href="#channels" class="list-select flex items-center">{{ selectedChannelNames.join(', ') || 'Выбрать каналы' }}</a>
+                    </div>
+                    <div v-if="project && section === 'deletion'" class="space-y-4">
+                        <div class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
+                            <strong>Удаление проекта</strong>
+                            <p class="text-muted-foreground text-sm">Удаление доступно для пустого проекта без связанных каналов и производства.</p>
+                        </div>
+                        <div class="studio-row">
+                            <span>Проект</span><strong>{{ project.name }}</strong>
+                        </div>
+                        <div class="studio-row">
+                            <span>Активное производство</span><span>{{ project.blocking_runs_count || 'Нет' }}</span>
+                        </div>
+                        <div class="studio-row">
+                            <span>Общий канал</span><span>{{ selectedChannelNames.join(', ') || 'Нет' }}</span>
+                        </div>
+                        <ConfirmationDialog
+                            heading="Подтверждение удаления проекта"
+                            :title="'Удалить «' + project.name + '»?'"
+                            description="После удаления восстановить проект нельзя."
+                            action="Удалить проект"
+                            destructive
+                            :processing="deletion.processing"
+                            :error="deleteError"
+                            @confirm="deleteProject"
+                        >
+                            <template #trigger
+                                ><Button
+                                    variant="destructive"
+                                    type="button"
+                                    :disabled="!project.can_delete || !!project.blocking_runs_count || deletion.processing"
+                                    >Удалить проект</Button
+                                ></template
+                            >
+                            <div class="studio-row">
+                                <dt>Проект</dt>
+                                <dd>{{ project.name }}</dd>
+                            </div>
+                            <div class="studio-row">
+                                <dt>Активные задания</dt>
+                                <dd>{{ project.blocking_runs_count }}</dd>
+                            </div>
+                        </ConfirmationDialog>
+                    </div>
+
                     <ProjectSeriesFields
-                        v-if="isSeries"
+                        v-if="isSeries && (section === 'cast' || section === 'plan')"
+                        :section="section"
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
                         v-model:episode-limit="form.episode_limit"
@@ -327,12 +477,17 @@ function submit() {
                         :output-modes="outputModes"
                         :cycle-structures="cycleStructures"
                         :scene-modes="sceneModes"
-                        :processing="form.processing"
+                        :processing="form.processing || conflict"
                         :errors="formErrors"
                         :audiences="audiences"
                         :audio-modes="audioModes"
                     />
-                    <fieldset id="publishing-channels" tabindex="-1" v-if="auth.can_manage_channels" class="space-y-3 rounded-lg border p-4 sm:p-5">
+                    <fieldset
+                        id="publishing-channels"
+                        tabindex="-1"
+                        v-if="auth.can_manage_channels && section === 'channels'"
+                        class="space-y-3 rounded-lg border p-4 sm:p-5"
+                    >
                         <legend class="px-2 text-sm font-semibold">Каналы публикации</legend>
                         <p class="text-muted-foreground text-sm">Выберите каналы. Каждый из них можно использовать в нескольких проектах.</p>
                         <div v-if="channels.length" class="grid gap-2">
@@ -380,14 +535,24 @@ function submit() {
                         >
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
-                    <div class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
+                    <div v-if="section !== 'main' && section !== 'deletion'" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
                         <Button as-child variant="outline" class="h-11"><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button>
                         <Button type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
                                 v-else
                                 class="size-4"
                                 aria-hidden="true"
-                            />{{ form.processing ? 'Сохранение…' : project ? 'Сохранить изменения' : 'Создать проект' }}</Button
+                            />{{
+                                form.processing
+                                    ? 'Сохранение…'
+                                    : section === 'channels'
+                                      ? 'Сохранить каналы'
+                                      : section === 'format'
+                                        ? 'Сохранить формат'
+                                        : isSeries
+                                          ? 'Сохранить паспорт'
+                                          : 'Сохранить изменения'
+                            }}</Button
                         >
                     </div>
                 </form>
@@ -395,3 +560,71 @@ function submit() {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.project-tab {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+.project-tab[aria-current='page'] {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 600;
+}
+.project-editor #project-form {
+    padding: 20px 24px 48px;
+}
+.project-editor #project-form > .grid {
+    margin-block: 16px 0;
+}
+.project-editor #project-form > .grid > :is(input, select, textarea, .list-select) {
+    min-height: 48px;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 16px;
+}
+.project-editor #project-form > .grid > label {
+    font-weight: 400;
+    color: var(--muted-foreground);
+}
+@media (min-width: 1100px) {
+    .project-editor > .grid {
+        grid-template-columns: 276px minmax(0, 852px);
+    }
+    .project-editor nav {
+        min-height: 240px;
+        padding: 16px;
+        gap: 6px;
+    }
+    .project-editor nav h2 {
+        padding: 0 8px 8px;
+    }
+}
+@media (max-width: 1099px) {
+    .project-tab {
+        background: var(--muted);
+    }
+    .project-editor > .grid {
+        gap: 16px;
+    }
+    .project-editor > div:first-child {
+        flex-direction: column;
+    }
+}
+@media (max-width: 767px) {
+    .project-editor {
+        padding-block-start: 14px;
+        gap: 20px;
+    }
+    .project-tab {
+        padding: 10px;
+        font-size: 13px;
+    }
+    .project-editor #project-form {
+        padding: 16px 16px 32px;
+    }
+}
+</style>
