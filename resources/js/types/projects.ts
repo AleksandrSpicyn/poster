@@ -60,7 +60,7 @@ export interface ProjectPageProps extends SharedData {
     }> | null;
     project: ProjectSummary & { channels: ProjectChannel[] };
     prompts: PaginatedResource<PromptSummary>;
-    filters: { sort: string; updated?: boolean };
+    filters: { sort: string; updated?: boolean; active?: boolean };
     sortDirections: Record<string, string>;
     series: SeriesSummary | null;
     characters: PaginatedResource<CharacterSummary> | null;

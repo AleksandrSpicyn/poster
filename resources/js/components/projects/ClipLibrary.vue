@@ -14,8 +14,9 @@ const props = defineProps<{
     loading: boolean;
     error: string;
     updated: boolean;
+    active: boolean;
 }>();
-const emit = defineEmits<{ page: [number]; refresh: []; sort: []; reset: []; select: [boolean] }>();
+const emit = defineEmits<{ page: [number]; refresh: []; sort: []; active: []; reset: []; select: [boolean] }>();
 const route = useRoute();
 const today = new Date().toISOString().slice(0, 10);
 function shifted(date: string, days: number) {
@@ -131,7 +132,8 @@ const metricLabels: Record<string, string> = {
         </div>
         <template v-else-if="!selected">
             <nav aria-label="Фильтры клипов" class="flex flex-wrap gap-2">
-                <Button variant="secondary" :aria-pressed="!updated" @click="emit('reset')">Все</Button>
+                <Button variant="secondary" :aria-pressed="!updated && !active" @click="emit('reset')">Все</Button>
+                <Button variant="secondary" :aria-pressed="active" @click="emit('active')">Активные</Button>
                 <Button variant="secondary" :aria-pressed="updated" @click="emit('sort')">По дате изменения</Button>
             </nav>
             <h2>Клипы проекта</h2>
@@ -159,17 +161,18 @@ const metricLabels: Record<string, string> = {
                     >
                 </div>
             </footer>
-            <Link :href="weekUrl(today)" class="text-sm underline">Просмотры клипов за неделю</Link>
         </template>
-        <div v-else class="clip-detail">
-            <section class="studio-panel grid gap-4">
+        <div v-else class="clip-detail clip-publications">
+            <section class="studio-panel clip-sheet">
                 <h2>{{ project.name }}</h2>
-                <div class="flex items-center gap-3">
+                <div class="clip-summary">
                     <ProjectArtwork :name="project.name" :cover="project.cover" class="h-14 w-20 rounded-lg" />
-                    <strong>{{ selected.title || 'Клип без названия' }} · {{ duration(selected.duration_ms) }}</strong>
+                    <strong>{{ [selected.title || 'Клип без названия', duration(selected.duration_ms)].filter(Boolean).join(' · ') }}</strong>
                 </div>
-                <p v-if="selected.score !== null" class="studio-row"><strong>Оценка источника</strong>OpusClip · {{ selected.score }} / 100</p>
-                <div v-for="(post, index) in selected.publications" :key="index" class="border-b py-2">
+                <p v-if="selected.score !== null" class="clip-score">
+                    <span>Оценка источника</span><span>OpusClip · {{ selected.score }} / 100</span>
+                </p>
+                <div v-for="(post, index) in selected.publications" :key="index" class="clip-publication">
                     <a v-if="post.url" :href="post.url" class="text-primary font-bold" target="_blank" rel="noopener noreferrer"
                         >Открыть на {{ platformNames[post.platform.toLowerCase()] ?? post.platform }} ↗</a
                     >
@@ -178,15 +181,27 @@ const metricLabels: Record<string, string> = {
                         {{ publicationViews(post.platform, post.media_id)?.toLocaleString('ru') }} просмотров
                     </p>
                     <p v-else-if="post.status">{{ postStatus[post.status.toLowerCase()] ?? 'Площадка уточняет статус' }}</p>
-                    <p v-if="post.publish_at">{{ new Date(post.publish_at).toLocaleDateString('ru') }}</p>
                 </div>
                 <p v-if="!selected.publications.length">Источник пока не вернул публикации.</p>
-                <div v-if="selected.publications.length && !selected.observations.length">
+                <div v-if="selected.publications.length && !selected.observations.length" class="clip-empty">
+                    <span aria-hidden="true">∅</span>
                     <strong>Пока нет наблюдений</strong>
                     <p>Сбор метрик по этому ролику ещё не получил ответ площадки.</p>
                 </div>
-                <details v-if="selected.observations.length">
+            </section>
+            <aside class="studio-panel clip-project hidden min-[1100px]:block">
+                <ProjectArtwork :name="project.name" :cover="project.cover" class="rounded-lg" />
+                <strong>{{ project.name }}</strong>
+                <p>Клиппинг</p>
+            </aside>
+            <nav class="clip-links" aria-label="Переходы клипа">
+                <a href="#clips">К библиотеке клипов</a>
+                <a :href="selected.source_url" target="_blank" rel="noopener">Открыть источник</a>
+                <details v-if="selected.observations.length || selected.publications.some((post) => post.publish_at)">
                     <summary>Наблюдения площадок</summary>
+                    <p v-for="post in selected.publications.filter((post) => post.publish_at)" :key="post.url ?? post.platform">
+                        {{ platformNames[post.platform.toLowerCase()] ?? post.platform }} · {{ new Date(post.publish_at!).toLocaleDateString('ru') }}
+                    </p>
                     <div v-for="row in selected.observations" :key="row.platform + row.media_id">
                         <strong>{{ platformNames[row.platform.toLowerCase()] ?? row.platform }} · {{ row.date }}</strong>
                         <p v-for="(value, key) in row.metrics" :key="key" class="studio-row">
@@ -194,13 +209,7 @@ const metricLabels: Record<string, string> = {
                         </p>
                     </div>
                 </details>
-                <a :href="selected.source_url" class="underline" target="_blank" rel="noopener">Открыть источник</a>
-                <a href="#clips" class="underline">К библиотеке клипов</a>
-            </section>
-            <aside class="studio-panel hidden min-[1100px]:block">
-                <ProjectArtwork :name="project.name" :cover="project.cover" class="mb-3 aspect-[2.4] rounded-lg" /><strong>{{ project.name }}</strong>
-                <p>Клиппинг</p>
-            </aside>
+            </nav>
         </div>
     </section>
 </template>
@@ -262,6 +271,100 @@ const metricLabels: Record<string, string> = {
     gap: 16px;
     grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
 }
+.clip-publications {
+    gap: 16px 18px;
+    grid-template-columns: minmax(0, 2.22fr) minmax(0, 1fr);
+}
+.clip-sheet {
+    padding: 16px 23px 28px;
+}
+.clip-sheet:has(.clip-empty) {
+    padding-bottom: 39px;
+}
+.clip-sheet h2 {
+    margin: 0 0 17px;
+    font-size: 22px;
+    line-height: 30px;
+}
+.clip-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.clip-summary strong {
+    margin-top: 4px;
+}
+.clip-summary > :first-child {
+    flex: 0 0 84px;
+    height: 56px;
+}
+.clip-score {
+    display: grid;
+    grid-template-columns: 39% 1fr;
+    align-items: center;
+    min-height: 52px;
+    font-size: 15px;
+    border-bottom: 1px solid var(--border);
+}
+.clip-score span:first-child,
+.clip-publication p,
+.clip-empty p,
+.clip-project p {
+    color: var(--muted-foreground);
+}
+.clip-publication {
+    padding-top: 5px;
+    min-height: 54px;
+}
+.clip-publication p {
+    margin-top: 3px;
+    font-size: 13px;
+}
+.clip-empty {
+    margin-top: 7px;
+}
+.clip-empty > span {
+    display: grid;
+    place-items: center;
+    width: 35px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--muted);
+}
+.clip-empty strong,
+.clip-project strong {
+    display: block;
+    font-size: 20px;
+    margin-block: 7px 4px;
+}
+.clip-empty p {
+    font-size: 15px;
+}
+.clip-project {
+    padding: 13px 13px 14px;
+}
+.clip-project > :first-child {
+    height: 133px;
+}
+.clip-project p {
+    font-size: 14px;
+}
+.clip-links {
+    grid-column: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 16px;
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+.clip-links a {
+    text-decoration: underline;
+}
+.clip-links summary {
+    cursor: pointer;
+}
 @media (max-width: 1099px) {
     .clip-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -271,6 +374,13 @@ const metricLabels: Record<string, string> = {
     }
 }
 @media (max-width: 699px) {
+    .clip-sheet:has(.clip-empty) {
+        padding-bottom: 32px;
+    }
+    .clip-sheet {
+        padding-bottom: 25px;
+        padding-inline: 15px;
+    }
     .clip-grid {
         grid-template-columns: 1fr;
     }

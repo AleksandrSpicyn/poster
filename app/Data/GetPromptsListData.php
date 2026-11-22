@@ -30,5 +30,6 @@ class GetPromptsListData extends Data
         public int|null|Optional $project = new Optional(),
         public bool $updated = false,
         #[DateFormat('Y-m-d'), BeforeOrEqual('today')] public ?string $week = null,
+        public bool $active = false,
     ) {}
 }

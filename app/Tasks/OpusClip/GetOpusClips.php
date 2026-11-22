@@ -61,6 +61,6 @@ final readonly class GetOpusClips
     /** @return LengthAwarePaginator<int, OpusClip> */
     public function run(Project $project, GetPromptsListData $filters): LengthAwarePaginator
     {
-        return $this->clips->paginate($project, $filters->perPage ?? 10, $filters->page ?? 1, $filters->updated);
+        return $this->clips->paginate($project, $filters->perPage ?? 10, $filters->page ?? 1, $filters->updated, $filters->active);
     }
 }

@@ -37,6 +37,7 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
     () => ({
         sort: page.props.filters.sort,
         updated: Number(!!page.props.filters.updated),
+        active: Number(!!page.props.filters.active),
         perPage: (page.props.opusClips ?? page.props.prompts).meta.per_page,
         page: (page.props.opusClips ?? page.props.prompts).meta.current_page,
     }),
@@ -75,7 +76,7 @@ function destroyProject() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="page.props.project.name" />
-        <div class="workspace-page" :class="{ 'short-project': !page.props.opusClips && !page.props.series }">
+        <div class="workspace-page" :class="{ 'selected-clip': viewingClip, 'short-project': !page.props.opusClips && !page.props.series }">
             <ProjectNotice />
             <div
                 class="flex flex-col items-start justify-between"
@@ -101,11 +102,20 @@ function destroyProject() {
                                       : page.props.project.name + (page.props.opusClips ? ' / Источники и клипы' : ' / Производство')
                             "
                         />
-                        <DropdownMenu v-if="!page.props.opusClips && !page.props.series">
+                        <DropdownMenu v-if="!page.props.series">
                             <DropdownMenuTrigger as-child>
                                 <Button variant="ghost" size="icon" aria-label="Меню проекта"><Ellipsis aria-hidden="true" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                <DropdownMenuItem v-if="page.props.opusClips" as-child>
+                                    <Link
+                                        :href="
+                                            route('projects.show', { project: page.props.project.id, week: new Date().toISOString().slice(0, 10) })
+                                        "
+                                    >
+                                        Просмотры клипов за неделю
+                                    </Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem as-child
                                     ><Link :href="route('projects.show', { project: page.props.project.id, section: 'management' })"
                                         >Управление проектом</Link
@@ -123,7 +133,7 @@ function destroyProject() {
                 >
             </div>
 
-            <section v-if="page.props.opusClips" aria-label="Библиотека клипов" class="space-y-4">
+            <section v-if="page.props.opusClips && !managing" aria-label="Библиотека клипов" class="space-y-4">
                 <ClipLibrary
                     :clips="page.props.opusClips"
                     :week="page.props.clipWeek"
@@ -132,12 +142,18 @@ function destroyProject() {
                     :loading="loading"
                     :error="error"
                     :updated="!!page.props.filters.updated"
+                    :active="!!page.props.filters.active"
+                    @active="
+                        filters.active = Number(!filters.active);
+                        applyFilters();
+                    "
                     @sort="
                         filters.updated = Number(!filters.updated);
                         applyFilters();
                     "
                     @reset="
                         filters.updated = 0;
+                        filters.active = 0;
                         applyFilters();
                     "
                     @page="changePage"
@@ -152,7 +168,7 @@ function destroyProject() {
                 :episodes="page.props.episodes"
             />
             <section
-                v-else
+                v-else-if="!page.props.opusClips"
                 class="grid min-w-0 items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]"
                 aria-labelledby="project-history-heading"
             >
@@ -188,12 +204,7 @@ function destroyProject() {
                 Проект приостановлен. Для возобновления производства включите его в настройках.
             </p>
 
-            <component
-                v-if="page.props.opusClips || page.props.series || managing"
-                :is="page.props.opusClips ? 'details' : 'div'"
-                :class="page.props.opusClips ? 'text-sm' : 'contents'"
-            >
-                <summary v-if="page.props.opusClips" class="cursor-pointer">Сведения о проекте</summary>
+            <div v-if="page.props.series || managing" class="contents">
                 <div v-if="page.props.opusClips" class="space-y-3 py-3">
                     <Link :href="route('projects.edit', page.props.project.id)" class="text-sm underline">Открыть настройки проекта</Link>
                     <details v-for="report in page.props.gamingTrends" :key="report.game" class="bg-card rounded-xl border p-5">
@@ -202,8 +213,8 @@ function destroyProject() {
                         <ol class="list-inside list-decimal space-y-2 text-sm">
                             <li v-for="{ title, channel, views, views_per_day, url } in report.entries" :key="url">
                                 <a :href="url" target="_blank" rel="noopener noreferrer" class="underline">{{ title }}</a> · {{ channel }} ·
-                                {{ views }} views<span v-if="views_per_day != null">
-                                    · {{ views_per_day }} views/day since upload (minimum 1 day)</span
+                                {{ views }} просмотров<span v-if="views_per_day != null">
+                                    · {{ views_per_day }} просмотров в день с даты публикации</span
                                 >
                             </li>
                         </ol>
@@ -331,12 +342,15 @@ function destroyProject() {
                         </DialogContent>
                     </Dialog>
                 </section>
-            </component>
+            </div>
         </div>
     </AppLayout>
 </template>
 
 <style scoped>
+.selected-clip {
+    gap: 14px;
+}
 .short-project {
     gap: 23px;
 }
@@ -346,6 +360,9 @@ function destroyProject() {
     }
 }
 @media (max-width: 767px) {
+    .selected-clip {
+        gap: 13px;
+    }
     .short-project {
         gap: 19px;
     }
