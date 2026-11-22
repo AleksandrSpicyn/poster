@@ -44,6 +44,11 @@ const shotCount = computed(() => model.value.scenes.reduce((count, scene) => cou
 const durationSeconds = computed(
     () => model.value.scenes.reduce((duration, scene) => duration + scene.shots.reduce((sum, shot) => sum + shot.duration_ms, 0), 0) / 1000,
 );
+const shotPlural = new Intl.PluralRules('ru');
+function shotCountLabel(count: number) {
+    const form = shotPlural.select(count);
+    return count + ' ' + (form === 'one' ? 'кадр' : form === 'few' ? 'кадра' : 'кадров');
+}
 const speakers = computed(() => props.characters.filter((character) => model.value.character_revision_ids.includes(character.id)));
 
 function addScene() {
@@ -119,93 +124,103 @@ function error(path: string): string | undefined {
             v-for="(scene, sceneIndex) in model.scenes"
             :key="sceneIndex"
             v-show="props.sceneIndex == null || props.sceneIndex === sceneIndex"
-            class="space-y-5 rounded-xl border p-4 sm:p-5"
+            class="script-scene space-y-5 rounded-xl border p-4 sm:p-5"
         >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <h3 class="font-semibold">Сцена {{ sceneIndex + 1 }}</h3>
-                <div class="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="size-11"
-                        :disabled="sceneIndex === 0"
-                        :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вверх'"
-                        @click="move(model.scenes, sceneIndex, -1)"
-                        ><ArrowUp class="size-4" aria-hidden="true" /></Button
-                    ><Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="size-11"
-                        :disabled="sceneIndex === model.scenes.length - 1"
-                        :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вниз'"
-                        @click="move(model.scenes, sceneIndex, 1)"
-                        ><ArrowDown class="size-4" aria-hidden="true" /></Button
-                    ><Button v-if="model.scenes.length > 1" type="button" variant="outline" class="h-11" @click="model.scenes.splice(sceneIndex, 1)"
-                        ><Trash2 class="size-4" aria-hidden="true" />Удалить сцену</Button
-                    >
+            <div class="scene-settings space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="font-semibold">
+                        Сцена {{ String(sceneIndex + 1).padStart(2, '0') }}
+                        <small class="text-muted-foreground font-normal">{{ shotCountLabel(scene.shots.length) }}</small>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            class="size-11"
+                            :disabled="sceneIndex === 0"
+                            :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вверх'"
+                            @click="move(model.scenes, sceneIndex, -1)"
+                            ><ArrowUp class="size-4" aria-hidden="true" /></Button
+                        ><Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            class="size-11"
+                            :disabled="sceneIndex === model.scenes.length - 1"
+                            :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вниз'"
+                            @click="move(model.scenes, sceneIndex, 1)"
+                            ><ArrowDown class="size-4" aria-hidden="true" /></Button
+                        ><Button
+                            v-if="model.scenes.length > 1"
+                            type="button"
+                            variant="outline"
+                            class="h-11"
+                            @click="model.scenes.splice(sceneIndex, 1)"
+                            ><Trash2 class="size-4" aria-hidden="true" />Удалить сцену</Button
+                        >
+                    </div>
                 </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label :for="'scene-title-' + sceneIndex">Название сцены</Label
+                        ><Input :id="'scene-title-' + sceneIndex" v-model="scene.title" required maxlength="255" /><InputError
+                            :message="error('scenes.' + sceneIndex + '.title')"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="'scene-goal-' + sceneIndex">Цель сцены</Label
+                        ><Input :id="'scene-goal-' + sceneIndex" v-model="scene.objective" required maxlength="2000" /><InputError
+                            :message="error('scenes.' + sceneIndex + '.objective')"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="'scene-place-' + sceneIndex">Место</Label
+                        ><Input
+                            :id="'scene-place-' + sceneIndex"
+                            v-model="scene.location"
+                            required
+                            maxlength="1000"
+                            placeholder="Например, в кафе"
+                        /><InputError :message="error('scenes.' + sceneIndex + '.location')" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="'scene-time-' + sceneIndex">Время</Label
+                        ><Input
+                            :id="'scene-time-' + sceneIndex"
+                            v-model="scene.time"
+                            required
+                            maxlength="255"
+                            placeholder="Например, на следующее утро"
+                        /><InputError :message="error('scenes.' + sceneIndex + '.time')" />
+                    </div>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label :for="'scene-initial-' + sceneIndex">В начале сцены</Label
+                        ><textarea
+                            :id="'scene-initial-' + sceneIndex"
+                            v-model="scene.initial_state"
+                            rows="1"
+                            maxlength="4000"
+                            class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
+                        /><InputError :message="error('scenes.' + sceneIndex + '.initial_state')" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="'scene-final-' + sceneIndex">Ожидаемый финал</Label
+                        ><textarea
+                            :id="'scene-final-' + sceneIndex"
+                            v-model="scene.expected_final_state"
+                            rows="1"
+                            maxlength="4000"
+                            class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
+                        /><InputError :message="error('scenes.' + sceneIndex + '.expected_final_state')" />
+                    </div>
+                </div>
+                <label class="flex min-h-11 items-center gap-3 text-sm"
+                    ><input v-model="scene.is_closed" type="checkbox" class="size-4" />Завершить сцену перед началом следующей</label
+                >
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div class="grid gap-2">
-                    <Label :for="'scene-title-' + sceneIndex">Название сцены</Label
-                    ><Input :id="'scene-title-' + sceneIndex" v-model="scene.title" required maxlength="255" /><InputError
-                        :message="error('scenes.' + sceneIndex + '.title')"
-                    />
-                </div>
-                <div class="grid gap-2">
-                    <Label :for="'scene-goal-' + sceneIndex">Цель сцены</Label
-                    ><Input :id="'scene-goal-' + sceneIndex" v-model="scene.objective" required maxlength="2000" /><InputError
-                        :message="error('scenes.' + sceneIndex + '.objective')"
-                    />
-                </div>
-                <div class="grid gap-2">
-                    <Label :for="'scene-place-' + sceneIndex">Место</Label
-                    ><Input
-                        :id="'scene-place-' + sceneIndex"
-                        v-model="scene.location"
-                        required
-                        maxlength="1000"
-                        placeholder="Например, в кафе"
-                    /><InputError :message="error('scenes.' + sceneIndex + '.location')" />
-                </div>
-                <div class="grid gap-2">
-                    <Label :for="'scene-time-' + sceneIndex">Время</Label
-                    ><Input
-                        :id="'scene-time-' + sceneIndex"
-                        v-model="scene.time"
-                        required
-                        maxlength="255"
-                        placeholder="Например, на следующее утро"
-                    /><InputError :message="error('scenes.' + sceneIndex + '.time')" />
-                </div>
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div class="grid gap-2">
-                    <Label :for="'scene-initial-' + sceneIndex">В начале сцены</Label
-                    ><textarea
-                        :id="'scene-initial-' + sceneIndex"
-                        v-model="scene.initial_state"
-                        rows="3"
-                        maxlength="4000"
-                        class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
-                    /><InputError :message="error('scenes.' + sceneIndex + '.initial_state')" />
-                </div>
-                <div class="grid gap-2">
-                    <Label :for="'scene-final-' + sceneIndex">Ожидаемый финал</Label
-                    ><textarea
-                        :id="'scene-final-' + sceneIndex"
-                        v-model="scene.expected_final_state"
-                        rows="3"
-                        maxlength="4000"
-                        class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
-                    /><InputError :message="error('scenes.' + sceneIndex + '.expected_final_state')" />
-                </div>
-            </div>
-            <label class="flex min-h-11 items-center gap-3 text-sm"
-                ><input v-model="scene.is_closed" type="checkbox" class="size-4" />Завершить сцену перед началом следующей</label
-            >
             <div class="shot-forms">
                 <section v-for="(shot, shotIndex) in scene.shots" :key="shotIndex" class="bg-muted/25 space-y-4 rounded-lg border p-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -281,6 +296,20 @@ function error(path: string): string | undefined {
     display: flex;
     flex-direction: column;
     align-items: stretch;
+}
+.scene-focused .script-scene {
+    border: 0;
+    padding: 0;
+}
+.scene-focused .scene-settings,
+.scene-focused .shot-forms > section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: clamp(14px, 1.3vw, 22px);
+}
+.scene-settings small {
+    margin-inline-start: 5px;
 }
 .scene-focused > section {
     order: -1;

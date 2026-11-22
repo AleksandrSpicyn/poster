@@ -16,7 +16,7 @@ import TrimInterval from '@/components/episodes/TrimInterval.vue';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { EpisodeWorkspaceProps } from '@/types/episodes';
+import type { EpisodeWorkspaceProps, ScreenplayShot } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -118,11 +118,37 @@ const selectedDuration = ref<number | null>(null);
 watch(editingVideo, () => {
     selectedDuration.value = null;
 });
-const shotThumbnails = computed(() =>
-    revision.value?.scenes.map((scene) =>
-        scene.shots.map((shot) => shot.takes.flatMap((take) => take.media).find((media) => media.collection === 'shot-image')?.url),
-    ),
-);
+function shotSignature(shot: ScreenplayShot) {
+    return JSON.stringify([
+        shot.action,
+        shot.camera,
+        shot.duration_ms,
+        shot.transition_mode,
+        shot.dialogue.map((line) => [line.character_id, line.text]),
+        shot.source_prompt_id ?? null,
+        shot.source_assembly_id ?? null,
+        shot.source_time_ms ?? 0,
+    ]);
+}
+const thumbnailForShot = computed(() => {
+    const bySignature = new Map<string, string | undefined>();
+    const byShot = new WeakMap<ScreenplayShot, string>();
+    props.screenplay?.scenes.forEach((scene, sceneIndex) => {
+        scene.shots.forEach((shot, shotIndex) => {
+            const key = shotSignature(shot);
+            const media = revision.value?.scenes[sceneIndex]?.shots[shotIndex]?.takes.flatMap((take) => take.media);
+            bySignature.set(key, bySignature.has(key) ? undefined : media?.find((item) => item.collection === 'shot-image')?.url);
+        });
+    });
+    return (shot: ScreenplayShot) => {
+        const existing = byShot.get(shot);
+        if (existing) return existing;
+        const url = bySignature.get(shotSignature(shot));
+        if (url) byShot.set(shot, url);
+        return url;
+    };
+});
+const shotThumbnails = computed(() => scriptForm.script.scenes.map((scene) => scene.shots.map(thumbnailForShot.value)));
 const acceptedTakeIds = computed(() => props.episode.accepted_assembly?.selection?.flatMap((shot) => (shot.prompt_id ? [shot.prompt_id] : [])) ?? []);
 const firstThumbnail = computed(
     () =>
@@ -144,7 +170,12 @@ watch([editorStale, scriptErrors, archived], ([stale, errors, isArchived]) => {
 });
 function restorePanel() {
     const [key, row] = window.location.hash.slice(1).split('/');
-    const index = Number(row) - 1;
+    const index =
+        key === 'shots' && row === 'review'
+            ? shots.value.findIndex((shot) =>
+                  shot.takes.some((take) => take.operations.some((operation) => operation.status === 'submission_unknown')),
+              )
+            : Number(row) - 1;
     detail.value =
         Number.isInteger(index) && index >= 0 && index < (key === 'screenplay' ? scriptForm.script.scenes.length : shots.value.length) ? index : null;
     leaveDialogueFocus();
