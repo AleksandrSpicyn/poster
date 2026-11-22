@@ -2,6 +2,8 @@ import type { ContinuationSource, ScreenplayScene, ScreenplayShot } from '@/type
 
 export function createScreenplayShot(overrides: Partial<ScreenplayShot> = {}): ScreenplayShot {
     return {
+        title: '',
+        plan_type: '',
         duration_ms: 15000,
         action: '',
         camera: '',

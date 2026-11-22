@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type { EpisodeRevisionSummary, Screenplay, ShotSummary } from '@/types/episodes';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     panel: string;
+    choosingShot?: boolean;
     revision: EpisodeRevisionSummary;
     screenplay: Screenplay;
     selection: { prompt_id: number; trim_start_ms: number; trim_end_ms: number }[];
     selectedTakeIds: number[];
 }>();
 const emit = defineEmits<{ open: [number] }>();
+const rowButtons = ref<HTMLButtonElement[]>([]);
+defineExpose({ focusFirstShot: () => rowButtons.value[0]?.focus() });
 const padded = (value: number) => String(value).padStart(2, '0');
 const shots = computed(() => props.revision.scenes.flatMap((scene) => scene.shots));
 function status(shot: ShotSummary) {
@@ -39,7 +42,7 @@ const rows = computed(() => {
             name: 'Кадр ' + padded(i + 1),
             description:
                 props.panel === 'shots'
-                    ? (shot.camera?.description || shot.action || '') + ' · ' + status(shot)
+                    ? (shot.title || shot.plan_type || shot.camera?.description || shot.action || '') + ' · ' + status(shot)
                     : take
                       ? 'Дубль ' +
                         padded(take.take_number) +
@@ -53,8 +56,8 @@ const rows = computed(() => {
 </script>
 <template>
     <section class="episode-overview">
-        <h2>{{ panel === 'screenplay' ? 'Сценарий' : panel === 'shots' ? 'Кадры' : 'Монтаж' }}</h2>
-        <button v-for="(row, i) in rows" :key="i" type="button" class="overview-row" @click="emit('open', i)">
+        <h2>{{ panel === 'screenplay' ? 'Сценарий' : panel === 'shots' ? (choosingShot ? 'Выберите кадр' : 'Кадры') : 'Монтаж' }}</h2>
+        <button v-for="(row, i) in rows" ref="rowButtons" :key="i" type="button" class="overview-row" @click="emit('open', i)">
             <strong>{{ row.name }}</strong><span>{{ row.description }}</span>
         </button>
         <div v-if="panel !== 'screenplay' && fragments.length" class="overview-track">

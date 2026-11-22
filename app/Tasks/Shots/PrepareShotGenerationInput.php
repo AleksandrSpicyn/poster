@@ -57,7 +57,13 @@ readonly class PrepareShotGenerationInput
             'appearance' => $character->appearance, 'voice' => $character->voice,
         ])->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $setting = json_encode($scene->setting, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        $camera = json_encode($shot->camera, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $cameraSettings = $shot->camera;
+
+        if ($shot->plan_type !== null) {
+            $cameraSettings['plan_type'] = $shot->plan_type;
+        }
+
+        $camera = json_encode($cameraSettings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $dialogue = json_encode($shot->dialogue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $initialState = json_encode($scene->initial_state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $finalState = $shot->position === $scene->shots->max('position')

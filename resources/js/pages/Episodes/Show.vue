@@ -3,6 +3,7 @@ import { useEpisodeScreenplay } from '@/composables/useEpisodeScreenplay';
 import { useEpisodeMontage } from '@/composables/useEpisodeMontage';
 import { useEpisodeSources } from '@/composables/useEpisodeSources';
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
+import EpisodeMemory from '@/components/episodes/EpisodeMemory.vue';
 import EpisodeOverview from '@/components/episodes/EpisodeOverview.vue';
 import EpisodeRelease from '@/components/episodes/EpisodeRelease.vue';
 import ShotCard from '@/components/episodes/ShotCard.vue';
@@ -19,7 +20,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps, ScreenplayShot } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<EpisodeWorkspaceProps>();
@@ -104,6 +105,14 @@ const panelTitles: Record<string, string> = {
 };
 const panel = ref('screenplay');
 const detail = ref<number | null>(null);
+const memoryOpen = ref(false);
+const choosingShot = ref(false);
+const episodeOverview = ref<InstanceType<typeof EpisodeOverview> | null>(null);
+async function chooseShot() {
+    choosingShot.value = true;
+    await nextTick();
+    episodeOverview.value?.focusFirstShot();
+}
 const importOpen = ref(false);
 const checkedJson = ref(false);
 watch(scriptText, () => {
@@ -120,6 +129,8 @@ watch(editingVideo, () => {
 });
 function shotSignature(shot: ScreenplayShot) {
     return JSON.stringify([
+        shot.title ?? '',
+        shot.plan_type ?? '',
         shot.action,
         shot.camera,
         shot.duration_ms,
@@ -170,6 +181,8 @@ watch([editorStale, scriptErrors, archived], ([stale, errors, isArchived]) => {
 });
 function restorePanel() {
     const [key, row] = window.location.hash.slice(1).split('/');
+    memoryOpen.value = key === 'history' && (!!revision.value?.source_assembly_id || !!props.sourceAssembly);
+    choosingShot.value = false;
     const index =
         key === 'shots' && row === 'review'
             ? shots.value.findIndex((shot) =>
@@ -217,6 +230,7 @@ function refresh() {
             @keydown.esc="leaveDialogueFocus"
         >
             <EpisodeRelease v-if="panel === 'release'" :workspace="props" :assemblies="allAssemblies" />
+            <EpisodeMemory v-else-if="memoryOpen" :workspace="props" :assembly="revision ? memoryAssembly : sourceAssembly" />
             <template v-else>
                 <header v-if="dialogueFocus" class="space-y-3">
                     <Heading title="Сценарий эпизода" />
@@ -240,6 +254,20 @@ function refresh() {
                         :disabled="archived || revision?.status !== 'approved' || !project.is_active || assemblyForm.processing || !canBuildAssembly"
                         @click="buildAssembly"
                         >Собрать монтаж</Button
+                    >
+                    <Button
+                        v-else-if="overview && panel === 'screenplay'"
+                        class="h-11"
+                        :disabled="!online || archived || scriptForm.processing || editorStale || !characters.length"
+                        @click="saveScript"
+                        >Сохранить черновик</Button
+                    >
+                    <Button
+                        v-else-if="overview && panel === 'shots'"
+                        class="h-11"
+                        :disabled="archived || !project.is_active || revision?.status !== 'approved'"
+                        @click="chooseShot"
+                        >Создать дубль</Button
                     >
                     <ConfirmationDialog
                         v-else-if="hasDraft"
@@ -285,6 +313,12 @@ function refresh() {
                         class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
                         @click="panel = item.key"
                         >{{ item.label }}</a
+                    >
+                    <a
+                        v-if="panel === 'screenplay' && (revision?.source_assembly_id || sourceAssembly)"
+                        href="#history"
+                        class="bg-muted inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
+                        >История</a
                     >
                 </nav>
                 <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
@@ -336,6 +370,8 @@ function refresh() {
                     <div class="min-w-0 space-y-5">
                         <EpisodeOverview
                             v-if="overview && revision"
+                            ref="episodeOverview"
+                            :choosing-shot="choosingShot"
                             :panel="panel"
                             :revision="revision"
                             :screenplay="scriptForm.script"

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -16,14 +17,21 @@ use function Tests\Support\storyScriptPayload;
 test('HTTP сохраняет полноценные сцены и планы', function (): void {
     $context = storyFixture();
     $episode = $context['episode'];
+    $script = storyScriptPayload($context['character']);
+    Arr::set($script, 'scenes.0.shots.0.title', 'На развилке');
+    Arr::set($script, 'scenes.0.shots.0.plan_type', 'Общий план');
 
     actingAs(serialOperator())
-        ->post(route('episodes.scripts.store', ['series' => $episode->series_id, 'episode' => $episode]), ['script' => storyScriptPayload($context['character']), 'lock_version' => 0])
+        ->post(route('episodes.scripts.store', ['series' => $episode->series_id, 'episode' => $episode]), ['script' => $script, 'lock_version' => 0])
         ->assertRedirect();
 
     $revision = $episode->refresh()->currentRevision;
     expect($revision?->status->value)->toBe('draft');
-    expect($revision?->scenes()->first()?->shots()->first()?->action)->toBe('The hero picks up the key.');
+    $shot = $revision?->scenes()->first()?->shots()->first();
+    expect($shot?->action)->toBe('The hero picks up the key.')
+        ->and($shot?->title)->toBe('На развилке')
+        ->and($shot?->plan_type)->toBe('Общий план')
+        ->and($shot?->camera)->toBe(['description' => 'Medium shot']);
 });
 
 test('некорректный сценарий не создаёт версию', function (): void {

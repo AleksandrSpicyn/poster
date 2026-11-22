@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\Channel;
+use App\Models\Episode;
 use App\Models\EpisodeAssembly;
+use App\Models\EpisodeRevision;
 use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\User;
@@ -18,6 +21,7 @@ use function Tests\Support\workspaceOwner;
 
 test('рабочая область отдаёт сценарий и скрывает ключи каналов и payload задания', function (): void {
     $context = episodeHttpFixture();
+    $context['shot']->update(['title' => 'Указатель', 'plan_type' => 'Крупный план']);
     $series = $context['episode']->series()->firstOrFail();
     Channel::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'client_secret' => 'hidden-oauth-secret', 'credentials' => ['access_token' => 'hidden-access-token']]);
     $context['episode']->update(['script_request_payload' => ['private' => 'hidden-script-request']]);
@@ -37,6 +41,8 @@ test('рабочая область отдаёт сценарий и скрыв�
             ->component('Episodes/Show')
             ->where('episode.id', $context['episode']->id)
             ->where('episode.current_revision.scenes.0.shots.0.id', $context['shot']->id)
+            ->where('episode.current_revision.scenes.0.shots.0.title', 'Указатель')
+            ->where('screenplay.scenes.0.shots.0.plan_type', 'Крупный план')
             ->where('episode.current_revision.context.confirmed_events', 'The hidden key was found.')
             ->where('episode.current_revision.context.scene_closed', false)
             ->where('screenplay.scenes.0.shots.0.action', $context['shot']->action));
@@ -122,4 +128,27 @@ test('выбор получателей исключает отключённы�
         ->assertInertia(fn(Assert $page): Assert => $page
             ->has('channels', 1)
             ->where('channels.0.id', $ready->id));
+});
+
+test('показывает исходную принятую сборку сохранённой памяти', function (): void {
+    $context = episodeHttpFixture();
+    $episode = $context['episode'];
+    $previous = Episode::factory()->create(['series_id' => $episode->series_id, 'number' => 2]);
+    $revision = EpisodeRevision::factory()->for($previous)->create();
+    $original = EpisodeAssembly::factory()->for($revision, 'episodeRevision')->create(['status' => AssemblyStatus::ACCEPTED, 'accepted_at' => now()]);
+    $replacement = EpisodeAssembly::factory()->for($revision, 'episodeRevision')->create(['status' => AssemblyStatus::ACCEPTED, 'accepted_at' => now()]);
+    $previous->update(['accepted_assembly_id' => $replacement->id]);
+    $episode->update(['number' => 3, 'predecessor_episode_id' => $previous->id]);
+    $context['revision']->update(['source_assembly_id' => $original->id]);
+    $route = route('episodes.show', [$episode->series_id, $episode]);
+
+    actingAs($context['user'])->get($route)
+        ->assertInertia(fn(Assert $page): Assert => $page->where('memoryAssembly.id', $original->id)
+            ->where('sourceAssembly.id', $replacement->id)->where('predecessorNumber', 2));
+
+    $foreign = EpisodeAssembly::factory()->create(['status' => AssemblyStatus::ACCEPTED, 'accepted_at' => now()]);
+    $context['revision']->update(['source_assembly_id' => $foreign->id]);
+
+    actingAs($context['user'])->get($route)
+        ->assertInertia(fn(Assert $page): Assert => $page->where('memoryAssembly', null));
 });
