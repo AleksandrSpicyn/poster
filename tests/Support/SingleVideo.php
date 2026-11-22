@@ -23,16 +23,16 @@ use App\Models\User;
 function singleVideoFixture(int $count = 3): array
 {
     $user = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
     $parts = array_map(fn(int $number): array => ['number' => $number, 'objective' => 'Move forward ' . $number,
         'expected_result' => 'Progress ' . $number, 'scene_key' => 'room', 'transition_mode' => $number === 1 ? 'new_scene' : 'continue_scene'], range(1, $count));
-    $series = Series::factory()->for($project)->create(['output_mode' => SeriesOutputMode::SINGLE_VIDEO,
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['output_mode' => SeriesOutputMode::SINGLE_VIDEO,
         'automation_enabled' => true, 'automation_user_id' => $user->id, 'episode_limit' => $count,
         'cycle_plan' => ['objective' => 'One complete story', 'structure' => 'continuous_story', 'parts' => $parts]]);
     $previous = null;
 
     for ($number = 1; $number <= $count; $number++) {
-        $episode = Episode::factory()->for($series)->create(['number' => $number, 'predecessor_episode_id' => $previous?->id]);
+        $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create(['number' => $number, 'predecessor_episode_id' => $previous?->id]);
         $revision = EpisodeRevision::factory()->for($episode)->create();
         $assembly = EpisodeAssembly::factory()->for($revision)->create(['status' => AssemblyStatus::ACCEPTED, 'duration_ms' => 1000,
             'continuity_snapshot' => ['confirmed_events' => 'Progress ' . $number, 'scene_closed' => true]]);
@@ -42,8 +42,8 @@ function singleVideoFixture(int $count = 3): array
         $previous = $episode;
     }
 
-    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
-    $run = ProductionRun::factory()->for($project)->for($series)->create(['actor_id' => $user->id, 'episode_id' => $previous?->id,
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->for($series)->create(['actor_id' => $user->id, 'episode_id' => $previous?->id,
         'status' => ProductionStatus::WAITING, 'stage' => ProductionStage::FINAL_MONTAGE,
         'input_snapshot' => ['output_mode' => 'single_video', 'channel_ids' => [$channel->id], 'episode_limit' => $count,
             'specification_version' => $series->specification_version, 'specification' => $series->specification]]);

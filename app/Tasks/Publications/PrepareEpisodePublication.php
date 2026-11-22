@@ -6,6 +6,7 @@ namespace App\Tasks\Publications;
 
 use App\Data\Publications\PreparedPublicationData;
 use App\Data\PublishVideoData;
+use App\Data\Tiktok\TiktokPublicationData;
 use App\Models\EpisodeAssembly;
 use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
@@ -26,17 +27,41 @@ class PrepareEpisodePublication
 
     public function run(PublicationRequest $request): PreparedPublicationData
     {
+        $options = isset($request->payload['tiktok']) ? TiktokPublicationData::from($request->payload['tiktok']) : null;
+
+        if ($request->prompt_id !== null) {
+            $prompt = $request->prompt()->firstOrFail();
+            $media = $prompt->getFirstMedia();
+
+            if ($media === null || ($options instanceof TiktokPublicationData && $options->media_id !== $media->id) || ! is_file($media->getPath())) {
+                throw new RuntimeException('The short video file is unavailable.');
+            }
+
+            return new PreparedPublicationData($this->channels->forPublication($request), new PublishVideoData(
+                $media->getPath(),
+                URL::temporarySignedRoute('prompts.export', now()->addHours(2), [
+                    'prompt' => $prompt->id, 'media' => $media->id, 'owner' => $request->created_by,
+                ]),
+                $request->payload['title'],
+                $request->payload['description'],
+                null,
+                $request->id,
+                short: $prompt,
+                tiktok: $options,
+            ), $request);
+        }
+
         $final = $request->series_assembly_id !== null;
         $assembly = $final ? $this->finalAssemblies->withContext($request->series_assembly_id) : $this->assemblies->withMedia($request->episode_assembly_id ?? throw new RuntimeException('No source.'));
         $media = $assembly->getFirstMedia($final ? SeriesAssembly::VIDEO : EpisodeAssembly::VIDEO);
 
-        if (! $media instanceof Media || ! is_file($media->getPath())) {
+        if (! $media instanceof Media || ($options instanceof TiktokPublicationData && $options->media_id !== $media->id) || ! is_file($media->getPath())) {
             throw new RuntimeException('The accepted episode file is unavailable.');
         }
 
         return new PreparedPublicationData($this->channels->forPublication($request), new PublishVideoData(
             $media->getPath(),
-            URL::temporarySignedRoute($final ? 'series_assemblies.export' : 'episodes.export', now()->addHours(2), ['assembly' => $assembly->id, 'media' => $media->id]),
+            URL::temporarySignedRoute($final ? 'series_assemblies.export' : 'episodes.export', now()->addHours(2), ['assembly' => $assembly->id, 'media' => $media->id, 'owner' => $request->created_by]),
             $request->payload['title'],
             $request->payload['description'],
             $final ? null : $assembly->id,
@@ -44,6 +69,7 @@ class PrepareEpisodePublication
             $request->payload['made_for_kids'],
             $final ? $assembly->id : null,
             $request->payload['use_public_description'] ?? false,
+            tiktok: $options,
         ), $request);
     }
 }

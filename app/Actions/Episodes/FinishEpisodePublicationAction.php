@@ -33,7 +33,7 @@ readonly class FinishEpisodePublicationAction
             $context = $this->prepare->run($request);
             $this->publish->run($context->channel, $context->video, $request->container_id ?? '');
         } catch (PublicationProcessingException $exception) {
-            $this->update->run($request, PublicationStatus::PROCESSING, error: $exception->getMessage());
+            $this->update->run($request, $exception->inbox ? PublicationStatus::INBOX : PublicationStatus::PROCESSING, error: $exception->getMessage());
         } catch (PublicationRejectedException $exception) {
             $this->update->run($request, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {

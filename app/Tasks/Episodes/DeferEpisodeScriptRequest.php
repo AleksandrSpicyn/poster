@@ -17,7 +17,7 @@ class DeferEpisodeScriptRequest
         $updated = $this->episodes->deferScriptRequest($episode, $requestKey);
 
         if ($updated > 0) {
-            WorkspaceUpdated::dispatch(true);
+            WorkspaceUpdated::forResource($episode);
         }
     }
 }

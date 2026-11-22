@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 use function Tests\Support\acceptedEpisodePublication;
+use function Tests\Support\workspaceOwner;
 
 test('запрос публикации сохраняет один receipt и не отправляет ролик', function (): void {
     Storage::fake('local');
@@ -35,7 +36,7 @@ test('запрос публикации сохраняет один receipt и �
 test('канал другого проекта не получает запрос публикации', function (): void {
     Storage::fake('local');
     ['assembly' => $assembly, 'user' => $user] = acceptedEpisodePublication();
-    $foreign = Channel::factory()->create();
+    $foreign = Channel::factory()->recycle(workspaceOwner())->create();
     Queue::fake([PublishEpisodeJob::class]);
 
     expect(fn() => app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$foreign->id]), $user))

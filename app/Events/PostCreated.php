@@ -18,7 +18,12 @@ class PostCreated
     use InteractsWithSockets;
     use SerializesModels;
 
-    public function __construct(private readonly Post $post) {}
+    public ?int $ownerId = null;
+
+    public function __construct(private readonly Post $post)
+    {
+        $this->ownerId = $post->channel?->owner_id;
+    }
 
     public function post(): Post
     {

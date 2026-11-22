@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Data\Episodes\EpisodePublishingContextData;
 use App\Data\Publications\PublicationClaimData;
 use App\Data\Publications\PublicationResolutionData;
+use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\ContentAudience;
 use App\Enums\PublicationStatus;
 use App\Models\Channel;
@@ -15,6 +16,7 @@ use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\ProductionRun;
 use App\Models\Project;
+use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\SeriesAssembly;
@@ -34,16 +36,19 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return PublicationRequest::class;
     }
 
-    public function expireClaims(int $limit): int
+    /** @return Collection<int, PublicationRequest> */
+    public function expireClaims(int $limit): Collection
     {
         $expiredIds = PublicationRequest::query()->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->orderBy('id')->limit($limit)->pluck('id');
 
-        return PublicationRequest::query()->whereKey($expiredIds)
+        PublicationRequest::query()->whereKey($expiredIds)
             ->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN, 'error_message' => 'A worker stopped before confirming the external result. Inspect its receipt before retrying.']);
+
+        return PublicationRequest::query()->whereKey($expiredIds)->get();
     }
 
     /** @return Collection<int, PublicationRequest> */
@@ -52,7 +57,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return PublicationRequest::query()->where(function ($query): void {
             $query->where('status', PublicationStatus::PLANNED)
                 ->where(fn($slot) => $slot->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now()))
-                ->orWhere(fn($processing) => $processing->where('status', PublicationStatus::PROCESSING)
+                ->orWhere(fn($processing) => $processing->whereIn('status', [PublicationStatus::PROCESSING, PublicationStatus::INBOX])
                     ->whereNotNull('container_id')->where('submitted_at', '<=', now()->subMinutes(5)));
         })->orderBy('id')->limit($limit)->get();
     }
@@ -119,18 +124,41 @@ readonly class PublicationRequestRepository extends EloquentRepository
         }
 
         $channel = $channelQuery->firstOrFail();
+
+        if ($request->prompt_id !== null) {
+            $short = $request->prompt()->firstOrFail();
+
+            return new PublicationResolutionData($request, $channel, $short->project()->firstOrFail(), $short);
+        }
+
         $assembly = $request->series_assembly_id === null ? $request->assembly()->firstOrFail() : $request->seriesAssembly()->firstOrFail();
         $series = $assembly instanceof SeriesAssembly ? $assembly->series()->firstOrFail() : $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail()->series()->firstOrFail();
 
-        return new PublicationResolutionData($request, $channel, $assembly, $series);
+        return new PublicationResolutionData($request, $channel, $series->project()->firstOrFail());
     }
 
-    public function forFinalAssembly(SeriesAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $run): PublicationRequest
+    /** @return Collection<int, PublicationRequest> */
+    public function recentForOwner(User $owner): Collection
+    {
+        return PublicationRequest::query()->where('created_by', $owner->id)->whereRelation('channel', 'owner_id', $owner->id)
+            ->with('channel')->latest('id')->limit(20)->get();
+    }
+
+    public function forShort(Prompt $prompt, Channel $channel, int $ownerId, ?TiktokPublicationData $tiktok = null): PublicationRequest
+    {
+        return PublicationRequest::query()->firstOrCreate(['prompt_id' => $prompt->id, 'channel_id' => $channel->id], [
+            'created_by' => $ownerId, 'status' => PublicationStatus::PLANNED,
+            'payload' => ['title' => $tiktok->title ?? Str::limit($prompt->prompt, 97), 'description' => '', 'made_for_kids' => false,
+                ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : [])],
+        ]);
+    }
+
+    public function forFinalAssembly(SeriesAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $run, ?TiktokPublicationData $tiktok = null): PublicationRequest
     {
         $request = PublicationRequest::query()->firstOrCreate(
             ['release_key' => 'series:' . $assembly->series_id . ':single_video', 'channel_id' => $channel->id],
             ['series_assembly_id' => $assembly->id, 'created_by' => $actor->id, 'production_run_id' => $run?->id,
-                'status' => PublicationStatus::PLANNED, 'payload' => ['title' => Str::limit($assembly->series->name, 97),
+                'status' => PublicationStatus::PLANNED, 'payload' => [...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []), 'title' => Str::limit($assembly->series->name, 97),
                     'description' => $assembly->series->specification['premise'],
                     'made_for_kids' => ($assembly->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value]],
         );
@@ -179,11 +207,12 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return $slot->setTimezone(config()->string('app.timezone'));
     }
 
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt): PublicationRequest
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Channel $channel, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, ?TiktokPublicationData $tiktok = null): PublicationRequest
     {
         return PublicationRequest::query()->firstOrCreate(
             ['episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id],
             ['created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'scheduled_at' => $scheduledAt, 'status' => PublicationStatus::PLANNED, 'payload' => [
+                ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
                 'title' => Str::limit($context->revision->title, 97),
                 'description' => trim(($context->revision->public_caption ?? '') . "\n\n" . $context->series->name . ' · ' . $context->episode->number),
                 'use_public_description' => true,

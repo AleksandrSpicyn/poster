@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
+use function Tests\Support\workspaceOwner;
 
 test('выключение проекта блокирует отправку готового legacy контейнера', function (): void {
     [$channel, $prompt] = instagramModels();
@@ -33,11 +34,11 @@ test('выключение проекта блокирует отправку г
 /** @return array{Channel, Prompt} */
 function instagramModels(): array
 {
-    $channel = Channel::factory()->create([
+    $channel = Channel::factory()->recycle(workspaceOwner())->create([
         'type' => ChannelType::INSTAGRAM,
         'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1'],
     ]);
-    $prompt = Prompt::factory()->create(['project_id' => $channel->project_id]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $channel->project_id]);
 
     return [$channel, $prompt];
 }
@@ -112,7 +113,7 @@ test('отказ публикации контейнера не создаёт �
 
 test('общий канал проверяет фактический проект и текущее подключение', function (string $change): void {
     [$channel, $prompt] = instagramModels();
-    $channel->projects()->attach(Project::factory()->create());
+    $channel->projects()->attach(Project::factory()->recycle(workspaceOwner())->create());
     $publisher = app()->makeWith(Instagram::class, ['channel' => $channel, 'prompt' => $prompt]);
     Http::fake();
 

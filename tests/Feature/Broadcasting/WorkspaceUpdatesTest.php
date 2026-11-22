@@ -13,21 +13,22 @@ test('оператор подписывается на приватные ста
         'broadcasting.connections.reverb.secret' => 'test-secret', 'broadcasting.connections.reverb.app_id' => 'test-id']);
     require base_path('routes/channels.php');
 
-    actingAs(serialOperator())->postJson(route('broadcasting.auth'), [
-        'socket_id' => '123.456', 'channel_name' => 'private-workspace.series',
+    $operator = serialOperator();
+    actingAs($operator)->postJson(route('broadcasting.auth'), [
+        'socket_id' => '123.456', 'channel_name' => 'private-workspace.' . $operator->id,
     ])->assertOk()->assertJsonStructure(['auth']);
 });
 
-test('читатель получает общие статусы без доступа к сериалам', function (): void {
-    serialOperator();
+test('пользователь подписывается только на свою студию', function (): void {
+    $other = User::factory()->create();
     config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb.key' => 'test-key',
         'broadcasting.connections.reverb.secret' => 'test-secret', 'broadcasting.connections.reverb.app_id' => 'test-id']);
     require base_path('routes/channels.php');
     $reader = User::factory()->create();
 
-    actingAs($reader)->postJson(route('broadcasting.auth'), ['socket_id' => '123.456', 'channel_name' => 'private-workspace'])
+    actingAs($reader)->postJson(route('broadcasting.auth'), ['socket_id' => '123.456', 'channel_name' => 'private-workspace.' . $reader->id])
         ->assertOk()->assertJsonStructure(['auth']);
-    actingAs($reader)->postJson(route('broadcasting.auth'), ['socket_id' => '123.456', 'channel_name' => 'private-workspace.series'])
+    actingAs($reader)->postJson(route('broadcasting.auth'), ['socket_id' => '123.456', 'channel_name' => 'private-workspace.' . $other->id])
         ->assertForbidden();
 });
 

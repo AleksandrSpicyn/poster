@@ -8,6 +8,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('старая форма сериала ведёт к настройкам проекта', function (): void {
     $context = serialCharacterContext();
@@ -27,7 +28,7 @@ test('гость не открывает форму сериала', function ()
 
 test('форма скрывает сериал другого проекта', function (): void {
     $context = serialCharacterContext();
-    $other = Project::factory()->create();
+    $other = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())
         ->get(route('series.edit', ['project' => $other->id, 'series' => $context['series']->id]))

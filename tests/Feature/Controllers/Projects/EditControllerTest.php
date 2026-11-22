@@ -11,6 +11,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('форма проекта содержит настройки существующего сериала', function (): void {
     $context = serialCharacterContext();
@@ -26,9 +27,9 @@ test('форма проекта содержит настройки сущест
 });
 
 test('форма редактирования возвращает исходный промпт целиком', function (): void {
-    $project = Project::factory()->create(['prompt' => "Line one\nLine two <script>not executable</script>"]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['prompt' => "Line one\nLine two <script>not executable</script>"]);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.edit', $project))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -40,19 +41,19 @@ test('форма редактирования возвращает исходн�
 });
 
 test('несуществующий проект не открывается для редактирования', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.edit', 99999))
         ->assertNotFound();
 });
 
 test('гость не открывает редактирование', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     get(route('projects.edit', $project))->assertRedirect(route('login'));
 });
 
 test('неподтверждённый пользователь не открывает редактирование', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(User::factory()->unverified()->create())
         ->get(route('projects.edit', $project))
@@ -60,9 +61,9 @@ test('неподтверждённый пользователь не откры�
 });
 
 test('оператор получает все каналы и точный выбранный набор', function (): void {
-    $project = Project::factory()->create();
-    $attached = Channel::factory()->for($project)->create(['name' => 'Attached']);
-    Channel::factory()->create(['name' => 'Available']);
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $attached = Channel::factory()->recycle(workspaceOwner())->for($project)->create(['name' => 'Attached']);
+    Channel::factory()->recycle(workspaceOwner())->create(['name' => 'Available']);
 
     actingAs(serialOperator())->get(route('projects.edit', $project))->assertInertia(fn(Assert $page): Assert => $page
         ->has('channels', 2)->where('selectedChannelIds', [$attached->id])->missing('channels.0.credentials')->missing('channels.0.client_secret'));

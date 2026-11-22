@@ -50,6 +50,8 @@ export interface ListPageProps extends SharedData {
 }
 
 export interface PostsPageProps extends ListPageProps {
+    destinations: { id: number; name: string }[];
+    requests: { id: number; channel_name: string; status: string; error_message: string | null }[];
     posts: PaginatedResource<PostSummary>;
     allTypes: string;
     types: Record<string, string>;

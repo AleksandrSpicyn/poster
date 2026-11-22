@@ -66,7 +66,7 @@ test('подтверждённый посторонний пользовател
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->postJson(route('episodes.scripts.generate', ['series' => $episode->series_id, 'episode' => $episode]), ['brief' => 'Next scene', 'lock_version' => 0, 'request_key' => (string) Str::uuid()])
-        ->assertForbidden();
+        ->assertNotFound();
 
     expect($episode->refresh()->script_request_key)->toBeNull();
     Bus::assertNothingDispatched();

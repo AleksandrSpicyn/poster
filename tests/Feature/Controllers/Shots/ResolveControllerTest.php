@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('подтверждение задачи требует входа', function (): void {
     ['params' => $params, 'operation' => $operation] = resolveShotRouteFixture();
@@ -76,7 +77,7 @@ test('невалидный ID не передаётся провайдеру', f
 
 test('операция другого дубля не проходит вложенный scope', function (): void {
     ['params' => $params, 'operation' => $operation, 'actor' => $actor] = resolveShotRouteFixture();
-    $other = Prompt::factory()->create();
+    $other = Prompt::factory()->recycle(workspaceOwner())->create();
     $foreign = $other->generationOperations()->create(['stage' => GenerationOperationStage::VIDEO, 'status' => GenerationOperationStatus::SUBMISSION_UNKNOWN,
         'request_key' => 'foreign', 'idempotency_key' => hash('sha256', 'foreign'), 'request_snapshot' => []]);
     $params['operation'] = $foreign->id;
@@ -96,13 +97,13 @@ function resolveShotRouteFixture(): array
 {
     config(['services.seedance.api_key' => 'test']);
     $actor = serialOperator();
-    $series = Series::factory()->create();
-    $episode = Episode::factory()->for($series)->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create();
     $revision = EpisodeRevision::factory()->for($episode)->approved()->create(['context_snapshot' => ['specification_version' => 1]]);
     $episode->update(['current_revision_id' => $revision->id]);
     $scene = Scene::factory()->for($revision, 'episodeRevision')->create();
     $shot = Shot::factory()->for($scene)->create();
-    $prompt = Prompt::factory()->for($shot)->create(['project_id' => $series->project_id, 'take_number' => 1]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($shot)->create(['project_id' => $series->project_id, 'take_number' => 1]);
     $operation = $prompt->generationOperations()->create([
         'stage' => GenerationOperationStage::VIDEO, 'status' => GenerationOperationStatus::SUBMISSION_UNKNOWN,
         'request_key' => 'resolve-http', 'idempotency_key' => hash('sha256', 'resolve-http'),
@@ -121,7 +122,7 @@ test('подтверждённый пользователь без операт�
     Http::fake();
     Bus::fake();
 
-    actingAs($actor)->postJson(route('shots.resolve', $params), ['external_id' => 'remote-1'])->assertForbidden();
+    actingAs($actor)->postJson(route('shots.resolve', $params), ['external_id' => 'remote-1'])->assertNotFound();
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUBMISSION_UNKNOWN);
     Http::assertNothingSent();

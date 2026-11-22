@@ -45,8 +45,8 @@ test('ошибка валидации не помещает секрет в ст
         ->assertSessionHasErrors('name')->assertSessionMissing('_old_input.client_secret');
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    actingAs(User::factory()->create())->post(route('channels.store'), channelPayload())->assertForbidden();
+test('подтверждённому пользователю доступны свои каналы', function (): void {
+    actingAs(User::factory()->create())->post(route('channels.store'), channelPayload())->assertRedirect();
 
     Http::assertNothingSent();
 });

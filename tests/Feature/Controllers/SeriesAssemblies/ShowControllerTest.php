@@ -27,5 +27,5 @@ test('итоговый монтаж закрыт для гостя и польз
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
 
     get(route('series_assemblies.show', $assembly))->assertRedirect(route('login'));
-    actingAs(User::factory()->create())->get(route('series_assemblies.show', $assembly))->assertForbidden();
+    actingAs(User::factory()->create())->get(route('series_assemblies.show', $assembly))->assertNotFound();
 });

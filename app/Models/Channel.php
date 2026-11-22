@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\ChannelCredentials;
 use App\Enums\ChannelType;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  * Общий канал публикации: тип выбирает адаптер, credentials содержат его
  * OAuth/API-данные; один Prompt может породить Post в нескольких каналах.
  *
+ * @property int|null $owner_id
  * @property int $id
  * @property string|null $external_account
  * @property string $name
@@ -59,15 +61,25 @@ class Channel extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'type' => ChannelType::class,
-        'credentials' => 'array',
+        'credentials' => ChannelCredentials::class,
     ];
 
     public function canSendTiktokInboxVideo(): bool
     {
+        return $this->external_account === null && $this->hasTiktokScope('video.upload');
+    }
+
+    public function canDirectPostTiktok(): bool
+    {
+        return $this->external_account === null && config()->boolean('services.tiktok.direct_post') && $this->hasTiktokScope('video.publish');
+    }
+
+    public function hasTiktokScope(string $permission): bool
+    {
         $scope = $this->credentials['scope'] ?? null;
 
-        return $this->type === ChannelType::TIKTOK && $this->external_account === null
-            && filled($this->credentials['access_token'] ?? null) && is_string($scope) && in_array('video.upload', explode(',', $scope), true);
+        return $this->is_active && $this->type === ChannelType::TIKTOK && filled($this->credentials['access_token'] ?? null)
+            && is_string($scope) && in_array($permission, explode(',', $scope), true);
     }
 
     public function oauthClientId(): ?string

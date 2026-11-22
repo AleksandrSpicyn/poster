@@ -7,6 +7,7 @@ namespace App\Tasks\Prompts;
 use App\Data\GetPromptsListData;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\User;
 use App\Repositories\PromptRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -19,8 +20,8 @@ class GetPromptsList
     public function __construct(private readonly PromptRepository $prompts) {}
 
     /** @return LengthAwarePaginator<int, Prompt> */
-    public function run(GetPromptsListData $dto, ?Project $project = null): LengthAwarePaginator
+    public function run(User $owner, GetPromptsListData $dto, ?Project $project = null): LengthAwarePaginator
     {
-        return $this->prompts->paginate($dto, $project);
+        return $this->prompts->paginate($owner, $dto, $project);
     }
 }

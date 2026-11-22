@@ -34,14 +34,13 @@ class LoadPublicationResolution
             throw new AuthorizationException();
         }
 
-        Gate::forUser($actor)->authorize('manageSeries');
+        Gate::forUser($actor)->authorize('manageSeries', $request);
 
         $context = $this->publications->resolutionContext($request, $lock);
         $request = $context->request;
         $channel = $context->channel;
-        $series = $context->series;
 
-        if (! $this->users->isVerified($actor->id) || ! $this->channels->belongsToProject($channel, $series->project_id)) {
+        if (! $this->users->isVerified($actor->id) || $request->created_by !== $actor->id || $channel->owner_id !== $actor->id || $context->project->owner_id !== $actor->id || ! $this->channels->belongsToProject($channel, $context->project->id)) {
             throw ValidationException::withMessages(['publication' => 'A verified operator and a channel from this project are required.']);
         }
 
@@ -67,6 +66,7 @@ class LoadPublicationResolution
             $request->id,
             $request->payload['made_for_kids'],
             $request->series_assembly_id,
+            short: $context->short,
         ), $request);
     }
 }

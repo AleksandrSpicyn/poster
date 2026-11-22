@@ -13,6 +13,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\channelOAuthState;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 function legacyChannelOAuthState(Channel $channel): string
 {
@@ -23,7 +24,7 @@ function legacyChannelOAuthState(Channel $channel): string
 }
 
 test('YouTube callback сохраняет аккаунт и серверные токены один раз', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake([
@@ -43,7 +44,7 @@ test('YouTube callback сохраняет аккаунт и серверные �
 });
 
 test('Instagram callback обменивает короткий токен и проверяет аккаунт', function (bool $wrapped): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::INSTAGRAM]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::INSTAGRAM]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     $profile = ['user_id' => '12345', 'username' => 'wildlife_stories'];
@@ -62,7 +63,7 @@ test('Instagram callback обменивает короткий токен и п�
 })->with([true, false]);
 
 test('негодное состояние и отказ провайдера не меняют прежнее подключение', function (string $scenario): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
     $actor = serialOperator();
     actingAs($actor);
     $state = legacyChannelOAuthState($channel);
@@ -72,20 +73,26 @@ test('негодное состояние и отказ провайдера н�
     match ($scenario) {
         'unknown' => $params['state'] = 'unknown',
         'expired' => session()->put($pendingKey . '.expires_at', 0),
-        'user' => actingAs(serialOperator()),
+        'user' => actingAs(User::factory()->create()),
         'channel' => $channel->update(['client_id' => 'changed-app']),
         'cancelled' => $params = ['state' => $state, 'error' => 'access_denied'],
         default => throw new InvalidArgumentException('Unknown test scenario.'),
     };
 
-    get(route('channels.callback', [$channel, ...$params]))->assertSessionHasErrors('oauth');
+    $response = get(route('channels.callback', [$channel, ...$params]));
+
+    if ($scenario === 'user') {
+        $response->assertNotFound();
+    } else {
+        $response->assertSessionHasErrors('oauth');
+    }
 
     expect($channel->refresh()->credentials)->toBe(['access_token' => 'old-token']);
     Http::assertNothingSent();
 })->with(['unknown', 'expired', 'user', 'channel', 'cancelled']);
 
 test('ошибка провайдера не раскрывает токены и не стирает подключение', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake(['https://oauth2.googleapis.com/token' => Http::response(['error' => 'provider-secret-detail'], 400)]);
@@ -98,7 +105,7 @@ test('ошибка провайдера не раскрывает токены �
 });
 
 test('смена приложения во время обмена не сохраняет токены', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake([
@@ -117,7 +124,7 @@ test('смена приложения во время обмена не сохр
 });
 
 test('refresh token сохраняется только для того же YouTube аккаунта', function (string $account, bool $succeeds): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token', 'refresh_token' => 'old-refresh', 'channel_id' => 'original']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token', 'refresh_token' => 'old-refresh', 'channel_id' => 'original']]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake([
@@ -139,22 +146,22 @@ test('refresh token сохраняется только для того же You
     Http::assertSentCount(2);
 })->with([['original', true], ['other', false]]);
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    $channel = Channel::factory()->create();
-    actingAs(User::factory()->create())->get(route('channels.callback', $channel))->assertForbidden();
+test('пользователь не управляет чужим каналом', function (): void {
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
+    actingAs(User::factory()->create())->get(route('channels.callback', $channel))->assertNotFound();
 
     Http::assertNothingSent();
 });
 
 test('гость и неподтверждённый пользователь не открывают канал', function (): void {
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
     get(route('channels.callback', $channel))->assertRedirect(route('login'));
 
     actingAs(User::factory()->unverified()->create())->get(route('channels.callback', $channel))->assertRedirect(route('verification.notice'));
 });
 
 test('отсутствие права публикации не подключает Instagram', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::INSTAGRAM]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::INSTAGRAM]);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake(['https://api.instagram.com/oauth/access_token' => Http::response(['data' => [
@@ -168,7 +175,7 @@ test('отсутствие права публикации не подключа
 });
 
 test('игровой канал отклоняет подключение другого аккаунта', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake([
@@ -183,7 +190,7 @@ test('игровой канал отклоняет подключение дру
 });
 
 test('игровой канал находится на следующей странице даже без названия', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
     actingAs(serialOperator());
     $state = legacyChannelOAuthState($channel);
     Http::fake([

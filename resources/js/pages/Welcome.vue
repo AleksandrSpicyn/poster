@@ -5,7 +5,7 @@ import type { HomepageProps } from '@/types/homepage';
 
 const page = usePage<SharedData>();
 
-defineProps<{ homepage: HomepageProps; demoUrl: string | null }>();
+defineProps<{ homepage: HomepageProps; channelsUrl: string }>();
 </script>
 
 <template>
@@ -54,8 +54,8 @@ defineProps<{ homepage: HomepageProps; demoUrl: string | null }>();
                     <p class="mt-6 text-sm text-slate-600">
                         During Sandbox testing, participating creators use a private TikTok account and select “Only me”.
                     </p>
-                    <a v-if="demoUrl" :href="demoUrl" class="mt-4 inline-block font-semibold text-teal-800 underline underline-offset-4"
-                        >Open the TikTok creator workspace</a
+                    <a :href="channelsUrl" class="mt-4 inline-block font-semibold text-teal-800 underline underline-offset-4"
+                        >Connect TikTok in your workspace</a
                     >
                 </section>
             </div>

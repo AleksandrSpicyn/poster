@@ -6,6 +6,7 @@ namespace App\Tasks\Posts;
 
 use App\Data\GetPostsListData;
 use App\Models\Post;
+use App\Models\User;
 use App\Repositories\PostRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -18,8 +19,8 @@ class GetPostsList
     public function __construct(private readonly PostRepository $posts) {}
 
     /** @return LengthAwarePaginator<int, Post> */
-    public function run(GetPostsListData $dto): LengthAwarePaginator
+    public function run(User $owner, GetPostsListData $dto): LengthAwarePaginator
     {
-        return $this->posts->paginate($dto);
+        return $this->posts->paginate($owner, $dto);
     }
 }

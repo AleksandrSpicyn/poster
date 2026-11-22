@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Actions\Dashboard\GetDashboardAction;
 use App\Http\Resources\PostResource;
 use App\Http\Resources\PromptResource;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class DashboardController
@@ -15,7 +17,7 @@ class DashboardController
      * Обзор кабинета
      *
      * Общие счётчики и последние результаты генерации и публикации.
-     * Требуется сессия и подтверждённый email; индивидуального tenant scope нет.
+     * Показатели и последние записи относятся к проектам подтверждённого пользователя.
      * Обычный запрос возвращает HTML, Inertia-запрос — страницу Dashboard.
      *
      * @group Кабинет
@@ -77,9 +79,9 @@ class DashboardController
      * @responseField props.recentPrompts object Последние шесть генераций в формате PromptResource.
      * @responseField props.recentPosts object Последние пять публикаций в формате PostResource.
      */
-    public function __invoke(GetDashboardAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, GetDashboardAction $action): Response
     {
-        $dashboard = $action->run();
+        $dashboard = $action->run($owner);
 
         return inertia('Dashboard', [
             'stats' => [

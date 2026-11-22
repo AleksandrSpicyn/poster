@@ -8,8 +8,10 @@ use App\Models\Series;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 
+use function Tests\Support\workspaceOwner;
+
 test('изменения отправляются после commit без содержимого проекта', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     Event::fake([WorkspaceUpdated::class]);
 
     DB::transaction(function () use ($project): void {
@@ -17,12 +19,12 @@ test('изменения отправляются после commit без со�
         Event::assertNotDispatched(WorkspaceUpdated::class);
     });
 
-    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastOn()[0]->name === 'private-workspace'
-        && $event->broadcastWith() === ['changed' => true]);
+    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastOn()[0]->name === 'private-workspace.' . $project->owner_id
+        && $event->broadcastWith()['resource'] === 'Project' && $event->broadcastWith()['id'] === $project->id);
 });
 
 test('откат не отправляет обновление статусов', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     Event::fake([WorkspaceUpdated::class]);
 
     try {
@@ -39,10 +41,10 @@ test('откат не отправляет обновление статусов
 });
 
 test('изменения сериала не отправляются в общий канал', function (): void {
-    $series = Series::factory()->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
     Event::fake([WorkspaceUpdated::class]);
 
     $series->update(['name' => 'New title']);
 
-    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastOn()[0]->name === 'private-workspace.series');
+    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastOn()[0]->name === 'private-workspace.' . workspaceOwner()->id);
 });

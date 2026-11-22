@@ -9,7 +9,7 @@ import { useListFilters } from '@/composables/useListFilters';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { PostsPageProps } from '@/types/content';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 import { ExternalLink } from '@lucide/vue';
 import { useRoute } from 'ziggy-js';
 
@@ -29,6 +29,34 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
         <Head title="Posts" />
         <div class="workspace-page">
             <Heading title="Posts" description="Published videos across your channels. Your complete publishing history in one place." />
+            <section v-if="page.props.destinations.length" class="flex flex-wrap gap-3" aria-label="Create a TikTok publication">
+                <Link
+                    v-for="channel in page.props.destinations"
+                    :key="channel.id"
+                    :href="route('posts.tiktok.create', channel.id)"
+                    class="list-select"
+                >
+                    Publish to {{ channel.name }}
+                </Link>
+            </section>
+            <section v-if="page.props.requests.length" class="space-y-2">
+                <h2 class="font-semibold">Recent publication requests</h2>
+                <ul class="divide-y">
+                    <li v-for="item in page.props.requests" :key="item.id" class="py-2">
+                        #{{ item.id }} · {{ item.channel_name }} · {{ item.status }} <span v-if="item.error_message">{{ item.error_message }}</span>
+                        <Form
+                            v-if="item.status === 'submission_unknown'"
+                            :action="route('posts.requests.resolve', item.id)"
+                            method="post"
+                            v-slot="{ errors, processing }"
+                        >
+                            <label>External video ID <input name="external_id" class="list-select" required maxlength="128" /></label>
+                            <button type="submit" class="list-select" :disabled="processing">Verify publication</button>
+                            <p v-if="errors.external_id || errors.publication" role="alert">{{ errors.external_id ?? errors.publication }}</p>
+                        </Form>
+                    </li>
+                </ul>
+            </section>
             <ListPanel
                 :meta="page.props.posts.meta"
                 :count="page.props.posts.data.length"

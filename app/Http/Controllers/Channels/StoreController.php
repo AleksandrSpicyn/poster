@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\SaveChannelAction;
 use App\Data\Channels\ChannelData;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,9 +34,9 @@ class StoreController
      * @response 403 {"message":"This action is unauthorized."}
      * @response 422 {"message":"The given data was invalid.","errors":{}}
      */
-    public function __invoke(ChannelData $data, SaveChannelAction $action): RedirectResponse
+    public function __invoke(#[CurrentUser] User $owner, ChannelData $data, SaveChannelAction $action): RedirectResponse
     {
-        $channel = $action->run($data);
+        $channel = $action->run($owner, $data);
         Inertia::flash('success', 'Channel created. Add this connection to your projects.');
 
         return to_route('channels.edit', $channel);

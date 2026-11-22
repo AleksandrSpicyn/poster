@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\Process;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('создание эпизода не запускает генерацию', function (): void {
-    $series = Series::factory()->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
     Process::fake();
 
     $response = actingAs(serialOperator())->post(route('episodes.store', $series), ['title' => 'The first meeting']);
@@ -24,7 +25,7 @@ test('создание эпизода не запускает генерацию
 });
 
 test('гость не создаёт эпизод', function (): void {
-    $series = Series::factory()->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
 
     post(route('episodes.store', $series), ['title' => 'First'])->assertRedirect(route('login'));
 

@@ -18,7 +18,7 @@ class UpdatePublicationState
         $updated = $this->publications->updateUnpublished($request, $status, $containerId, $error);
 
         if ($updated > 0) {
-            WorkspaceUpdated::dispatch(true);
+            WorkspaceUpdated::forResource($request);
         }
     }
 }

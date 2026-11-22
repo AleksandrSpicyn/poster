@@ -89,7 +89,7 @@ test('решение ждёт завершения текущей проверк
 
 test('отозванный оператор не закрывает неизвестную операцию через Action', function (): void {
     ['operation' => $operation, 'actor' => $actor] = abandonShotActionFixture();
-    User::query()->whereKey($actor->id)->update(['email' => 'revoked@example.test']);
+    User::query()->whereKey($actor->id)->update(['email_verified_at' => null]);
 
     expect(fn() => app(AbandonShotGenerationAction::class)->run($operation, new AbandonShotGenerationData('Reviewed.', true), $actor))
         ->toThrow(AuthorizationException::class);

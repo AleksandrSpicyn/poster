@@ -7,6 +7,9 @@ export interface ManagedChannel {
     type_label: string;
     is_active: boolean;
     connected: boolean;
+    tiktok_inbox: boolean;
+    tiktok_direct: boolean;
+    tiktok_statistics: boolean;
     account_name: string | null;
     expires_at: string | null;
     client_id: string | null;

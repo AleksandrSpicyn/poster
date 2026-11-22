@@ -57,7 +57,7 @@ test('пропускает чужую авторизацию до запроса
 test('TikTok обновляет токен игрового канала и сохраняет показатели его клипа', function (): void {
     $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
     $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'external_account' => 'gaming',
-        'credentials' => ['channel_id' => 'gaming', 'access_token' => 'expired', 'refresh_token' => 'old', 'expires_at' => now()->subHour()->toIso8601String()]]);
+        'credentials' => ['channel_id' => 'gaming', 'access_token' => 'expired', 'scope' => 'video.list', 'refresh_token' => 'old', 'expires_at' => now()->subHour()->toIso8601String()]]);
     OpusClip::factory()->for(OpusSource::factory()->for($project), 'source')->create(['publications' => [
         ['platform' => 'tiktok', 'url' => 'https://www.tiktok.com/@player/video/123456789'],
     ]]);

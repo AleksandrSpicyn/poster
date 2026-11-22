@@ -18,6 +18,7 @@ readonly class StartChannelAuthorization
     public function run(Channel $channel, User $actor): string
     {
         $channel = $this->channels->findOrFail($channel->id);
+        abort_unless($channel->owner_id === $actor->id, 404);
         $state = Str::random(64);
         $url = $this->oauth->authorizationUrl($channel, $state);
         $this->session->put('channel_oauth.' . hash('sha256', $state), [

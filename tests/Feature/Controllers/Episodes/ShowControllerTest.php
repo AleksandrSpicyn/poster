@@ -9,11 +9,12 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\workspaceOwner;
 
 test('рабочая область отдаёт сценарий и скрывает ключи каналов и payload задания', function (): void {
     $context = episodeHttpFixture();
     $series = $context['episode']->series()->firstOrFail();
-    Channel::factory()->create(['project_id' => $series->project_id, 'client_secret' => 'hidden-oauth-secret', 'credentials' => ['access_token' => 'hidden-access-token']]);
+    Channel::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'client_secret' => 'hidden-oauth-secret', 'credentials' => ['access_token' => 'hidden-access-token']]);
     $context['episode']->update(['script_request_payload' => ['private' => 'hidden-script-request']]);
     $context['revision']->update(['context_snapshot' => array_replace($context['revision']->context_snapshot, [
         'private' => 'hidden-context-internal',
@@ -38,7 +39,7 @@ test('рабочая область отдаёт сценарий и скрыв�
 
 test('рабочая область скрыта в другом сериале', function (): void {
     $context = episodeHttpFixture();
-    $other = Series::factory()->create();
+    $other = Series::factory()->recycle(workspaceOwner())->create();
 
     actingAs($context['user'])
         ->get(route('episodes.show', ['series' => $other, 'episode' => $context['episode']]))
@@ -51,5 +52,5 @@ test('подтверждённый посторонний пользовател
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('episodes.show', ['series' => $context['episode']->series_id, 'episode' => $context['episode']]))
-        ->assertForbidden();
+        ->assertNotFound();
 });

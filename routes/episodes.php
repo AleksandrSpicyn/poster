@@ -14,20 +14,22 @@ use App\Http\Controllers\EpisodeScripts\ApproveController;
 use App\Http\Controllers\EpisodeScripts\GenerateController;
 use App\Http\Controllers\Shots;
 use App\Http\Controllers\Shots\CancelController;
+use App\Http\Middleware\VerifyExportOwner;
+use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
 
 Route::get('episode-exports/{assembly}/media/{media}', ExportController::class)
     ->whereNumber(['assembly', 'media'])
     ->scopeBindings()
-    ->middleware('signed')
+    ->middleware(['signed', VerifyExportOwner::class])
     ->name('episodes.export');
 
 Route::get('episode-media/{media}', EpisodeMediaShowController::class)
     ->whereNumber('media')
-    ->middleware(['auth', 'verified', 'can:manageSeries'])
+    ->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])
     ->name('episodes.media.preview');
 
-Route::prefix('series/{series}/episodes')->whereNumber('series')->middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->group(function (): void {
+Route::prefix('series/{series}/episodes')->whereNumber('series')->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->scopeBindings()->group(function (): void {
     Route::post('', StoreController::class)->name('episodes.store');
 
     Route::prefix('{episode}')->whereNumber('episode')->group(function (): void {

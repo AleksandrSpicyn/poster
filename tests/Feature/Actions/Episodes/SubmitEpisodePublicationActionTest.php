@@ -129,7 +129,7 @@ test('отзыв доступа блокирует отправку и публ�
         $request->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'existing-container']);
     }
 
-    $user->forceFill(['email' => 'revoked@example.test'])->save();
+    $user->forceFill(['email_verified_at' => null])->save();
 
     if ($container) {
         app(FinishEpisodePublicationAction::class)->run($request);
@@ -139,7 +139,7 @@ test('отзыв доступа блокирует отправку и публ�
 
     expect($request->refresh()->status)->toBe(PublicationStatus::FAILED);
     expect(Post::query()->exists())->toBeFalse();
-    expect($user->hasVerifiedEmail())->toBeTrue();
+    expect($user->hasVerifiedEmail())->toBeFalse();
     Http::assertNothingSent();
     Event::assertNotDispatched(PostCreated::class);
     Queue::assertNotPushed(FinishEpisodePublicationJob::class);
@@ -183,7 +183,7 @@ test('TikTok отправляет один черновик и ждёт публ
     app(SubmitEpisodePublicationAction::class)->run($request);
     app(FinishEpisodePublicationAction::class)->run($request->refresh());
 
-    expect($request->refresh()->status)->toBe(PublicationStatus::PROCESSING)
+    expect($request->refresh()->status)->toBe(PublicationStatus::INBOX)
         ->and($request->container_id)->toBe('receipt')
         ->and(Post::query()->count())->toBe(0);
 

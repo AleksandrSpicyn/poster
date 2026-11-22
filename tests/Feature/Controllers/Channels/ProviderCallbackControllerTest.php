@@ -12,13 +12,14 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\channelOAuthState;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('YouTube callback сохраняет аккаунт и серверные токены один раз', function (): void {
     config(['services.youtube.client_id' => 'shared-client', 'services.youtube.client_secret' => 'shared-secret']);
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'client_id' => null, 'client_secret' => null]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'client_id' => null, 'client_secret' => null]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
-    $other = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $other = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
     $otherState = channelOAuthState($other);
     Http::fake([
         'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'access-1', 'refresh_token' => 'refresh-1', 'expires_in' => 3600]),
@@ -39,7 +40,7 @@ test('YouTube callback сохраняет аккаунт и серверные �
 });
 
 test('Instagram callback обменивает короткий токен и проверяет аккаунт', function (bool $wrapped): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::INSTAGRAM]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::INSTAGRAM]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
     $profile = ['user_id' => '12345', 'username' => 'wildlife_stories'];
@@ -58,7 +59,7 @@ test('Instagram callback обменивает короткий токен и п�
 })->with([true, false]);
 
 test('чужой провайдер и неизвестное состояние не получают токен', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
 
@@ -73,7 +74,7 @@ test('чужой провайдер и неизвестное состояние
 
 test('TikTok использует общий ключ и сверяет неизменяемый ID автора', function (string $returned, bool $connected): void {
     config(['services.tiktok.client_id' => 'shared-key', 'services.tiktok.client_secret' => 'shared-secret']);
-    $channel = Channel::factory()->create(['type' => ChannelType::TIKTOK, 'external_account' => 'owner', 'client_id' => null, 'client_secret' => null]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::TIKTOK, 'external_account' => 'owner', 'client_id' => null, 'client_secret' => null]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
     Http::fake([
@@ -84,12 +85,12 @@ test('TikTok использует общий ключ и сверяет неиз
     get(route('channels.provider-callback', ['tiktok', 'state' => $state, 'code' => 'code']))->assertRedirect(route('channels.edit', $channel));
 
     expect(filled($channel->refresh()->credentials))->toBe($connected);
-    Http::assertSent(fn(Request $request): bool => $request->url() === 'https://open.tiktokapis.com/v2/oauth/token/' && $request['client_key'] === 'shared-key' && $request['redirect_uri'] === route('channels.provider-callback', 'tiktok'));
+    Http::assertSent(fn(Request $request): bool => $request->url() === 'https://open.tiktokapis.com/v2/oauth/token/' && $request['client_key'] === 'shared-key' && $request['redirect_uri'] === route('channels.tiktok-redirect'));
 })->with([['owner', true], ['foreign', false]]);
 
 test('подключение игрового TikTok закрепляет владельца без доступа к отправке роликов из Poster', function (): void {
-    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
-    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::TIKTOK]);
     actingAs(serialOperator());
     $state = channelOAuthState($channel);
     Http::fake([

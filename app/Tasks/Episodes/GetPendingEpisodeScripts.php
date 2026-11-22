@@ -19,8 +19,8 @@ class GetPendingEpisodeScripts
         $limit = max(1, min(100, $limit));
         $updated = $this->episodes->expireScriptClaims($limit);
 
-        if ($updated > 0) {
-            WorkspaceUpdated::dispatch(true);
+        foreach ($updated as $resource) {
+            WorkspaceUpdated::forResource($resource);
         }
 
         return $this->episodes->pendingScripts($limit);

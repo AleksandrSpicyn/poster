@@ -47,15 +47,16 @@ use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
 use function Tests\Support\storyScriptPayload;
+use function Tests\Support\workspaceOwner;
 
 test('очередь останавливает выпуск выключенного проекта', function (ProjectContentMode $mode): void {
     Bus::fake();
     Process::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['is_active' => false, 'content_mode' => $mode]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['is_active' => false, 'content_mode' => $mode]);
     $series = $mode === ProjectContentMode::SERIES
-        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
-    $run = ProductionRun::factory()->for($project)->create(['series_id' => $series?->id, 'actor_id' => $actor->id]);
+        ? Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->create(['series_id' => $series?->id, 'actor_id' => $actor->id]);
 
     app(AdvanceProductionAction::class)->run($run->id);
 
@@ -75,13 +76,13 @@ test('неизвестный результат дубля останавлив�
     $project->update(['content_mode' => ProjectContentMode::SERIES]);
 
     $series->update(['automation_enabled' => true, 'automation_user_id' => $fixture['user']->id]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
-    $prompt = Prompt::factory()->for($project)->create(['shot_id' => $fixture['shot']->id]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($project)->create(['shot_id' => $fixture['shot']->id]);
     $operation = $prompt->generationOperations()->create([
         'stage' => GenerationOperationStage::VIDEO, 'status' => GenerationOperationStatus::SUBMISSION_UNKNOWN,
         'request_key' => 'unknown-production', 'idempotency_key' => 'unknown-production', 'request_snapshot' => [],
     ]);
-    $run = ProductionRun::factory()->for($project)->for($series)->create([
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->for($series)->create([
         'actor_id' => $fixture['user']->id, 'episode_id' => $fixture['episode']->id,
         'status' => ProductionStatus::WAITING, 'stage' => ProductionStage::MEDIA,
     ]);
@@ -106,7 +107,7 @@ test('непригодный сюжет останавливает выпуск 
     $project->update(['content_mode' => ProjectContentMode::SERIES]);
 
     $series->update(['automation_enabled' => true, 'automation_user_id' => $fixture['user']->id]);
-    Channel::factory()
+    Channel::factory()->recycle(workspaceOwner())
         ->for($project)
         ->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
     $assembly = EpisodeAssembly::factory()
@@ -121,7 +122,7 @@ test('непригодный сюжет останавливает выпуск 
         'scene_closed' => false,
         'review_notes' => 'The action loops without the planned visible payoff.',
     ];
-    $run = ProductionRun::factory()
+    $run = ProductionRun::factory()->recycle(workspaceOwner())
         ->for($project)
         ->for($series)
         ->create([
@@ -161,8 +162,8 @@ test('проводит выпуск до публикации и продолж�
     Event::fake([PostCreated::class]);
     config(['services.video.provider' => 'seedance', 'services.seedance.api_key' => 'test']);
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create([
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create([
         'automation_enabled' => true, 'automation_user_id' => $actor->id, 'episode_limit' => 1,
         'specification' => ['premise' => 'A cat discovers everyday objects.', 'visual_style' => 'animation',
             'language' => 'en', 'audience' => 'general', 'episode_duration_seconds' => 5,
@@ -172,7 +173,7 @@ test('проводит выпуск до публикации и продолж�
     $appearance = CharacterRevision::factory()->for($character)->approved()->create();
     serialReferenceMedia($appearance);
     $character->update(['current_revision_id' => $appearance->id]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM,
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::INSTAGRAM,
         'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-production']]);
     $videoPath = $disk->path('provider-video.mp4');
     Process::run(['ffmpeg', '-v', 'error', '-nostdin', '-y', '-stream_loop', '-1',
@@ -268,9 +269,9 @@ test('ожидает персонажей без запуска платной �
     Bus::fake();
     Http::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
     $run = app(StartProductionAction::class)->run($project, 'no-character', $actor, $series->id)->sole();
 
     app(AdvanceProductionAction::class)->run($run->id);
@@ -285,9 +286,9 @@ test('сам утверждает загруженные референсы и �
     Storage::fake('local');
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
     $character = Character::factory()->for($series)->create();
     $revision = CharacterRevision::factory()->for($character)->create();
     serialReferenceMedia($revision);
@@ -308,8 +309,8 @@ test('сам утверждает загруженные референсы и �
 test('пауза сериала останавливает следующие этапы', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
     $run = app(StartProductionAction::class)->run($project, 'pause', $actor, $series->id)->sole();
     $series->update(['automation_enabled' => false]);
 
@@ -323,9 +324,9 @@ test('неподключённый или выключенный канал за
     Bus::fake();
     Process::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create();
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'is_active' => $enabled, 'credentials' => $credentials]);
-    $run = ProductionRun::factory()->for($project)->create(['actor_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'is_active' => $enabled, 'credentials' => $credentials]);
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->create(['actor_id' => $actor->id]);
 
     app(AdvanceProductionAction::class)->run($run->id);
 

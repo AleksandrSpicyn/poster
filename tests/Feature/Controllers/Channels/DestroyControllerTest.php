@@ -16,9 +16,10 @@ use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\delete;
 use function Tests\Support\acceptedEpisodePublication;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('канал без связей и истории удаляется', function (): void {
-    $channel = Channel::factory()->create(['project_id' => null]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['project_id' => null, 'owner_id' => workspaceOwner()->id]);
 
     actingAs(serialOperator())->delete(route('channels.destroy', $channel))->assertRedirect(route('channels.index'));
 
@@ -27,7 +28,7 @@ test('канал без связей и истории удаляется', func
 });
 
 test('связанный канал сохраняется при попытке удаления', function (): void {
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())->delete(route('channels.destroy', $channel))->assertSessionHasErrors('channel');
 
@@ -36,8 +37,8 @@ test('связанный канал сохраняется при попытке
 });
 
 test('история публикации запрещает удаление даже без проектов', function (): void {
-    $channel = Channel::factory()->create(['project_id' => null]);
-    $post = Post::factory()->for($channel)->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['project_id' => null, 'owner_id' => workspaceOwner()->id]);
+    $post = Post::factory()->recycle(workspaceOwner())->for($channel)->create();
 
     actingAs(serialOperator())->delete(route('channels.destroy', $channel))->assertSessionHasErrors('channel');
 
@@ -45,15 +46,15 @@ test('история публикации запрещает удаление д
     expect($post->fresh())->not->toBeNull();
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    $channel = Channel::factory()->create();
-    actingAs(User::factory()->create())->delete(route('channels.destroy', $channel))->assertForbidden();
+test('пользователь не управляет чужим каналом', function (): void {
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
+    actingAs(User::factory()->create())->delete(route('channels.destroy', $channel))->assertNotFound();
 
     Http::assertNothingSent();
 });
 
 test('гость и неподтверждённый пользователь не открывают канал', function (): void {
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
     delete(route('channels.destroy', $channel))->assertRedirect(route('login'));
 
     actingAs(User::factory()->unverified()->create())->delete(route('channels.destroy', $channel))->assertRedirect(route('verification.notice'));

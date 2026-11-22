@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Models\User;
+use App\Support\WorkspaceOwner;
 use Illuminate\Container\Attributes\Config;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Ограничивает логи владельцем, очереди операторами, сериалы обеими группами.
@@ -34,9 +36,8 @@ readonly class OperationsPolicy
         return $this->manageSeries($user);
     }
 
-    public function manageSeries(User $user): bool
+    public function manageSeries(User $user, ?Model $resource = null): bool
     {
-        return $user->hasVerifiedEmail()
-            && ($user->email === $this->ownerEmail || in_array($user->email, $this->queueOperators, true));
+        return $user->hasVerifiedEmail() && (! $resource instanceof Model || WorkspaceOwner::id($resource) === $user->id);
     }
 }

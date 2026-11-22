@@ -14,6 +14,7 @@ use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Shot;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -28,11 +29,11 @@ readonly class PromptRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Prompt> */
-    public function paginate(GetPromptsListData $dto, ?Project $project = null): LengthAwarePaginator
+    public function paginate(User $owner, GetPromptsListData $dto, ?Project $project = null): LengthAwarePaginator
     {
         $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
 
-        $query = Prompt::query()->whereNull('shot_id')->with('project', 'media');
+        $query = Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->with('project', 'media');
 
         if ($project instanceof Project) {
             $query->whereBelongsTo($project);
@@ -59,25 +60,25 @@ readonly class PromptRepository extends EloquentRepository
         return $project->prompts()->whereNull('shot_id')->latest()->limit(50)->get(['prompt'])->map(fn(Prompt $prompt): string => $prompt->prompt);
     }
 
-    public function legacyCount(): int
+    public function legacyCount(User $owner): int
     {
-        return Prompt::query()->whereNull('shot_id')->count();
+        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->count();
     }
 
-    public function readyCount(): int
+    public function readyCount(User $owner): int
     {
-        return Prompt::query()->whereNull('shot_id')->where('generated', true)->count();
+        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->where('generated', true)->count();
     }
 
-    public function pendingCount(): int
+    public function pendingCount(User $owner): int
     {
-        return Prompt::query()->whereNull('shot_id')->where('generated', false)->count();
+        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->where('generated', false)->count();
     }
 
     /** @return EloquentCollection<int, Prompt> */
-    public function recentForDashboard(): EloquentCollection
+    public function recentForDashboard(User $owner): EloquentCollection
     {
-        return Prompt::query()->whereNull('shot_id')->with('project', 'media')->latest()->latest('id')->limit(6)->get();
+        return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->with('project', 'media')->latest()->latest('id')->limit(6)->get();
     }
 
     public function forAudioTask(string $taskId): ?Prompt

@@ -30,6 +30,7 @@ use function Pest\Laravel\assertDatabaseCount;
 use function Tests\Support\consoleCommand;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 beforeEach(/** @throws Exception */ function (): void {
     config([
@@ -53,13 +54,13 @@ test('сценарий генерации сохраняет результат�
         '*generate' => Http::response(['data' => ['taskId' => 'audio-1']]),
     ]);
 
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $actor = serialOperator();
     config(['services.admin.email' => $actor->email]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
     Bus::fake([AdvanceProductionJob::class]);
 
-    Prompt::factory()
+    Prompt::factory()->recycle(workspaceOwner())
         ->for($project)
         ->create(['prompt' => 'Earlier idea']);
 
@@ -100,7 +101,7 @@ test('отказ обоих видео-провайдеров не запуск�
     AnonymousAgent::fake(['An idea'])->preventStrayPrompts();
     Http::fake(['*video_generation' => Http::response([], 429), '*image_to_video' => Http::response([], 400)]);
 
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     expect(fn() => app(MakeShortAction::class)->run($project))->toThrow(RequestException::class);
 
@@ -142,10 +143,10 @@ test('команда не создаёт резервную задачу пос�
     Event::fake([VideoGenerating::class, AudioGenerating::class]);
     AnonymousAgent::fake(['An idea'])->preventStrayPrompts();
     Http::fake(['*video_generation' => Http::response([], 503)]);
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $actor = serialOperator();
     config(['services.admin.email' => $actor->email]);
-    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
     Bus::fake([AdvanceProductionJob::class]);
 
     consoleCommand('app:make-short')->assertSuccessful();

@@ -26,12 +26,13 @@ use function Pest\Laravel\actingAs;
 use function Tests\Support\acceptedEpisodePublication;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('остановка не позволяет поставить готовый контейнер на публикацию', function (): void {
     Storage::fake('local');
     Bus::fake();
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
-    $run = ProductionRun::factory()->create(['project_id' => $channel->project_id, 'episode_assembly_id' => $assembly->id]);
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->create(['project_id' => $channel->project_id, 'episode_assembly_id' => $assembly->id]);
     $publication = app(CreatePublicationRequest::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user, $run)->sole();
     $publication->update(['status' => PublicationStatus::PROCESSING, 'container_id' => 'already-uploaded']);
 
@@ -54,7 +55,7 @@ test('остановленный выпуск блокирует задержа�
     $series = $episode->series()->firstOrFail();
     $series->update(['automation_enabled' => true]);
 
-    $run = ProductionRun::factory()->for($series)->create([
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($series)->create([
         'project_id' => $channel->project_id, 'episode_assembly_id' => $assembly->id, 'episode_id' => $episode->id,
     ]);
 
@@ -83,10 +84,10 @@ test('остановка сохраняет поздний оплаченный 
     config(['services.seedance.api_key' => 'test']);
     ['episode' => $episode, 'shot' => $shot, 'user' => $user] = episodeHttpFixture();
     $series = $episode->series()->firstOrFail();
-    $run = ProductionRun::factory()->for($series)->create([
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($series)->create([
         'project_id' => $series->project_id, 'episode_id' => $episode->id,
     ]);
-    $prompt = Prompt::factory()->create(['project_id' => $series->project_id, 'shot_id' => $shot->id]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'shot_id' => $shot->id]);
     $operation = $prompt->generationOperations()->create([
         'production_run_id' => $run->id, 'stage' => GenerationOperationStage::VIDEO,
         'status' => GenerationOperationStatus::SUBMITTED, 'provider' => VideoProvider::SEEDANCE,
@@ -117,7 +118,7 @@ test('остановка сохраняет поздний оплаченный 
 
 test('остановка сохраняет выпуск и не запускает следующие этапы', function (): void {
     Bus::fake();
-    $run = ProductionRun::factory()->create();
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())->post(route('production_runs.stop', $run))->assertRedirect();
 
@@ -131,9 +132,9 @@ test('остановка сохраняет выпуск и не запуска�
 test('посторонний пользователь не останавливает выпуск', function (): void {
     Bus::fake();
     serialOperator();
-    $run = ProductionRun::factory()->create();
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())->postJson(route('production_runs.stop', $run))->assertForbidden();
+    actingAs(User::factory()->create())->postJson(route('production_runs.stop', $run))->assertNotFound();
 
     expect($run->refresh()->status)->toBe(ProductionStatus::QUEUED);
     Bus::assertNothingDispatched();

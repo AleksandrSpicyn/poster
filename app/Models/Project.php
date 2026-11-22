@@ -16,8 +16,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Группирует исходную тему, историю генераций и каналы доставки роликов.
- * В текущей схеме не привязан к User: кабинет показывает общие данные приложения.
  *
+ * @property int|null $owner_id
  * @property int $id
  * @property int|null $opus_source_id
  * @property string|null $clipping_workspace

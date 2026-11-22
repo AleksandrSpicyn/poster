@@ -46,10 +46,11 @@ final readonly class OpusClipRepository extends EloquentRepository
 
             if ($origin->wasRecentlyCreated) {
                 $card = new Project(['name' => $name, 'prompt' => '', 'is_active' => $project->is_active]);
+                $card->owner_id = $project->owner_id;
                 $card->opus_source_id = $origin->id;
                 $card->save();
             } elseif ($oldName !== $name) {
-                Project::query()->where('opus_source_id', $origin->id)->where('name', $oldName)->update(['name' => $name]);
+                Project::query()->where('opus_source_id', $origin->id)->where('owner_id', $project->owner_id)->where('name', $oldName)->update(['name' => $name]);
             }
 
             foreach ($clips as $clip) {
@@ -83,7 +84,7 @@ final readonly class OpusClipRepository extends EloquentRepository
         $clips = $this->query();
 
         if ($project->opus_source_id !== null) {
-            $clips->where('opus_source_id', $project->opus_source_id);
+            $clips->where('opus_source_id', $project->opus_source_id)->whereRelation('source.project', 'owner_id', $project->owner_id);
         } else {
             $clips->whereRelation('source', 'project_id', $project->id);
         }

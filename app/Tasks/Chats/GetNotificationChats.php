@@ -13,8 +13,8 @@ readonly class GetNotificationChats
     public function __construct(private ChatRepository $chats) {}
 
     /** @return LazyCollection<int, Chat> */
-    public function run(): LazyCollection
+    public function run(?int $ownerId): LazyCollection
     {
-        return $this->chats->forNotifications();
+        return $this->chats->forNotifications($ownerId);
     }
 }

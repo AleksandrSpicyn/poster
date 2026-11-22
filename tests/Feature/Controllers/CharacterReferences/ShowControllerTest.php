@@ -51,5 +51,5 @@ test('подтверждённый посторонний пользовател
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('characters.references.show', ['revision' => $context['revision'], 'media' => $media]))
-        ->assertForbidden();
+        ->assertNotFound();
 });

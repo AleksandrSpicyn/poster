@@ -12,13 +12,11 @@ use App\Models\User;
 use App\Repositories\ProjectRepository;
 use App\Repositories\SeriesRepository;
 use App\Repositories\UserRepository;
-use Illuminate\Container\Attributes\Config;
 use Illuminate\Validation\ValidationException;
 
 readonly class GetProductionTargets
 {
     public function __construct(
-        #[Config('services.admin.email')] private string $ownerEmail,
         private ProjectRepository $projects,
         private UserRepository $users,
         private SeriesRepository $series,
@@ -50,7 +48,7 @@ readonly class GetProductionTargets
                 throw ValidationException::withMessages(['series_id' => 'Select a series project before requesting an episode.']);
             }
 
-            $actor ??= $this->users->byEmail($this->ownerEmail);
+            $actor ??= $project->owner_id === null ? null : $this->users->find($project->owner_id);
 
             return $actor instanceof User ? [new ProductionTargetData(null, $actor)] : [];
         }

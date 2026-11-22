@@ -16,6 +16,8 @@ use App\Http\Resources\ChannelResource;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\SeriesResource;
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Response;
 
@@ -37,9 +39,9 @@ class EditController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, GetProjectFormAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, Project $project, GetProjectFormAction $action): Response
     {
-        $details = $action->run($project);
+        $details = $action->run($owner, $project);
         $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
 
         return inertia('Projects/Form', [

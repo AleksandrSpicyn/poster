@@ -30,7 +30,7 @@ class ClaimEpisodeScript
 
             $payload = $episode->script_request_payload;
             $actor = $episode->script_requested_by === null ? null : $this->users->find($episode->script_requested_by);
-            $actorAllowed = $actor instanceof User && Gate::forUser($actor)->allows('manageSeries');
+            $actorAllowed = $actor instanceof User && $actor->id === $project->owner_id && Gate::forUser($actor)->allows('manageSeries');
 
             if ($series->cycle_paused_at !== null || ! $project->is_active || ! $actorAllowed || $payload === null || $payload['expected_version'] !== $episode->lock_version
                 || $series->archived_at !== null || ($payload['context']['continuity_version'] ?? null) !== $series->continuity_version

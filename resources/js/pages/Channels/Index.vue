@@ -42,7 +42,7 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
                 :loading="loading"
                 :error="error"
                 empty-title="Connect your first channel"
-                empty-description="Add a YouTube channel or Instagram professional account to start publishing from your projects."
+                empty-description="Add a YouTube, Instagram or TikTok account to start publishing from your projects."
                 @page="changePage"
                 @refresh="refresh"
             >
@@ -76,6 +76,9 @@ const { loading, error, changePage, refresh } = useListFilters('channels.index',
                                         >{{ channel.posts_count ?? 0 }} posts · {{ channel.projects?.length ?? 0 }} projects</span
                                     >
                                 </div>
+                                <p v-if="channel.type === 'tiktok' && channel.connected" class="text-sm">
+                                    {{ [channel.tiktok_statistics && 'Statistics', channel.tiktok_inbox && 'Inbox upload', channel.tiktok_direct && 'Direct Post'].filter(Boolean).join(' · ') || 'No active permissions' }}
+                                </p>
                                 <div v-if="channel.projects?.length" class="flex flex-wrap gap-x-3 gap-y-1 pt-1">
                                     <Link
                                         v-for="project in channel.projects"

@@ -22,7 +22,7 @@ class CompleteEpisodeScriptRequest
         }
 
         if ($updated > 0) {
-            WorkspaceUpdated::dispatch(true);
+            WorkspaceUpdated::forResource($episode);
         }
     }
 }

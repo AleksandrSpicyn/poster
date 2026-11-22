@@ -22,7 +22,7 @@ readonly class RequestShotGenerationAction
 
     public function run(Shot $shot, User $actor, ?int $sourcePromptId = null, ?string $requestKey = null, bool $newTake = false): Prompt
     {
-        Gate::forUser($this->refreshUser->run($actor))->authorize('manageSeries');
+        Gate::forUser($this->refreshUser->run($actor))->authorize('manageSeries', $shot);
 
         if ($requestKey !== null && (strlen($requestKey) > 100 || trim($requestKey) === '')) {
             throw ValidationException::withMessages(['generation' => 'A valid request key is required.']);

@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Posts\ListController as PostsListController;
+use App\Http\Controllers\Posts\ResolveController;
+use App\Http\Controllers\Posts\TiktokCreateController;
+use App\Http\Controllers\Posts\TiktokPreviewController;
+use App\Http\Controllers\Posts\TiktokStoreController;
 use App\Http\Controllers\Projects\CreateController as ProjectsCreateController;
 use App\Http\Controllers\Projects\DestroyController as ProjectsDestroyController;
 use App\Http\Controllers\Projects\EditController as ProjectsEditController;
@@ -13,6 +17,9 @@ use App\Http\Controllers\Projects\ShowController as ProjectsShowController;
 use App\Http\Controllers\Projects\StoreController as ProjectsStoreController;
 use App\Http\Controllers\Projects\UpdateController as ProjectsUpdateController;
 use App\Http\Controllers\Prompts\ListController as PromptsListController;
+use App\Http\Controllers\Prompts\MediaController;
+use App\Http\Middleware\VerifyExportOwner;
+use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -21,9 +28,20 @@ Route::get('policy', static fn() => inertia('Policy'))->name('policy');
 
 Route::get('terms', static fn() => inertia('Terms'))->name('terms');
 
-Route::middleware(['auth', 'verified'])->group(function (): void {
+Route::get('prompt-exports/{prompt}/media/{media}', MediaController::class)
+    ->scopeBindings()->middleware(['signed', VerifyExportOwner::class])->name('prompts.export');
+
+Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(function (): void {
+    Route::get('prompts/{prompt}/media/{media}', MediaController::class)->scopeBindings()->name('prompts.media');
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
+    Route::prefix('posts/tiktok/{channel}')->whereNumber('channel')->name('posts.tiktok.')->group(function (): void {
+        Route::get('', TiktokCreateController::class)->name('create');
+        Route::post('', TiktokStoreController::class)->name('store');
+        Route::get('media/{media}', TiktokPreviewController::class)->whereNumber('media')->name('preview');
+    });
+
+    Route::post('posts/requests/{publication}/resolve', ResolveController::class)->whereNumber('publication')->name('posts.requests.resolve');
     Route::get('posts', PostsListController::class)->name('posts');
     Route::get('prompts', PromptsListController::class)->name('prompts');
 
@@ -45,4 +63,3 @@ require __DIR__ . '/shot-operations.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/series.php';
 require __DIR__ . '/episodes.php';
-require __DIR__ . '/tiktok-demo.php';

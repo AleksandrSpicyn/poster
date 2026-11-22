@@ -35,7 +35,7 @@ class SavePost
             }
 
             if ($request instanceof Model && ($request->channel_id !== $dto->channel->id
-                || $request->episode_assembly_id !== $dto->episodeAssemblyId || $request->series_assembly_id !== $dto->seriesAssemblyId)) {
+                || $request->prompt_id !== $dto->prompt?->id || $request->episode_assembly_id !== $dto->episodeAssemblyId || $request->series_assembly_id !== $dto->seriesAssemblyId)) {
                 throw new RuntimeException('The publication receipt does not match its pinned source and channel.');
             }
 

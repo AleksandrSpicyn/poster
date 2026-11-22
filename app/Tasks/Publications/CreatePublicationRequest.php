@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tasks\Publications;
 
 use App\Data\Episodes\PublishEpisodeData;
+use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
 use App\Enums\SeriesOutputMode;
+use App\Enums\TiktokDeliveryMode;
 use App\Models\EpisodeAssembly;
 use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
@@ -36,7 +38,7 @@ class CreatePublicationRequest
     ) {}
 
     /** @return Collection<int, PublicationRequest> */
-    public function run(EpisodeAssembly $assembly, PublishEpisodeData $data, User $actor, ?ProductionRun $productionRun = null): Collection
+    public function run(EpisodeAssembly $assembly, PublishEpisodeData $data, User $actor, ?ProductionRun $productionRun = null, ?TiktokPublicationData $tiktok = null): Collection
     {
         $actor = $this->users->fresh($actor);
 
@@ -44,9 +46,9 @@ class CreatePublicationRequest
             throw new AuthorizationException();
         }
 
-        Gate::forUser($actor)->authorize('manageSeries');
+        Gate::forUser($actor)->authorize('manageSeries', $assembly);
 
-        return DB::transaction(function () use ($assembly, $data, $actor, $productionRun): Collection {
+        return DB::transaction(function () use ($assembly, $data, $actor, $productionRun, $tiktok): Collection {
             $context = $this->assemblies->lockPublishingContext($assembly);
             $revision = $context->revision;
             $episode = $context->episode;
@@ -57,7 +59,7 @@ class CreatePublicationRequest
                 throw ValidationException::withMessages(['assembly' => 'Publish only the accepted final video of this cycle.']);
             }
 
-            if (! $project->is_active) {
+            if ($project->owner_id !== $actor->id || ! $project->is_active) {
                 throw ValidationException::withMessages(['project' => 'Enable this project before publishing.']);
             }
 
@@ -73,7 +75,7 @@ class CreatePublicationRequest
                 throw ValidationException::withMessages(['assembly' => 'Only the current accepted episode can be published.']);
             }
 
-            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data);
+            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data, $tiktok?->mode === TiktokDeliveryMode::DIRECT);
 
             if ($channels->count() !== count($data->channel_ids)) {
                 throw ValidationException::withMessages(['channel_ids' => 'Choose supported channels belonging to this project.']);
@@ -83,7 +85,7 @@ class CreatePublicationRequest
             $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series);
 
             foreach ($channels as $channel) {
-                $requests->push($this->publications->forAcceptedAssembly($assembly, $channel, $actor, $productionRun, $context, $scheduledAt));
+                $requests->push($this->publications->forAcceptedAssembly($assembly, $channel, $actor, $productionRun, $context, $scheduledAt, $tiktok));
             }
 
             return $requests;

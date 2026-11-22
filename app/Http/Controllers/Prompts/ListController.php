@@ -8,6 +8,8 @@ use App\Actions\Prompts\GetPromptsListAction;
 use App\Data\GetPromptsListData;
 use App\Enums\SortDirection;
 use App\Http\Resources\PromptResource;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class ListController
@@ -17,7 +19,7 @@ class ListController
      *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
-     * Все проекты доступны любому вошедшему пользователю; индивидуального tenant scope нет.
+     * Список включает ролики из проектов текущего владельца.
      *
      * @group Кабинет
      * @authenticated
@@ -95,9 +97,10 @@ class ListController
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPromptsListData $data, GetPromptsListAction $getPromptsList): Response
+    public function __invoke(#[CurrentUser] User $owner, GetPromptsListData $data, GetPromptsListAction $getPromptsList): Response
     {
         $prompts = $getPromptsList->run(
+            $owner,
             $data,
         );
 

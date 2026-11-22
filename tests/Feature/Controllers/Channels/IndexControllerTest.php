@@ -11,10 +11,11 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('оператор видит общие каналы без секретов', function (): void {
-    $channel = Channel::factory()->create(['client_secret' => 'never-render-secret', 'credentials' => ['access_token' => 'never-render-token', 'account_name' => 'Wildlife']]);
-    $other = Project::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['client_secret' => 'never-render-secret', 'credentials' => ['access_token' => 'never-render-token', 'account_name' => 'Wildlife']]);
+    $other = Project::factory()->recycle(workspaceOwner())->create();
     $channel->projects()->attach($other);
 
     $response = actingAs(serialOperator())->get(route('channels.index'));
@@ -28,8 +29,8 @@ test('оператор видит общие каналы без секрето�
     expect($response->getContent())->not->toContain('never-render-secret', 'never-render-token');
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    actingAs(User::factory()->create())->get(route('channels.index'))->assertForbidden();
+test('подтверждённому пользователю доступны свои каналы', function (): void {
+    actingAs(User::factory()->create())->get(route('channels.index'))->assertOk();
 
     Http::assertNothingSent();
 });

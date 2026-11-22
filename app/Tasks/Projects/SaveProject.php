@@ -7,6 +7,7 @@ namespace App\Tasks\Projects;
 use App\Data\ProjectData;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
+use App\Models\User;
 use App\Repositories\ProjectRepository;
 use Illuminate\Validation\ValidationException;
 
@@ -14,9 +15,12 @@ class SaveProject
 {
     public function __construct(private readonly ProjectRepository $projects) {}
 
-    public function run(ProjectData $data, ?Project $project = null): Project
+    public function run(ProjectData $data, ?Project $project = null, ?User $actor = null): Project
     {
-        $project ??= new Project();
+        if (! $project instanceof Project) {
+            $project = new Project();
+            $project->owner_id = $actor?->id;
+        }
 
         if ($project->exists) {
             $project = $this->projects->findLockedOrFail($project->id);

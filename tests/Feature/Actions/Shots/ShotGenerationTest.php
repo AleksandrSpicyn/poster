@@ -42,6 +42,7 @@ use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('выключение проекта блокирует ожидающий внешний этап', function (GenerationOperationStage $stage): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
@@ -182,7 +183,7 @@ test('отмена запланированного дубля предотвр�
 test('продолжение использует финальный кадр готового предыдущего дубля', function (): void {
     ['shot' => $firstShot, 'actor' => $actor] = serialShotFixture();
     $shot = Shot::factory()->for($firstShot->scene ?? throw new RuntimeException('Scene missing.'))->create(['position' => 2, 'transition_mode' => TransitionMode::CONTINUE_SCENE]);
-    $source = Prompt::factory()->create(['project_id' => $firstShot->scene->episodeRevision?->episode?->series?->project_id, 'shot_id' => $firstShot->id, 'take_number' => 1, 'generated' => true]);
+    $source = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $firstShot->scene->episodeRevision?->episode?->series?->project_id, 'shot_id' => $firstShot->id, 'take_number' => 1, 'generated' => true]);
     $source->addMediaFromString('synthetic previous video')->usingFileName('previous.mp4')->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
     Bus::fake();
     mock(ImageGenerator::class)->shouldNotReceive('generate');
@@ -220,11 +221,11 @@ function serialShotFixture(): array
     Storage::fake('local');
     Storage::fake('public');
     config(['services.video.provider' => 'seedance', 'services.seedance.api_key' => 'test']);
-    $series = Series::factory()->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
     $character = Character::factory()->for($series)->create();
     $version = CharacterRevision::factory()->for($character)->approved()->create(['voice' => ['tone' => 'calm and warm']]);
     $version->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(CharacterRevision::REFERENCES, 'local');
-    $episode = Episode::factory()->for($series)->create();
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create();
     $revision = EpisodeRevision::factory()->for($episode)->approved()->create(['context_snapshot' => ['specification_version' => $series->specification_version]]);
     $revision->characterRevisions()->attach($version);
     $episode->update(['current_revision_id' => $revision->id]);
@@ -406,7 +407,7 @@ test('источником служит ранний дубль историче
     $oldShot->update(['position' => $sourcePosition]);
     $oldRevision = $oldShot->scene->episodeRevision ?? throw new RuntimeException('Revision missing.');
     $episode = $oldRevision->episode ?? throw new RuntimeException('Episode missing.');
-    $source = Prompt::factory()->create(['project_id' => $episode->series?->project_id, 'shot_id' => $oldShot->id, 'take_number' => 1, 'generated' => true]);
+    $source = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $episode->series?->project_id, 'shot_id' => $oldShot->id, 'take_number' => 1, 'generated' => true]);
     $source->addMediaFromString('synthetic historical video')->usingFileName('historical.mp4')->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
     $revision = EpisodeRevision::factory()->for($episode)->approved()->create(['context_snapshot' => ['specification_version' => 1]]);
     $revision->characterRevisions()->attach($oldRevision->characterRevisions->modelKeys());
@@ -516,7 +517,7 @@ test('один ключ с другим источником не заменяе
     $secondShot = Shot::factory()->for($scene)->create(['position' => 2]);
     $target = Shot::factory()->for($scene)->create(['position' => 3, 'transition_mode' => TransitionMode::CONTINUE_SCENE]);
     $sources = collect([$firstShot, $secondShot])->map(function (Shot $shot): Prompt {
-        $source = Prompt::factory()->create(['project_id' => $shot->scene?->episodeRevision?->episode?->series?->project_id,
+        $source = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $shot->scene?->episodeRevision?->episode?->series?->project_id,
             'shot_id' => $shot->id, 'take_number' => 1, 'generated' => true]);
         $source->addMediaFromString('synthetic source video')->usingFileName('source.mp4')->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
 
@@ -564,7 +565,7 @@ test('подтверждённый пользователь без операт�
 
 test('синхронный запуск проверяет свежее право инициатора', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
-    User::query()->whereKey($actor->id)->update(['email' => 'revoked-actor@example.test']);
+    User::query()->whereKey($actor->id)->update(['email_verified_at' => null]);
     Bus::fake();
     Http::fake();
 
@@ -582,7 +583,7 @@ test('отзыв операторского доступа после очере
     mock(ImageGenerator::class)->shouldNotReceive('generate');
     $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'revoked-operator-1');
     $operation = $prompt->generationOperations()->firstOrFail();
-    config(['services.admin.email' => 'different-owner@example.test', 'horizon.allowed_emails' => []]);
+    $actor->forceFill(['email_verified_at' => null])->save();
 
     app(SubmitShotGenerationAction::class)->run($operation->id);
 

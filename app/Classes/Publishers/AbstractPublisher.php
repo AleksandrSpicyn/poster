@@ -11,7 +11,9 @@ use App\Models\Channel;
 use App\Models\Prompt;
 use App\Tasks\Channels\IsChannelProjectActive;
 use App\Tasks\Posts\SavePost;
+use Illuminate\Support\Facades\URL;
 use RuntimeException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Общий контекст канала и готового Prompt, доступ к медиа и запись Post.
@@ -43,7 +45,15 @@ abstract class AbstractPublisher implements Publisher
 
     protected function getVideoUrl(): string
     {
-        return $this->prompt instanceof PublishVideoData ? $this->prompt->url : $this->prompt->getFirstMediaUrl();
+        if ($this->prompt instanceof PublishVideoData) {
+            return $this->prompt->url;
+        }
+
+        $media = $this->prompt->getFirstMedia();
+
+        return $media instanceof Media ? URL::temporarySignedRoute('prompts.export', now()->addHours(2), [
+            'prompt' => $this->prompt->id, 'media' => $media->id, 'owner' => $this->channel->owner_id,
+        ]) : '';
     }
 
     protected function getSourceId(): int
@@ -77,7 +87,7 @@ abstract class AbstractPublisher implements Publisher
         $this->savePost->run(
             new PostData(
                 $this->channel,
-                $this->prompt instanceof Prompt ? $this->prompt : null,
+                $this->prompt instanceof Prompt ? $this->prompt : $this->prompt->short,
                 $this->getTitle(),
                 $this->getDescription(),
                 $url,

@@ -11,14 +11,15 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Tests\Support\workspaceOwner;
 
 test('список возвращает проекты со счётчиками без каналов и секретов', function (): void {
-    $project = Project::factory()->create();
-    Prompt::factory()->for($project)->create(['generated' => true]);
-    Prompt::factory()->for($project)->create(['generated' => false]);
-    Channel::factory()->for($project)->create(['client_secret' => 'private-project-secret']);
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    Prompt::factory()->recycle(workspaceOwner())->for($project)->create(['generated' => true]);
+    Prompt::factory()->recycle(workspaceOwner())->for($project)->create(['generated' => false]);
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create(['client_secret' => 'private-project-secret']);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.index'))
         ->assertOk()
         ->assertDontSee('private-project-secret')
@@ -35,11 +36,11 @@ test('список возвращает проекты со счётчиками
 });
 
 test('поиск находит название и промпт без потери фильтра на второй странице', function (): void {
-    Project::factory()->create(['name' => 'Wildlife', 'prompt' => 'A neutral brief']);
-    $last = Project::factory()->create(['name' => 'Another series', 'prompt' => 'WILDLIFE in cities']);
-    Project::factory()->create(['name' => 'Unrelated series', 'prompt' => 'A calm landscape']);
+    Project::factory()->recycle(workspaceOwner())->create(['name' => 'Wildlife', 'prompt' => 'A neutral brief']);
+    $last = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Another series', 'prompt' => 'WILDLIFE in cities']);
+    Project::factory()->recycle(workspaceOwner())->create(['name' => 'Unrelated series', 'prompt' => 'A calm landscape']);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.index', ['search' => 'wildlife', 'perPage' => 1]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -56,10 +57,10 @@ test('поиск находит название и промпт без поте
 });
 
 test('сортировка стабильна при одинаковой дате', function (): void {
-    $first = Project::factory()->create(['created_at' => '2026-01-01 12:00:00']);
-    $last = Project::factory()->create(['created_at' => '2026-01-01 12:00:00']);
+    $first = Project::factory()->recycle(workspaceOwner())->create(['created_at' => '2026-01-01 12:00:00']);
+    $last = Project::factory()->recycle(workspaceOwner())->create(['created_at' => '2026-01-01 12:00:00']);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.index', ['sort' => 'asc']))
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('projects.data.0.id', $first->id)
@@ -67,16 +68,16 @@ test('сортировка стабильна при одинаковой дат
 });
 
 test('поиск с SQL-фрагментом не расширяет выборку', function (): void {
-    Project::factory()->create();
+    Project::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.index', ['search' => "' OR 1=1 --"]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->has('projects.data', 0));
 });
 
 test('список отклоняет некорректные фильтры', function (array $input, string $field): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->getJson(route('projects.index', $input))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -91,7 +92,7 @@ test('список отклоняет некорректные фильтры', 
 ]);
 
 test('пустые фильтры используют значения по умолчанию', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('projects.index', ['search' => '', 'sort' => '', 'page' => '', 'perPage' => '']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page

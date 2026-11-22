@@ -108,6 +108,7 @@ class Prompt extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        $this->addMediaCollection('default')->useDisk('local');
         $this->addMediaCollection(self::SHOT_IMAGE)->useDisk('local');
         $this->addMediaCollection(self::SHOT_VIDEO)->useDisk('local');
     }

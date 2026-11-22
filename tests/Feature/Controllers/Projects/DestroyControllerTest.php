@@ -13,11 +13,12 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\assertDatabaseMissing;
 use function Pest\Laravel\delete;
+use function Tests\Support\workspaceOwner;
 
 test('удаляет пустой проект', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->delete(route('projects.destroy', $project))
         ->assertRedirect(route('projects.index'));
 
@@ -26,10 +27,10 @@ test('удаляет пустой проект', function (): void {
 });
 
 test('проект с генерацией не удаляется', function (): void {
-    $project = Project::factory()->create();
-    $prompt = Prompt::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($project)->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->deleteJson(route('projects.destroy', $project))
         ->assertConflict()
         ->assertJsonPath('message', 'This project has generations or publishing channels and cannot be deleted.');
@@ -39,11 +40,11 @@ test('проект с генерацией не удаляется', function ()
 });
 
 test('каналы и публикации защищают проект от удаления', function (): void {
-    $project = Project::factory()->create();
-    $channel = Channel::factory()->for($project)->create();
-    $post = Post::factory()->for($channel)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
+    $post = Post::factory()->recycle(workspaceOwner())->for($channel)->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->deleteJson(route('projects.destroy', $project))
         ->assertConflict();
 
@@ -53,10 +54,10 @@ test('каналы и публикации защищают проект от у
 });
 
 test('браузер получает объяснение отказа без потери данных', function (): void {
-    $project = Project::factory()->create();
-    Channel::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    Channel::factory()->recycle(workspaceOwner())->for($project)->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->delete(route('projects.destroy', $project))
         ->assertRedirect(route('projects.show', $project));
 
@@ -65,13 +66,13 @@ test('браузер получает объяснение отказа без �
 });
 
 test('несуществующий проект возвращает 404', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->delete(route('projects.destroy', 99999))
         ->assertNotFound();
 });
 
 test('гость не удаляет проект', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     delete(route('projects.destroy', $project))->assertRedirect(route('login'));
 
@@ -79,7 +80,7 @@ test('гость не удаляет проект', function (): void {
 });
 
 test('неподтверждённый пользователь не удаляет проект', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(User::factory()->unverified()->create())
         ->delete(route('projects.destroy', $project))

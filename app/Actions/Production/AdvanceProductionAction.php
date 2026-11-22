@@ -51,7 +51,7 @@ readonly class AdvanceProductionAction
 
         $actor = $run->actor;
 
-        if ($actor === null || ! Gate::forUser($actor)->allows('manageSeries')) {
+        if ($actor === null || $actor->id !== $run->project->owner_id || ! Gate::forUser($actor)->allows('manageSeries')) {
             $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'The production operator no longer has permission.');
 
             return;

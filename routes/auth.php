@@ -14,14 +14,12 @@ use App\Http\Controllers\Auth\NewPassword\StoreController as StoreNewPasswordCon
 use App\Http\Controllers\Auth\PasswordResetLink\CreateController as CreatePasswordResetLinkController;
 use App\Http\Controllers\Auth\PasswordResetLink\StoreController as StorePasswordResetLinkController;
 use App\Http\Controllers\Auth\Registration\CreateController as CreateRegistrationController;
-use App\Http\Controllers\Auth\Registration\StoreController as StoreRegistrationController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function (): void {
     Route::prefix('register')->group(function (): void {
         Route::get('/', CreateRegistrationController::class)->name('register');
-        Route::post('/', StoreRegistrationController::class)->name('register.store');
     });
 
     Route::prefix('login')->group(function (): void {

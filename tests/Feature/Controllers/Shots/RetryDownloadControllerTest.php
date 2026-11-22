@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('повтор загрузки требует входа', function (): void {
     ['params' => $params, 'operation' => $operation] = retryShotDownloadRouteFixture();
@@ -64,7 +65,7 @@ test('оператор возобновляет существующую заг�
 
 test('дубль другого плана не проходит вложенный scope', function (): void {
     ['params' => $params, 'operation' => $operation, 'actor' => $actor] = retryShotDownloadRouteFixture();
-    $params['prompt'] = Prompt::factory()->create()->id;
+    $params['prompt'] = Prompt::factory()->recycle(workspaceOwner())->create()->id;
     Http::fake();
     Bus::fake();
 
@@ -92,13 +93,13 @@ test('устаревший контекст запрещает возобнов�
 function retryShotDownloadRouteFixture(): array
 {
     $actor = serialOperator();
-    $series = Series::factory()->create();
-    $episode = Episode::factory()->for($series)->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create();
     $revision = EpisodeRevision::factory()->for($episode)->approved()->create(['context_snapshot' => ['specification_version' => 1]]);
     $episode->update(['current_revision_id' => $revision->id]);
     $scene = Scene::factory()->for($revision, 'episodeRevision')->create();
     $shot = Shot::factory()->for($scene)->create();
-    $prompt = Prompt::factory()->for($shot)->create(['project_id' => $series->project_id, 'take_number' => 1]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($shot)->create(['project_id' => $series->project_id, 'take_number' => 1]);
     $operation = $prompt->generationOperations()->create([
         'stage' => GenerationOperationStage::DOWNLOAD, 'status' => GenerationOperationStatus::FAILED,
         'request_key' => 'download-http', 'idempotency_key' => hash('sha256', 'download-http'), 'request_snapshot' => [],
@@ -117,7 +118,7 @@ test('подтверждённый пользователь без операт�
     Http::fake();
     Bus::fake();
 
-    actingAs($actor)->postJson(route('shots.download.retry', $params))->assertForbidden();
+    actingAs($actor)->postJson(route('shots.download.retry', $params))->assertNotFound();
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::FAILED);
     Http::assertNothingSent();

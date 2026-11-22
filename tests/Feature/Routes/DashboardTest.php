@@ -11,6 +11,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Tests\Support\workspaceOwner;
 
 test('гость перенаправляется на вход', function (): void {
     get(route('dashboard'))->assertRedirect(route('login'));
@@ -32,7 +33,7 @@ test('пользователь видит кабинет', function (): void {
 });
 
 test('обзор не раскрывает приватные сериальные дубли', function (): void {
-    Prompt::factory()->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
+    Prompt::factory()->recycle(workspaceOwner())->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
 
     actingAs(User::factory()->create())
         ->get(route('dashboard'))
@@ -54,21 +55,20 @@ test('неподтверждённый email закрывает кабинет �
 });
 
 test('обзор считает всю историю и ограничивает последние результаты', function (): void {
-    $ready = Prompt::factory()
+    $ready = Prompt::factory()->recycle(workspaceOwner())
         ->create(['generated' => true]);
-    Prompt::factory()
+    Prompt::factory()->recycle(workspaceOwner())
         ->count(2)
         ->create(['generated' => true]);
-    $pending = Prompt::factory()
+    $pending = Prompt::factory()->recycle(workspaceOwner())
         ->count(5)
         ->create();
-    $posts = Post::factory()
+    $posts = Post::factory()->recycle(workspaceOwner())
         ->for($ready)
         ->count(7)
         ->create();
 
-    actingAs(User::factory()
-        ->create());
+    actingAs(workspaceOwner());
 
     get(route('dashboard'))
         ->assertOk()

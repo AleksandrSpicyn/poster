@@ -14,6 +14,7 @@ enum PublicationStatus: string
     case SUBMITTING = 'submitting';
     case PROCESSING = 'processing';
     case PUBLISHING_CONTAINER = 'publishing_container';
+    case INBOX = 'inbox';
     case PUBLISHED = 'published';
     case SUBMISSION_UNKNOWN = 'submission_unknown';
     case FAILED = 'failed';

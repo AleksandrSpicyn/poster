@@ -9,6 +9,7 @@ use App\Enums\ProductionStatus;
 use App\Enums\SortDirection;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\LazyCollection;
@@ -22,12 +23,12 @@ readonly class ProjectRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Project> */
-    public function paginate(GetProjectsListData $data): LengthAwarePaginator
+    public function paginate(User $owner, GetProjectsListData $data): LengthAwarePaginator
     {
-        $query = Project::query()->withCount([
+        $query = Project::query()->where('owner_id', $owner->id)->withCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'channels', 'series',
+            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $owner->id), 'series',
         ]);
 
         if ($data->search !== null && $data->search !== '') {
@@ -52,10 +53,11 @@ readonly class ProjectRepository extends EloquentRepository
         $project->loadCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'channels', 'series',
+            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $project->owner_id), 'series',
         ]);
         $project->setRelation('channels', $project
             ->channels()
+            ->where('channels.owner_id', $project->owner_id)
             ->select('channels.id', 'name', 'type', 'is_active', 'credentials')
             ->withCount(['posts' => static fn(Builder $query) => $query
                 ->where(fn(Builder $query) => $query->whereHas('prompt', fn(Builder $query) => $query->where('project_id', $project->id))

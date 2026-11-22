@@ -23,6 +23,7 @@ use function Tests\Support\invalidProjectInputs;
 use function Tests\Support\projectPayload;
 use function Tests\Support\serialOperator;
 use function Tests\Support\seriesProjectPayload;
+use function Tests\Support\workspaceOwner;
 
 test('выключенный сериальный проект сохраняет настройки без запуска выпуска', function (): void {
     Bus::fake();
@@ -41,8 +42,8 @@ test('выключенный сериальный проект сохраняе�
 test('проект сериала сохраняет настройки и начинает выпуск одним запросом', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $source = Project::factory()->create();
-    $channel = Channel::factory()->for($source)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'private-token']]);
+    $source = Project::factory()->recycle(workspaceOwner())->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($source)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'private-token']]);
 
     actingAs($actor)->post(route('projects.store'), [...seriesProjectPayload(), 'channel_ids' => [$channel->id]])
         ->assertRedirect();
@@ -94,7 +95,7 @@ test('читатель не создаёт сериал через обычну�
     serialOperator();
     Bus::fake();
 
-    actingAs(User::factory()->create())->postJson(route('projects.store'), seriesProjectPayload())->assertForbidden();
+    actingAs(User::factory()->unverified()->create())->postJson(route('projects.store'), seriesProjectPayload())->assertForbidden();
 
     expect(Project::query()->exists())->toBeFalse();
     expect(Series::query()->exists())->toBeFalse();
@@ -121,7 +122,7 @@ test('создание сохраняет проект и не запускае�
 });
 
 test('создание отклоняет некорректные поля', function (array $invalid, string $field): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->postJson(route('projects.store'), [...projectPayload(), ...$invalid])
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -130,7 +131,7 @@ test('создание отклоняет некорректные поля', fu
 })->with(invalidProjectInputs());
 
 test('создание принимает предельные длины', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->post(route('projects.store'), ['name' => str_repeat('Ж', 255), 'prompt' => str_repeat('я', 10000)])
         ->assertSessionHasNoErrors()
         ->assertRedirect();
@@ -139,7 +140,7 @@ test('создание принимает предельные длины', func
 });
 
 test('ошибка формы сохраняет проект несозданным', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->from(route('projects.create'))
         ->post(route('projects.store'), ['name' => 'Series'])
         ->assertRedirect(route('projects.create'))

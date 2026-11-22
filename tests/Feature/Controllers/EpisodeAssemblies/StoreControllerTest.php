@@ -9,12 +9,13 @@ use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\workspaceOwner;
 
 test('сборка сохраняет manifest выбранного дубля до FFmpeg job', function (): void {
     Storage::fake('local');
     $context = episodeHttpFixture();
     $series = $context['episode']->series()->firstOrFail();
-    $take = Prompt::factory()->create(['project_id' => $series->project_id, 'shot_id' => $context['shot']->id, 'generated' => true, 'take_number' => 1, 'input_snapshot' => ['context_hash' => $context['revision']->context_hash, 'specification_version' => $series->specification_version, 'continuity_version' => $series->continuity_version]]);
+    $take = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'shot_id' => $context['shot']->id, 'generated' => true, 'take_number' => 1, 'input_snapshot' => ['context_hash' => $context['revision']->context_hash, 'specification_version' => $series->specification_version, 'continuity_version' => $series->continuity_version]]);
     $take->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(Prompt::SHOT_VIDEO);
     Bus::fake();
 

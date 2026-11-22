@@ -11,9 +11,10 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\patch;
 use function Tests\Support\channelPayload;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('пустой секрет сохраняет подключение и историю проектов', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'client_id' => 'app-id', 'client_secret' => 'old-secret', 'credentials' => ['access_token' => 'old-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'client_id' => 'app-id', 'client_secret' => 'old-secret', 'credentials' => ['access_token' => 'old-token']]);
     $projectIds = $channel->projects()->allRelatedIds()->all();
 
     actingAs(serialOperator())->patch(route('channels.update', $channel), [...channelPayload(), 'client_secret' => '', 'is_active' => false])->assertSessionHasNoErrors()->assertRedirect(route('channels.edit', $channel));
@@ -27,7 +28,7 @@ test('пустой секрет сохраняет подключение и и�
 });
 
 test('смена приложения сбрасывает OAuth и прежний секрет', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
 
     actingAs(serialOperator())->patch(route('channels.update', $channel), [...channelPayload(), 'client_id' => 'new-app', 'client_secret' => ''])->assertSessionHasNoErrors();
 
@@ -36,7 +37,7 @@ test('смена приложения сбрасывает OAuth и прежни
 });
 
 test('замена секрета требует нового подключения', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'client_id' => 'app-id', 'credentials' => ['access_token' => 'old-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'client_id' => 'app-id', 'credentials' => ['access_token' => 'old-token']]);
 
     actingAs(serialOperator())->patch(route('channels.update', $channel), channelPayload())->assertSessionHasNoErrors();
 
@@ -45,29 +46,29 @@ test('замена секрета требует нового подключен
 });
 
 test('платформа существующего канала неизменяема', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
 
     actingAs(serialOperator())->patchJson(route('channels.update', $channel), [...channelPayload(), 'type' => 'instagram'])->assertUnprocessable()->assertJsonValidationErrors('type');
 
     expect($channel->refresh()->type)->toBe(ChannelType::YOUTUBE);
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    $channel = Channel::factory()->create();
-    actingAs(User::factory()->create())->patch(route('channels.update', $channel), channelPayload())->assertForbidden();
+test('пользователь не управляет чужим каналом', function (): void {
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
+    actingAs(User::factory()->create())->patch(route('channels.update', $channel), channelPayload())->assertNotFound();
 
     Http::assertNothingSent();
 });
 
 test('гость и неподтверждённый пользователь не открывают канал', function (): void {
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
     patch(route('channels.update', $channel), channelPayload())->assertRedirect(route('login'));
 
     actingAs(User::factory()->unverified()->create())->patch(route('channels.update', $channel), channelPayload())->assertRedirect(route('verification.notice'));
 });
 
 test('отсутствие флага активности не включает выключенный канал', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'is_active' => false]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'is_active' => false]);
     $payload = channelPayload();
     unset($payload['is_active']);
 

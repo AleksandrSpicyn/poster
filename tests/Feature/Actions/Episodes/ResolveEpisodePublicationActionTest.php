@@ -153,7 +153,7 @@ test('повторно проверяет права после медленно
     $request = app(RequestEpisodePublicationAction::class)->run($assembly, new PublishEpisodeData([$channel->id]), $user)->firstOrFail();
     $request->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN]);
     Http::fake(['graph.instagram.com/123*' => function () use ($user) {
-        $user->forceFill(['email' => 'revoked@example.test'])->save();
+        $user->forceFill(['email_verified_at' => null])->save();
 
         return Http::response(['id' => '123', 'owner' => ['id' => 'ig-episode'], 'media_type' => 'VIDEO',
             'permalink' => 'https://www.instagram.com/reel/confirmed/']);

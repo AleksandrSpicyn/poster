@@ -8,6 +8,8 @@ use App\Actions\Projects\GetProjectsListAction;
 use App\Data\GetProjectsListData;
 use App\Enums\SortDirection;
 use App\Http\Resources\ProjectResource;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class IndexController
@@ -32,10 +34,10 @@ class IndexController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 422 {"message":"The selected sort is invalid.","errors":{"sort":["The selected sort is invalid."]}}
      */
-    public function __invoke(GetProjectsListData $data, GetProjectsListAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, GetProjectsListData $data, GetProjectsListAction $action): Response
     {
         return inertia('Projects/Index', [
-            'projects' => ProjectResource::collection($action->run($data)),
+            'projects' => ProjectResource::collection($action->run($owner, $data)),
             'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value],
             'sortDirections' => SortDirection::labels(),
         ]);

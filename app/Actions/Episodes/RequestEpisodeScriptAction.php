@@ -27,7 +27,7 @@ readonly class RequestEpisodeScriptAction
             throw new AuthorizationException();
         }
 
-        Gate::forUser($actor)->authorize('manageSeries');
+        Gate::forUser($actor)->authorize('manageSeries', $episode);
 
         $context = $this->context->run($episode);
 

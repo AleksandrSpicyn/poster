@@ -9,7 +9,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertAuthenticatedAs;
 use function Pest\Laravel\get;
 
-test('форма регистрации доступна гостю', function (): void {
+test('гость видит страницу закрытой регистрации', function (): void {
     get(route('register'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->component('auth/Register'));

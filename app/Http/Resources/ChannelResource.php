@@ -17,6 +17,8 @@ class ChannelResource extends JsonResource
         return [
             'id' => $this->id, 'name' => $this->name, 'type' => $this->type->value,
             'type_label' => $this->type->label(), 'is_active' => $this->is_active,
+            'tiktok_inbox' => $this->canSendTiktokInboxVideo(), 'tiktok_direct' => $this->canDirectPostTiktok(),
+            'tiktok_statistics' => $this->hasTiktokScope('video.list'),
             'connected' => filled($this->credentials['access_token'] ?? null),
             'account_name' => is_string($this->credentials['account_name'] ?? null) ? $this->credentials['account_name'] : null,
             'expires_at' => is_string($this->credentials['expires_at'] ?? null) ? $this->credentials['expires_at'] : null,

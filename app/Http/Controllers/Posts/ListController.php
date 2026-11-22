@@ -10,6 +10,10 @@ use App\Enums\ChannelType;
 use App\Enums\FilterValue;
 use App\Enums\SortDirection;
 use App\Http\Resources\PostResource;
+use App\Http\Resources\PublicationRequestResource;
+use App\Models\Channel;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class ListController
@@ -19,7 +23,7 @@ class ListController
      *
      * Сессионная авторизация. Для browser-запроса без сессии — redirect на login; JSON — 401.
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
-     * Все публикации доступны любому вошедшему пользователю: индивидуального project/tenant scope в текущей схеме нет.
+     * Список и фильтры ограничены публикациями текущего владельца.
      *
      * @group Кабинет
      * @authenticated
@@ -101,13 +105,16 @@ class ListController
      * @responseField version string version.
      * @responseField sharedProps string[] sharedProps.
      */
-    public function __invoke(GetPostsListData $data, GetPostsListAction $getPostsList): Response
+    public function __invoke(#[CurrentUser] User $owner, GetPostsListData $data, GetPostsListAction $getPostsList): Response
     {
         $posts = $getPostsList->run(
+            $owner,
             $data,
         );
 
         return inertia('Posts', [
+            'destinations' => fn() => $getPostsList->destinations($owner)->map(fn(Channel $channel): array => ['id' => $channel->id, 'name' => $channel->name])->all(),
+            'requests' => fn() => PublicationRequestResource::collection($getPostsList->recent($owner))->resolve(),
             'posts' => PostResource::collection($posts),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,

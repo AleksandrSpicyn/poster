@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Channels;
 use App\Actions\Channels\SaveChannelAction;
 use App\Data\Channels\ChannelData;
 use App\Models\Channel;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,9 +37,9 @@ class UpdateController
      * @response 404
      * @response 422 {"message":"The given data was invalid.","errors":{}}
      */
-    public function __invoke(Channel $channel, ChannelData $data, SaveChannelAction $action): RedirectResponse
+    public function __invoke(#[CurrentUser] User $owner, Channel $channel, ChannelData $data, SaveChannelAction $action): RedirectResponse
     {
-        $action->run($data, $channel);
+        $action->run($owner, $data, $channel);
         Inertia::flash('success', 'Channel settings saved.');
 
         return to_route('channels.edit', $channel);

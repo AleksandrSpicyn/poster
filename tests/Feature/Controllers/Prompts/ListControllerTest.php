@@ -10,12 +10,13 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Tests\Support\workspaceOwner;
 
 test('список идей возвращает страницы и данные проекта', function (): void {
-    $first = Prompt::factory()->create(['created_at' => now()->subDay()]);
-    $last = Prompt::factory()->create();
+    $first = Prompt::factory()->recycle(workspaceOwner())->create(['created_at' => now()->subDay()]);
+    $last = Prompt::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts', ['sort' => 'desc', 'perPage' => 1]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -30,10 +31,10 @@ test('список идей возвращает страницы и данны�
 });
 
 test('обычный список не раскрывает приватные сериальные дубли', function (): void {
-    $standalone = Prompt::factory()->create();
-    Prompt::factory()->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
+    $standalone = Prompt::factory()->recycle(workspaceOwner())->create();
+    Prompt::factory()->recycle(workspaceOwner())->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts'))
         ->assertOk()
         ->assertDontSee('SERIAL_PRIVATE_SENTINEL')
@@ -44,7 +45,7 @@ test('обычный список не раскрывает приватные �
 });
 
 test('явный null размера страницы сохраняет документированный default', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts', ['perPage' => '']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('prompts.meta.per_page', 10));
@@ -65,13 +66,13 @@ test('гость не видит рабочие списки', function (): void
 });
 
 test('недокументированный столбец сортировки не попадает в SQL', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts', ['orderBy' => 'unknown_column']))
         ->assertOk();
 });
 
 test('списки отклоняют некорректные фильтры', function (array $input, string $field): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->getJson(route('prompts', $input))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -84,10 +85,10 @@ test('списки отклоняют некорректные фильтры', 
 ]);
 
 test('пустые фильтры сохраняют размер страницы и порядок по умолчанию', function (): void {
-    Prompt::factory()->create(['created_at' => now()->subDay()]);
-    $last = Prompt::factory()->create();
+    Prompt::factory()->recycle(workspaceOwner())->create(['created_at' => now()->subDay()]);
+    $last = Prompt::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts', ['sort' => '', 'perPage' => '', 'page' => '']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -98,14 +99,14 @@ test('пустые фильтры сохраняют размер страниц
 });
 
 test('отсутствующие фильтры не добавляются в ответ', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('filters', []));
 });
 
 test('список передаёт варианты сортировки из enum', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -114,10 +115,10 @@ test('список передаёт варианты сортировки из e
 });
 
 test('идеи сортируются от старых к новым', function (): void {
-    $first = Prompt::factory()->create(['created_at' => now()->subDay()]);
-    $last = Prompt::factory()->create();
+    $first = Prompt::factory()->recycle(workspaceOwner())->create(['created_at' => now()->subDay()]);
+    $last = Prompt::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('prompts', ['sort' => 'asc']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -128,11 +129,10 @@ test('идеи сортируются от старых к новым', function
 
 test('список показывает этап по сохранённым результатам', function (array $attributes, string $stage, string $label): void {
     /** @var array<string, bool|string> $attributes */
-    $prompt = Prompt::factory()
+    $prompt = Prompt::factory()->recycle(workspaceOwner())
         ->create($attributes);
 
-    actingAs(User::factory()
-        ->create());
+    actingAs(workspaceOwner());
 
     get(route('prompts'))
         ->assertOk()

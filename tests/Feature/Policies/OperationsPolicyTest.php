@@ -17,7 +17,7 @@ test('операционные панели доступны только под
         ->and($policy->viewQueues($user))
         ->toBe($queues)
         ->and(Gate::forUser($user)->allows('manageSeries'))
-        ->toBe($logs || $queues);
+        ->toBe($verified);
 })->with([
     'владелец' => ['owner@example.com', true, true, true],
     'оператор очередей' => ['operator@example.com', true, false, true],

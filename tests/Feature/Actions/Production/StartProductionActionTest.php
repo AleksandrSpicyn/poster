@@ -15,13 +15,14 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('повтор запроса и новый ключ не дублируют активный выпуск', function (): void {
     Bus::fake();
     Http::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
     $action = app(StartProductionAction::class);
 
     $first = $action->run($project, 'first', $actor, $series->id)->sole();
@@ -39,8 +40,8 @@ test('повтор запроса и новый ключ не дублируют
 test('сериальный проект с выключенной автоматизацией не создаёт обычный ролик', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    Series::factory()->for($project)->create(['automation_enabled' => false]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => false]);
 
     $runs = app(StartProductionAction::class)->run($project, 'scheduled', $actor);
 
@@ -53,7 +54,7 @@ test('сериальный проект с выключенной автомат
 test('обычный проект создаёт запуск без сериала', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     $run = app(StartProductionAction::class)->run($project, 'short', $actor)->sole();
 
@@ -66,7 +67,7 @@ test('обычный проект создаёт запуск без сериа�
 test('отозванные права не создают намерение выпуска', function (): void {
     Bus::fake();
     serialOperator();
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $actor = User::factory()->create();
 
     expect(fn() => app(StartProductionAction::class)->run($project, 'denied', $actor))

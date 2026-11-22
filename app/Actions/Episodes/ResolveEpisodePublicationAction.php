@@ -63,7 +63,7 @@ readonly class ResolveEpisodePublicationAction
             $video = $current->video;
             $this->savePost->run(new PostData(
                 $current->channel,
-                null,
+                $video->short,
                 $video->title,
                 $video->description,
                 $verified->url,

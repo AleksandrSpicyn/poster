@@ -21,8 +21,8 @@ test('оператор получает форму поддерживаемых 
     Http::assertNothingSent();
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    actingAs(User::factory()->create())->get(route('channels.create'))->assertForbidden();
+test('подтверждённому пользователю доступны свои каналы', function (): void {
+    actingAs(User::factory()->create())->get(route('channels.create'))->assertOk();
 
     Http::assertNothingSent();
 });

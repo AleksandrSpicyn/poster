@@ -11,12 +11,14 @@ use App\Models\Prompt;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
+use function Tests\Support\workspaceOwner;
+
 test('готовый ролик запускает публикацию во всех каналах проекта', function (): void {
     Bus::fake();
 
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
-    Channel::factory()
+    Channel::factory()->recycle(workspaceOwner())
         ->for($project)
         ->count(2)
         ->create([
@@ -24,7 +26,7 @@ test('готовый ролик запускает публикацию во в�
             'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1'],
         ]);
 
-    $prompt = Prompt::factory()
+    $prompt = Prompt::factory()->recycle(workspaceOwner())
         ->for($project)
         ->create();
 

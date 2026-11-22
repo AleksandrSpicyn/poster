@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Data\Tiktok\TiktokPublicationData;
+use App\Models\Prompt;
+
 final readonly class PublishVideoData
 {
     public function __construct(
@@ -16,5 +19,7 @@ final readonly class PublishVideoData
         public bool $madeForKids = false,
         public ?int $seriesAssemblyId = null,
         public bool $usePublicDescription = false,
+        public ?Prompt $short = null,
+        public ?TiktokPublicationData $tiktok = null,
     ) {}
 }

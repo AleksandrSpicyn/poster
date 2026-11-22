@@ -11,7 +11,7 @@ use function Tests\Support\consoleCommand;
 
 test('получает страницы публичных роликов выбранного автора', function (): void {
     $channel = Channel::factory()->create(['type' => ChannelType::TIKTOK, 'credentials' => ['channel_id' => 'series-owner',
-        'expires_at' => now()->addHour()->toIso8601String(), 'access_token' => 'series-access']]);
+        'expires_at' => now()->addHour()->toIso8601String(), 'access_token' => 'series-access', 'scope' => 'video.list']]);
     Http::fake(['*/video/list/*' => Http::sequence()
         ->push(['error' => ['code' => 'ok'], 'data' => ['videos' => [['id' => '123', 'title' => 'Episode', 'view_count' => 12, 'like_count' => 3, 'comment_count' => 0, 'share_count' => 1]], 'has_more' => true, 'cursor' => 1234]])
         ->push(['error' => ['code' => 'ok'], 'data' => ['videos' => [], 'has_more' => false]])]);
@@ -22,4 +22,13 @@ test('получает страницы публичных роликов выб
 
     Http::assertSent(fn(Request $request): bool => $request->hasHeader('Authorization', 'Bearer series-access') && ($request['cursor'] ?? null) === 1234);
     Http::assertSentCount(2);
+});
+
+test('право загрузки без video.list не разрешает чтение статистики', function (): void {
+    $channel = Channel::factory()->create(['type' => ChannelType::TIKTOK, 'credentials' => ['channel_id' => 'alpha',
+        'expires_at' => now()->addHour()->toIso8601String(), 'access_token' => 'test', 'scope' => 'video.upload']]);
+
+    consoleCommand('tiktok:metrics', ['channel' => $channel->id])->assertFailed();
+
+    Http::assertNothingSent();
 });

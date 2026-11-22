@@ -24,12 +24,11 @@ import { Head, Link } from '@inertiajs/vue3';
             <h2 class="text-xl font-semibold">Connecting TikTok</h2>
             <p class="mt-3 leading-relaxed">
                 You sign in on TikTok and choose whether to grant Poster access. TikTok gives Poster an authorization token to act within those
-                permissions. The creator workspace keeps the encrypted access token, its expiry and your TikTok display name in your server-side
-                session. Your TikTok password stays with TikTok.
+                permissions. Poster stores your encrypted connection credentials, token expiry and TikTok display name with your channel. Your TikTok password stays with TikTok.
             </p>
             <p class="mt-3 leading-relaxed">
                 Poster reads your creator settings to show your account, available audiences and interaction options. It can also retrieve your public
-                video list and the available view, like, comment and share counts to display in your session.
+                video list and the available view, like, comment and share counts for your workspace.
             </p>
         </section>
         <section class="mt-8">
@@ -47,8 +46,7 @@ import { Head, Link } from '@inertiajs/vue3';
         <section class="mt-8">
             <h2 class="text-xl font-semibold">Retention and your choices</h2>
             <p class="mt-3 leading-relaxed">
-                The creator workspace uses temporary server-side session storage for the connection and publication receipt. A workspace stores
-                projects, media and publication records separately so that their history is available across sessions. Disconnecting a workspace
+                Poster stores publication receipts with your project history so you can check the result across sessions. Disconnecting a workspace
                 channel clears its saved credentials.
             </p>
             <p class="mt-3 leading-relaxed">

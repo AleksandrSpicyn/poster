@@ -8,10 +8,11 @@ use App\Models\Prompt;
 
 use function Pest\Laravel\actingAs;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\workspaceOwner;
 
 test('остановка отменяет запланированную стадию выбранного дубля', function (): void {
     $context = episodeHttpFixture();
-    $take = Prompt::factory()->create(['project_id' => $context['episode']->series?->project_id, 'shot_id' => $context['shot']->id, 'take_number' => 1]);
+    $take = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $context['episode']->series?->project_id, 'shot_id' => $context['shot']->id, 'take_number' => 1]);
     $operation = $take->generationOperations()->create(['stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::PLANNED, 'request_key' => 'stop-http', 'idempotency_key' => hash('sha256', 'stop-http'), 'request_snapshot' => []]);
 
     actingAs($context['user'])->post(route('shots.cancel', [...$context['params'], 'prompt' => $take]))->assertRedirect();
@@ -22,7 +23,7 @@ test('остановка отменяет запланированную ста�
 
 test('остановка не затрагивает чужой дубль', function (): void {
     $context = episodeHttpFixture();
-    $other = Prompt::factory()->create();
+    $other = Prompt::factory()->recycle(workspaceOwner())->create();
 
     actingAs($context['user'])
         ->postJson(route('shots.cancel', [...$context['params'], 'prompt' => $other]))

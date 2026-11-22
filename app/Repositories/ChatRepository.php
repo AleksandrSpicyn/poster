@@ -16,8 +16,8 @@ readonly class ChatRepository extends EloquentRepository
     }
 
     /** @return LazyCollection<int, Chat> */
-    public function forNotifications(): LazyCollection
+    public function forNotifications(?int $ownerId): LazyCollection
     {
-        return Chat::query()->lazyById();
+        return Chat::query()->whereNotNull('owner_id')->where('owner_id', $ownerId)->lazyById();
     }
 }

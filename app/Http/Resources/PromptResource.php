@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Prompt;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Проекция генерации для списка Inertia; ожидает project и media из GetPromptsList.
@@ -26,7 +27,7 @@ class PromptResource extends JsonResource
         return [
             'id' => $this->id,
             'title' => $this->prompt,
-            'url' => $this->getFirstMediaUrl(),
+            'url' => $this->getFirstMedia() instanceof Media ? route('prompts.media', ['prompt' => $this->id, 'media' => $this->getFirstMedia()->id]) : '',
             'project' => $this->project?->name,
             'generated' => $this->generated,
             'stage' => $this->stage()->value,

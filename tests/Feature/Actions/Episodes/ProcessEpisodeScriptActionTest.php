@@ -119,13 +119,13 @@ test('отзыв доступа после постановки в очеред�
     Process::fake();
     $data = new GenerateEpisodeScriptData('Find the key.', 0, '7e061dbf-290b-49ea-8ac3-cc69ed236884');
     app(RequestEpisodeScriptAction::class)->run($episode, $data, $user);
-    $user->forceFill(['email' => 'revoked@example.test'])->save();
+    $user->forceFill(['email_verified_at' => null])->save();
 
     app(ProcessEpisodeScriptAction::class)->run($episode, $data->request_key);
 
     expect($episode->refresh()->script_generation_status)->toBe(ScriptGenerationStatus::FAILED);
     expect($episode->revisions()->exists())->toBeFalse();
-    expect($user->hasVerifiedEmail())->toBeTrue();
+    expect($user->hasVerifiedEmail())->toBeFalse();
     Process::assertNothingRan();
 });
 

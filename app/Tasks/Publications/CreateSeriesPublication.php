@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tasks\Publications;
 
 use App\Data\Episodes\PublishEpisodeData;
+use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
+use App\Enums\TiktokDeliveryMode;
 use App\Models\ProductionRun;
 use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
@@ -27,16 +29,16 @@ readonly class CreateSeriesPublication
     public function __construct(private ProjectRepository $projects, private SeriesRepository $series, private SeriesAssemblyRepository $assemblies, private ChannelRepository $channels, private PublicationRequestRepository $publications) {}
 
     /** @return Collection<int, PublicationRequest> */
-    public function run(SeriesAssembly $assembly, PublishEpisodeData $data, User $actor, ?ProductionRun $run = null): Collection
+    public function run(SeriesAssembly $assembly, PublishEpisodeData $data, User $actor, ?ProductionRun $run = null, ?TiktokPublicationData $tiktok = null): Collection
     {
         Gate::forUser($actor)->authorize('manageSeries');
 
-        return DB::transaction(function () use ($assembly, $data, $actor, $run): Collection {
+        return DB::transaction(function () use ($assembly, $data, $actor, $run, $tiktok): Collection {
             $assembly = $this->assemblies->withContext($assembly->id);
             $project = $this->projects->findLockedOrFail($assembly->series->project_id);
             $series = $this->series->findLockedOrFail($assembly->series_id);
 
-            if (! $project->is_active || ! $actor->hasVerifiedEmail() || $series->archived_at !== null || $series->cycle_paused_at !== null
+            if ($project->owner_id !== $actor->id || ! $project->is_active || ! $actor->hasVerifiedEmail() || $series->archived_at !== null || $series->cycle_paused_at !== null
                 || $assembly->status !== AssemblyStatus::ACCEPTED || $series->final_assembly_id !== $assembly->id || ! $this->assemblies->isCurrent($assembly)) {
                 throw ValidationException::withMessages(['assembly' => 'Accept the current complete video before publishing.']);
             }
@@ -47,7 +49,7 @@ readonly class CreateSeriesPublication
                 throw ValidationException::withMessages(['channel_ids' => 'Choose channels from the pinned cycle delivery plan.']);
             }
 
-            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data);
+            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data, $tiktok?->mode === TiktokDeliveryMode::DIRECT);
 
             if ($channels->count() !== count($data->channel_ids)) {
                 throw ValidationException::withMessages(['channel_ids' => 'A selected channel is disabled or disconnected.']);
@@ -63,7 +65,7 @@ readonly class CreateSeriesPublication
             $requests = new Collection();
 
             foreach ($channels as $channel) {
-                $requests->push($this->publications->forFinalAssembly($assembly, $channel, $actor, $run));
+                $requests->push($this->publications->forFinalAssembly($assembly, $channel, $actor, $run, $tiktok));
             }
 
             return $requests;

@@ -23,7 +23,7 @@ final readonly class TiktokClient
     /** @return list<string> */
     public function scopes(): array
     {
-        return ['user.info.basic', 'video.list', 'video.upload'];
+        return config('services.tiktok.direct_post') ? ['user.info.basic', 'video.list', 'video.upload', 'video.publish'] : ['user.info.basic', 'video.list', 'video.upload'];
     }
 
     /**
@@ -35,7 +35,7 @@ final readonly class TiktokClient
         $tokens = $this->token($channel, ['grant_type' => 'authorization_code', 'code' => $code, 'redirect_uri' => $redirectUri]);
         $scope = Payload::string($tokens['scope'] ?? null, 'scope');
 
-        if (array_diff($requiredScopes ?? $this->scopes(), explode(',', $scope)) !== []) {
+        if (array_diff($requiredScopes ?? ['user.info.basic'], explode(',', $scope)) !== []) {
             throw new ChannelAuthorizationException('Grant the requested TikTok permissions to connect this account.');
         }
 
@@ -73,16 +73,20 @@ final readonly class TiktokClient
             'expires_at' => now()->addSeconds($expiry)->toIso8601String()];
     }
 
-    public function forChannel(Channel $channel): PendingRequest
+    public function forChannel(Channel $channel, ?string $requiredScope = null): PendingRequest
     {
-        $token = DB::transaction(function () use ($channel): string {
+        $token = DB::transaction(function () use ($channel, $requiredScope): string {
             $current = $this->channels->findLockedOrFail($channel->id);
             $credentials = $current->credentials ?? [];
             $id = Payload::string($credentials['channel_id'] ?? null, 'channel_id');
 
-            if ($current->type !== ChannelType::TIKTOK || ! $current->is_active || $id !== ($channel->credentials['channel_id'] ?? null)
+            if ($current->owner_id !== $channel->owner_id || $current->type !== ChannelType::TIKTOK || ! $current->is_active || $id !== ($channel->credentials['channel_id'] ?? null)
                 || ($current->external_account !== null && $current->external_account !== $id)) {
                 throw new RuntimeException('Reconnect the assigned TikTok account.');
+            }
+
+            if ($requiredScope !== null && ! $current->hasTiktokScope($requiredScope)) {
+                throw new ChannelAuthorizationException('Reconnect the account with the required TikTok permission.');
             }
 
             if (Carbon::parse(Payload::string($credentials['expires_at'] ?? null, 'expires_at'))->getTimestamp() > now()->getTimestamp() + 60) {
@@ -97,8 +101,16 @@ final readonly class TiktokClient
 
             $this->channels->update($current, ['credentials' => [...$credentials, ...$tokens]]);
 
+            if ($requiredScope !== null && ! $current->hasTiktokScope($requiredScope)) {
+                return '';
+            }
+
             return Payload::string($tokens['access_token'], 'access_token');
         });
+
+        if ($token === '') {
+            throw new ChannelAuthorizationException('TikTok revoked the requested permission.');
+        }
 
         return $this->api($token);
     }
@@ -122,7 +134,7 @@ final readonly class TiktokClient
      */
     public function videos(Channel $channel, array $ids): array
     {
-        $http = $this->forChannel($channel);
+        $http = $this->forChannel($channel, 'video.list');
         $videos = [];
 
         foreach (array_chunk($ids, 20) as $batch) {

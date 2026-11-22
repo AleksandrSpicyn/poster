@@ -31,15 +31,16 @@ use function Tests\Support\invalidProjectInputs;
 use function Tests\Support\projectPayload;
 use function Tests\Support\serialOperator;
 use function Tests\Support\seriesProjectPayload;
+use function Tests\Support\workspaceOwner;
 
 test('выключение проекта останавливает выпуск и сохраняет историю', function (ProjectContentMode $mode): void {
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => $mode]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => $mode]);
     $series = $mode === ProjectContentMode::SERIES
-        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
-    $prompt = Prompt::factory()->for($project)->create();
-    $channel = Channel::factory()->for($project)->create();
-    $run = ProductionRun::factory()->for($project)->create(['series_id' => $series?->id]);
+        ? Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($project)->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->create(['series_id' => $series?->id]);
     $payload = $series === null ? projectPayload() : [...seriesProjectPayload(), 'series_lock_version' => 0];
     Bus::fake();
 
@@ -56,18 +57,18 @@ test('выключение проекта останавливает выпус�
 })->with([ProjectContentMode::SHORT, ProjectContentMode::SERIES]);
 
 test('правка без флага не включает выключенный проект', function (): void {
-    $project = Project::factory()->create(['is_active' => false]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['is_active' => false]);
 
-    actingAs(User::factory()->create())->patch(route('projects.update', $project), projectPayload())
+    actingAs(workspaceOwner())->patch(route('projects.update', $project), projectPayload())
         ->assertRedirect()->assertSessionHasNoErrors();
 
     expect($project->refresh()->is_active)->toBeFalse();
 });
 
 test('флаг активности принимает только boolean', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())->patchJson(route('projects.update', $project), [...projectPayload(), 'is_active' => 'enabled'])
+    actingAs(workspaceOwner())->patchJson(route('projects.update', $project), [...projectPayload(), 'is_active' => 'enabled'])
         ->assertUnprocessable()->assertJsonValidationErrors('is_active');
 
     expect($project->refresh()->is_active)->toBeTrue();
@@ -75,18 +76,18 @@ test('флаг активности принимает только boolean', fu
 
 test('выключение автоматизации немедленно отменяет ещё не отправленное видео', function (): void {
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
-    $episode = Episode::factory()->for($series)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create();
     $revision = EpisodeRevision::factory()->for($episode)->create();
     $scene = Scene::factory()->for($revision, 'episodeRevision')->create();
     $shot = Shot::factory()->for($scene)->create();
-    $prompt = Prompt::factory()->for($project)->create(['shot_id' => $shot->id]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($project)->create(['shot_id' => $shot->id]);
     $operation = $prompt->generationOperations()->create([
         'stage' => GenerationOperationStage::VIDEO, 'status' => GenerationOperationStatus::PLANNED,
         'request_key' => 'pause-planned-video', 'idempotency_key' => 'pause-planned-video', 'request_snapshot' => [],
     ]);
-    $run = ProductionRun::factory()->for($project)->for($series)->create(['episode_id' => $episode->id]);
+    $run = ProductionRun::factory()->recycle(workspaceOwner())->for($project)->for($series)->create(['episode_id' => $episode->id]);
     Bus::fake();
     Process::fake();
 
@@ -114,9 +115,9 @@ test('выключение автоматизации немедленно от�
 
 test('обычная правка настроек не запускает следующий выпуск вместо выключенного расписания', function (): void {
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
-    ProductionRun::factory()->for($project)->for($series)->create(['status' => ProductionStatus::COMPLETED]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    ProductionRun::factory()->recycle(workspaceOwner())->for($project)->for($series)->create(['status' => ProductionStatus::COMPLETED]);
     Bus::fake();
 
     actingAs($actor)->patch(route('projects.update', $project), [...seriesProjectPayload(), 'series_lock_version' => 0])
@@ -129,9 +130,9 @@ test('обычная правка настроек не запускает сл�
 test('настройки проекта изменяют существующий сериал и сохраняют эпизоды', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create();
-    $episode = Episode::factory()->for($series)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create();
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($series)->create();
     $payload = [...seriesProjectPayload(), 'series_lock_version' => $series->lock_version];
 
     actingAs($actor)->patch(route('projects.update', $project), $payload)->assertRedirect(route('projects.show', $project));
@@ -148,8 +149,8 @@ test('настройки проекта изменяют существующи�
 });
 
 test('проект с сериалом не переключается на одиночные видео', function (): void {
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    Series::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    Series::factory()->recycle(workspaceOwner())->for($project)->create();
     Bus::fake();
 
     actingAs(serialOperator())->patchJson(route('projects.update', $project), [...projectPayload(), 'content_mode' => 'short'])
@@ -160,11 +161,11 @@ test('проект с сериалом не переключается на од
 });
 
 test('изменение сохраняет тему без потери истории и каналов', function (): void {
-    $project = Project::factory()->create();
-    $prompt = Prompt::factory()->for($project)->create();
-    $channel = Channel::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->for($project)->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->patch(route('projects.update', $project), projectPayload())
         ->assertRedirect(route('projects.show', $project));
 
@@ -175,9 +176,9 @@ test('изменение сохраняет тему без потери ист�
 });
 
 test('ошибка изменения не меняет проект', function (array $invalid, string $field): void {
-    $project = Project::factory()->create(['name' => 'Original', 'prompt' => 'Keep the original topic']);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Original', 'prompt' => 'Keep the original topic']);
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->patchJson(route('projects.update', $project), [...projectPayload(), ...$invalid])
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -186,22 +187,22 @@ test('ошибка изменения не меняет проект', function 
 })->with(invalidProjectInputs());
 
 test('Inertia PATCH возвращает 303', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->patch(route('projects.update', $project), projectPayload(), ['X-Inertia' => 'true'])
         ->assertStatus(303)
         ->assertRedirect(route('projects.show', $project));
 });
 
 test('отсутствующий проект не обновляется', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->patch(route('projects.update', 99999), projectPayload())
         ->assertNotFound();
 });
 
 test('гость не меняет проект', function (): void {
-    $project = Project::factory()->create(['name' => 'Original']);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Original']);
 
     patch(route('projects.update', $project), projectPayload())->assertRedirect(route('login'));
 
@@ -209,7 +210,7 @@ test('гость не меняет проект', function (): void {
 });
 
 test('неподтверждённый пользователь не меняет проект', function (): void {
-    $project = Project::factory()->create(['name' => 'Original']);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Original']);
 
     actingAs(User::factory()->unverified()->create())
         ->patch(route('projects.update', $project), projectPayload())
@@ -219,9 +220,9 @@ test('неподтверждённый пользователь не меняе�
 });
 
 test('галочки заменяют связи без копирования каналов и токенов', function (): void {
-    $project = Project::factory()->create();
-    $old = Channel::factory()->for($project)->create();
-    $shared = Channel::factory()->create(['credentials' => ['access_token' => 'shared-token']]);
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $old = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
+    $shared = Channel::factory()->recycle(workspaceOwner())->create(['credentials' => ['access_token' => 'shared-token']]);
     $otherProjectIds = $shared->projects()->allRelatedIds()->all();
 
     actingAs(serialOperator())->patch(route('projects.update', $project), [...projectPayload(), 'channel_ids' => [$shared->id]])
@@ -241,27 +242,27 @@ test('галочки заменяют связи без копирования �
 });
 
 test('отсутствие галочек в запросе сохраняет подключения', function (): void {
-    $project = Project::factory()->create();
-    $channel = Channel::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
 
-    actingAs(User::factory()->create())->patch(route('projects.update', $project), projectPayload())->assertSessionHasNoErrors();
+    actingAs(workspaceOwner())->patch(route('projects.update', $project), projectPayload())->assertSessionHasNoErrors();
 
     expect($project->channels()->sole()->id)->toBe($channel->id);
 });
 
 test('обычный пользователь не меняет подключения', function (): void {
-    $project = Project::factory()->create(['name' => 'Original']);
-    $channel = Channel::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Original']);
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
 
-    actingAs(User::factory()->create())->patchJson(route('projects.update', $project), [...projectPayload(), 'channel_ids' => []])->assertForbidden();
+    actingAs(User::factory()->create())->patchJson(route('projects.update', $project), [...projectPayload(), 'channel_ids' => []])->assertNotFound();
 
     expect($project->channels()->sole()->id)->toBe($channel->id);
     expect($project->refresh()->name)->toBe('Original');
 });
 
 test('неверный выбор каналов не меняет проект', function (array $ids): void {
-    $project = Project::factory()->create(['name' => 'Original']);
-    $channel = Channel::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create(['name' => 'Original']);
+    $channel = Channel::factory()->recycle(workspaceOwner())->for($project)->create();
 
     actingAs(serialOperator())->patchJson(route('projects.update', $project), [...projectPayload(), 'channel_ids' => $ids])->assertUnprocessable();
 

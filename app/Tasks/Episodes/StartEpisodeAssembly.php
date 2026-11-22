@@ -12,6 +12,7 @@ use App\Repositories\EpisodeRepository;
 use App\Repositories\EpisodeRevisionRepository;
 use App\Repositories\ProjectRepository;
 use App\Repositories\SeriesRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +23,7 @@ class StartEpisodeAssembly
         private readonly ProjectRepository $projects,
         private readonly EpisodeRepository $episodes,
         private readonly SeriesRepository $series,
+        private readonly UserRepository $users,
         private readonly EpisodeRevisionRepository $episodeRevisions,
     ) {}
 
@@ -44,7 +46,8 @@ class StartEpisodeAssembly
             $episode = $this->episodes->forRevision($revision);
             $series = $this->series->forEpisode($episode);
 
-            if (! $project->is_active || $series->archived_at !== null || $episode->current_revision_id !== $revision->id
+            if ($project->owner_id === null || $revision->approved_by !== $project->owner_id || ! $this->users->isVerified($project->owner_id)
+                || ! $project->is_active || $series->archived_at !== null || $episode->current_revision_id !== $revision->id
                 || $revision->status !== RevisionStatus::APPROVED
                 || $revision->base_continuity_version !== $series->continuity_version
                 || data_get($revision->context_snapshot, 'specification_version') !== $series->specification_version) {

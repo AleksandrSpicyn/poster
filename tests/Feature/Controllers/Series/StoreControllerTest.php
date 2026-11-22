@@ -15,6 +15,7 @@ use function Pest\Laravel\post;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialSeriesPayload;
+use function Tests\Support\workspaceOwner;
 
 test('один проект не получает второй сериал', function (): void {
     $context = serialCharacterContext();
@@ -28,7 +29,7 @@ test('один проект не получает второй сериал', fu
 });
 
 test('создание сохраняет паспорт без генерации и публикации', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     Process::fake();
 
     $response = actingAs(serialOperator())->post(route('series.store', $project), serialSeriesPayload());
@@ -43,7 +44,7 @@ test('создание сохраняет паспорт без генераци
 });
 
 test('неполный паспорт не создаёт сериал', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())
         ->postJson(route('series.store', $project), ['name' => 'Story', 'specification' => []])
@@ -54,7 +55,7 @@ test('неполный паспорт не создаёт сериал', functio
 });
 
 test('гость не создаёт сериал', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     post(route('series.store', $project), serialSeriesPayload())->assertRedirect(route('login'));
 
@@ -62,18 +63,18 @@ test('гость не создаёт сериал', function (): void {
 });
 
 test('подтверждённый посторонний пользователь не создаёт сериал', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     config(['services.admin.email' => 'operator@example.test', 'horizon.allowed_emails' => []]);
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->postJson(route('series.store', $project), serialSeriesPayload())
-        ->assertForbidden();
+        ->assertNotFound();
 
     assertDatabaseCount('series', 0);
 });
 
 test('сохраняет выбранный режим звука и native для прежнего запроса', function (?string $mode, string $expected): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $payload = serialSeriesPayload();
 
     if ($mode === null) {
@@ -94,7 +95,7 @@ test('сохраняет выбранный режим звука и native дл
 })->with(['прежний запрос' => [null, 'native'], 'немой сериал' => ['silent', 'silent']]);
 
 test('неизвестный режим звука не сохраняет сериал и не запускает генерацию', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $payload = serialSeriesPayload();
     $payload['specification']['audio_mode'] = 'external-tts';
     Bus::fake();
@@ -112,7 +113,7 @@ test('неизвестный режим звука не сохраняет се�
 });
 
 test('паспорт не допускает длительность сверх лимита сценария', function (): void {
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
     $payload = serialSeriesPayload();
     $payload['specification']['episode_duration_seconds'] = 301;
     Bus::fake();

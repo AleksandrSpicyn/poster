@@ -11,9 +11,10 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('форма показывает настройки и скрывает сохранённые секреты', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'client_secret' => 'never-render-secret', 'credentials' => ['access_token' => 'never-render-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'client_secret' => 'never-render-secret', 'credentials' => ['access_token' => 'never-render-token']]);
 
     $response = actingAs(serialOperator())->get(route('channels.edit', $channel));
 
@@ -25,15 +26,15 @@ test('форма показывает настройки и скрывает с�
     expect($response->getContent())->not->toContain('never-render-secret', 'never-render-token');
 });
 
-test('недопущенный пользователь не управляет каналами', function (): void {
-    $channel = Channel::factory()->create();
-    actingAs(User::factory()->create())->get(route('channels.edit', $channel))->assertForbidden();
+test('пользователь не управляет чужим каналом', function (): void {
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
+    actingAs(User::factory()->create())->get(route('channels.edit', $channel))->assertNotFound();
 
     Http::assertNothingSent();
 });
 
 test('гость и неподтверждённый пользователь не открывают канал', function (): void {
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
     get(route('channels.edit', $channel))->assertRedirect(route('login'));
 
     actingAs(User::factory()->unverified()->create())->get(route('channels.edit', $channel))->assertRedirect(route('verification.notice'));

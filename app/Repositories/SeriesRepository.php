@@ -11,6 +11,7 @@ use App\Models\EpisodeAssembly;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -23,9 +24,9 @@ readonly class SeriesRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Series> */
-    public function paginate(int $page): LengthAwarePaginator
+    public function paginate(User $owner, int $page): LengthAwarePaginator
     {
-        return Series::query()
+        return Series::query()->whereRelation('project', 'owner_id', $owner->id)
             ->with('project')
             ->withCount('characters', 'episodes')
             ->latest('id')

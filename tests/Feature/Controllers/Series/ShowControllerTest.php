@@ -11,12 +11,13 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('карточка показывает только персонажей и эпизоды сериала', function (): void {
     $context = serialCharacterContext();
     Character::factory()->create(['name' => 'Foreign actor']);
-    $episode = Episode::factory()->for($context['series'])->create();
-    Episode::factory()->create(['title' => 'Foreign episode']);
+    $episode = Episode::factory()->recycle(workspaceOwner())->for($context['series'])->create();
+    Episode::factory()->recycle(workspaceOwner())->create(['title' => 'Foreign episode']);
 
     actingAs(serialOperator())
         ->get(route('series.show', $context['params']))
@@ -33,7 +34,7 @@ test('карточка показывает только персонажей и
 
 test('сериал скрыт в чужом проекте', function (): void {
     $context = serialCharacterContext();
-    $other = Project::factory()->create();
+    $other = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())
         ->get(route('series.show', ['project' => $other, 'series' => $context['series']]))

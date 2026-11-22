@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\GetChannelFormAction;
+use App\Classes\Channels\ChannelOAuth;
 use App\Enums\ChannelType;
 use App\Http\Resources\ChannelResource;
 use App\Models\Channel;
@@ -29,6 +30,6 @@ class EditController
      */
     public function __invoke(Channel $channel, GetChannelFormAction $action): Response
     {
-        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? route('channels.provider-callback', $channel->type) : null]);
+        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null]);
     }
 }

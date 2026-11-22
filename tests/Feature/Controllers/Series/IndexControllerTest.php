@@ -9,9 +9,10 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('список сериалов ограничен страницей и показывает счётчики', function (): void {
-    Series::factory()->count(21)->create();
+    Series::factory()->recycle(workspaceOwner())->count(21)->create();
 
     actingAs(serialOperator())
         ->get(route('series.index'))
@@ -45,5 +46,5 @@ test('подтверждённый посторонний пользовател
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('series.index'))
-        ->assertForbidden();
+        ->assertInertia(fn(Assert $page): Assert => $page->where('series.meta.total', 0));
 });

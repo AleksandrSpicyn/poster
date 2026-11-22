@@ -12,12 +12,13 @@ use Illuminate\Support\Facades\Http;
 
 use function Tests\Support\consoleCommand;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('плановые генерации по умолчанию выключены', function (): void {
     Bus::fake();
     Http::fake();
     serialOperator();
-    Project::factory()->create();
+    Project::factory()->recycle(workspaceOwner())->create();
 
     consoleCommand('app:produce-content', ['--scheduled' => true])->assertSuccessful();
 
@@ -31,11 +32,11 @@ test('выключенные проекты пропускаются и могу
     Bus::fake();
     $actor = serialOperator();
     config(['production.schedule_enabled' => true, 'services.admin.email' => $actor->email]);
-    $active = Project::factory()->create();
-    $clipping = Project::factory()->create(['is_active' => true, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
-    $disabled = Project::factory()->create(['is_active' => false]);
-    $serial = Project::factory()->create(['is_active' => false, 'content_mode' => ProjectContentMode::SERIES]);
-    Series::factory()->for($serial)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $active = Project::factory()->recycle(workspaceOwner())->create();
+    $clipping = Project::factory()->recycle(workspaceOwner())->create(['is_active' => true, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $disabled = Project::factory()->recycle(workspaceOwner())->create(['is_active' => false]);
+    $serial = Project::factory()->recycle(workspaceOwner())->create(['is_active' => false, 'content_mode' => ProjectContentMode::SERIES]);
+    Series::factory()->recycle(workspaceOwner())->for($serial)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
 
     consoleCommand('app:produce-content', ['--scheduled' => $scheduled])->assertSuccessful();
 
@@ -57,9 +58,9 @@ test('один плановый запуск выбирает сериал ил�
     Bus::fake();
     $actor = serialOperator();
     config(['production.schedule_enabled' => true, 'services.admin.email' => $actor->email]);
-    $short = Project::factory()->create();
-    $serial = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($serial)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $short = Project::factory()->recycle(workspaceOwner())->create();
+    $serial = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($serial)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
 
     consoleCommand('app:produce-content', ['--scheduled' => true])->assertSuccessful();
     consoleCommand('app:produce-content', ['--scheduled' => true])->assertSuccessful();

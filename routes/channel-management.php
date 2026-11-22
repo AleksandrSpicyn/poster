@@ -12,10 +12,14 @@ use App\Http\Controllers\Channels\EditController;
 use App\Http\Controllers\Channels\IndexController;
 use App\Http\Controllers\Channels\ProviderCallbackController;
 use App\Http\Controllers\Channels\StoreController;
+use App\Http\Controllers\Channels\TiktokRedirectController;
 use App\Http\Controllers\Channels\UpdateController;
+use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'can:manageChannels'])->prefix('channels')->name('channels.')->group(function (): void {
+Route::get('demo/tiktok/callback', TiktokRedirectController::class)->name('channels.tiktok-redirect');
+
+Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageChannels'])->prefix('channels')->name('channels.')->group(function (): void {
     Route::get('', IndexController::class)->name('index');
     Route::get('create', CreateController::class)->name('create');
     Route::post('', StoreController::class)->name('store');

@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Storage;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('приватный просмотр сборки требует сессию и не кешируется публично', function (): void {
     Storage::fake('local');
-    $assembly = EpisodeAssembly::factory()->create();
+    $assembly = EpisodeAssembly::factory()->recycle(workspaceOwner())->create();
     $media = $assembly->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
 
     $response = actingAs(serialOperator())->get(route('episodes.media.preview', $media));
@@ -26,7 +27,7 @@ test('приватный просмотр сборки требует сесси
 
 test('гость не видит приватное медиа', function (): void {
     Storage::fake('local');
-    $assembly = EpisodeAssembly::factory()->create();
+    $assembly = EpisodeAssembly::factory()->recycle(workspaceOwner())->create();
     $media = $assembly->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
 
     get(route('episodes.media.preview', $media))->assertRedirect(route('login'));
@@ -34,7 +35,7 @@ test('гость не видит приватное медиа', function (): vo
 
 test('просмотр не открывает медиа самостоятельного ролика через serial endpoint', function (): void {
     Storage::fake('local');
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create();
     $media = $prompt->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(Prompt::SHOT_IMAGE);
 
     actingAs(serialOperator())->get(route('episodes.media.preview', $media))->assertNotFound();
@@ -42,13 +43,13 @@ test('просмотр не открывает медиа самостоятел
 
 test('подтверждённый посторонний пользователь не читает приватное видео', function (): void {
     Storage::fake('local');
-    $assembly = EpisodeAssembly::factory()->create();
+    $assembly = EpisodeAssembly::factory()->recycle(workspaceOwner())->create();
     $media = $assembly->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
     config(['services.admin.email' => 'operator@example.test', 'horizon.allowed_emails' => []]);
 
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('episodes.media.preview', $media))
-        ->assertForbidden();
+        ->assertNotFound();
 
     Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
 });

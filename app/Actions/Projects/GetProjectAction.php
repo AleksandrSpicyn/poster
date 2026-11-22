@@ -7,6 +7,7 @@ namespace App\Actions\Projects;
 use App\Data\GetPromptsListData;
 use App\Data\Projects\ProjectWorkspaceData;
 use App\Models\Project;
+use App\Models\User;
 use App\Tasks\OpusClip\GetOpusClips;
 use App\Tasks\Projects\GetProject;
 use App\Tasks\Prompts\GetPromptsList;
@@ -18,7 +19,7 @@ readonly class GetProjectAction
 {
     public function __construct(private GetProject $getProject, private GetPromptsList $getPrompts, private GetSeries $getSeries, private GetOpusClips $getClips) {}
 
-    public function run(Project $project, GetPromptsListData $filters): ProjectWorkspaceData
+    public function run(User $owner, Project $project, GetPromptsListData $filters): ProjectWorkspaceData
     {
         $project = $this->getProject->run($project);
         $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
@@ -28,7 +29,7 @@ readonly class GetProjectAction
 
         return new ProjectWorkspaceData(
             project: $project,
-            prompts: $this->getPrompts->run($filters, $project),
+            prompts: $this->getPrompts->run($owner, $filters, $project),
             series: $details->series ?? null,
             characters: $details->characters ?? null,
             episodes: $details->episodes ?? new Collection(),

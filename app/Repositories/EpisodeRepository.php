@@ -64,16 +64,19 @@ readonly class EpisodeRepository extends EloquentRepository
         return new EpisodeWorkspaceData($episode, $characters, $assemblies, $publications, $channels);
     }
 
-    public function expireScriptClaims(int $limit): int
+    /** @return Collection<int, Episode> */
+    public function expireScriptClaims(int $limit): Collection
     {
         $expiredIds = Episode::query()->where('script_generation_status', ScriptGenerationStatus::RUNNING)
             ->where('script_started_at', '<', now()->subMinutes(10))
             ->orderBy('id')->limit($limit)->pluck('id');
 
-        return Episode::query()->whereKey($expiredIds)
+        Episode::query()->whereKey($expiredIds)
             ->where('script_generation_status', ScriptGenerationStatus::RUNNING)
             ->where('script_started_at', '<', now()->subMinutes(10))
             ->update(['script_generation_status' => ScriptGenerationStatus::OUTCOME_UNKNOWN, 'script_generation_error' => 'The worker stopped before confirming a result. Review before requesting another draft.']);
+
+        return Episode::query()->whereKey($expiredIds)->get();
     }
 
     /** @return Collection<int, Episode> */

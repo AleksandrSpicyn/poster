@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Data\RegisterUserData;
+use App\Models\Channel;
+use App\Models\Chat;
+use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 /** @extends EloquentRepository<User> */
 readonly class UserRepository extends EloquentRepository
@@ -15,14 +18,26 @@ readonly class UserRepository extends EloquentRepository
         return User::class;
     }
 
-    public function createRegistered(RegisterUserData $data): User
+    public function forInvitation(string $email): User
     {
-        return User::query()->create(['name' => $data->name, 'email' => $data->email, 'password' => $data->password]);
+        User::query()->firstOrCreate(['email' => $email], fn(): array => [
+            'name' => Str::before($email, '@'),
+            'password' => Str::random(64),
+        ]);
+
+        return User::query()->where('email', $email)->lockForUpdate()->firstOrFail();
     }
 
     public function byEmail(string $ownerEmail): ?User
     {
         return User::query()->where('email', $ownerEmail)->first();
+    }
+
+    public function ownsWorkspaceData(User $owner): bool
+    {
+        return Project::query()->where('owner_id', $owner->id)->exists()
+            || Channel::query()->where('owner_id', $owner->id)->exists()
+            || Chat::query()->where('owner_id', $owner->id)->exists();
     }
 
     public function isVerified(int $id): bool

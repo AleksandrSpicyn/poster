@@ -16,13 +16,14 @@ use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\workspaceOwner;
 
 test('публикация создаёт receipt для выбранного канала без внешней отправки в HTTP', function (): void {
     $context = episodeHttpFixture();
     $series = $context['episode']->series()->firstOrFail();
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->create(['status' => AssemblyStatus::ACCEPTED]);
     $context['episode']->update(['accepted_assembly_id' => $assembly->id]);
-    $channel = Channel::factory()->create(['project_id' => $series->project_id, 'type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test-token']]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test-token']]);
     Bus::fake();
 
     actingAs($context['user'])
@@ -40,7 +41,7 @@ test('публикация создаёт receipt для выбранного к
 test('черновик не создаёт публикацию', function (): void {
     $context = episodeHttpFixture();
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->create(['status' => AssemblyStatus::READY]);
-    $channel = Channel::factory()->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create();
     Bus::fake();
 
     actingAs($context['user'])
@@ -60,7 +61,7 @@ test('два канала ждут общего слота и повторный
     $ids = [];
 
     foreach ([ChannelType::YOUTUBE, ChannelType::INSTAGRAM] as $type) {
-        $ids[] = Channel::factory()->create(['project_id' => $series->project_id, 'type' => $type, 'credentials' => ['access_token' => 'test']])->id;
+        $ids[] = Channel::factory()->recycle(workspaceOwner())->create(['project_id' => $series->project_id, 'type' => $type, 'credentials' => ['access_token' => 'test']])->id;
     }
 
     Bus::fake();

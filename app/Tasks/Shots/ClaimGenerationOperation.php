@@ -57,7 +57,7 @@ class ClaimGenerationOperation
                 $actorId = $operation->request_snapshot['actor_id'] ?? null;
                 $actor = is_int($actorId) ? $this->users->find($actorId) : null;
 
-                if (! $actor instanceof User || ! Gate::forUser($actor)->allows('manageSeries')
+                if (! $actor instanceof User || $actor->id !== $project->owner_id || ! Gate::forUser($actor)->allows('manageSeries')
                     || $prompt->input_hash !== Snapshot::hash($operation->request_snapshot)) {
                     $this->operations->update($operation, ['status' => GenerationOperationStatus::FAILED,
                         'error_code' => 'invalid_actor_or_snapshot', 'completed_at' => now(), 'next_check_at' => null]);

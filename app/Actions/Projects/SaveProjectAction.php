@@ -33,7 +33,7 @@ readonly class SaveProjectAction
         }
 
         return DB::transaction(function () use ($data, $project, $actor): Project {
-            $project = $this->saveProject->run($data, $project);
+            $project = $this->saveProject->run($data, $project, $actor);
 
             if ($data->channel_ids !== null) {
                 $this->syncChannels->run($project, $data->channel_ids);

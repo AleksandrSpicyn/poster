@@ -11,6 +11,7 @@ use App\Enums\SortDirection;
 use App\Models\Channel;
 use App\Models\Post;
 use App\Models\PublicationRequest;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -24,13 +25,13 @@ readonly class PostRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Post> */
-    public function paginate(GetPostsListData $dto): LengthAwarePaginator
+    public function paginate(User $owner, GetPostsListData $dto): LengthAwarePaginator
     {
         $type = ChannelType::tryFrom(is_string($dto->type) ? $dto->type : '');
 
         $direction = $dto->sort instanceof SortDirection ? $dto->sort : SortDirection::DESC;
 
-        return Post::query()
+        return $this->owned($owner)
             ->with('channel')
             ->when($type, function (Builder $query, ChannelType $type): void {
                 $query->whereHas('channel', function (Builder $q) use ($type): void {
@@ -43,15 +44,25 @@ readonly class PostRepository extends EloquentRepository
             ->withQueryString();
     }
 
-    public function totalCount(): int
+    public function totalCount(User $owner): int
     {
-        return Post::query()->count();
+        return $this->owned($owner)->count();
     }
 
     /** @return Collection<int, Post> */
-    public function recentForDashboard(): Collection
+    public function recentForDashboard(User $owner): Collection
     {
-        return Post::query()->with('channel')->latest()->latest('id')->limit(5)->get();
+        return $this->owned($owner)->with('channel')->latest()->latest('id')->limit(5)->get();
+    }
+
+    /** @return Builder<Post> */
+    private function owned(User $owner): Builder
+    {
+        return Post::query()
+            ->where(fn(Builder $query) => $query->whereDoesntHave('channel')->orWhereRelation('channel', 'owner_id', $owner->id))
+            ->where(fn(Builder $query) => $query->whereRelation('prompt.project', 'owner_id', $owner->id)
+                ->orWhereRelation('episodeAssembly.episodeRevision.episode.series.project', 'owner_id', $owner->id)
+                ->orWhereRelation('seriesAssembly.series.project', 'owner_id', $owner->id));
     }
 
     public function hasReceipt(PublicationRequest $request, string $externalId): bool

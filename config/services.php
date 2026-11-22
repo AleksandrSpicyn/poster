@@ -111,6 +111,8 @@ return [
     ],
 
     'tiktok' => [
+        'direct_post' => env('TIKTOK_DIRECT_POST', false),
+        'public_direct_post' => env('TIKTOK_PUBLIC_DIRECT_POST', false),
         'client_id' => env('TIKTOK_CLIENT_ID'),
         'client_secret' => env('TIKTOK_CLIENT_SECRET'),
     ],

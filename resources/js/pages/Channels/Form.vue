@@ -184,7 +184,7 @@ function remove() {
                         <div class="space-y-2">
                             <p class="text-sm font-medium">OAuth redirect URI</p>
                             <p class="bg-muted rounded-md p-3 font-mono text-xs leading-relaxed break-all select-all">
-                                {{ callbackUrl ?? route('channels.provider-callback', form.type) }}
+                                {{ callbackUrl ?? (form.type === 'tiktok' ? route('channels.tiktok-redirect') : route('channels.provider-callback', form.type)) }}
                             </p>
                             <p class="text-muted-foreground text-xs">Register this URI once per provider application for all its channels.</p>
                         </div>

@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Series;
 use App\Actions\Series\GetSeriesListAction;
 use App\Data\PageData;
 use App\Http\Resources\SeriesResource;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class IndexController
@@ -26,8 +28,8 @@ class IndexController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(PageData $data, GetSeriesListAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, PageData $data, GetSeriesListAction $action): Response
     {
-        return inertia('Series/Index', ['series' => SeriesResource::collection($action->run($data->page))]);
+        return inertia('Series/Index', ['series' => SeriesResource::collection($action->run($owner, $data->page))]);
     }
 }

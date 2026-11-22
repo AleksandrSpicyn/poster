@@ -11,21 +11,22 @@ use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Tests\Support\workspaceOwner;
 
 test('список публикаций фильтруется по каналу и сортируется', function (): void {
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
-    $first = Post::factory()
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
+    $first = Post::factory()->recycle(workspaceOwner())
         ->for($channel)
         ->create(['created_at' => now()->subDay()]);
-    $last = Post::factory()
+    $last = Post::factory()->recycle(workspaceOwner())
         ->for($channel)
         ->create();
 
-    Post::factory()
-        ->for(Channel::factory()->state(['type' => ChannelType::VK]))
+    Post::factory()->recycle(workspaceOwner())
+        ->for(Channel::factory()->recycle(workspaceOwner())->state(['type' => ChannelType::VK]))
         ->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts', ['type' => 'youtube', 'sort' => 'asc']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -38,13 +39,13 @@ test('список публикаций фильтруется по каналу
 });
 
 test('удалённый канал не ломает историю публикаций', function (): void {
-    $post = Post::factory()->create();
+    $post = Post::factory()->recycle(workspaceOwner())->create();
 
     $post
         ->channel()
         ->delete();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -67,13 +68,13 @@ test('гость не видит рабочие списки', function (): void
 });
 
 test('недокументированный столбец сортировки не попадает в SQL', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts', ['orderBy' => 'unknown_column']))
         ->assertOk();
 });
 
 test('списки отклоняют некорректные фильтры', function (array $input, string $field): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->getJson(route('posts', $input))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -87,10 +88,10 @@ test('списки отклоняют некорректные фильтры', 
 ]);
 
 test('пустые фильтры сохраняют размер страницы и порядок по умолчанию', function (): void {
-    Post::factory()->create(['created_at' => now()->subDay()]);
-    $last = Post::factory()->create();
+    Post::factory()->recycle(workspaceOwner())->create(['created_at' => now()->subDay()]);
+    $last = Post::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts', ['sort' => '', 'perPage' => '', 'page' => '']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -101,17 +102,17 @@ test('пустые фильтры сохраняют размер страниц
 });
 
 test('отсутствующие фильтры не добавляются в ответ', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('filters', []));
 });
 
 test('публикации используют валидированные страницу и размер', function (): void {
-    $first = Post::factory()->create(['created_at' => now()->subDay()]);
-    Post::factory()->create();
+    $first = Post::factory()->recycle(workspaceOwner())->create(['created_at' => now()->subDay()]);
+    Post::factory()->recycle(workspaceOwner())->create();
 
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts', ['perPage' => 1, 'page' => 2]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
@@ -122,7 +123,7 @@ test('публикации используют валидированные с�
 });
 
 test('список передаёт варианты сортировки из enum', function (): void {
-    actingAs(User::factory()->create())
+    actingAs(workspaceOwner())
         ->get(route('posts'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page

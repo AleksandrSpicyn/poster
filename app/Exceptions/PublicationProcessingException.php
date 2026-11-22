@@ -6,4 +6,10 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-final class PublicationProcessingException extends RuntimeException {}
+class PublicationProcessingException extends RuntimeException
+{
+    public function __construct(string $message, public readonly bool $inbox = false)
+    {
+        parent::__construct($message);
+    }
+}

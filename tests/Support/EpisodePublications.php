@@ -27,7 +27,7 @@ function acceptedEpisodePublication(): array
     $assembly = EpisodeAssembly::factory()->for($revision)->ready()->create(['duration_ms' => 5000]);
     $assembly->addMedia(UploadedFile::fake()->create('episode.mp4', 10, 'video/mp4'))->toMediaCollection(EpisodeAssembly::VIDEO);
     app(AcceptEpisodeAction::class)->run($assembly, new AcceptEpisodeData(0, 'Key found.', 'Hero holds the key.', '', false), $user);
-    $channel = Channel::factory()->create([
+    $channel = Channel::factory()->recycle(workspaceOwner())->create([
         'project_id' => $episode->series?->project_id,
         'type' => ChannelType::INSTAGRAM,
         'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-episode'],

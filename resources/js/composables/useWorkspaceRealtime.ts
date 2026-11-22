@@ -14,7 +14,27 @@ const liveProps: Record<string, string[]> = {
     'Characters/Show': ['character', 'revisions', 'series'],
     'Episodes/Show': ['episode', 'assemblies', 'publications', 'characters', 'screenplay', 'sourceAssembly', 'series'],
     Prompts: ['prompts'],
-    Posts: ['posts'],
+    Posts: ['posts', 'requests', 'destinations'],
+    'Channels/Index': ['channels'],
+};
+
+const affectedProps: Record<string, string[]> = {
+    Project: ['projects', 'project', 'prompts', 'series', 'channels', 'destinations'],
+    Channel: ['channels', 'projects', 'project', 'destinations', 'requests', 'posts', 'recentPosts'],
+    Prompt: ['prompts', 'projects', 'project', 'stats', 'recentPrompts', 'episode', 'assemblies'],
+    Post: ['posts', 'recentPosts', 'stats', 'requests', 'project', 'publications'],
+    Series: ['series', 'project', 'projects', 'episodes'],
+    Character: ['characters', 'character', 'series'],
+    CharacterRevision: ['revisions', 'characters', 'character', 'series'],
+    Episode: ['episode', 'episodes', 'series', 'sourceAssembly', 'assemblies'],
+    EpisodeRevision: ['episode', 'episodes', 'screenplay', 'assemblies', 'series'],
+    Shot: ['episode', 'assemblies'],
+    Scene: ['episode', 'screenplay'],
+    GenerationOperation: ['episode', 'prompts', 'recentPrompts'],
+    EpisodeAssembly: ['assemblies', 'episode', 'episodes', 'sourceAssembly', 'publications'],
+    SeriesAssembly: ['series', 'assemblies', 'project'],
+    PublicationRequest: ['publications', 'requests', 'series', 'episode', 'project'],
+    ProductionRun: ['projects', 'project', 'series', 'episode', 'episodes'],
 };
 
 export function useWorkspaceRealtime() {
@@ -26,19 +46,25 @@ export function useWorkspaceRealtime() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let fallback: ReturnType<typeof setInterval> | undefined;
     let busy = false;
-    let pending = false;
+    const pending = new Set<string>();
     let disposed = false;
     const unsubscribe: (() => void)[] = [];
 
-    function refresh() {
+    function queueRefresh(props: string[]) {
         if (disposed || !liveProps[page.component]) return;
-        pending = true;
+        for (const prop of props) pending.add(prop);
+        if (!pending.size) return;
         clearTimeout(timer);
         timer = setTimeout(() => {
             if (busy || document.hidden || disposed) return;
-            pending = false;
-            router.reload({ only: liveProps[page.component], preserveErrors: true });
+            const only = (liveProps[page.component] ?? []).filter((prop) => pending.has(prop));
+            pending.clear();
+            if (only.length) router.reload({ only, preserveErrors: true });
         }, 400);
+    }
+
+    function refresh() {
+        queueRefresh(liveProps[page.component] ?? []);
     }
 
     function visible() {
@@ -52,7 +78,7 @@ export function useWorkspaceRealtime() {
             }),
             router.on('finish', () => {
                 busy = false;
-                if (pending) refresh();
+                if (pending.size) queueRefresh([]);
             }),
         );
         document.addEventListener('visibilitychange', visible);
@@ -83,28 +109,26 @@ export function useWorkspaceRealtime() {
             },
         });
         echo = new Echo({ broadcaster: 'reverb', client });
-        const channels = ['workspace', ...(page.props.auth.can_manage_series ? ['workspace.series'] : [])];
-        const subscriptions = new Set<string>();
+        const versions = new Map<string, number>();
         client.connection.bind('state_change', ({ current }: { current: string }) => {
-            if (current !== 'connected') {
-                connected.value = false;
-                subscriptions.clear();
-            }
+            if (current !== 'connected') connected.value = false;
         });
 
-        for (const channel of channels) {
-            echo.private(channel)
-                .listen('.workspace.updated', refresh)
-                .subscribed(() => {
-                    subscriptions.add(channel);
-                    connected.value = subscriptions.size === channels.length;
-                    refresh();
-                })
-                .error(() => {
-                    subscriptions.delete(channel);
-                    connected.value = false;
-                });
-        }
+        echo.private(`workspace.${page.props.auth.user.id}`)
+            .listen('.workspace.updated', (event: { resource: string; id: number; version: number }) => {
+                const key = `${event.resource}.${event.id}`;
+                if (event.version <= (versions.get(key) ?? 0)) return;
+                versions.set(key, event.version);
+                queueRefresh((liveProps[page.component] ?? []).filter((prop) => affectedProps[event.resource]?.includes(prop)));
+            })
+            .subscribed(() => {
+                connected.value = true;
+                versions.clear();
+                refresh();
+            })
+            .error(() => {
+                connected.value = false;
+            });
     });
 
     onUnmounted(() => {

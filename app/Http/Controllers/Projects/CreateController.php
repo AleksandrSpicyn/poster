@@ -13,6 +13,8 @@ use App\Enums\ProjectContentMode;
 use App\Enums\SeriesAudioMode;
 use App\Enums\SeriesOutputMode;
 use App\Http\Resources\ChannelResource;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Response;
 
@@ -32,9 +34,9 @@ class CreateController
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}
      */
-    public function __invoke(GetProjectFormAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, GetProjectFormAction $action): Response
     {
-        $details = $action->run();
+        $details = $action->run($owner);
 
         return inertia('Projects/Form', [
             'project' => null,

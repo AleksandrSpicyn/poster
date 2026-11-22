@@ -23,9 +23,11 @@ use App\Http\Controllers\SeriesAssemblies\AcceptController;
 use App\Http\Controllers\SeriesAssemblies\ExportController;
 use App\Http\Controllers\SeriesAssemblies\PreviewController;
 use App\Http\Controllers\SeriesAssemblies\PublishController;
+use App\Http\Middleware\VerifyExportOwner;
+use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->group(function (): void {
+Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->scopeBindings()->group(function (): void {
     Route::post('projects/{project}/production-runs', ProductionRuns\StoreController::class)
         ->whereNumber('project')->name('production_runs.store');
     Route::post('production-runs/{production_run}/stop', StopController::class)
@@ -73,9 +75,9 @@ Route::middleware(['auth', 'verified', 'can:manageSeries'])->scopeBindings()->gr
 });
 
 Route::get('series-exports/{assembly}/media/{media}', ExportController::class)
-    ->whereNumber(['assembly', 'media'])->scopeBindings()->middleware('signed')->name('series_assemblies.export');
+    ->whereNumber(['assembly', 'media'])->scopeBindings()->middleware(['signed', VerifyExportOwner::class])->name('series_assemblies.export');
 
-Route::middleware(['auth', 'verified', 'can:manageSeries'])->group(function (): void {
+Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->group(function (): void {
     Route::post('series/{series}/assemblies', SeriesAssemblies\StoreController::class)
         ->whereNumber('series')->name('series_assemblies.store');
     Route::prefix('series-assemblies/{assembly}')->whereNumber('assembly')->name('series_assemblies.')->group(function (): void {

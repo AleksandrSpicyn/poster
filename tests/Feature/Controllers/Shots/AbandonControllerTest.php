@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\workspaceOwner;
 
 test('закрывает неизвестный запуск без внешних эффектов и сохраняет первое решение', function (): void {
     ['params' => $params, 'operation' => $operation, 'actor' => $actor] = abandonShotRouteFixture();
@@ -89,7 +90,7 @@ test('без операторского допуска решение запре
     Http::fake();
 
     actingAs($reader)->postJson(route('shots.abandon', $params), ['note' => 'Reviewed.', 'accept_unknown_outcome' => true])
-        ->assertForbidden();
+        ->assertStatus($verified ? 404 : 403);
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUBMISSION_UNKNOWN);
     Bus::assertNothingDispatched();
@@ -130,7 +131,7 @@ test('известный запуск не получает статус отк�
 function abandonShotRouteFixture(): array
 {
     $context = episodeHttpFixture();
-    $prompt = Prompt::factory()->create(['project_id' => $context['episode']->series?->project_id,
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create(['project_id' => $context['episode']->series?->project_id,
         'shot_id' => $context['shot']->id, 'take_number' => 1, 'generated' => false]);
     $operation = $prompt->generationOperations()->create([
         'stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::SUBMISSION_UNKNOWN,

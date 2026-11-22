@@ -25,6 +25,7 @@ readonly class DeleteProfileAction
 
     public function run(User $user): void
     {
+        $this->deleteUser->ensureCanDelete($user);
         $this->guard->logout();
         $this->deleteUser->run($user);
         $this->invalidateSession->run();

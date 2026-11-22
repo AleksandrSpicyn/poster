@@ -15,10 +15,11 @@ use Illuminate\Support\Facades\Storage;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Tests\Support\fakeGoogleClient;
+use function Tests\Support\workspaceOwner;
 
 test('выключенный проект не отправляет видео в YouTube', function (): void {
-    $prompt = Prompt::factory()->create();
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE]);
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE]);
     $channel->project?->update(['is_active' => false]);
     $channel->projects()->syncWithoutDetaching([$prompt->project_id]);
     $handler = fakeGoogleClient(new Response(200));
@@ -35,13 +36,13 @@ test('YouTube загружает файл и сохраняет публикац
 
     Storage::disk('public')->put('clip.mp4', 'test-video-bytes');
 
-    $prompt = Prompt::factory()->create();
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create();
 
     $prompt
         ->addMedia(Storage::disk('public')->path('clip.mp4'))
         ->toMediaCollection();
 
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
         'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
     ]]);
     $channel->projects()->syncWithoutDetaching([$prompt->project_id]);
@@ -64,8 +65,8 @@ test('YouTube загружает файл и сохраняет публикац
 test('YouTube не создаёт публикацию без медиафайла', /** @throws Exception */ function (): void {
     Event::fake([PostCreated::class]);
 
-    $prompt = Prompt::factory()->create();
-    $channel = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
+    $prompt = Prompt::factory()->recycle(workspaceOwner())->create();
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => [
         'access_token' => 'test-access', 'expires_in' => 3600, 'created' => Carbon::now()->getTimestamp(),
     ]]);
     $channel->projects()->syncWithoutDetaching([$prompt->project_id]);

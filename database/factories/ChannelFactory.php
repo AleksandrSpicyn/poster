@@ -33,6 +33,7 @@ class ChannelFactory extends Factory
             'client_id' => $this->faker->word(),
             'client_secret' => $this->faker->word(),
             'project_id' => Project::factory(),
+            'owner_id' => fn(array $attributes) => Project::query()->whereKey($attributes['project_id'])->value('owner_id'),
         ];
     }
 }

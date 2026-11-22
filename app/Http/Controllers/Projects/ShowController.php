@@ -15,6 +15,8 @@ use App\Http\Resources\PromptResource;
 use App\Http\Resources\SeriesResource;
 use App\Models\Project;
 use App\Models\Series;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Response;
 
@@ -41,9 +43,9 @@ class ShowController
      * @response 404
      * @response 422 {"message":"The selected sort is invalid.","errors":{"sort":["The selected sort is invalid."]}}
      */
-    public function __invoke(Project $project, GetPromptsListData $filters, GetProjectAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, Project $project, GetPromptsListData $filters, GetProjectAction $action): Response
     {
-        $data = $action->run($project, $filters);
+        $data = $action->run($owner, $project, $filters);
 
         return inertia('Projects/Show', [
             'project' => ProjectResource::make($data->project)->resolve(),

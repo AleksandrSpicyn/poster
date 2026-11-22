@@ -16,8 +16,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /** @return array{project: Project, series: Series, character: Character, revision: CharacterRevision, params: array{project: int, series: int, character: int}} */
 function serialCharacterContext(): array
 {
-    $project = Project::factory()->create();
-    $series = Series::factory()->for($project)->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create();
     $character = Character::factory()->for($series)->create();
     $revision = CharacterRevision::factory()->for($character)->create();
 
@@ -64,12 +64,12 @@ function serialReferenceMedia(CharacterRevision $revision): Media
 /** @return array{episode: Episode, character: CharacterRevision} */
 function storyFixture(): array
 {
-    $series = Series::factory()->create();
+    $series = Series::factory()->recycle(workspaceOwner())->create();
     $character = Character::factory()->for($series)->create();
     $revision = CharacterRevision::factory()->for($character)->approved()->create();
     $character->update(['current_revision_id' => $revision->id]);
 
-    return ['episode' => Episode::factory()->for($series)->create(['number' => 1]), 'character' => $revision];
+    return ['episode' => Episode::factory()->recycle(workspaceOwner())->for($series)->create(['number' => 1]), 'character' => $revision];
 }
 
 /** @return array<string, mixed> */

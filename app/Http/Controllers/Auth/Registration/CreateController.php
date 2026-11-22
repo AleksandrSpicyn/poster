@@ -9,7 +9,7 @@ use Inertia\Response;
 class CreateController
 {
     /**
-     * Форма регистрации
+     * Уведомление о закрытой регистрации
      *
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      *

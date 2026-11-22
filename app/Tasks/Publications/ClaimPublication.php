@@ -29,15 +29,15 @@ class ClaimPublication
     public function run(PublicationRequest $request, bool $container = false): bool
     {
         return DB::transaction(function () use ($request, $container): bool {
-            $context = $this->publications->lockClaimContext($request);
-            $request = $context->request;
+            $context = $request->prompt_id === null ? $this->publications->lockClaimContext($request) : null;
+            $request = $context->request ?? $this->publications->findLockedOrFail($request->id);
             $expected = $container ? PublicationStatus::PROCESSING : PublicationStatus::PLANNED;
 
-            if ($request->status !== $expected || (! $container && $request->scheduled_at?->isFuture())) {
+            if (($request->status !== $expected && (! $container || $request->status !== PublicationStatus::INBOX)) || (! $container && $request->scheduled_at?->isFuture())) {
                 return false;
             }
 
-            $error = $this->rejectionReason($context);
+            $error = $context instanceof PublicationClaimData ? $this->rejectionReason($context) : $this->shortRejectionReason($request);
 
             if ($error !== null) {
                 $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => $error]);
@@ -45,7 +45,7 @@ class ClaimPublication
                 return false;
             }
 
-            if ($context->assembly instanceof SeriesAssembly && $context->series->release_started_at === null) {
+            if ($context?->assembly instanceof SeriesAssembly && $context->series->release_started_at === null) {
                 $this->seriesRepository->update($context->series, ['release_started_at' => now()]);
             }
 
@@ -53,6 +53,19 @@ class ClaimPublication
 
             return true;
         });
+    }
+
+    private function shortRejectionReason(PublicationRequest $request): ?string
+    {
+        $short = $request->prompt()->with('project')->first();
+
+        if ($short === null || ! $short->generated || $short->shot_id !== null || $short->project?->is_active !== true
+            || $short->project->owner_id !== $request->created_by || ! User::query()->whereKey($request->created_by)->whereNotNull('email_verified_at')->exists()
+            || ! $this->channels->readyForProject($request->channel_id, $short->project_id)) {
+            return 'The short or its channel is no longer available to this owner.';
+        }
+
+        return null;
     }
 
     private function rejectionReason(PublicationClaimData $context): ?string
@@ -64,7 +77,7 @@ class ClaimPublication
         $productionRun = $context->productionRun;
         $request = $context->request;
         $user = $context->user;
-        $userAllowed = $user instanceof User && Gate::forUser($user)->allows('manageSeries');
+        $userAllowed = $user instanceof User && $user->id === $project->owner_id && Gate::forUser($user)->allows('manageSeries');
 
         if (! $project->is_active) {
             return 'The project is disabled.';

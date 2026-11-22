@@ -14,13 +14,14 @@ use Illuminate\Support\Facades\Http;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Tests\Support\serialOperator;
+use function Tests\Support\workspaceOwner;
 
 test('выключенный проект не запускается вручную', function (ProjectContentMode $mode): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['is_active' => false, 'content_mode' => $mode]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['is_active' => false, 'content_mode' => $mode]);
     $series = $mode === ProjectContentMode::SERIES
-        ? Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
+        ? Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]) : null;
 
     actingAs($actor)->postJson(route('production_runs.store', $project), ['request_key' => 'disabled-project', 'series_id' => $series?->id])
         ->assertUnprocessable()->assertJsonValidationErrors('project');
@@ -33,8 +34,8 @@ test('выключенный проект не запускается вручн
 test('запускает сериал и сохраняет один выпуск при повторном запросе', function (): void {
     Bus::fake();
     $actor = serialOperator();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->for($project)->create(['automation_enabled' => true, 'automation_user_id' => $actor->id]);
     $payload = ['request_key' => 'http-production', 'series_id' => $series->id];
 
     actingAs($actor)->post(route('production_runs.store', $project), $payload)->assertRedirect();
@@ -49,8 +50,8 @@ test('запускает сериал и сохраняет один выпус�
 
 test('не запускает сериал другого проекта', function (): void {
     Bus::fake();
-    $project = Project::factory()->create(['content_mode' => ProjectContentMode::SERIES]);
-    $series = Series::factory()->create(['automation_enabled' => true]);
+    $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->recycle(workspaceOwner())->create(['automation_enabled' => true]);
 
     actingAs(serialOperator())->postJson(route('production_runs.store', $project), [
         'request_key' => 'wrong-project', 'series_id' => $series->id,
@@ -62,7 +63,7 @@ test('не запускает сериал другого проекта', funct
 
 test('не принимает пустой ключ выпуска', function (): void {
     Bus::fake();
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())->postJson(route('production_runs.store', $project), [])
         ->assertUnprocessable()->assertJsonValidationErrors('request_key');
@@ -74,10 +75,10 @@ test('не принимает пустой ключ выпуска', function ()
 test('посторонний пользователь не запускает производство', function (): void {
     Bus::fake();
     serialOperator();
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(User::factory()->create())->postJson(route('production_runs.store', $project), ['request_key' => 'denied'])
-        ->assertForbidden();
+        ->assertNotFound();
 
     expect(ProductionRun::query()->exists())->toBeFalse();
     Bus::assertNothingDispatched();
@@ -85,7 +86,7 @@ test('посторонний пользователь не запускает п
 
 test('гость не запускает производство', function (): void {
     Bus::fake();
-    $project = Project::factory()->create();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
 
     post(route('production_runs.store', $project), ['request_key' => 'guest'])->assertRedirect(route('login'));
 

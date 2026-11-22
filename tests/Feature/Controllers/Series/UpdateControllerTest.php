@@ -8,6 +8,7 @@ use function Pest\Laravel\actingAs;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialSeriesPayload;
+use function Tests\Support\workspaceOwner;
 
 test('правка паспорта увеличивает версию и сохраняет персонажей', function (): void {
     $context = serialCharacterContext();
@@ -36,7 +37,7 @@ test('устаревшая правка не меняет паспорт', funct
 
 test('правка не переносит сериал в чужой проект', function (): void {
     $context = serialCharacterContext();
-    $other = Project::factory()->create();
+    $other = Project::factory()->recycle(workspaceOwner())->create();
 
     actingAs(serialOperator())
         ->patchJson(route('series.update', ['project' => $other, 'series' => $context['series']]), [...serialSeriesPayload(), 'lock_version' => 0])

@@ -29,7 +29,7 @@ class TiktokMetrics extends Command
         }
 
         try {
-            $http = $client->forChannel($channel);
+            $http = $client->forChannel($channel, 'video.list');
             $params = ['max_count' => 20];
             do {
                 $response = $http->post('video/list/?fields=id,title,view_count,like_count,comment_count,share_count', $params);
