@@ -403,7 +403,7 @@ function clearSearch() {
                     @page="changePage"
                     @refresh="refresh"
                 >
-                    <h2 class="mb-4 text-xl font-bold">
+                    <h2 class="mb-[18px] text-xl font-bold min-[700px]:mb-[15px] min-[1100px]:mb-[18px]">
                         {{
                             filters.alphabetical
                                 ? 'По названию'
