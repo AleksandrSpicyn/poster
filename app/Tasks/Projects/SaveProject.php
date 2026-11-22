@@ -24,6 +24,12 @@ class SaveProject
 
         if ($project->exists) {
             $project = $this->projects->findLockedOrFail($project->id);
+
+            if ($data->settings_version !== null && $data->settings_version !== $project->settings_version) {
+                throw ValidationException::withMessages(['settings_version' => 'Серверная версия изменилась.']);
+            }
+
+            $project->settings_version++;
         }
 
         if ($project->exists && $data->content_mode === ProjectContentMode::SHORT && $this->projects->hasSeries($project)) {

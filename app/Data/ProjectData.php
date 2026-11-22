@@ -40,6 +40,8 @@ class ProjectData extends Data
         public ?array $channel_ids = null,
         public ?bool $is_active = null,
         public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
+        #[Min(1)]
+        public ?int $settings_version = null,
     ) {}
 
     /** @return array<string, list<string>> */

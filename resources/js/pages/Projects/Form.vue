@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps } from '@/types/projects';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
@@ -23,6 +23,7 @@ const initialMode =
         ? 'series'
         : Object.keys(props.contentModes)[0];
 const form = useForm({
+    settings_version: props.project?.settings_version ?? null,
     name: props.project?.name ?? '',
     prompt: props.series?.specification.premise ?? props.project?.prompt ?? '',
     content_mode: props.project?.content_mode ?? initialMode,
@@ -48,8 +49,33 @@ const form = useForm({
     channel_ids: props.auth.can_manage_channels ? [...props.selectedChannelIds] : null,
 });
 const draftKey = `poster:project:${props.auth.user.id}:${props.project?.id ?? 'new'}`;
-const serverData = JSON.stringify(form.data());
+const serverData = form.data();
+type Fields = typeof serverData;
+type FieldKey = keyof Fields;
+const draftBase = ref<Fields>(serverData);
+const restored = ref(false);
+const conflict = ref(false);
 const storageUnavailable = ref(false);
+const settingsLabels: Record<FieldKey, string> = {
+    settings_version: 'Версия',
+    name: 'Название',
+    prompt: 'Описание',
+    content_mode: 'Формат производства',
+    is_active: 'Состояние',
+    output_mode: 'Формат выпуска',
+    series_specification: 'Паспорт сериала',
+    series_lock_version: 'Версия сериала',
+    automation_enabled: 'Автоматизация',
+    episode_limit: 'Число эпизодов',
+    channel_ids: 'Каналы проекта',
+};
+const fieldKeys = Object.keys(settingsLabels) as FieldKey[];
+const changedKeys = computed(() =>
+    fieldKeys.filter(
+        (key) =>
+            key !== 'settings_version' && key !== 'series_lock_version' && JSON.stringify(draftBase.value[key]) !== JSON.stringify(serverData[key]),
+    ),
+);
 function clearDraft() {
     try {
         sessionStorage.removeItem(draftKey);
@@ -57,18 +83,42 @@ function clearDraft() {
         storageUnavailable.value = true;
     }
 }
+function discardDraft() {
+    conflict.value = false;
+    restored.value = false;
+    draftBase.value = serverData;
+    form.reset();
+    form.clearErrors();
+    clearDraft();
+}
+function keepDraft() {
+    const local = form.data();
+    const edits = fieldKeys.filter(
+        (key) => key !== 'settings_version' && key !== 'series_lock_version' && JSON.stringify(local[key]) !== JSON.stringify(draftBase.value[key]),
+    );
+    draftBase.value = serverData;
+    conflict.value = false;
+    form.reset();
+    Object.assign(form, Object.fromEntries(edits.map((key) => [key, local[key]])));
+    restored.value = true;
+}
 onMounted(() => {
     try {
-        const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
-        if (saved?.base === serverData && saved.fields && typeof saved.fields === 'object') {
-            const fields = Object.fromEntries(
-                Object.keys(form.data())
-                    .filter((key) => Object.hasOwn(saved.fields, key))
-                    .map((key) => [key, saved.fields[key]]),
-            );
-            Object.assign(form, fields);
-        } else if (saved) {
-            clearDraft();
+        const stored = sessionStorage.getItem(draftKey);
+        if (stored) {
+            const saved = JSON.parse(stored);
+            const base = typeof saved?.base === 'string' ? JSON.parse(saved.base) : saved?.base;
+            if (base && typeof base === 'object' && saved.fields && typeof saved.fields === 'object') {
+                // Older sessions stored a JSON string and had no settings version.
+                const prior = { ...serverData, ...base };
+                draftBase.value = prior;
+                conflict.value = fieldKeys.some((key) => JSON.stringify(prior[key]) !== JSON.stringify(serverData[key]));
+                Object.assign(
+                    form,
+                    Object.fromEntries(fieldKeys.filter((key) => Object.hasOwn(saved.fields, key)).map((key) => [key, saved.fields[key]])),
+                );
+                restored.value = true;
+            } else clearDraft();
         }
     } catch {
         clearDraft();
@@ -77,11 +127,12 @@ onMounted(() => {
         () => form.data(),
         (fields) => {
             try {
-                if (JSON.stringify(fields) === serverData) {
+                if (!conflict.value && JSON.stringify(fields) === JSON.stringify(serverData)) {
                     clearDraft();
                     return;
                 }
-                sessionStorage.setItem(draftKey, JSON.stringify({ base: serverData, fields }));
+                sessionStorage.setItem(draftKey, JSON.stringify({ base: draftBase.value, fields }));
+                storageUnavailable.value = false;
             } catch {
                 storageUnavailable.value = true;
             }
@@ -100,7 +151,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 ]);
 
 function submit() {
-    if (form.processing) return;
+    if (form.processing || conflict.value) return;
     requestError.value = '';
 
     form.transform((data) => ({
@@ -110,6 +161,10 @@ function submit() {
     form.submit(props.project ? 'patch' : 'post', props.project ? route('projects.update', props.project.id) : route('projects.store'), {
         preserveScroll: 'errors',
         onSuccess: clearDraft,
+        onError: (errors) => {
+            if (errors.settings_version && props.project)
+                router.visit(route('projects.edit', props.project.id), { replace: true, preserveState: false, preserveScroll: true });
+        },
         onFinish: () => {
             if (form.hasErrors) nextTick(() => formElement.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
         },
@@ -119,7 +174,9 @@ function submit() {
             return false;
         },
         onNetworkError: () => {
-            requestError.value = 'Связь прервана. После подключения повторите сохранение.';
+            requestError.value = storageUnavailable.value
+                ? 'Сервер недоступен. Оставьте вкладку открытой и повторите сохранение.'
+                : 'Сервер недоступен. В этой вкладке сохранилась локальная копия.';
             return false;
         },
     });
@@ -132,7 +189,7 @@ function submit() {
         <div class="workspace-page">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading :title="title" :description="project ? project.name + ' / Настройки' : 'Создание / Основные сведения'" />
-                <Button type="submit" form="project-form" class="h-11" :disabled="form.processing">{{
+                <Button type="submit" form="project-form" class="h-11" :disabled="form.processing || conflict">{{
                     project ? 'Сохранить' : 'Создать проект'
                 }}</Button>
             </div>
@@ -157,9 +214,31 @@ function submit() {
                     @submit.prevent="submit"
                 >
                     <h2 class="text-xl font-bold">Параметры</h2>
+                    <section v-if="conflict" role="alert" class="bg-muted border-l-4 border-amber-500 p-4">
+                        <h3 class="font-semibold">Серверная версия изменилась</h3>
+                        <p>
+                            Ваша копия основана на версии {{ draftBase.settings_version }}. Сейчас сохранена версия {{ project?.settings_version }}.
+                        </p>
+                        <p v-if="changedKeys.length">Изменившиеся поля: {{ changedKeys.map((key) => settingsLabels[key]).join(', ') }}</p>
+                        <p v-if="changedKeys.includes('name')" class="mt-2 break-words">{{ form.name }} → {{ serverData.name }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" @click="keepDraft">Оставить локальную копию</Button
+                            ><Button type="button" variant="outline" @click="discardDraft">Загрузить версию {{ project?.settings_version }}</Button>
+                        </div>
+                    </section>
+                    <section v-else-if="restored" role="status" class="bg-muted border-primary border-l-4 p-4">
+                        <h3 class="font-semibold">Черновик восстановлен</h3>
+                        <p>Ввод из этой вкладки восстановлен после перезагрузки.</p>
+                        <p v-if="project?.updated_at">
+                            Версия {{ project.settings_version }} ·
+                            {{ new Date(project.updated_at).toLocaleString('ru-RU', { timeZone: 'UTC' }) }} UTC
+                        </p>
+                        <Button type="button" variant="outline" @click="discardDraft">Сбросить</Button>
+                    </section>
                     <p v-if="storageUnavailable" role="status">Браузер не смог сохранить черновик этой вкладки.</p>
                     <p v-if="requestError" role="alert" class="border-destructive/20 bg-destructive/5 text-destructive rounded-lg border p-3 text-sm">
-                        {{ requestError }}
+                        <strong class="block">Сохранение не выполнено</strong>{{ requestError }}
+                        <Button type="submit" variant="outline" :disabled="form.processing || conflict">Повторить сохранение</Button>
                     </p>
                     <div class="grid gap-2">
                         <Label for="project-name">Название <span class="text-muted-foreground font-normal">(обязательно)</span></Label>
@@ -169,7 +248,7 @@ function submit() {
                             name="name"
                             required
                             :maxlength="limits.name"
-                            :disabled="form.processing"
+                            :disabled="form.processing || conflict"
                             autocomplete="off"
                             placeholder="Например, Лунный атлас"
                             class="h-11"
@@ -184,7 +263,7 @@ function submit() {
                         <select
                             id="project-mode"
                             v-model="form.content_mode"
-                            :disabled="form.processing"
+                            :disabled="form.processing || conflict"
                             class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
                         >
                             <option v-for="(label, value) in contentModes" :key="value" :value="value" :disabled="!!series && value !== 'series'">
@@ -201,7 +280,7 @@ function submit() {
                                 v-model="form.is_active"
                                 type="checkbox"
                                 class="accent-primary mt-1 size-4 shrink-0"
-                                :disabled="form.processing"
+                                :disabled="form.processing || conflict"
                                 aria-describedby="project-active-help"
                             />
                             <span class="text-sm">
@@ -224,7 +303,7 @@ function submit() {
                             name="prompt"
                             required
                             :maxlength="limits.prompt"
-                            :disabled="form.processing"
+                            :disabled="form.processing || conflict"
                             :aria-invalid="!!form.errors.prompt"
                             :aria-describedby="form.errors.prompt ? 'project-prompt-help project-prompt-error' : 'project-prompt-help'"
                             class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 min-h-28 w-full resize-y rounded-md border px-3 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
@@ -266,7 +345,7 @@ function submit() {
                                     v-model="form.channel_ids"
                                     type="checkbox"
                                     :value="channel.id"
-                                    :disabled="form.processing"
+                                    :disabled="form.processing || conflict"
                                     class="accent-primary size-4 shrink-0"
                                 />
                                 <ChannelIcon :channel="channel.type" />
@@ -303,7 +382,7 @@ function submit() {
                     </fieldset>
                     <div class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
                         <Button as-child variant="outline" class="h-11"><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button>
-                        <Button type="submit" class="h-11" :disabled="form.processing"
+                        <Button type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
                                 v-else
                                 class="size-4"

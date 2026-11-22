@@ -23,6 +23,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * Группирует исходную тему, историю генераций и каналы доставки роликов.
  *
  * @property int|null $owner_id
+ * @property int $settings_version
  * @property int $id
  * @property int|null $opus_source_id
  * @property int|null $clipping_connection_id
@@ -93,7 +94,7 @@ class Project extends Model implements HasMedia
 
     protected $casts = ['content_mode' => ProjectContentMode::class, 'is_active' => 'boolean'];
 
-    protected $attributes = ['content_mode' => ProjectContentMode::SHORT->value, 'is_active' => true];
+    protected $attributes = ['settings_version' => 1, 'content_mode' => ProjectContentMode::SHORT->value, 'is_active' => true];
 
     /** @return HasMany<ProductionRun, $this> */
     public function productionRuns(): HasMany

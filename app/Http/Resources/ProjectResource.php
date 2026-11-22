@@ -33,6 +33,7 @@ class ProjectResource extends JsonResource
             'name' => $this->name,
             'prompt' => $this->prompt,
             'content_mode' => $this->content_mode->value,
+            'settings_version' => $this->settings_version,
             'is_clipping' => $this->isClippingProject(),
             'content_mode_label' => $this->opus_source_id !== null ? 'OpusClip' : $this->content_mode->label(),
             'is_active' => $this->is_active,

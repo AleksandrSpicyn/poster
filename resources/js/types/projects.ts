@@ -5,6 +5,7 @@ import type { ProductionRun } from '@/types/production';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 
 export interface ProjectSummary {
+    settings_version: number;
     id: number;
     name: string;
     prompt: string;
@@ -64,7 +65,7 @@ export interface ProjectPageProps extends SharedData {
 }
 
 export interface ProjectFormProps extends SharedData {
-    project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active'> | null;
+    project: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at'> | null;
     contentModes: Record<string, string>;
     series: SeriesSummary | null;
     channels: ManagedChannel[];

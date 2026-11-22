@@ -275,3 +275,16 @@ test('неверный выбор каналов не меняет проект'
     'массив' => [[['id' => 1]]],
     'объект вместо списка' => [['first' => 1]],
 ]);
+
+test('устаревший черновик не перезаписывает настройки проекта', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $url = route('projects.update', $project);
+    $fields = ['prompt' => 'Новый сюжет', 'settings_version' => 1];
+
+    actingAs($owner)->patch($url, ['name' => 'Сезон 2', ...$fields])->assertSessionHasNoErrors();
+    actingAs($owner)->patch($url, ['name' => 'Север', ...$fields])->assertSessionHasErrors('settings_version');
+
+    expect($project->refresh()->name)->toBe('Сезон 2')
+        ->and($project->settings_version)->toBe(2);
+});
