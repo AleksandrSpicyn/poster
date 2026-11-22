@@ -3,6 +3,7 @@ import forest from '../../assets/studio/forest-courier.webp';
 import EmptyState from '@/components/EmptyState.vue';
 import GenerationItem from '@/components/GenerationItem.vue';
 import Heading from '@/components/Heading.vue';
+import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationMetrics, { type MetricsReport } from '@/components/PublicationMetrics.vue';
 import PublicationItem from '@/components/PublicationItem.vue';
 import { Button } from '@/components/ui/button';
@@ -47,16 +48,7 @@ const metrics = computed(() => [
                     </div>
                 </div>
             </section>
-            <section v-if="page.props.analytics.projects.length" class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Производство">
-                <div v-for="metric in metrics" :key="metric.label" class="bg-card rounded-xl border p-4 sm:p-5">
-                    <div class="mb-4 flex items-start justify-between gap-2">
-                        <p class="text-muted-foreground text-sm font-medium">{{ metric.label }}</p>
-                        <component :is="metric.icon" class="text-primary size-4 shrink-0" aria-hidden="true" />
-                    </div>
-                    <p class="text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">{{ metric.value.toLocaleString('ru') }}</p>
-                    <p class="text-muted-foreground mt-2 text-xs">{{ metric.note }}</p>
-                </div>
-            </section>
+            <PublicationCounters v-if="page.props.analytics.projects.length" :report="page.props.analytics" />
             <div v-if="page.props.analytics.projects.length" class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)]">
                 <PublicationMetrics :report="page.props.analytics" />
                 <section class="studio-panel">
@@ -103,6 +95,16 @@ const metrics = computed(() => [
                     <EmptyState v-else title="Пока нет публикаций" description="Здесь появятся публикации из ваших каналов." />
                 </section>
             </div>
+            <section v-if="page.props.analytics.projects.length" class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Производство">
+                <div v-for="metric in metrics" :key="metric.label" class="bg-card rounded-xl border p-4 sm:p-5">
+                    <div class="mb-4 flex items-start justify-between gap-2">
+                        <p class="text-muted-foreground text-sm font-medium">{{ metric.label }}</p>
+                        <component :is="metric.icon" class="text-primary size-4 shrink-0" aria-hidden="true" />
+                    </div>
+                    <p class="text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">{{ metric.value.toLocaleString('ru') }}</p>
+                    <p class="text-muted-foreground mt-2 text-xs">{{ metric.note }}</p>
+                </div>
+            </section>
         </div>
     </AppLayout>
 </template>

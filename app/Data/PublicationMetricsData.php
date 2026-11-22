@@ -9,6 +9,7 @@ use Spatie\LaravelData\Data;
 final class PublicationMetricsData extends Data
 {
     /**
+     * @param array<string, int|float|null> $summaries
      * @param array<string, int|float|null> $daily
      * @param list<array{name: string, status: string, last_success_at: string|null}> $coverage
      * @param list<array{id: int, name: string}> $projects
@@ -20,6 +21,7 @@ final class PublicationMetricsData extends Data
         public string $to,
         public ?string $updatedAt,
         public int|float|null $change,
+        public array $summaries,
         public array $daily,
         public array $publications,
         public array $coverage,

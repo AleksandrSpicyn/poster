@@ -117,6 +117,10 @@ test('считает одну публикацию из двух источни�
 
     get(route('dashboard'))
         ->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 1)
+            ->where('analytics.summaries.views', 42)
+            ->where('analytics.summaries.likes', 0)
+            ->where('analytics.summaries.shares', null)
+            ->where('analytics.summaries.comments', null)
             ->where('analytics.change', 42)->where('analytics.publications.0.intervals.0.change', 45)
             ->where('analytics.daily.' . now('UTC')->subDays(5)->toDateString(), null)
             ->where('analytics.daily.' . now('UTC')->subDays(4)->toDateString(), -3));

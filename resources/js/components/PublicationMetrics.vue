@@ -20,6 +20,7 @@ export type MetricsReport = {
     updatedAt: string | null;
     filters: Filters;
     change: number | null;
+    summaries: Record<Counter, number | null>;
     daily: Record<string, number | null>;
     publications: Timeline[];
     projects: { id: number; name: string }[];
