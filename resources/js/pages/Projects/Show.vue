@@ -9,16 +9,7 @@ import ProjectNotice from '@/components/projects/ProjectNotice.vue';
 import ProductionPanel from '@/components/ProductionPanel.vue';
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useListFilters } from '@/composables/useListFilters';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,7 +17,7 @@ import { formatProjectDate } from '@/lib/formatProjectDate';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectPageProps } from '@/types/projects';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { Ellipsis, LoaderCircle, Trash2 } from '@lucide/vue';
+import { Ellipsis } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -54,7 +45,6 @@ function toggleArchive() {
     archiveForm.patch(route('projects.archive', page.props.project.id));
 }
 const managing = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'management');
-const deleteOpen = ref(false);
 const deleteError = ref('');
 const deleteForm = useForm({});
 
@@ -62,16 +52,13 @@ function destroyProject() {
     if (deleteForm.processing) return;
     deleteError.value = '';
     deleteForm.delete(route('projects.destroy', page.props.project.id), {
-        onSuccess: () => {
-            deleteOpen.value = false;
-        },
         onHttpException: (response) => {
             if (response.status === 419) return;
-            deleteError.value = 'This project could not be deleted. Refresh its details and try again.';
+            deleteError.value = 'Не удалось удалить проект. Обновите страницу и повторите попытку.';
             return false;
         },
         onNetworkError: () => {
-            deleteError.value = 'Connection lost. Reconnect and try again.';
+            deleteError.value = 'Связь прервана. Повторите удаление после подключения.';
             return false;
         },
     });
@@ -298,7 +285,7 @@ function destroyProject() {
                                 <Link v-if="page.props.opusClips" :href="route('channels.edit', channel.id)" class="text-sm underline"
                                     >Настроить подключение</Link
                                 >
-                                <span v-else class="text-muted-foreground shrink-0 text-xs tabular-nums">{{ channel.posts_count }} posts</span>
+                                <span v-else class="text-muted-foreground shrink-0 text-xs tabular-nums">Публикации: {{ channel.posts_count }}</span>
                             </li>
                         </ul>
                         <EmptyState v-else title="Пока нет подключённых каналов" description="Готовые ролики доступны в истории проекта." />
@@ -336,34 +323,30 @@ function destroyProject() {
                             }}
                         </p>
                     </div>
-                    <Dialog v-model:open="deleteOpen">
-                        <DialogTrigger as-child
-                            ><Button variant="destructive" class="h-11 shrink-0" :disabled="!page.props.project.can_delete" @click="deleteError = ''"
-                                ><Trash2 class="size-4" aria-hidden="true" />Удалить проект</Button
-                            ></DialogTrigger
-                        >
-                        <DialogContent class="max-h-[calc(100dvh-2rem)] overflow-y-auto">
-                            <form class="min-w-0 space-y-6" @submit.prevent="destroyProject">
-                                <DialogHeader
-                                    ><DialogTitle class="pr-4 leading-snug break-words">Удалить {{ page.props.project.name }}?</DialogTitle
-                                    ><DialogDescription>Пустой проект будет удалён без возможности восстановления.</DialogDescription></DialogHeader
-                                >
-                                <p v-if="deleteError" role="alert" class="text-destructive text-sm">{{ deleteError }}</p>
-                                <DialogFooter class="gap-2">
-                                    <DialogClose as-child
-                                        ><Button type="button" variant="outline" class="h-11" :disabled="deleteForm.processing"
-                                            >Отмена</Button
-                                        ></DialogClose
-                                    >
-                                    <Button type="submit" variant="destructive" class="h-11" :disabled="deleteForm.processing"
-                                        ><LoaderCircle v-if="deleteForm.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" />{{
-                                            deleteForm.processing ? 'Удаление…' : 'Удалить проект'
-                                        }}</Button
-                                    >
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <ConfirmationDialog
+                        heading="Подтверждение удаления"
+                        :title="'Удалить «' + page.props.project.name + '»?'"
+                        description="После удаления восстановить проект нельзя."
+                        action="Удалить проект"
+                        destructive
+                        :processing="deleteForm.processing"
+                        :error="deleteError"
+                        @confirm="destroyProject"
+                    >
+                        <template #trigger>
+                            <Button variant="destructive" class="h-11 shrink-0" :disabled="!page.props.project.can_delete" @click="deleteError = ''">
+                                Удалить проект
+                            </Button>
+                        </template>
+                        <div class="studio-row">
+                            <dt>Проект</dt>
+                            <dd>{{ page.props.project.name }} · {{ page.props.project.content_mode === 'series' ? 'сериал' : 'короткие ролики' }}</dd>
+                        </div>
+                        <div class="studio-row">
+                            <dt>Активные задания</dt>
+                            <dd>{{ page.props.project.blocking_runs_count || 'Нет' }}</dd>
+                        </div>
+                    </ConfirmationDialog>
                 </section>
             </div>
         </div>
