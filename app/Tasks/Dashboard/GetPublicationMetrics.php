@@ -31,13 +31,14 @@ final readonly class GetPublicationMetrics
         $start = $filters->from === null ? $end->subDays($filters->days) : CarbonImmutable::parse($filters->from, 'UTC')->subDay();
         $projects = $this->catalog->projects($owner);
         $channels = $this->catalog->channels($owner);
+        $selected = $filters->channel === null ? null : $channels->findOrFail($filters->channel);
         $included = $channels->whereNotIn('id', $filters->exclude_channels)->keyBy('id');
         $excluded = $channels->whereIn('id', $filters->exclude_channels)->keyBy('id');
         $matchingProjects = $filters->format instanceof ProjectContentMode ? $projects->where('content_mode', $filters->format)->keyBy('id') : null;
         $accounts = [];
 
         foreach ($included as $channel) {
-            $key = $channel->external_account ?? $channel->credentials[$channel->type === ChannelType::INSTAGRAM ? 'account_name' : 'channel_id'] ?? null;
+            $key = $channel->metricAccount();
 
             if (is_string($key)) {
                 $accounts[$channel->type->value][$key] = $channel->name;
@@ -61,8 +62,8 @@ final readonly class GetPublicationMetrics
 
         $summaries = array_fill_keys(array_column(PublicationCounter::cases(), 'value'), null);
         $sources = [
-            $this->metrics->forDashboard($owner, $filters, $start->toDateString(), $end->toDateString()),
-            $this->observations->period($owner, $filters, $start->toDateString(), $end->toDateString()),
+            $this->metrics->forDashboard($owner, $filters, $start->toDateString(), $end->toDateString(), $selected),
+            $this->observations->period($owner, $filters, $start->toDateString(), $end->toDateString(), $selected),
         ];
         $series = [];
 
@@ -163,7 +164,7 @@ final readonly class GetPublicationMetrics
             $projectIds = array_values($channel->projects->map(static fn(Project $project): int => $project->id)->all());
             $channelOptions[] = ['id' => $channel->id, 'name' => $channel->name, 'platform' => $channel->type->value, 'projects' => $projectIds];
 
-            if (! $included->has($channel->id) || ($filters->platform instanceof ChannelType && $channel->type !== $filters->platform)
+            if (($selected !== null && $selected->id !== $channel->id) || ! $included->has($channel->id) || ($filters->platform instanceof ChannelType && $channel->type !== $filters->platform)
                 || ($filters->project !== null && ! in_array($filters->project, $projectIds, true))
                 || ($matchingProjects !== null && ! $matchingProjects->hasAny($projectIds))) {
                 continue;
@@ -187,7 +188,7 @@ final readonly class GetPublicationMetrics
 
             $channelIds = null;
 
-            if ($filters->platform instanceof ChannelType || $excluded->isNotEmpty()) {
+            if ($selected !== null || $filters->platform instanceof ChannelType || $excluded->isNotEmpty()) {
                 $channelIds = array_column($coverage, 'id');
                 $matchingChannels = $included->only($channelIds);
                 $projectIds = $projectIds->only($matchingChannels->flatMap(fn($channel) => $channel->projects->modelKeys())->all());

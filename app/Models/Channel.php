@@ -64,9 +64,25 @@ class Channel extends Model
         'credentials' => ChannelCredentials::class,
     ];
 
+    public function metricAccount(): ?string
+    {
+        $account = $this->external_account ?? $this->credentials[$this->type === ChannelType::INSTAGRAM ? 'account_name' : 'channel_id'] ?? null;
+
+        return is_string($account) ? $account : null;
+    }
+
     public function canSendTiktokInboxVideo(): bool
     {
         return $this->external_account === null && $this->hasTiktokScope('video.upload');
+    }
+
+    public function canReceiveProduction(): bool
+    {
+        return $this->is_active && match ($this->type) {
+            ChannelType::YOUTUBE, ChannelType::INSTAGRAM => filled($this->credentials['access_token'] ?? null),
+            ChannelType::TIKTOK => $this->canSendTiktokInboxVideo(),
+            ChannelType::VK => false,
+        };
     }
 
     public function canDirectPostTiktok(): bool

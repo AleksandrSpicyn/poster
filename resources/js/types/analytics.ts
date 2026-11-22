@@ -10,6 +10,7 @@ export type AnalyticsFilters = {
     to: string | null;
     format: 'short' | 'series' | null;
     exclude_channels: number[];
+    channel?: number | null;
 };
 export type AnalyticsProject = Pick<ProjectSummary, 'id' | 'name' | 'cover' | 'is_clipping' | 'content_mode'>;
 export type AnalyticsChannel = { id: number; name: string; platform: string; projects: number[] };
@@ -30,6 +31,14 @@ export type MetricsReport = {
     from: string;
     to: string;
     updatedAt: string | null;
+    channelReport?: {
+        observations: Record<string, number | null>;
+        previousFrom: string;
+        previousTo: string;
+        currentChange: number | null;
+        previousChange: number | null;
+        previousObserved: boolean;
+    } | null;
     filters: AnalyticsFilters;
     change: number | null;
     summaries: Record<Counter, number | null>;

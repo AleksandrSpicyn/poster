@@ -29,14 +29,16 @@ test('читает отчёт игрового YouTube после обновле
         'credentials' => ['channel_id' => 'UCgaming', 'access_token' => 'expired', 'refresh_token' => 'test-refresh']]);
     Http::fake([
         'oauth2.googleapis.com/token' => Http::response(['access_token' => 'fresh']),
-        'youtubeanalytics.googleapis.com/*' => Http::response(['columnHeaders' => [['name' => 'video'], ['name' => 'engagedViews'], ['name' => 'estimatedMinutesWatched']],
-            'rows' => [['abcdefghijk', 12, 36]]]),
+        'youtubeanalytics.googleapis.com/*' => Http::response(['columnHeaders' => [['name' => 'video'], ['name' => 'engagedViews'], ['name' => 'estimatedMinutesWatched'], ['name' => 'averageViewPercentage']],
+            'rows' => [['abcdefghijk', 12, 36, 78.5], ['vwxyz123456', 0, 0, 0]]]),
     ]);
 
-    $metrics = iterator_to_array(app(ChannelMetricsClient::class)->read($channel, ['abcdefghijk', 'lmnopqrstuv']));
+    $metrics = iterator_to_array(app(ChannelMetricsClient::class)->read($channel, ['abcdefghijk', 'lmnopqrstuv', 'vwxyz123456']));
 
-    expect($metrics)->toBe(['abcdefghijk' => ['engagedViews' => 12, 'estimatedMinutesWatched' => 36]]);
+    expect($metrics)->toBe(['abcdefghijk' => ['engagedViews' => 12, 'estimatedMinutesWatched' => 36, 'averageViewPercentage' => 78.5],
+        'vwxyz123456' => ['engagedViews' => 0, 'estimatedMinutesWatched' => 0, 'averageViewPercentage' => 0]]);
     Http::assertSent(fn(Request $request): bool => $request->hasHeader('Authorization', 'Bearer fresh')
         && is_string($request['metrics']) && in_array('estimatedMinutesWatched', explode(',', $request['metrics']), true)
-        && $request['ids'] === 'channel==UCgaming' && $request['filters'] === 'video==abcdefghijk,lmnopqrstuv');
+        && in_array('averageViewPercentage', explode(',', $request['metrics']), true)
+        && $request['ids'] === 'channel==UCgaming' && $request['filters'] === 'video==abcdefghijk,lmnopqrstuv,vwxyz123456');
 });
