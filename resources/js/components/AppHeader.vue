@@ -2,7 +2,6 @@
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useNavigation } from '@/composables/useNavigation';
@@ -48,12 +47,9 @@ const { main } = useNavigation();
                     >{{ item.title }}</Link
                 >
             </nav>
-            <DropdownMenu
-                ><DropdownMenuTrigger as-child
-                    ><Button variant="outline" size="icon" class="ml-auto" aria-label="Open account menu"
-                        ><UserRound class="size-4" /></Button></DropdownMenuTrigger
-                ><DropdownMenuContent align="end" class="w-56"><UserMenuContent :user="page.props.auth.user" /></DropdownMenuContent
-            ></DropdownMenu>
+            <UserMenuContent :user="page.props.auth.user">
+                <Button variant="outline" size="icon" class="ml-auto" aria-label="Меню аккаунта"><UserRound class="size-4" /></Button>
+            </UserMenuContent>
         </div>
         <div v-if="breadcrumbs.length > 1" class="w-full border-t px-4 py-3"><Breadcrumbs :breadcrumbs="breadcrumbs" /></div>
     </header>
