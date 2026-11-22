@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProjectCoverGallery from '@/components/projects/ProjectCoverGallery.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import Heading from '@/components/Heading.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -20,13 +21,17 @@ const page = usePage<ProjectsPageProps>();
 const { filters, loading, error, applyFilters, changePerPage, changePage, refresh } = useListFilters('projects.index', () => ({
     search: page.props.filters.search,
     alphabetical: Number(!!page.props.filters.alphabetical),
+    clipping: Number(!!page.props.filters.clipping),
     active: Number(!!page.props.filters.active),
     updated: Number(!!page.props.filters.updated),
     sort: page.props.filters.sort,
     perPage: page.props.projects.meta.per_page,
     page: page.props.projects.meta.current_page,
 }));
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Проекты', href: route('projects.index') }];
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { title: 'Проекты', href: route('projects.index'), mobileReturn: !!page.props.filters.clipping },
+    ...(page.props.filters.clipping ? [{ title: 'Клиппинг', href: route('projects.index', { clipping: 1 }) }] : []),
+]);
 
 const plurals = new Intl.PluralRules('ru');
 function counted(value: number, one: string, few: string, many: string) {
@@ -104,10 +109,12 @@ function clearSearch() {
                               ? 'Поиск и порядок'
                               : results
                                 ? 'Результаты поиска'
-                                : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' · Все форматы'
+                                : page.props.filters.clipping
+                                  ? 'Клиппинг'
+                                  : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' · Все форматы'
                     "
                 />
-                <Button v-if="!information && !searching && !results" as-child class="h-11"
+                <Button v-if="!information && !searching && !results && !page.props.filters.clipping" as-child class="h-11"
                     ><Link :href="route('projects.create')">Создать проект</Link></Button
                 >
             </div>
@@ -294,6 +301,7 @@ function clearSearch() {
                     </p>
                 </aside>
             </div>
+            <ProjectCoverGallery v-else-if="page.props.filters.clipping" :projects="page.props.projects" :loading="loading" @page="changePage" />
             <template v-else>
                 <div class="project-tabs flex flex-wrap gap-2" aria-label="Фильтры проектов">
                     <Button :variant="filters.active ? 'secondary' : 'default'" :aria-pressed="!filters.active" @click="selectGroup(false)"
@@ -331,10 +339,14 @@ function clearSearch() {
                                 <h3>{{ project.name }}</h3>
                             </Link>
                             <div class="flex min-w-0 items-center justify-between gap-2 px-4 pb-2">
-                                <span class="text-muted-foreground min-w-0 text-sm"
-                                    >{{ project.is_clipping ? 'Клиппинг' : project.content_mode === 'series' ? 'Сериал' : 'Короткие ролики'
-                                    }}{{ project.is_active ? '' : ' · Приостановлен' }}</span
-                                >
+                                <span class="text-muted-foreground min-w-0 text-sm">
+                                    <Link v-if="project.is_clipping" class="hover:underline" :href="route('projects.index', { clipping: 1 })"
+                                        >Клиппинг</Link
+                                    >
+                                    <template v-else>{{ project.content_mode === 'series' ? 'Сериал' : 'Короткие ролики' }}</template>{{
+                                        project.is_active ? '' : ' · Приостановлен'
+                                    }}
+                                </span>
                             </div>
                             <Link
                                 :href="route('projects.index', { info: project.id })"
@@ -461,6 +473,7 @@ function clearSearch() {
         opacity: 1;
     }
 }
+.workspace-page:has(.project-clipping-gallery),
 .workspace-page:has(.project-information) {
     row-gap: 13px;
 }
@@ -477,6 +490,7 @@ function clearSearch() {
     row-gap: 8px;
 }
 @media (max-width: 699px) {
+    .workspace-page:has(.project-clipping-gallery),
     .workspace-page:has(.project-information) {
         row-gap: 9px;
     }

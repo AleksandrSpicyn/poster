@@ -3,11 +3,14 @@
 declare(strict_types=1);
 
 use App\Models\Channel;
+use App\Models\ClippingConnection;
 use App\Models\Episode;
+use App\Models\OpusSource;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -154,4 +157,34 @@ test('алфавитный порядок и сведения проекта о�
     actingAs(User::factory()->create())
         ->get(route('projects.index', ['info' => $a->id]))
         ->assertNotFound();
+});
+
+test('группирует собственные проекты клиппинга с тремя источниками обложки', function (): void {
+    Storage::fake('local');
+    $owner = workspaceOwner();
+    $parent = Project::factory()->create(['owner_id' => $owner->id]);
+    $source = OpusSource::factory()->for($parent)->create();
+    $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    $fallback = Project::factory()->create(['owner_id' => $owner->id, 'opus_source_id' => $source->id]);
+    $frame = Project::factory()->create(['owner_id' => $owner->id, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $cover = Project::factory()->create(['owner_id' => $owner->id, 'clipping_connection_id' => $connection->id]);
+    $foreign = User::factory()->create();
+    $foreignConnection = ClippingConnection::factory()->create(['owner_id' => $foreign->id]);
+    Project::factory()->create(['owner_id' => $foreign->id, 'clipping_connection_id' => $foreignConnection->id]);
+    $prompt = Prompt::factory()->for($frame)->create();
+    $prompt->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(Prompt::SHOT_IMAGE);
+    $cover->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(Project::COVER);
+
+    actingAs($owner)
+        ->get(route('projects.index', ['clipping' => 1]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('filters.clipping', true)
+            ->where('projects.meta.total', 3)
+            ->where('projects.data.0.id', $cover->id)
+            ->where('projects.data.0.cover.source', 'upload')
+            ->where('projects.data.1.id', $frame->id)
+            ->where('projects.data.1.cover.source', 'frame')
+            ->where('projects.data.2.id', $fallback->id)
+            ->where('projects.data.2.cover', null));
 });
