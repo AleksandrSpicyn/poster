@@ -70,29 +70,17 @@ class HomepageData extends Data
     {
         return new self(
             navigation: [
-                ['label' => 'Services', 'href' => '#services'],
-                ['label' => 'Clients', 'href' => '#selected-clients'],
-                ['label' => 'Work Process', 'href' => '#work-process'],
-                ['label' => 'Official Status', 'href' => '#official-status'],
+                ['label' => 'Video workspace', 'href' => '#workspace'],
+                ['label' => 'TikTok for creators', 'href' => '#tiktok'],
                 ['label' => 'Contact', 'href' => '#contact'],
             ],
             hero: [
-                'kicker' => 'Independent backend software developer',
-                'title' => 'Scalable backend systems, API integrations, and reliable software architecture for long-term business operations.',
-                'summary' => 'I provide remote backend development for long-term client engagements, focusing on web applications, REST APIs, scalable backend systems, system architecture, API integrations, and business automation solutions.',
-                'primary_cta' => [
-                    'label' => 'Discuss a project',
-                    'href' => 'mailto:fenixxxar85@gmail.com',
-                ],
-                'secondary_cta' => [
-                    'label' => 'View official registration extract',
-                    'href' => url('/storage/req.pdf'),
-                ],
-                'highlights' => [
-                    'Backend systems',
-                    'REST APIs',
-                    'Business automation',
-                ],
+                'kicker' => 'Poster',
+                'title' => 'A workspace for short video series',
+                'summary' => 'Plan episodes, assemble scenes into a finished video and keep track of releases across connected channels. Use the creator workspace to preview an original video, choose its audience and share it to your own TikTok account.',
+                'primary_cta' => ['label' => 'Explore the creator workspace', 'href' => '#tiktok'],
+                'secondary_cta' => ['label' => 'See the video workflow', 'href' => '#workspace'],
+                'highlights' => [],
             ],
             identity: [
                 'legal_name' => 'Aleksandr Olegovich Spitsyn',
@@ -106,27 +94,19 @@ class HomepageData extends Data
                 'registration_authority' => 'Interdistrict Inspectorate of the Federal Tax Service No. 17 for the Irkutsk Region',
             ],
             services: [
-                'title' => 'Services',
+                'title' => 'From script to release',
                 'items' => [
-                    'Backend development using PHP and Laravel',
-                    'REST API development and integrations',
-                    'Database architecture and optimization',
-                    'Docker-based infrastructure setup',
-                    'Queue systems and asynchronous processing',
-                    'ERP and third-party service integrations',
-                    'High-load web application development',
-                    'System architecture and technical consulting',
-                    'Maintenance and optimization of existing projects',
+                    'Plan an episode around recurring characters and write the action for each scene.',
+                    'Review takes, choose the shots and assemble the episode into one video.',
+                    'Track releases by channel and review the viewing and engagement metrics available from connected accounts.',
                 ],
             ],
             process: [
-                'title' => 'Work Process',
+                'title' => 'Share a video to TikTok',
                 'items' => [
-                    'Requirements and technical discussion',
-                    'Architecture and implementation planning',
-                    'Backend development and API delivery',
-                    'Deployment and release support',
-                    'Monitoring, maintenance, and iterative improvement',
+                    'Connect your TikTok account and check the recipient shown in Poster.',
+                    'Choose and preview your own MP4. Edit the caption, select the audience and review interaction and disclosure settings.',
+                    'Give consent and send the video. Return to Poster for the publication result or open TikTok to view the clip.',
                 ],
             ],
             stack: [
@@ -216,8 +196,8 @@ class HomepageData extends Data
             ],
             footer: [
                 'legal_name' => 'Aleksandr Olegovich Spitsyn',
-                'label' => 'Independent backend software developer',
-                'note' => 'Public business profile, client history, and official review information.',
+                'label' => 'Poster',
+                'note' => 'Short video production and publishing.',
             ],
         );
     }

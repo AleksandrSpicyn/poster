@@ -35,3 +35,13 @@ test('главная возвращает данные текущего поль
                 ->where('auth.user.email', $user->email),
         );
 });
+
+test('главная предлагает демо только при доступном кабинете', function (bool $enabled, string $driver, ?string $expected): void {
+    config(['tiktok_demo.enabled' => $enabled, 'session.driver' => $driver]);
+
+    get(route('home'))->assertInertia(fn(Assert $page): Assert => $page->where('demoUrl', $expected));
+})->with([
+    [true, 'array', '/demo/tiktok/authors'],
+    [false, 'array', null],
+    [true, 'cookie', null],
+]);

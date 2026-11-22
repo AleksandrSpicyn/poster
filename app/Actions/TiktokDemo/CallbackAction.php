@@ -35,7 +35,7 @@ final readonly class CallbackAction
             // Explicit credentials for the selected environment on an unsaved adapter for the shared Login Kit exchange.
             $channel = new Channel(['type' => ChannelType::TIKTOK, 'client_id' => Payload::string(config('tiktok_demo.key'), 'key'),
                 'client_secret' => Payload::string(config('tiktok_demo.secret'), 'secret')]);
-            $tokens = $this->client->exchange($channel, $code, Payload::string(config('tiktok_demo.redirect'), 'redirect'), ConnectAction::SCOPES);
+            $tokens = $this->client->exchange($channel, $code, Payload::string(config('tiktok_demo.redirect'), 'redirect'), ConnectAction::scopes());
             $this->session->regenerate(true);
             $this->session->put("$key.profile", [
                 'name' => Payload::string($tokens['account_name'], 'name'),

@@ -1,9 +1,10 @@
 <section>
-<h2>Опубликовать в TikTok</h2>
-@if($directMessage)<p role="status">{{ $directMessage }} <a href="{{ route('tiktok-demo.show', $author, false) }}">Обновить статус</a></p>@endif
+<h2>{{ $directMessage ? 'Статус публикации в TikTok' : 'Опубликовать в TikTok' }}</h2>
+@if($directMessage)<p role="status">{{ $directMessage }} @if($canRefreshDirect)<a href="{{ route('tiktok-demo.show', $author, false) }}">Обновить статус</a>@endif</p>@endif
 @if($errors->any())<ul role="alert">@foreach($errors->all() as $message)<li>{{ $message }}</li>@endforeach</ul>@endif
 @if($creator && empty($creator['privacy']))<p>Для этого аккаунта сейчас нет доступных вариантов видимости.</p>
 @elseif($creator)
+@if($directMessage)<details @if($errors->any()) open @endif><summary>Опубликовать ещё один ролик</summary>@endif
 <p>Аккаунт получателя: <strong>{{ $creator['nickname'] }}</strong></p>
 <form id="direct-post" method="post" enctype="multipart/form-data" action="{{ route('tiktok-demo.direct', $author, false) }}">
 @csrf
@@ -42,8 +43,12 @@
         const commercial = fields.disclose.checked;
         document.querySelector('#brands').hidden = !commercial;
         if (!commercial) fields.own_brand.checked = fields.partner.checked = false;
-        fields.partner.disabled = !['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS'].includes(fields.privacy.value);
-        if (fields.partner.disabled) fields.partner.checked = false;
+        const partnerAudiences = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS'];
+        const allowsPartner = Array.from(fields.privacy.options).some(option => partnerAudiences.includes(option.value));
+        fields.partner.disabled = !allowsPartner || (fields.privacy.value !== '' && !partnerAudiences.includes(fields.privacy.value));
+        for (const option of fields.privacy.options) {
+            if (option.value) option.disabled = fields.partner.checked && !partnerAudiences.includes(option.value);
+        }
         document.querySelector('#partner-terms').hidden = !fields.partner.checked;
         document.querySelector('#brand-label').textContent = fields.partner.checked ? 'Метка TikTok: Paid partnership' :
             fields.own_brand.checked ? 'Метка TikTok: Promotional content' : 'Укажите хотя бы один тип продвижения.';
@@ -72,5 +77,6 @@
     form.addEventListener('submit', () => { submit.disabled = true; });
 })();
 </script>
+@if($directMessage)</details>@endif
 @endif
 </section>

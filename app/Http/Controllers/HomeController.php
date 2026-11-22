@@ -10,7 +10,7 @@ use Inertia\Response;
 class HomeController
 {
     /**
-     * Публичный профиль
+     * Публичная страница продукта Poster
      *
      * HTML при обычной навигации; JSON ниже при корректной версии Inertia.
      *
@@ -40,6 +40,7 @@ class HomeController
      * @responseField props.appearanceValues.DARK string Тёмное оформление.
      * @responseField props.appearanceValues.SYSTEM string Системное оформление.
      * @responseField props.sidebarOpen boolean props.sidebarOpen.
+     * @responseField props.demoUrl string Ссылка на кабинет демонстрации, если он доступен.
      * @responseField props.homepage object props.homepage.
      * @responseField props.homepage.navigation object[] props.homepage.navigation.
      * @responseField props.homepage.navigation[].label string props.homepage.navigation[].label.
@@ -107,6 +108,9 @@ class HomeController
     public function __invoke(): Response
     {
         return inertia('Welcome', [
+            'demoUrl' => config('tiktok_demo.enabled') && config('session.driver') !== 'cookie'
+                ? route('tiktok-demo.show', absolute: false)
+                : null,
             'homepage' => HomepageData::fromApprovedContent()->toArray(),
         ]);
     }

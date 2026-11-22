@@ -58,6 +58,10 @@ test('снимает ожидание после подтверждения пу
 
     get(route('tiktok-demo.show', 'author-a'))->assertOk()->assertSee('TikTok подтвердил публикацию')->assertDontSee('value="PUBLIC_TO_EVERYONE"', false)
         ->assertSessionMissing('tiktok_demo.author-a.direct.pending');
+
+    get(route('tiktok-demo.show', 'author-a'))
+        ->assertSeeInOrder(['Статус публикации в TikTok', 'TikTok подтвердил публикацию.', 'Опубликовать ещё один ролик'])
+        ->assertDontSee('Обновить статус');
 });
 
 test('поясняет старую квитанцию без идентификатора при обновлении', function (): void {

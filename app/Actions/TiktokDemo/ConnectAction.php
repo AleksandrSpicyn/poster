@@ -9,9 +9,19 @@ use Illuminate\Support\Str;
 
 final readonly class ConnectAction
 {
-    public const array SCOPES = ['user.info.basic', 'video.list', 'video.upload', 'video.publish'];
-
     public function __construct(private Store $session) {}
+
+    /** @return list<string> */
+    public static function scopes(): array
+    {
+        $scopes = ['user.info.basic', 'video.list', 'video.publish'];
+
+        if (config()->boolean('tiktok_demo.upload')) {
+            $scopes[] = 'video.upload';
+        }
+
+        return $scopes;
+    }
 
     public function run(string $author): string
     {
@@ -21,7 +31,7 @@ final readonly class ConnectAction
         $this->session->put('tiktok_demo.state', ['author' => $author, 'value' => $state, 'expires' => now()->addMinutes(10)->timestamp]);
 
         return 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
-            'client_key' => config('tiktok_demo.key'), 'scope' => implode(',', self::SCOPES),
+            'client_key' => config('tiktok_demo.key'), 'scope' => implode(',', self::scopes()),
             'response_type' => 'code', 'redirect_uri' => $redirect, 'state' => $state,
         ]);
     }

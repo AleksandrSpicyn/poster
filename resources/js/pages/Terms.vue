@@ -1,25 +1,58 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <Head title="Terms of Service" />
-
-    <div class="mx-auto max-w-3xl px-4 py-12 text-gray-800 dark:text-gray-200">
-        <h1 class="mb-6 text-3xl font-bold">Terms of Service</h1>
-        <p class="mb-4">Effective Date: May 21, 2025</p>
-
-        <p class="mb-4">
-            This app is intended for personal use only. It is not offered to external users, and no registration or public access is available.
+    <main class="mx-auto max-w-3xl px-6 py-12 text-slate-900 dark:text-slate-100">
+        <Head title="Terms of Service" />
+        <Link :href="route('home')" class="font-semibold underline underline-offset-4">Poster</Link>
+        <h1 class="mt-8 text-4xl font-semibold tracking-tight">Terms of Service</h1>
+        <p class="mt-2 text-sm">Updated November 22, 2026</p>
+        <p class="mt-6 leading-relaxed">
+            These terms apply when you use Poster to prepare, manage or publish short videos. Poster is operated by Aleksandr Olegovich Spitsyn.
         </p>
-
-        <p class="mb-4">All automated actions, including video generation and publishing, are initiated and managed solely by the app owner.</p>
-
-        <p class="mb-4">
-            No liability is accepted for any results caused by AI-generated content or technical errors, as the system runs entirely in private
-            backend mode.
-        </p>
-
-        <p>Contact: <a href="mailto:fenixxxar85@gmail.com" class="text-blue-600 underline">fenixxxar85@gmail.com</a></p>
-    </div>
+        <section class="mt-8">
+            <h2 class="text-xl font-semibold">Who can use Poster</h2>
+            <p class="mt-3 leading-relaxed">
+                Poster is designed for creators working on their own videos and for people authorized to manage a project or channel for someone else.
+                You may use features made available to you for personal or professional creative work. You must have authority to act for any account
+                or organization you represent.
+            </p>
+            <p class="mt-3 leading-relaxed">
+                Access depends on the feature. During Sandbox testing, TikTok access is limited to enabled test accounts. It lets a participating
+                creator connect their own account and try a private publication.
+            </p>
+        </section>
+        <section class="mt-8">
+            <h2 class="text-xl font-semibold">Your content and permissions</h2>
+            <p class="mt-3 leading-relaxed">
+                You retain the rights you hold in your content. By submitting material, you give Poster permission to process it and deliver it to the
+                services needed for the actions you request. Only upload material you have the rights to use, including music, images and footage.
+                Obtain any permissions required from people featured in the video.
+            </p>
+        </section>
+        <section class="mt-8">
+            <h2 class="text-xl font-semibold">Publishing to a connected channel</h2>
+            <p class="mt-3 leading-relaxed">
+                Before confirming a Direct Post, check the recipient, preview the file, review the caption and choose an audience. Select any required
+                commercial or AI-content disclosures and review the music terms shown in the form. With an inbox upload, you complete publication in
+                TikTok.
+            </p>
+            <p class="mt-3 leading-relaxed">
+                Delivery and processing are separate steps. Check the publication status before submitting the same file again. You are responsible
+                for the content you approve and for following the connected platform’s terms and community rules.
+            </p>
+        </section>
+        <section class="mt-8">
+            <h2 class="text-xl font-semibold">Account access and support</h2>
+            <p class="mt-3 leading-relaxed">
+                Keep your workspace access secure. Use only accounts and projects you are authorized to manage. Stop using a connection when your
+                authorization ends. For questions about these terms or to report unauthorized use, contact the operator below.
+            </p>
+        </section>
+        <footer class="mt-10 flex flex-wrap gap-5 border-t pt-6 text-sm">
+            <a href="mailto:fenixxxar85@gmail.com" class="underline">fenixxxar85@gmail.com</a>
+            <Link :href="route('policy')" class="underline">Privacy Policy</Link>
+        </footer>
+    </main>
 </template>

@@ -23,7 +23,7 @@ final readonly class ShowAction
         $key = "tiktok_demo.$author";
         $profile = Profile::fromSession($this->session, $author);
         $page = ['author' => $author, 'name' => $profile?->name, 'videos' => [], 'error' => null, 'next' => null,
-            'creator' => null, 'directMessage' => null, 'form' => null, 'notice' => $this->session->get("$key.notice"), 'operation' => $this->session->get("$key.operation"),
+            'creator' => null, 'canRefreshDirect' => false, 'directMessage' => null, 'form' => null, 'notice' => $this->session->get("$key.notice"), 'operation' => $this->session->get("$key.operation"),
             'upload' => config('tiktok_demo.upload') && is_file(storage_path('app/private/tiktok-demo/sample.mp4'))];
 
         if (! $profile instanceof Profile) {
@@ -62,6 +62,7 @@ final readonly class ShowAction
         }
 
         $page['directMessage'] = $message;
+        $page['canRefreshDirect'] = $this->session->has("$direct.id");
 
         if (! $this->session->has("$direct.pending")) {
             try {
