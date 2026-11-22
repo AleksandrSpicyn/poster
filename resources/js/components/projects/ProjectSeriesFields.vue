@@ -2,14 +2,17 @@
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { SeriesSpecification } from '@/types/series';
+import { computed } from 'vue';
+import type { CharacterSummary, SeriesCast, SeriesSpecification } from '@/types/series';
 
 const specification = defineModel<SeriesSpecification & { story_outline: string }>('specification', { required: true });
+const cast = defineModel<SeriesCast>('cast', { required: true });
 const autoPublish = defineModel<boolean>('autoPublish', { required: true });
 const automationEnabled = defineModel<boolean>('automationEnabled', { required: true });
 const outputMode = defineModel<string>('outputMode', { required: true });
 const episodeLimit = defineModel<number | string>('episodeLimit', { required: true });
-defineProps<{
+const props = defineProps<{
+    characters: CharacterSummary[];
     section: string;
     processing: boolean;
     errors: Record<string, string | undefined>;
@@ -19,6 +22,7 @@ defineProps<{
     cycleStructures: Record<string, string>;
     sceneModes: Record<string, string>;
 }>();
+const selectedHero = computed(() => props.characters.find((character) => character.id === cast.value.lead_character_id));
 const labels: Record<string, string> = {
     episodes: 'По эпизодам',
     single_video: 'Одно полное видео',
@@ -36,6 +40,40 @@ const labels: Record<string, string> = {
 
 <template>
     <div class="space-y-6">
+        <div v-if="section === 'cast'" class="grid gap-3">
+            <div v-if="selectedHero" class="flex min-h-12 items-center gap-3">
+                <img
+                    v-if="selectedHero.current_revision?.references?.[0]"
+                    :src="selectedHero.current_revision.references[0].url"
+                    alt=""
+                    class="h-14 w-20 rounded-lg object-cover"
+                />
+                <strong>{{ selectedHero.name }} · версия {{ String(selectedHero.current_revision?.number).padStart(2, '0') }}</strong>
+            </div>
+            <Label for="passport-lead">Главный герой</Label>
+            <select id="passport-lead" v-model="cast.lead_character_id" class="list-select" :disabled="processing">
+                <option :value="null">Без главного героя</option>
+                <option v-if="cast.lead_character_id && !selectedHero" :value="cast.lead_character_id" disabled>Герой недоступен</option>
+                <option v-for="character in characters" :key="character.id" :value="character.id">{{ character.name }}</option>
+            </select>
+            <InputError :message="errors['cast_settings.lead_character_id']" />
+            <Label for="passport-voice">Описание голоса</Label>
+            <Input
+                id="passport-voice"
+                :model-value="cast.voice_description ?? ''"
+                @update:model-value="cast.voice_description = String($event)"
+                :disabled="processing"
+                maxlength="2000"
+                :required="cast.use_series_voice"
+            />
+            <InputError :message="errors['cast_settings.voice_description']" />
+            <label class="flex min-h-12 items-start gap-3">
+                <input v-model="cast.use_series_voice" type="checkbox" class="accent-primary mt-1 size-5" :disabled="processing" />
+                <span
+                    ><strong class="block">Использовать голос сериала</strong><small class="text-muted-foreground">В следующих эпизодах</small></span
+                >
+            </label>
+        </div>
         <div v-if="section === 'plan'" class="grid gap-2">
             <Label for="output-mode">Формат выпуска</Label>
             <select
@@ -79,8 +117,8 @@ const labels: Record<string, string> = {
             <InputError :message="errors['series_specification.shot_duration_seconds']" />
             <p class="text-muted-foreground text-xs">Для эпизода на 60 секунд требуется четыре генерации по 15 секунд.</p>
         </div>
-        <div v-if="section === 'cast'" class="grid gap-5 sm:grid-cols-2">
-            <div class="grid gap-2">
+        <div v-if="section === 'main' || section === 'plan'" class="grid gap-5 sm:grid-cols-2">
+            <div v-if="section === 'main'" class="grid gap-2">
                 <Label for="series-style">Визуальный стиль</Label
                 ><Input
                     id="series-style"
@@ -90,13 +128,13 @@ const labels: Record<string, string> = {
                     placeholder="Например, акварельная анимация"
                 /><InputError :message="errors['series_specification.visual_style']" />
             </div>
-            <div class="grid gap-2">
+            <div v-if="section === 'main'" class="grid gap-2">
                 <Label for="series-language">Язык</Label
                 ><Input id="series-language" v-model="specification.language" maxlength="35" :disabled="processing" placeholder="en" /><InputError
                     :message="errors['series_specification.language']"
                 />
             </div>
-            <div class="grid gap-2">
+            <div v-if="section === 'main'" class="grid gap-2">
                 <Label for="series-audience">Аудитория</Label
                 ><select
                     id="series-audience"
@@ -107,7 +145,7 @@ const labels: Record<string, string> = {
                     <option v-for="(label, value) in audiences" :key="value" :value="value">{{ labels[value] ?? label }}</option></select
                 ><InputError :message="errors['series_specification.audience']" />
             </div>
-            <div class="grid gap-2">
+            <div v-if="section === 'plan'" class="grid gap-2">
                 <Label for="series-duration">Длительность эпизода, секунды</Label
                 ><Input
                     id="series-duration"
@@ -119,7 +157,7 @@ const labels: Record<string, string> = {
                 /><InputError :message="errors['series_specification.episode_duration_seconds']" />
             </div>
         </div>
-        <div v-if="section === 'cast'" class="grid gap-2">
+        <div v-if="section === 'plan'" class="grid gap-2">
             <Label for="series-audio">Звук</Label>
             <select
                 id="series-audio"

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\Series\SeriesCastData;
 use App\Enums\ProductionStatus;
 use App\Enums\SeriesOutputMode;
 use Database\Factories\SeriesFactory;
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $cycle_plan
  * @property Carbon|null $cycle_paused_at
  * @property Carbon|null $release_started_at
+ * @property SeriesCastData|null $cast_settings
  * @property int|null $final_assembly_id
  * @property int $id
  * @property int $project_id
@@ -54,6 +56,7 @@ class Series extends Model
         'project_id', 'output_mode', 'cycle_plan', 'cycle_paused_at', 'release_started_at', 'final_assembly_id',
         'name',
         'specification',
+        'cast_settings',
         'specification_version',
         'continuity_version',
         'canonical_assembly_id',
@@ -67,6 +70,7 @@ class Series extends Model
 
     protected $casts = [
         'specification' => 'array',
+        'cast_settings' => SeriesCastData::class,
         'output_mode' => SeriesOutputMode::class,
         'cycle_plan' => 'array',
         'cycle_paused_at' => 'datetime',

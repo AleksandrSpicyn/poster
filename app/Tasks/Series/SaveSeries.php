@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Series;
 
 use App\Classes\Story\Snapshot;
+use App\Data\Series\SeriesCastData;
 use App\Data\Series\SeriesData;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesOutputMode;
@@ -69,6 +70,21 @@ class SaveSeries
 
         if ($series->cycle_plan !== null && (Snapshot::hash($specification) !== Snapshot::hash($series->specification) || $data->episode_limit !== $series->episode_limit)) {
             throw ValidationException::withMessages(['series_specification' => 'The cycle has started. Its plan and duration are pinned to the generated parts.']);
+        }
+
+        $cast = $data->cast_settings;
+
+        if ($cast instanceof SeriesCastData) {
+            if ($cast->lead_character_id !== null && $cast->lead_character_id !== $series->cast_settings?->lead_character_id
+                && (! $series->exists || ! $this->series->hasAvailableCharacter($series, $cast->lead_character_id))) {
+                throw ValidationException::withMessages(['cast_settings.lead_character_id' => 'Выберите действующего героя этого сериала с утверждённой версией.']);
+            }
+
+            if ($cast->use_series_voice && ! filled($cast->voice_description)) {
+                throw ValidationException::withMessages(['cast_settings.voice_description' => 'Опишите голос для следующих эпизодов.']);
+            }
+
+            $series->cast_settings = $cast;
         }
 
         $series->fill([

@@ -15,8 +15,15 @@ export interface SeriesSpecification {
     scene_mode?: string;
 }
 
+export interface SeriesCast {
+    lead_character_id: number | null;
+    voice_description: string | null;
+    use_series_voice: boolean;
+}
+
 export interface SeriesSummary {
     last_episode_number?: number | null;
+    cast_settings?: SeriesCast | null;
     id: number;
     project_id: number;
     name: string;

@@ -10,6 +10,7 @@ use App\Actions\Shots\ResolveUnknownShotGenerationAction;
 use App\Actions\Shots\RetryShotDownloadAction;
 use App\Actions\Shots\SubmitShotGenerationAction;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Data\Series\SeriesCastData;
 use App\Data\Shots\ResolveShotGenerationData;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
@@ -26,6 +27,7 @@ use App\Models\Scene;
 use App\Models\Series;
 use App\Models\Shot;
 use App\Models\User;
+use App\Tasks\Episodes\BuildEpisodeContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Http\Client\Request;
@@ -666,3 +668,44 @@ test('занятая авторизация откладывает тот же �
     Process::assertRanTimes(fn(PendingProcess $process): bool => is_array($process->command) && in_array('exec', $process->command, true), 1);
     Http::assertNothingSent();
 });
+
+test('передаёт выбранный голос в реальный запрос видео только при включённом флажке', function (bool $enabled, string $lead): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $revision = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    $series = $episode->series()->firstOrFail();
+    $character = $revision->characterRevisions()->firstOrFail();
+    $character->character()->firstOrFail()->update(['current_revision_id' => $character->id]);
+
+    $leadId = $lead === 'none' ? null : $character->character_id;
+
+    if ($lead === 'other') {
+        $other = Character::factory()->for($series)->create();
+        $version = CharacterRevision::factory()->for($other)->approved()->create();
+        $other->update(['current_revision_id' => $version->id]);
+        $leadId = $other->id;
+    }
+
+    $series->update(['cast_settings' => new SeriesCastData($leadId, 'Bright baritone with short pauses', $enabled)]);
+    $pinned = app(BuildEpisodeContext::class)->run($episode);
+    $revision->update(['context_snapshot' => $pinned]);
+    $series->update(['cast_settings' => new SeriesCastData($character->character_id, 'Different voice for future episodes', true)]);
+    $shot->update(['dialogue' => [['character_id' => $character->character_id, 'text' => 'Here is the letter.']]]);
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'fake-voice'])]);
+
+    $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'pinned-series-voice');
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->firstOrFail()->id);
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail()->id);
+
+    expect($pinned['lead_character_id'] ?? null)->toBe($leadId);
+    Http::assertSentCount(1);
+    Http::assertSent(function (Request $request) use ($enabled, $lead): bool {
+        $text = data_get($request->data(), 'content.0.text');
+
+        return $request->method() === 'POST' && $request['generate_audio'] === true && is_string($text)
+            && str_contains($text, 'Here is the letter.')
+            && str_contains($text, 'Bright baritone with short pauses') === ($enabled && $lead !== 'other') && str_contains($text, 'calm and warm') && ! str_contains($text, 'Different voice for future episodes');
+    });
+})->with([true, false])->with(['speaker', 'other', 'none']);

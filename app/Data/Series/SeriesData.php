@@ -24,5 +24,6 @@ class SeriesData extends Data
         public ?int $episode_limit = null,
         public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
         public ?bool $auto_publish = null,
+        public ?SeriesCastData $cast_settings = null,
     ) {}
 }

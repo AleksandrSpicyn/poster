@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Data\Projects\ProjectScheduleData;
+use App\Data\Series\SeriesCastData;
 use App\Data\Series\SeriesSpecificationData;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesOutputMode;
@@ -45,6 +46,7 @@ class ProjectData extends Data
         public ?int $settings_version = null,
         public ?ProjectScheduleData $schedule = null,
         public ?bool $auto_publish = null,
+        public ?SeriesCastData $cast_settings = null,
     ) {}
 
     /** @return array<string, list<string>> */

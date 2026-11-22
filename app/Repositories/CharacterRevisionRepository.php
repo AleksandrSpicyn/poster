@@ -43,7 +43,7 @@ readonly class CharacterRevisionRepository extends EloquentRepository
     }
 
     /** @return Collection<int, CharacterRevision> */
-    public function currentForContext(int $seriesId): Collection
+    public function currentForContext(int $seriesId, ?int $leadId = null): Collection
     {
         return CharacterRevision::query()
             ->with('character')
@@ -51,6 +51,7 @@ readonly class CharacterRevisionRepository extends EloquentRepository
             ->whereHas('character', fn($query) => $query->where('series_id', $seriesId)
                 ->whereNull('archived_at')
                 ->whereColumn('characters.current_revision_id', 'character_revisions.id'))
+            ->when($leadId !== null, fn($query) => $query->orderByRaw('CASE WHEN character_id = ? THEN 0 ELSE 1 END', [$leadId]))
             ->orderBy('id')
             ->limit(10)
             ->get();

@@ -13,6 +13,7 @@ use App\Enums\ProjectContentMode;
 use App\Enums\SeriesAudioMode;
 use App\Enums\SeriesOutputMode;
 use App\Http\Resources\ChannelResource;
+use App\Http\Resources\CharacterResource;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\SeriesResource;
 use App\Models\Project;
@@ -49,6 +50,7 @@ class EditController
             'scheduleSettings' => $details->scheduleSettings,
             'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
             'series' => $series === null ? null : SeriesResource::make($series)->resolve(),
+            'castCharacters' => $series === null ? [] : CharacterResource::collection($series->characters)->resolve(),
             'channels' => ChannelResource::collection($details->channels)->resolve(),
             'selectedChannelIds' => $details->selectedChannelIds,
             'audiences' => ContentAudience::labels(),
