@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Projects;
 
 use App\Data\Projects\ProjectFormData;
+use App\Data\Projects\ProjectScheduleSettingsData;
 use App\Models\Project;
 use App\Models\User;
 use App\Tasks\Channels\GetChannels;
@@ -24,6 +25,7 @@ readonly class GetProjectFormAction
             project: $project instanceof Project ? $this->getProject->run($project) : null,
             channels: $canManage ? $this->channels->selection($owner) : new Collection(),
             selectedChannelIds: $canManage && $project instanceof Project ? $this->channels->selectedIds($project) : [],
+            scheduleSettings: $project instanceof Project ? ProjectScheduleSettingsData::forProject($project) : null,
         );
     }
 }

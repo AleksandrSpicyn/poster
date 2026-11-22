@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { ProjectFormProps } from '@/types/projects';
+import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -42,6 +42,9 @@ const initialMode =
         ? 'series'
         : Object.keys(props.contentModes)[0];
 const form = useForm({
+    schedule: props.scheduleSettings?.configured
+        ? { enabled: props.scheduleSettings.enabled, time: props.scheduleSettings.time, timezone: props.scheduleSettings.timezone }
+        : (null as ProjectSchedule | null),
     settings_version: props.project?.settings_version ?? null,
     name: props.project?.name ?? '',
     prompt: props.series?.specification.premise ?? props.project?.prompt ?? '',
@@ -78,6 +81,7 @@ const restored = ref(false);
 const conflict = ref(false);
 const storageUnavailable = ref(false);
 const settingsLabels: Record<FieldKey, string> = {
+    schedule: 'Расписание производства',
     settings_version: 'Версия',
     name: 'Название',
     prompt: 'Описание',
@@ -170,12 +174,30 @@ onMounted(() => {
         { deep: true, flush: 'sync' },
     );
 });
+const schedule = computed(() => form.schedule ?? props.scheduleSettings);
+function changeSchedule(patch: Partial<ProjectSchedule>) {
+    if (!schedule.value) return;
+    const { enabled, time, timezone } = schedule.value;
+    form.schedule = { enabled, time, timezone, ...patch };
+}
+const nextRunLabel = computed(() => {
+    const saved = props.scheduleSettings;
+    const current = schedule.value;
+    if (!saved || !current) return '';
+    if (!current.enabled) return 'Выключен';
+    if (saved.time !== current.time || saved.timezone !== current.timezone || saved.enabled !== current.enabled) return 'После сохранения';
+    return saved.next
+        ? new Intl.DateTimeFormat('ru', { timeZone: saved.timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(
+              new Date(saved.next),
+          )
+        : 'Не запланирован';
+});
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
 const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation'].includes(section.value));
 const sections = computed((): Record<string, string> =>
     isSeries.value && section.value !== 'format'
-        ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация' }
+        ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация', ...(props.project ? { automation: 'Автоматизация' } : {}) }
         : props.project
           ? { main: 'Основное', automation: 'Автоматизация', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
@@ -225,6 +247,7 @@ function submit() {
         onError: (errors) => {
             if (errors.name || errors.prompt) window.location.hash = 'main';
             else if (errors.channel_ids || Object.keys(errors).some((key) => key.startsWith('channel_ids.'))) window.location.hash = 'channels';
+            else if (Object.keys(errors).some((key) => key.startsWith('schedule.'))) window.location.hash = 'automation';
             else if (isSeries.value && !errors.settings_version)
                 window.location.hash = Object.keys(errors).some((key) =>
                     [
@@ -315,7 +338,9 @@ function submit() {
                                 ? 'Параметры'
                                 : section === 'channels'
                                   ? 'Каналы проекта'
-                                  : (sections[section] ?? (section === 'format' ? 'Формат производства' : ''))
+                                  : section === 'automation'
+                                    ? 'Расписание производства'
+                                    : (sections[section] ?? (section === 'format' ? 'Формат производства' : ''))
                         }}
                     </h2>
                     <section v-if="conflict" role="alert" class="bg-muted border-l-4 border-amber-500 p-4">
@@ -361,14 +386,7 @@ function submit() {
                         />
                         <InputError id="project-name-error" :message="form.errors.name" />
                     </div>
-                    <div
-                        v-if="
-                            section === 'format' ||
-                            (project && section === 'automation' && !series) ||
-                            (!project && initialMode !== 'series' && section === 'main')
-                        "
-                        class="grid gap-2"
-                    >
+                    <div v-if="section === 'format' || (!project && initialMode !== 'series' && section === 'main')" class="grid gap-2">
                         <fieldset v-if="section === 'format'" class="grid gap-2">
                             <legend class="sr-only">Формат производства</legend>
                             <label
@@ -390,6 +408,12 @@ function submit() {
                                     }}</small></span
                                 >
                             </label>
+                            <Link
+                                v-if="!project"
+                                :href="route('clipping.index')"
+                                class="flex min-h-14 items-center gap-3 rounded-lg border p-3 font-semibold"
+                                >Клиппинг</Link
+                            >
                         </fieldset>
                         <Label v-else for="project-mode">Формат</Label>
                         <select
@@ -425,7 +449,42 @@ function submit() {
                             :message="form.errors.series_specification"
                         /><InputError :message="formErrors['series_specification.premise']" />
                     </div>
-                    <div v-if="!isSeries && (section === 'automation' || (project && section === 'main'))" class="grid gap-2">
+                    <fieldset v-if="project && section === 'automation' && schedule" class="grid gap-4" :disabled="form.processing || conflict">
+                        <label class="flex items-center gap-3 rounded-lg border p-3">
+                            <input
+                                type="checkbox"
+                                :checked="schedule.enabled"
+                                @change="changeSchedule({ enabled: ($event.target as HTMLInputElement).checked })"
+                            />
+                            <span><strong class="block">Автоматический запуск</strong><small>По расписанию проекта</small></span>
+                        </label>
+                        <div class="grid gap-2">
+                            <Label for="project-start-time">Время запуска</Label>
+                            <Input
+                                id="project-start-time"
+                                type="time"
+                                required
+                                :model-value="schedule.time"
+                                @update:model-value="changeSchedule({ time: String($event) })"
+                            />
+                            <InputError :message="formErrors['schedule.time']" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="project-timezone">Часовой пояс</Label>
+                            <select
+                                id="project-timezone"
+                                class="list-select"
+                                :value="schedule.timezone"
+                                @change="changeSchedule({ timezone: ($event.target as HTMLSelectElement).value })"
+                            >
+                                <option v-for="timezone in scheduleSettings?.timezones" :key="timezone">{{ timezone }}</option></select
+                            ><InputError :message="formErrors['schedule.timezone']" />
+                        </div>
+                        <p class="flex justify-between gap-3">
+                            <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
+                        </p>
+                    </fieldset>
+                    <div v-if="!isSeries && project && section === 'main'" class="grid gap-2">
                         <Label for="project-active">Состояние</Label>
                         <select id="project-active" v-model="form.is_active" class="list-select" :disabled="form.processing || conflict">
                             <option :value="true">Активен</option>
@@ -590,13 +649,15 @@ function submit() {
                             />{{
                                 form.processing
                                     ? 'Сохранение…'
-                                    : section === 'channels'
-                                      ? 'Сохранить каналы'
-                                      : section === 'format'
-                                        ? 'Сохранить формат'
-                                        : isSeries
-                                          ? 'Сохранить паспорт'
-                                          : 'Сохранить изменения'
+                                    : section === 'automation'
+                                      ? 'Сохранить расписание'
+                                      : section === 'channels'
+                                        ? 'Сохранить каналы'
+                                        : section === 'format'
+                                          ? 'Сохранить формат'
+                                          : isSeries
+                                            ? 'Сохранить паспорт'
+                                            : 'Сохранить изменения'
                             }}</Button
                         >
                     </div>

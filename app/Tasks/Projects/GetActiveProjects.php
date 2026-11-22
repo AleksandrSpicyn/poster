@@ -13,8 +13,8 @@ readonly class GetActiveProjects
     public function __construct(private ProjectRepository $projects) {}
 
     /** @return LazyCollection<int, Project> */
-    public function run(?string $projectId): LazyCollection
+    public function run(?string $projectId, ?bool $projectClock = null): LazyCollection
     {
-        return $this->projects->activeForProduction($projectId);
+        return $this->projects->activeForProduction($projectId, $projectClock);
     }
 }

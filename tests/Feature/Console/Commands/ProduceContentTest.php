@@ -7,6 +7,7 @@ use App\Jobs\AdvanceProductionJob;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
@@ -69,4 +70,35 @@ test('один плановый запуск выбирает сериал ил�
     expect($short->productionRuns()->sole()->series_id)->toBeNull();
     expect($serial->productionRuns()->sole()->series_id)->toBe($series->id);
     Bus::assertDispatchedTimes(AdvanceProductionJob::class, 2);
+});
+
+test('проекты запускаются по местному времени один раз даже при переводе часов назад', function (): void {
+    Bus::fake();
+    $actor = serialOperator();
+    config(['services.admin.email' => $actor->email, 'production.schedule_enabled' => true]);
+    $clock = ['schedule_enabled' => true, 'schedule_timezone' => 'America/New_York', 'schedule_time' => '01:30'];
+    $due = Project::factory()->recycle(workspaceOwner())->create($clock);
+    $later = Project::factory()->recycle(workspaceOwner())->create([...$clock, 'schedule_timezone' => 'Asia/Bangkok']);
+    $disabled = Project::factory()->recycle(workspaceOwner())->create([...$clock, 'schedule_enabled' => false]);
+    $legacy = Project::factory()->recycle(workspaceOwner())->create();
+
+    try {
+        foreach (['2026-11-01T05:29:00Z', '2026-11-01T05:30:00Z', '2026-11-01T06:30:00Z'] as $instant) {
+            Carbon::setTestNow($instant);
+            consoleCommand('app:produce-content', ['--project-clock' => true])->assertSuccessful();
+        }
+
+        expect($due->productionRuns()->count())->toBe(1)
+            ->and($later->productionRuns()->count())->toBe(0)
+            ->and($disabled->productionRuns()->count())->toBe(0)
+            ->and($legacy->productionRuns()->count())->toBe(0);
+
+        consoleCommand('app:produce-content', ['--scheduled' => true])->assertSuccessful();
+
+        expect($legacy->productionRuns()->count())->toBe(1)
+            ->and($later->productionRuns()->count())->toBe(0);
+        Bus::assertDispatchedTimes(AdvanceProductionJob::class, 2);
+    } finally {
+        Carbon::setTestNow();
+    }
 });

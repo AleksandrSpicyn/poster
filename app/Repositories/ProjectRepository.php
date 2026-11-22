@@ -134,9 +134,12 @@ readonly class ProjectRepository extends EloquentRepository
     }
 
     /** @return LazyCollection<int, Project> */
-    public function activeForProduction(?string $projectId): LazyCollection
+    public function activeForProduction(?string $projectId, ?bool $projectClock = null): LazyCollection
     {
-        return Project::query()->with('owner', 'automatedSeries.automationUser')->where('is_active', true)->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
+        return Project::query()->with('owner', 'automatedSeries.automationUser')->where('is_active', true)
+            ->when($projectClock === true, fn($query) => $query->where('schedule_enabled', true))
+            ->when($projectClock === false, fn($query) => $query->whereNull('schedule_enabled'))
+            ->when($projectId !== null, fn($query) => $query->whereKey($projectId))->lazyById();
     }
 
     public function forPromptPublication(Prompt $prompt): ?Project

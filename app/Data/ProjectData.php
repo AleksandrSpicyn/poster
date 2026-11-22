@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Data\Projects\ProjectScheduleData;
 use App\Data\Series\SeriesSpecificationData;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesOutputMode;
@@ -42,6 +43,7 @@ class ProjectData extends Data
         public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
         #[Min(1)]
         public ?int $settings_version = null,
+        public ?ProjectScheduleData $schedule = null,
         public ?bool $auto_publish = null,
     ) {}
 
