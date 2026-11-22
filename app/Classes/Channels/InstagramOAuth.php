@@ -39,6 +39,7 @@ final readonly class InstagramOAuth
 
         return ['access_token' => $token, 'channel_id' => Payload::string($id, 'channel_id'),
             'account_name' => Payload::string($profile->json('data.0.username', $profile->json('username')), 'account_name'),
+            'granted_scopes' => is_array($granted) ? array_values(array_filter($granted, is_string(...))) : null,
             'expires_at' => now()->addSeconds(TokenLifetime::seconds($response->json('expires_in'), 5184000))->toIso8601String()];
     }
 }

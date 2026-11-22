@@ -29,6 +29,7 @@ test('YouTube callback сохраняет аккаунт и серверные �
     get(route('channels.provider-callback', [$channel->type, 'state' => $state, 'code' => 'provider-code']))->assertSessionHasNoErrors()->assertRedirect(route('channels.edit', $channel));
 
     expect($channel->refresh()->credentials)->toMatchArray(['access_token' => 'access-1', 'refresh_token' => 'refresh-1', 'channel_id' => 'yt-1', 'account_name' => 'Wildlife Shorts']);
+    expect($channel->credentials['granted_scopes'] ?? null)->toBeNull();
     expect($other->refresh()->credentials)->toBeNull();
     expect(session()->has('channel_oauth.' . hash('sha256', $otherState)))->toBeTrue();
     Http::assertSent(fn(Request $request): bool => $request->url() === 'https://oauth2.googleapis.com/token' && $request['code'] === 'provider-code' && $request['redirect_uri'] === route('channels.provider-callback', $channel->type) && $request['client_secret'] === 'shared-secret' && $request['client_id'] === 'shared-client');
@@ -53,6 +54,7 @@ test('Instagram callback обменивает короткий токен и п�
     get(route('channels.provider-callback', [$channel->type, 'state' => $state, 'code' => 'ig-code']))->assertSessionHasNoErrors()->assertRedirect(route('channels.edit', $channel));
 
     expect($channel->refresh()->credentials)->toMatchArray(['access_token' => 'long-token', 'channel_id' => '12345', 'account_name' => 'wildlife_stories']);
+    expect($channel->credentials['granted_scopes'] ?? null)->toBe(['instagram_business_basic', 'instagram_business_content_publish']);
     expect($channel->credentials['expires_at'] ?? null)->toBeString();
     Http::assertSent(fn(Request $request): bool => str_contains($request->url(), '/access_token?') && $request['grant_type'] === 'ig_exchange_token' && $request['access_token'] === 'short-token');
     Http::assertSentCount(3);

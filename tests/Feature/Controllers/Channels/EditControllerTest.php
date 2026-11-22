@@ -56,3 +56,20 @@ test('показывает запрашиваемые права TikTok отде
             ->where('channel.tiktok_statistics', false)
             ->missing('channel.credentials'));
 })->with([true, false]);
+
+test('показывает подтверждённые площадкой права и сохраняет неопределённость старого подключения', function (?array $scopes, ?array $expected): void {
+    $owner = workspaceOwner();
+    $channel = Channel::factory()->recycle($owner)->create([
+        'type' => ChannelType::YOUTUBE,
+        'credentials' => ['access_token' => 'private-token', 'granted_scopes' => $scopes],
+    ]);
+
+    actingAs($owner)
+        ->get(route('channels.edit', $channel))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('channel.permission_labels', $expected)
+            ->missing('channel.credentials'));
+})->with([
+    'историческая запись' => [null, null],
+    'подтверждённое разрешение' => [['https://www.googleapis.com/auth/yt-analytics.readonly', 'unknown-grant'], ['Чтение отчётов']],
+]);

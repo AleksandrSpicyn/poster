@@ -46,7 +46,8 @@ final readonly class YoutubeOAuth
 
         return ['access_token' => $token, 'refresh_token' => $refresh,
             'token_type' => 'Bearer', 'expires_in' => TokenLifetime::seconds($response->json('expires_in'), 3600), 'created' => now()->timestamp,
-            'channel_id' => $profile->id, 'account_name' => $profile->name];
+            'channel_id' => $profile->id, 'account_name' => $profile->name,
+            'granted_scopes' => is_string($scopes) ? array_values(array_filter(explode(' ', $scopes))) : null];
     }
 
     private function findChannel(string $token, ?string $assigned): YoutubeChannelData

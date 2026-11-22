@@ -313,6 +313,9 @@ function remove() {
                                         .join(' · ') || 'Нет действующих разрешений'
                                 }}
                             </p>
+                            <p v-if="channel.connected && channel.type !== 'tiktok'" class="text-muted-foreground text-sm">
+                                Права: {{ channel.permission_labels?.join(' · ') || 'Площадка не подтвердила список разрешений' }}
+                            </p>
                             <InputError :message="page.props.errors.oauth" />
                             <template v-if="oauthSupported">
                                 <Button
@@ -354,9 +357,19 @@ function remove() {
                             >
                         </section>
                         <section class="space-y-3 rounded-xl border p-5">
-                            <h2 class="text-sm font-semibold">Удалить канал</h2>
-                            <p class="text-muted-foreground text-sm">
-                                Для удаления отвяжите канал от всех проектов. Канал с публикациями можно приостановить.
+                            <h2 class="text-sm font-semibold">{{ deletingAllowed ? 'Удалить канал' : 'Удаление канала недоступно' }}</h2>
+                            <template v-if="channel.projects?.length">
+                                <p class="font-medium">Канал связан с проектами</p>
+                                <p class="text-muted-foreground text-sm">
+                                    Сначала уберите его из проектов {{ channel.projects.map((project) => '«' + project.name + '»').join(', ') }}.
+                                </p>
+                                <div class="studio-row">
+                                    <span>Связанных проектов</span><span>{{ channel.projects.length }}</span>
+                                </div>
+                                <a class="text-primary inline-block py-2 text-sm underline" href="#connected-projects">Открыть связанные проекты</a>
+                            </template>
+                            <p v-else-if="!deletingAllowed" class="text-muted-foreground text-sm">
+                                У канала есть история отправок. Вы можете приостановить публикации.
                             </p>
                             <InputError :message="deletionErrors.channel" />
                             <ConfirmationDialog

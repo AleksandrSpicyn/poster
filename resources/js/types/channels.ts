@@ -10,6 +10,7 @@ export interface ManagedChannel {
     tiktok_inbox: boolean;
     tiktok_direct: boolean;
     tiktok_statistics: boolean;
+    permission_labels: string[] | null;
     account_name: string | null;
     expires_at: string | null;
     client_id: string | null;

@@ -20,6 +20,7 @@ class ChannelResource extends JsonResource
             'tiktok_inbox' => $this->canSendTiktokInboxVideo(), 'tiktok_direct' => $this->canDirectPostTiktok(),
             'tiktok_statistics' => $this->hasTiktokScope('video.list'),
             'connected' => filled($this->credentials['access_token'] ?? null),
+            'permission_labels' => $this->permissionLabels(),
             'account_name' => is_string($this->credentials['account_name'] ?? null) ? $this->credentials['account_name'] : null,
             'expires_at' => is_string($this->credentials['expires_at'] ?? null) ? $this->credentials['expires_at'] : null,
             'client_id' => $this->client_id, 'has_client_secret' => filled($this->client_secret),
@@ -28,5 +29,26 @@ class ChannelResource extends JsonResource
             'posts_count' => $this->whenCounted('posts'),
             'projects' => $this->whenLoaded('projects', fn() => $this->projects->map(fn($project): array => ['id' => $project->id, 'name' => $project->name])->all()),
         ];
+    }
+
+    /** @return list<string>|null */
+    private function permissionLabels(): ?array
+    {
+        $scopes = $this->credentials['granted_scopes'] ?? null;
+
+        if (! is_array($scopes)) {
+            return null;
+        }
+
+        $labels = [
+            'https://www.googleapis.com/auth/youtube.upload' => 'Публикация',
+            'https://www.googleapis.com/auth/youtube.readonly' => 'Чтение канала',
+            'https://www.googleapis.com/auth/yt-analytics.readonly' => 'Чтение отчётов',
+            'instagram_business_basic' => 'Чтение профиля',
+            'instagram_business_content_publish' => 'Публикация',
+            'instagram_business_manage_insights' => 'Чтение отчётов',
+        ];
+
+        return array_values(array_filter($labels, fn(string $scope): bool => in_array($scope, $scopes, true), ARRAY_FILTER_USE_KEY));
     }
 }
