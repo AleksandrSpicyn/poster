@@ -7,6 +7,7 @@ namespace App\Actions\Clipping;
 use App\Classes\Clipping\ClippingReader;
 use App\Classes\Clipping\ClippingReaders;
 use App\Data\ClippingSourceSelectionData;
+use App\Data\OpusClip\OpusSourceData;
 use App\Http\Resources\ProjectResource;
 use App\Models\ClippingConnection;
 use App\Models\Project;
@@ -27,8 +28,14 @@ final readonly class GetClippingSourcesAction
         $reader = $connection->import_projects || $connection->import_accounts ? $this->readers->forConnection($connection) : null;
         $readsAccounts = $reader instanceof ClippingReader && $connection->import_accounts && $reader::readsAccounts();
 
+        $search = trim($selection->search ?? '');
+
         try {
-            $sources = $connection->import_projects && $reader instanceof ClippingReader ? collect($this->readers->sources($reader, $connection))->values() : collect();
+            $sources = $connection->import_projects && $reader instanceof ClippingReader
+                ? collect($this->readers->sources($reader, $connection))
+                    ->filter(static fn(OpusSourceData $source): bool => $search === '' || mb_stripos($source->title ?? '', $search) !== false)
+                    ->values()
+                : collect();
         } catch (RuntimeException) {
             throw ValidationException::withMessages(['connection' => 'Не удалось получить проекты. Проверьте ключ и доступность провайдера.']);
         }
@@ -45,6 +52,7 @@ final readonly class GetClippingSourcesAction
         }
 
         return [
+            'search' => $search,
             'connection' => $connection->only(['id', 'name', 'driver']), 'sources' => $sources, 'projects' => $this->connections->projects($connection)->map(static fn(Project $project): array => Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover'])),
             'sourceBindings' => $this->connections->mappedSources($connection),
             'previous' => $preview?->only(['id', 'external_id', 'project_id', 'accounts', 'clip_count', 'imported_at']),

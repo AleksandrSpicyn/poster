@@ -17,6 +17,7 @@ class SourcesController
      * @group Кабинет
      * @subgroup Клиппинг
      * @authenticated
+     * @queryParam search string Часть названия внешнего проекта выбранного подключения. Example: Игра
      */
     public function __invoke(ClippingConnection $connection, ClippingSourceSelectionData $selection, GetClippingSourcesAction $action): Response
     {

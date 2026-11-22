@@ -13,6 +13,7 @@ type Account = { id: string; external_id: string; name: string; platform: string
 type Choice = { id: string; channel_id: number | null };
 type Step = 'source' | 'project' | 'channels' | 'map-project' | 'map-channel';
 const props = defineProps<{
+    search: string;
     connection: { id: number; name: string; driver: string };
     sources: { id: string; title: string | null }[];
     projects: Pick<ProjectSummary, 'id' | 'name' | 'cover'>[];
@@ -139,7 +140,10 @@ function selectMode(mode: 'existing' | 'new') {
                         <div v-if="summarySource" class="pick-row">
                             <span>Получено</span><span>{{ count == null ? 'После предпросмотра' : 'Клипов: ' + count }}</span>
                         </div>
-                        <p v-if="!sources.length">Доступных проектов нет.</p>
+                        <p v-if="search">
+                            Поиск: {{ search }} <Link :href="route('clipping.sources', connection.id)" class="underline">Сбросить фильтр</Link>
+                        </p>
+                        <p v-if="!sources.length">{{ search ? 'Проекты не найдены.' : 'Доступных проектов нет.' }}</p>
                         <template v-if="!summarySource"
                             ><label v-for="s in sources" :key="s.id" class="pick-option"
                                 ><input type="radio" :value="s.id" v-model="form.external_id" /><span
