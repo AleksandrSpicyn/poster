@@ -6,6 +6,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const liveProps: Record<string, string[]> = {
+    PublicationAnalytics: ['analytics'],
     Dashboard: ['analytics', 'stats', 'recentPrompts', 'recentPosts'],
     'Projects/Index': ['projects'],
     'Projects/Show': ['project', 'prompts', 'series', 'characters', 'episodes'],
@@ -21,6 +22,7 @@ const liveProps: Record<string, string[]> = {
 const affectedProps: Record<string, string[]> = {
     Project: ['projects', 'project', 'prompts', 'series', 'channels', 'destinations'],
     OpusClipMetric: ['analytics'],
+    PublicationObservation: ['analytics'],
     Channel: ['analytics', 'channels', 'projects', 'project', 'destinations', 'requests', 'posts', 'recentPosts'],
     Prompt: ['prompts', 'projects', 'project', 'stats', 'recentPrompts', 'episode', 'assemblies'],
     Post: ['posts', 'recentPosts', 'stats', 'requests', 'project', 'publications'],

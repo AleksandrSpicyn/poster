@@ -17,8 +17,8 @@ final class YoutubeReadClient
     {
         $credentials = $channel->credentials ?? [];
 
-        if ($channel->type !== ChannelType::YOUTUBE || $channel->external_account === null
-            || ($credentials['channel_id'] ?? null) !== $channel->external_account) {
+        if ($channel->type !== ChannelType::YOUTUBE || ! is_string($credentials['channel_id'] ?? null)
+            || ($channel->external_account !== null && $credentials['channel_id'] !== $channel->external_account)) {
             throw new RuntimeException('Connect the gaming YouTube account in Poster.');
         }
 

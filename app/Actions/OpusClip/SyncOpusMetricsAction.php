@@ -33,10 +33,11 @@ final readonly class SyncOpusMetricsAction
         }
 
         $count = 0;
+        $accountId = $channel->credentials['channel_id'] ?? null;
 
         foreach ($this->client->read($channel, array_map(strval(...), array_keys($targets))) as $id => $metrics) {
             foreach ($targets[$id] as $clip) {
-                $this->metrics->observe($clip, $channel->type, (string) $id, $metrics);
+                $this->metrics->observe($clip, $channel->type, (string) $id, $metrics, is_string($accountId) ? $accountId : null);
                 $count++;
             }
         }

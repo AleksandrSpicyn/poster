@@ -25,7 +25,7 @@ final readonly class ChannelMetricsClient
         $credentials = $channel->credentials ?? [];
         $account = $channel->type === ChannelType::INSTAGRAM ? ($credentials['account_name'] ?? null) : ($credentials['channel_id'] ?? null);
 
-        if (! is_string($account) || $account !== $channel->external_account) {
+        if (! $channel->is_active || ! is_string($account) || $account === '' || ($channel->external_account !== null && $account !== $channel->external_account)) {
             throw new RuntimeException('Connect the assigned account in Poster.');
         }
 
@@ -48,11 +48,17 @@ final readonly class ChannelMetricsClient
         $token = Payload::string($credentials['access_token'] ?? null, 'access_token');
 
         if ($channel->type === ChannelType::YOUTUBE) {
-            yield from $this->youtube->read($this->youtubeClient->forChannel($channel), $account, $references);
+            $http = $this->youtubeClient->forChannel($channel);
+
+            if ($channel->external_account !== null) {
+                yield from $this->youtube->read($http, $account, $references);
+            } else {
+                yield from $this->youtube->statistics($http, $account, $references);
+            }
 
             return;
         }
 
-        yield from $this->instagram->read(Http::withToken($token), Payload::string($credentials['channel_id'] ?? null, 'channel_id'), $references);
+        yield from $this->instagram->read(Http::withToken($token), Payload::string($credentials['channel_id'] ?? null, 'channel_id'), $references, $channel->external_account !== null);
     }
 }

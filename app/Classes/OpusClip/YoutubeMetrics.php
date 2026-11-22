@@ -13,6 +13,40 @@ final readonly class YoutubeMetrics
 {
     /**
      * @param list<string> $references
+     * @return Generator<string, array<string, int>>
+     */
+    public function statistics(PendingRequest $http, string $account, array $references): Generator
+    {
+        foreach (array_chunk($references, 50) as $ids) {
+            $response = $http->get('https://www.googleapis.com/youtube/v3/videos', [
+                'part' => 'snippet,statistics', 'id' => implode(',', $ids),
+                'fields' => 'items(id,snippet/channelId,statistics(viewCount,likeCount,commentCount))',
+            ])->throw();
+
+            foreach ($response->collect('items') as $item) {
+                $id = data_get($item, 'id');
+
+                if (! is_string($id) || ! in_array($id, $ids, true) || data_get($item, 'snippet.channelId') !== $account) {
+                    continue;
+                }
+
+                $metrics = [];
+
+                foreach (['viewCount' => 'views', 'likeCount' => 'likes', 'commentCount' => 'comments'] as $field => $name) {
+                    $value = data_get($item, 'statistics.' . $field);
+
+                    if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+                        $metrics[$name] = (int) $value;
+                    }
+                }
+
+                yield $id => $metrics;
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $references
      * @return Generator<string, array<string, int|float>>
      */
     public function read(PendingRequest $http, string $account, array $references): Generator

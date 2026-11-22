@@ -47,6 +47,13 @@ readonly class ProjectRepository extends EloquentRepository
             ->withQueryString();
     }
 
+    /** @return list<array{id: int, name: string}> */
+    public function analyticsOptions(User $owner): array
+    {
+        return array_values(Project::query()->where('owner_id', $owner->id)->whereNull('opus_source_id')
+            ->orderBy('name')->get(['id', 'name'])->map(static fn(Project $project): array => ['id' => $project->id, 'name' => $project->name])->all());
+    }
+
     public function forWorkspace(Project $project): Project
     {
         $project->load('latestProductionRun', 'seriesDefinition');

@@ -103,6 +103,12 @@ class Channel extends Model
         return is_string($value) ? $value : null;
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
     {

@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('clipping:refresh')->hourly()->withoutOverlapping(60);
         $schedule->command('opus:trends')->dailyAt('06:30')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
+        $schedule->command('publications:metrics')->dailyAt('06:45')->timezone('Asia/Bangkok')->withoutOverlapping(120);
         $schedule->command('opus:metrics')->dailyAt('06:15')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
 
         $schedule->command('horizon:snapshot')->everyFiveMinutes();

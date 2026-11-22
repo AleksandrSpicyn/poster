@@ -18,6 +18,7 @@ use App\Http\Controllers\Projects\StoreController as ProjectsStoreController;
 use App\Http\Controllers\Projects\UpdateController as ProjectsUpdateController;
 use App\Http\Controllers\Prompts\ListController as PromptsListController;
 use App\Http\Controllers\Prompts\MediaController;
+use App\Http\Controllers\PublicationAnalyticsController;
 use App\Http\Middleware\VerifyExportOwner;
 use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
@@ -33,7 +34,10 @@ Route::get('prompt-exports/{prompt}/media/{media}', MediaController::class)
 
 Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(function (): void {
     Route::get('prompts/{prompt}/media/{media}', MediaController::class)->scopeBindings()->name('prompts.media');
-    Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::prefix('dashboard')->group(function (): void {
+        Route::get('', DashboardController::class)->name('dashboard');
+        Route::get('analytics', PublicationAnalyticsController::class)->name('dashboard.analytics');
+    });
 
     Route::prefix('posts/tiktok/{channel}')->whereNumber('channel')->name('posts.tiktok.')->group(function (): void {
         Route::get('', TiktokCreateController::class)->name('create');

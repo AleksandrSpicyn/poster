@@ -7,6 +7,7 @@ namespace App\Data;
 use App\Enums\ChannelType;
 use App\Enums\PublicationCounter;
 use Spatie\LaravelData\Attributes\Validation\In;
+use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Data;
 
 final class MetricPeriodData extends Data
@@ -16,5 +17,7 @@ final class MetricPeriodData extends Data
         public int $days = 7,
         public PublicationCounter $metric = PublicationCounter::VIEWS,
         public ?ChannelType $platform = null,
+        #[Min(1)]
+        public ?int $project = null,
     ) {}
 }

@@ -16,12 +16,12 @@ final readonly class InstagramMetrics
      * @param list<string> $references
      * @return Generator<string, array<string, int|float>>
      */
-    public function read(PendingRequest $http, string $account, array $references): Generator
+    public function read(PendingRequest $http, string $account, array $references, bool $insights = true): Generator
     {
         $http->withoutRedirecting()->timeout(30)->baseUrl('https://graph.instagram.com/' . config()->string('services.instagram.version'));
         $remaining = array_fill_keys($references, true);
         $seen = [];
-        $params = ['fields' => 'id,permalink', 'limit' => 100];
+        $params = ['fields' => $insights ? 'id,permalink' : 'id,permalink,like_count,comments_count', 'limit' => 100];
 
         do {
             $page = $http->get(rawurlencode($account) . '/media', $params)->throw();
@@ -34,7 +34,9 @@ final readonly class InstagramMetrics
                 }
 
                 $id = Payload::string(data_get($media, 'id'), 'id');
-                $metrics = $this->insights($http, $id);
+                $metrics = $insights ? $this->insights($http, $id) : array_filter([
+                    'likes' => data_get($media, 'like_count'), 'comments' => data_get($media, 'comments_count'),
+                ], is_int(...));
 
                 if ($metrics !== []) {
                     yield $ref => $metrics;

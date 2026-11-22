@@ -15,6 +15,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\LazyCollection;
 
 /** @extends EloquentRepository<Post> */
 readonly class PostRepository extends EloquentRepository
@@ -42,6 +43,13 @@ readonly class PostRepository extends EloquentRepository
             ->orderBy('id', $direction->value)
             ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
             ->withQueryString();
+    }
+
+    /** @return LazyCollection<int, Post> */
+    public function forMetricCollection(User $owner, Channel $channel): LazyCollection
+    {
+        return $this->owned($owner)->where('channel_id', $channel->id)->whereNotNull('url')
+            ->with(['prompt:id,project_id', 'seriesAssembly.series', 'episodeAssembly.episodeRevision.episode.series'])->lazyById(100);
     }
 
     public function totalCount(User $owner): int

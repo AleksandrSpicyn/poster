@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 type Counter = 'views' | 'likes' | 'shares' | 'comments';
-type Filters = { days: number; metric: Counter; platform: string | null };
+type Filters = { days: number; metric: Counter; platform: string | null; project: number | null };
 type Timeline = {
     account: string;
     platform: string;
@@ -22,8 +22,10 @@ export type MetricsReport = {
     change: number | null;
     daily: Record<string, number | null>;
     publications: Timeline[];
+    projects: { id: number; name: string }[];
+    coverage: { name: string; status: string; last_success_at: string | null }[];
 };
-const props = defineProps<{ report: MetricsReport }>();
+const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
 const route = useRoute();
 const counters: Record<Counter, string> = { views: 'Просмотры', likes: 'Лайки', shares: 'Репосты', comments: 'Комментарии' };
 const scale = computed(() => Math.max(1, ...Object.values(props.report.daily).map((value) => Math.abs(value ?? 0))));
@@ -31,26 +33,37 @@ const format = new Intl.NumberFormat('ru', { signDisplay: 'exceptZero' });
 function filter(key: keyof Filters, event: Event) {
     const value = (event.target as HTMLSelectElement).value;
     const filters = { ...props.report.filters, [key]: key === 'days' ? Number(value) : value || null };
-    router.get(route('dashboard'), filters, { preserveScroll: true, preserveState: true, only: ['analytics'] });
+    router.get(route(props.detail ? 'dashboard.analytics' : 'dashboard'), filters, {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['analytics'],
+    });
 }
 </script>
 <template>
     <section class="studio-panel" aria-labelledby="analytics-heading">
         <header class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h2 id="analytics-heading">Аналитика публикаций</h2>
+                <h2 id="analytics-heading">{{ detail ? 'Наблюдения за период' : 'Аналитика публикаций' }}</h2>
+                <Link v-if="!detail" :href="route('dashboard.analytics', report.filters)" class="underline">Подробный отчёт</Link>
                 <p>{{ report.from }} — {{ report.to }} · UTC</p>
             </div>
             <div class="flex flex-wrap gap-3">
                 <label
+                    >Проект<select aria-label="Проект" :value="report.filters.project ?? ''" @change="filter('project', $event)">
+                        <option value="">Все проекты</option>
+                        <option v-for="project in report.projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+                    </select></label
+                >
+                <label
                     >Период
-                    <select :value="report.filters.days" @change="filter('days', $event)">
+                    <select aria-label="Период" :value="report.filters.days" @change="filter('days', $event)">
                         <option v-for="period in [7, 30, 90]" :key="period" :value="period">{{ period }} дней</option>
                     </select>
                 </label>
                 <label
                     >Площадка
-                    <select :value="report.filters.platform ?? ''" @change="filter('platform', $event)">
+                    <select aria-label="Площадка" :value="report.filters.platform ?? ''" @change="filter('platform', $event)">
                         <option value="">Все площадки</option>
                         <option value="youtube">YouTube</option>
                         <option value="instagram">Instagram</option>
@@ -59,7 +72,7 @@ function filter(key: keyof Filters, event: Event) {
                 </label>
                 <label
                     >Показатель
-                    <select :value="report.filters.metric" @change="filter('metric', $event)">
+                    <select aria-label="Показатель" :value="report.filters.metric" @change="filter('metric', $event)">
                         <option v-for="(name, key) in counters" :key="key" :value="key">{{ name }}</option>
                     </select>
                 </label>
@@ -90,6 +103,17 @@ function filter(key: keyof Filters, event: Event) {
             График учитывает соседние дни. Прирост за пропущенные дни указан в интервалах публикации.
         </p>
         <p v-else class="mt-4">За выбранный период сохранённых наблюдений нет.</p>
+        <details v-if="report.coverage.length" class="mt-2 border-t py-2">
+            <summary class="cursor-pointer">Состояние сбора по каналам</summary>
+            <ul class="mt-2 space-y-2">
+                <li v-for="(channel, index) in report.coverage" :key="index">
+                    {{ channel.name }} · {{ channel.status }}
+                    <small v-if="channel.last_success_at">
+                        · {{ new Date(channel.last_success_at).toLocaleString('ru', { timeZone: 'UTC' }) }} UTC</small
+                    >
+                </li>
+            </ul>
+        </details>
         <details v-for="item in report.publications" :key="JSON.stringify([item.platform, item.account, item.mediaId])" class="mt-2 border-t py-2">
             <summary class="cursor-pointer">
                 {{ item.title }} · {{ item.platform }} · {{ item.change === null ? 'Нет базы сравнения' : format.format(item.change) }}
