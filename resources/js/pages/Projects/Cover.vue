@@ -61,15 +61,15 @@ function save() {
         ]"
     >
         <Head title="Обложка проекта" />
-        <div class="workspace-page">
+        <div class="workspace-page cover-editor">
             <Heading title="Обложка проекта" description="Кадрирование" />
-            <form class="studio-panel space-y-5" @submit.prevent="save">
+            <form class="studio-panel crop-panel" @submit.prevent="save">
                 <h2>Кадрирование</h2>
-                <div v-if="source" class="flex items-start gap-4">
+                <div v-if="source" class="crop-images">
                     <button
                         type="button"
-                        class="relative max-w-[25%] touch-none overflow-hidden rounded"
-                        aria-label="Точка интереса"
+                        class="crop-source"
+                        aria-label="Точка интереса. Переместить рамку стрелками"
                         @pointerdown="move"
                         @pointermove="move"
                         @keydown.left.prevent="form.x = clamp(form.x - 1)"
@@ -77,10 +77,10 @@ function save() {
                         @keydown.up.prevent="form.y = clamp(form.y - 1)"
                         @keydown.down.prevent="form.y = clamp(form.y + 1)"
                     >
-                        <img :src="source" alt="" draggable="false" class="block max-h-56" @load="measure" />
+                        <img :src="source" alt="" draggable="false" class="source-image" @load="measure" />
                         <span
                             aria-hidden="true"
-                            class="border-primary pointer-events-none absolute border-2"
+                            class="crop-frame"
                             :style="{
                                 width: cropWidth + '%',
                                 height: cropHeight + '%',
@@ -89,22 +89,110 @@ function save() {
                             }"
                         ></span>
                     </button>
-                    <figure class="w-full max-w-[400px]">
-                        <img
-                            :src="source"
-                            alt="Обложка проекта"
-                            class="aspect-video w-full rounded object-cover"
-                            :style="{ objectPosition: position }"
-                        />
-                        <figcaption class="text-muted-foreground mt-1 text-sm">Карточка 16:9</figcaption>
+                    <figure class="crop-preview">
+                        <img :src="source" alt="Обложка проекта" class="aspect-video w-full object-cover" :style="{ objectPosition: position }" />
+                        <figcaption>Карточка 16:9</figcaption>
                     </figure>
                 </div>
-                <label class="block"
-                    >Изображение<input type="file" accept="image/png,image/jpeg,image/webp" class="mt-2 block max-w-full" @change="chooseFile"
-                /></label>
+                <div v-if="source" class="focus-summary"><span>Точка интереса</span><strong>Центр кадрирования</strong></div>
+                <label class="mb-4 block text-sm">
+                    Изображение<input type="file" accept="image/png,image/jpeg,image/webp" class="mt-2 block max-w-full" @change="chooseFile" />
+                </label>
                 <InputError :message="form.errors.file ?? form.errors.x ?? form.errors.y ?? form.errors.base_id" />
                 <Button type="submit" :disabled="form.processing || !source">Применить кадрирование</Button>
             </form>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.cover-editor {
+    gap: 14px;
+}
+.crop-panel {
+    padding: 16px 23px 29px;
+}
+.crop-panel h2 {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    margin-bottom: 19px;
+}
+.crop-images {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+.crop-source {
+    position: relative;
+    flex: none;
+    max-width: 118px;
+    overflow: hidden;
+    touch-action: none;
+    cursor: crosshair;
+}
+.source-image {
+    display: block;
+    max-height: 208px;
+    max-width: 100%;
+}
+.crop-frame {
+    position: absolute;
+    border: 3px solid var(--primary);
+    box-shadow: 0 0 0 250px rgb(0 0 0 / 55%);
+    pointer-events: none;
+}
+.crop-preview {
+    width: min(400px, 100%);
+    min-width: 0;
+}
+.crop-preview figcaption {
+    min-height: 28px;
+    padding-top: 4px;
+    color: var(--muted-foreground);
+    font-size: 13px;
+}
+.crop-source:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+.focus-summary {
+    display: grid;
+    grid-template-columns: 39% minmax(0, 1fr);
+    align-items: center;
+    padding-block: 11px 16px;
+    margin-top: 8px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+.focus-summary span {
+    color: var(--muted-foreground);
+}
+.focus-summary strong {
+    font-weight: 400;
+}
+.crop-panel button[type='submit'] {
+    padding-inline: 15px;
+    min-height: 44px;
+    font-weight: 700;
+}
+@media (max-width: 767px) {
+    .cover-editor {
+        gap: 21px;
+    }
+    .crop-preview {
+        margin-right: 3px;
+    }
+    .crop-panel {
+        padding: 8px 15px 20px;
+    }
+    .focus-summary {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+        padding-top: 2px;
+    }
+}
+</style>
