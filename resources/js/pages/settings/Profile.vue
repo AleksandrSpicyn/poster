@@ -62,7 +62,14 @@ const submit = () => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Профиль" />
 
-        <SettingsLayout title="Профиль" description="Личные данные / Учётная запись">
+        <SettingsLayout title="Профиль" :description="emailNotice ? 'Изменение почты' : 'Личные данные / Учётная запись'" :detail="emailNotice">
+            <template #side
+                ><h2>Аккаунт студии</h2>
+                <small>Студия</small>
+                <p>{{ user.name }}</p>
+                <small>Владелец</small>
+                <p>{{ user.name }}</p></template
+            >
             <template #action>
                 <Button v-if="section !== 'delete' && !emailNotice" form="profile-form" type="submit" :disabled="form.processing">{{
                     form.processing ? 'Сохранение…' : 'Сохранить'
@@ -71,14 +78,19 @@ const submit = () => {
             <template #navigation>
                 <a href="#profile" :aria-current="section !== 'delete' && section !== 'change-email' ? 'page' : undefined">Профиль</a>
                 <a href="#change-email" :aria-current="section === 'change-email' ? 'page' : undefined">Изменение почты</a>
-                <a href="#delete" :aria-current="section === 'delete' ? 'page' : undefined">Удаление учётной записи</a>
+                <DeleteUser />
             </template>
-            <DeleteUser v-if="section === 'delete'" />
-            <section v-else-if="emailNotice" class="space-y-4">
+            <section v-if="emailNotice" class="space-y-4">
                 <HeadingSmall title="Изменение почты" />
-                <p v-if="status === 'verification-link-sent'" role="status">Адрес сохранён. Письмо отправлено на новый адрес.</p>
+                <div v-if="status === 'verification-link-sent'" class="profile-notice" role="status">
+                    <strong>Адрес сохранён</strong>
+                    <p>Письмо отправлено на новый адрес.</p>
+                </div>
                 <Label for="new-email">Новая почта</Label><Input id="new-email" :model-value="user.email" readonly />
-                <p>Требуется подтверждение. Откройте ссылку из письма, чтобы подтвердить адрес.</p>
+                <div class="profile-notice warning">
+                    <strong>Требуется подтверждение</strong>
+                    <p>Откройте ссылку из письма, чтобы подтвердить адрес.</p>
+                </div>
                 <Link :href="route('verification.send')" method="post" as="button" class="underline">Отправить письмо повторно</Link>
             </section>
             <form v-else id="profile-form" @submit.prevent="submit">
@@ -102,3 +114,19 @@ const submit = () => {
         </SettingsLayout>
     </AppLayout>
 </template>
+
+<style scoped>
+.profile-notice {
+    padding: 10px 14px;
+    border-left: 3px solid var(--primary);
+    border-radius: 5px;
+    background: var(--muted);
+}
+.profile-notice.warning {
+    border-color: #ce9675;
+}
+.profile-notice p {
+    color: var(--muted-foreground);
+    margin-top: 4px;
+}
+</style>

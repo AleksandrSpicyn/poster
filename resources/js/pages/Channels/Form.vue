@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DisconnectChannelDialog from '@/components/channels/DisconnectChannelDialog.vue';
 import TiktokChannelConnection from '@/components/channels/TiktokChannelConnection.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
@@ -12,7 +13,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, ChannelType, SharedData } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { Link2, LoaderCircle, Save, Trash2, Unplug } from '@lucide/vue';
+import { Link2, LoaderCircle, Save, Trash2 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -95,6 +96,8 @@ function remove() {
             :unsaved="form.isDirty"
             :error="page.props.errors.oauth"
             @authorize="connect"
+            @save="submit"
+            @disconnect="disconnect"
         />
         <div v-else class="workspace-page">
             <ProjectNotice />
@@ -287,31 +290,14 @@ function remove() {
                                     Нужен профессиональный аккаунт Instagram.
                                 </p>
                             </template>
-                            <ConfirmationDialog
+                            <DisconnectChannelDialog
                                 v-if="channel.connected"
-                                heading="Отзыв доступа к площадке"
-                                :title="'Отключить аккаунт ' + channel.type_label + '?'"
-                                description="Poster перестанет отправлять видео от имени этого аккаунта."
-                                action="Отключить аккаунт"
-                                destructive
+                                :channel="channel"
                                 :processing="connection.processing"
                                 :error="page.props.errors.oauth"
+                                label="Отключить от Poster"
                                 @confirm="disconnect"
-                            >
-                                <template #trigger>
-                                    <Button variant="outline" class="h-11 w-full" :disabled="connection.processing">
-                                        <Unplug class="size-4" aria-hidden="true" />Отключить от Poster
-                                    </Button>
-                                </template>
-                                <div class="studio-row">
-                                    <dt>Канал Poster</dt>
-                                    <dd>{{ channel.name }}</dd>
-                                </div>
-                                <div class="studio-row">
-                                    <dt>После отключения</dt>
-                                    <dd>Для отправки потребуется авторизоваться снова</dd>
-                                </div>
-                            </ConfirmationDialog>
+                            />
                         </section>
                         <section class="bg-card space-y-3 rounded-xl border p-5">
                             <h2 tabindex="-1" id="connected-projects" class="text-sm font-semibold">Связанные проекты</h2>

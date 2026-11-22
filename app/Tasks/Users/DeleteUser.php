@@ -15,7 +15,7 @@ class DeleteUser
     public function ensureCanDelete(User $user): void
     {
         if ($this->users->ownsWorkspaceData($user)) {
-            throw ValidationException::withMessages(['password' => 'Transfer your projects, channels and notifications before deleting this account.']);
+            throw ValidationException::withMessages(['password' => 'Перед удалением передайте свои проекты, каналы и уведомления.']);
         }
     }
 

@@ -15,4 +15,10 @@ class DeleteProfileData extends Data
         #[Bail, Required, CurrentPassword]
         public string $password,
     ) {}
+
+    /** @return array<string, string> */
+    public static function messages(): array
+    {
+        return ['password.current_password' => 'Пароль не подошёл', 'password.required' => 'Введите текущий пароль.'];
+    }
 }

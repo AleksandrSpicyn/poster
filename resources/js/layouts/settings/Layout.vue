@@ -3,7 +3,7 @@ import Heading from '@/components/Heading.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
-defineProps<{ title: string; description: string }>();
+defineProps<{ title: string; description: string; detail?: boolean }>();
 const route = useRoute();
 const page = usePage();
 const links = [
@@ -16,8 +16,8 @@ const links = [
 <template>
     <div class="workspace-page">
         <header class="settings-header"><Heading :title="title" :description="description" /><slot name="action" /></header>
-        <div class="settings-grid">
-            <nav aria-label="Настройки аккаунта">
+        <div class="settings-grid" :class="{ detail }">
+            <nav v-if="!detail" aria-label="Настройки аккаунта">
                 <h2>В этом разделе</h2>
                 <slot name="navigation"
                     ><Link
@@ -30,6 +30,7 @@ const links = [
                 >
             </nav>
             <section class="settings-content"><slot /></section>
+            <aside v-if="detail" class="studio-panel"><slot name="side" /></aside>
         </div>
     </div>
 </template>
@@ -132,6 +133,30 @@ nav :deep(a[aria-current='page']) {
 @media (min-width: 1920px) {
     .settings-grid {
         grid-template-columns: 276px minmax(0, 820px);
+    }
+}
+
+.settings-grid:not(.detail) .settings-content {
+    min-height: 378px;
+}
+.settings-grid :deep(h2) {
+    font-size: 20px;
+    font-weight: 700;
+}
+@media (min-width: 1100px) {
+    .settings-grid.detail {
+        grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
+        gap: 20px;
+    }
+}
+@media (min-width: 1920px) {
+    .settings-grid.detail {
+        max-width: 1236px;
+    }
+}
+@media (max-width: 1099px) {
+    .settings-grid.detail aside {
+        display: none;
     }
 }
 </style>

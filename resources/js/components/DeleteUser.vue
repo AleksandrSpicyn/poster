@@ -1,85 +1,56 @@
 <script setup lang="ts">
-import HeadingSmall from '@/components/HeadingSmall.vue';
-import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
+import { CircleAlert } from '@lucide/vue';
 import { ref } from 'vue';
 import { useRoute } from 'ziggy-js';
-
 const route = useRoute();
-
 const passwordInput = ref<InstanceType<typeof Input> | null>(null);
-
-const form = useForm({
-    password: '',
-});
-
-const deleteUser = (e: Event) => {
-    e.preventDefault();
-
-    form.delete(route('profile.destroy'), {
-        preserveScroll: true,
-        onSuccess: () => closeModal(),
-        onError: () => passwordInput.value?.focus(),
-        onFinish: () => form.reset(),
-    });
-};
-
-const closeModal = () => {
-    form.clearErrors();
-    form.reset();
-};
+const form = useForm({ password: '' });
+function reset(open: boolean) {
+    if (!open) {
+        form.clearErrors();
+        form.reset();
+    }
+}
+function remove() {
+    form.delete(route('profile.destroy'), { preserveScroll: true, onError: () => passwordInput.value?.focus(), onSuccess: () => reset(false) });
+}
 </script>
-
 <template>
-    <div class="space-y-6">
-        <HeadingSmall title="Удаление учётной записи" />
-        <div class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10">
-            <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
-                <p class="font-medium">Удаление необратимо</p>
-                <p class="text-sm">Перед удалением передайте или удалите принадлежащие вам проекты и каналы.</p>
-            </div>
-            <Dialog>
-                <DialogTrigger as-child>
-                    <Button variant="destructive">Удалить аккаунт</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <form class="space-y-6" @submit="deleteUser">
-                        <DialogHeader class="space-y-3">
-                            <DialogTitle>Удалить учётную запись?</DialogTitle>
-                            <DialogDescription>
-                                Введите текущий пароль, чтобы подтвердить удаление.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div class="grid gap-2">
-                            <Label for="password" class="sr-only">Пароль</Label>
-                            <Input id="password" type="password" name="password" ref="passwordInput" v-model="form.password" placeholder="Пароль" autocomplete="current-password" />
-                            <InputError :message="form.errors.password" />
-                        </div>
-
-                        <DialogFooter class="gap-2">
-                            <DialogClose as-child>
-                                <Button type="button" variant="secondary" @click="closeModal"> Отмена </Button>
-                            </DialogClose>
-
-                            <Button type="submit" variant="destructive" :disabled="form.processing">Удалить аккаунт</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </div>
-    </div>
+    <Dialog @update:open="reset">
+        <DialogTrigger as-child><button type="button" class="rounded-md px-3 py-3 text-left text-sm">Удаление учётной записи</button></DialogTrigger>
+        <DialogContent class="studio-confirm" :show-close="false">
+            <DialogTitle>Удаление аккаунта</DialogTitle>
+            <form @submit.prevent="remove">
+                <div class="studio-confirm-notice">
+                    <CircleAlert aria-hidden="true" /><strong>Удалить аккаунт?</strong>
+                    <DialogDescription>Для подтверждения введите текущий пароль.</DialogDescription>
+                </div>
+                <Label class="my-2 block" for="delete-password">Текущий пароль</Label>
+                <Input
+                    id="delete-password"
+                    ref="passwordInput"
+                    v-model="form.password"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    class="h-12"
+                    :aria-invalid="!!form.errors.password"
+                    :aria-describedby="form.errors.password ? 'delete-error' : undefined"
+                />
+                <div v-if="form.errors.password" id="delete-error" class="studio-confirm-notice mt-3" role="alert">
+                    <CircleAlert aria-hidden="true" /><strong>{{ form.errors.password }}</strong>
+                    <p v-if="form.errors.password === 'Пароль не подошёл'">Проверьте пароль и попробуйте снова.</p>
+                </div>
+                <DialogFooter class="studio-confirm-actions">
+                    <Button type="submit" variant="destructive" :disabled="form.processing">Удалить аккаунт</Button>
+                    <DialogClose as-child><Button type="button" variant="outline" :disabled="form.processing">Отмена</Button></DialogClose>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
 </template>
