@@ -10,5 +10,5 @@ use Spatie\LaravelData\Data;
 
 class CreateEpisodeData extends Data
 {
-    public function __construct(#[Min(1), Max(255)] public string $title) {}
+    public function __construct(#[Min(1), Max(255)] public string $title, #[Max(2000)] public ?string $objective = null) {}
 }

@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $series_id
+ * @property string|null $story_role
  * @property string $name
  * @property int|null $current_revision_id
  * @property int $lock_version
@@ -33,6 +34,7 @@ class Character extends Model
     protected $fillable = [
         'series_id',
         'name',
+        'story_role',
         'current_revision_id',
         'lock_version',
         'archived_at',

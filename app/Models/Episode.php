@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $series_id
  * @property int $number
+ * @property string|null $objective
  * @property string $title
  * @property int|null $predecessor_episode_id
  * @property int|null $current_revision_id
@@ -47,6 +48,7 @@ class Episode extends Model
         'series_id',
         'number',
         'title',
+        'objective',
         'predecessor_episode_id',
         'current_revision_id',
         'accepted_assembly_id',

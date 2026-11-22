@@ -19,6 +19,7 @@ class EpisodeSummaryResource extends JsonResource
             'series_id' => $this->series_id,
             'number' => $this->number,
             'title' => $this->title,
+            'objective' => $this->objective,
             'validity' => $this->validity->value,
             'current_revision_id' => $this->current_revision_id,
             'accepted_assembly_id' => $this->accepted_assembly_id,

@@ -41,7 +41,11 @@ class SaveCharacter
         $character ??= new Character(['series_id' => $series->id]);
         $character->fill(['name' => $data->name]);
 
-        if ($character->exists && $character->isDirty('name')) {
+        if ($data->story_role !== null) {
+            $character->story_role = $data->story_role;
+        }
+
+        if ($character->exists && $character->isDirty(['name', 'story_role'])) {
             $character->lock_version++;
         }
 

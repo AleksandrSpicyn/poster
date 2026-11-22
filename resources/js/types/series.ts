@@ -60,6 +60,7 @@ export interface CharacterRevision {
 }
 
 export interface CharacterSummary {
+    story_role?: string | null;
     id: number;
     series_id: number;
     name: string;
@@ -70,6 +71,7 @@ export interface CharacterSummary {
 }
 
 export interface EpisodeSummary {
+    objective?: string | null;
     current_revision_id: number | null;
     accepted_assembly_id: number | null;
     script_generation_status: string | null;

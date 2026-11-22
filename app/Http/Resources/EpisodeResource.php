@@ -19,6 +19,7 @@ class EpisodeResource extends JsonResource
             'series_id' => $this->series_id,
             'number' => $this->number,
             'title' => $this->title,
+            'objective' => $this->objective,
             'lock_version' => $this->lock_version,
             'validity' => $this->validity->value,
             'current_revision_id' => $this->current_revision_id,

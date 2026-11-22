@@ -15,12 +15,13 @@ test('создание эпизода не запускает генерацию
     $series = Series::factory()->recycle(workspaceOwner())->create();
     Process::fake();
 
-    $response = actingAs(serialOperator())->post(route('episodes.store', $series), ['title' => 'The first meeting']);
+    $response = actingAs(serialOperator())->post(route('episodes.store', $series), ['title' => 'The first meeting', 'objective' => 'Доставить письмо']);
 
     $episode = Episode::query()->firstOrFail();
     $response->assertRedirect(route('episodes.show', ['series' => $series, 'episode' => $episode]));
     expect($episode->number)->toBe(1);
     expect($episode->series_id)->toBe($series->id);
+    expect($episode->objective)->toBe('Доставить письмо');
     Process::assertNothingRan();
 });
 

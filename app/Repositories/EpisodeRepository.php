@@ -176,10 +176,11 @@ readonly class EpisodeRepository extends EloquentRepository
         return $series->episodes()->orderByDesc('number')->first();
     }
 
-    public function createNext(Series $series, ?Episode $previous, string $title): Episode
+    public function createNext(Series $series, ?Episode $previous, string $title, ?string $objective = null): Episode
     {
         return $series->episodes()->create([
             'title' => $title,
+            'objective' => $objective,
             'number' => ($previous->number ?? 0) + 1,
             'predecessor_episode_id' => $previous?->id,
         ])->refresh();

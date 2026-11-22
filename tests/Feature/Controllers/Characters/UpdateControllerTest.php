@@ -8,12 +8,14 @@ use function Tests\Support\serialOperator;
 
 test('переименование сохраняет версии внешности', function (): void {
     $context = serialCharacterContext();
+    $context['character']->update(['story_role' => 'Хранитель станции']);
 
     actingAs(serialOperator())
         ->patch(route('characters.update', $context['params']), ['name' => 'Mira', 'lock_version' => 0])
         ->assertRedirect();
 
     expect($context['character']->refresh()->name)->toBe('Mira');
+    expect($context['character']->story_role)->toBe('Хранитель станции');
     expect($context['character']->lock_version)->toBe(1);
     expect($context['character']->revisions()->count())->toBe(1);
 });

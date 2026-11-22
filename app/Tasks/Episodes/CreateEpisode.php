@@ -35,7 +35,7 @@ class CreateEpisode
                 throw ValidationException::withMessages(['episode' => 'Prepare the finite cycle plan before creating its parts; the planned number cannot be exceeded.']);
             }
 
-            return $this->episodes->createNext($series, $previous, $data->title);
+            return $this->episodes->createNext($series, $previous, $data->title, $data->objective);
         });
     }
 }

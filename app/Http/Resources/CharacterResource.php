@@ -18,6 +18,7 @@ class CharacterResource extends JsonResource
             'id' => $this->id,
             'series_id' => $this->series_id,
             'name' => $this->name,
+            'story_role' => $this->story_role,
             'current_revision_id' => $this->current_revision_id,
             'lock_version' => $this->lock_version,
             'archived_at' => $this->archived_at?->toISOString(),

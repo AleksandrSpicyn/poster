@@ -12,7 +12,7 @@ import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -23,9 +23,27 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const params = { project: props.project.id, series: props.series.id };
-const characterForm = useForm({ name: '' });
+const characterForm = useForm({ name: '', story_role: '' });
 const characterErrors = computed<Record<string, string | undefined>>(() => characterForm.errors);
-const episodeForm = useForm({ title: '' });
+const episodeForm = useForm({ title: '', objective: '' });
+const adding = ref<'episode' | 'character' | null>(null);
+const episodeField = ref<InstanceType<typeof Input> | null>(null);
+const characterField = ref<InstanceType<typeof Input> | null>(null);
+async function openEntry(kind: 'episode' | 'character') {
+    adding.value = kind;
+    await nextTick();
+    (kind === 'episode' ? episodeField.value : characterField.value)?.focus();
+}
+function cancelEntry() {
+    if (adding.value === 'episode') {
+        episodeForm.reset();
+        episodeForm.clearErrors();
+    } else {
+        characterForm.reset();
+        characterForm.clearErrors();
+    }
+    adding.value = null;
+}
 const chronologicalEpisodes = computed(() => [...props.episodes].sort((a, b) => a.number - b.number));
 function episodeLabel(episode: EpisodeSummary) {
     if (episode.validity === 'requires_review') return 'Нужна проверка';
@@ -68,7 +86,10 @@ function changePage(page: number) {
                     :aria-label="'Открыть эпизод ' + episode.title"
                     class="studio-history-row"
                 >
-                    <strong>{{ episode.title }}</strong>
+                    <strong
+                        >{{ episode.title
+                        }}<small v-if="episode.objective" class="text-muted-foreground block font-normal">{{ episode.objective }}</small></strong
+                    >
                     <span
                         :class="episode.accepted_assembly_id && episode.validity !== 'requires_review' ? 'text-primary' : 'text-muted-foreground'"
                         >{{ episodeLabel(episode) }}</span
@@ -79,14 +100,30 @@ function changePage(page: number) {
                 </p>
             </section>
         </div>
-        <form v-if="!series.archived_at" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="createEpisode">
+        <Button v-if="!series.archived_at && adding !== 'episode'" type="button" variant="outline" @click="openEntry('episode')">Новый эпизод</Button>
+        <form v-if="!series.archived_at && adding === 'episode'" class="studio-panel grid gap-4" @submit.prevent="createEpisode">
+            <h2 class="text-xl font-bold">Новый эпизод</h2>
             <div class="grid min-w-48 flex-1 gap-2">
                 <Label for="episode-title">Название эпизода</Label
-                ><Input id="episode-title" v-model="episodeForm.title" required maxlength="255" :disabled="episodeForm.processing" /><InputError
-                    :message="episodeForm.errors.title"
-                />
+                ><Input
+                    id="episode-title"
+                    ref="episodeField"
+                    v-model="episodeForm.title"
+                    required
+                    maxlength="255"
+                    :disabled="episodeForm.processing"
+                /><InputError :message="episodeForm.errors.title" />
             </div>
-            <Button type="submit" class="h-11" :disabled="episodeForm.processing"><Plus class="size-4" aria-hidden="true" />Создать эпизод</Button>
+            <label class="grid gap-2 text-sm"
+                >Цель эпизода<Input v-model="episodeForm.objective" maxlength="2000" :disabled="episodeForm.processing"
+            /></label>
+            <InputError :message="episodeForm.errors.objective" />
+            <div class="flex flex-wrap gap-2">
+                <Button type="submit" class="h-11" :disabled="episodeForm.processing"
+                    ><Plus class="size-4" aria-hidden="true" />Создать эпизод</Button
+                >
+                <Button type="button" variant="outline" :disabled="episodeForm.processing" @click="cancelEntry">Отмена</Button>
+            </div>
         </form>
         <ProductionPanel
             :project-id="project.id"
@@ -110,11 +147,16 @@ function changePage(page: number) {
         </section>
         <section class="space-y-4" aria-labelledby="series-characters">
             <h2 id="series-characters" class="text-lg font-semibold">Персонажи</h2>
-            <form v-if="!series.archived_at" class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5" @submit.prevent="createCharacter">
+            <Button v-if="!series.archived_at && adding !== 'character'" type="button" variant="outline" @click="openEntry('character')"
+                >Новый персонаж</Button
+            >
+            <form v-if="!series.archived_at && adding === 'character'" class="studio-panel grid gap-4" @submit.prevent="createCharacter">
+                <h3 class="text-xl font-bold">Новый персонаж</h3>
                 <div class="grid min-w-48 flex-1 gap-2">
                     <Label for="character-name">Имя нового персонажа</Label
                     ><Input
                         id="character-name"
+                        ref="characterField"
                         v-model="characterForm.name"
                         required
                         maxlength="255"
@@ -122,9 +164,16 @@ function changePage(page: number) {
                         :aria-invalid="!!characterForm.errors.name"
                     /><InputError :message="characterForm.errors.name" /><InputError :message="characterErrors.series" />
                 </div>
-                <Button type="submit" class="h-11" :disabled="characterForm.processing"
-                    ><Plus class="size-4" aria-hidden="true" />Добавить персонажа</Button
-                >
+                <label class="grid gap-2 text-sm"
+                    >Роль в истории<Input v-model="characterForm.story_role" maxlength="2000" :disabled="characterForm.processing"
+                /></label>
+                <InputError :message="characterForm.errors.story_role" />
+                <div class="flex flex-wrap gap-2">
+                    <Button type="submit" class="h-11" :disabled="characterForm.processing"
+                        ><Plus class="size-4" aria-hidden="true" />Добавить персонажа</Button
+                    >
+                    <Button type="button" variant="outline" :disabled="characterForm.processing" @click="cancelEntry">Отмена</Button>
+                </div>
             </form>
             <ListPanel
                 :meta="characters.meta"
@@ -141,6 +190,7 @@ function changePage(page: number) {
                     <article v-for="character in characters.data" :key="character.id" class="flex flex-wrap items-center justify-between gap-4 p-5">
                         <div>
                             <h3 class="font-semibold">{{ character.name }}</h3>
+                            <p v-if="character.story_role" class="text-muted-foreground text-sm">{{ character.story_role }}</p>
                             <p class="text-muted-foreground mt-1 text-sm">
                                 {{
                                     character.current_revision

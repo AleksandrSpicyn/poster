@@ -16,5 +16,7 @@ class CharacterData extends Data
         public string $name,
         #[Min(0)]
         public ?int $lock_version = null,
+        #[Max(2000)]
+        public ?string $story_role = null,
     ) {}
 }

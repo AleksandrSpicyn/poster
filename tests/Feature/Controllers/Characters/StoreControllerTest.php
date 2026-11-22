@@ -14,12 +14,13 @@ test('создание персонажа сохраняет постоянну�
     $context = serialCharacterContext();
     Process::fake();
 
-    $response = actingAs(serialOperator())->post(route('characters.store', $context['params']), ['name' => 'Mira']);
+    $response = actingAs(serialOperator())->post(route('characters.store', $context['params']), ['name' => 'Mira', 'story_role' => 'Доставить письмо']);
 
     $character = Character::query()->where('name', 'Mira')->firstOrFail();
     $response->assertRedirect(route('characters.show', [...$context['params'], 'character' => $character]));
     expect($character->series_id)->toBe($context['series']->id);
     expect($character->current_revision_id)->toBeNull();
+    expect($character->story_role)->toBe('Доставить письмо');
     Process::assertNothingRan();
 });
 
