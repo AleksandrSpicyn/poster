@@ -361,6 +361,7 @@ const tabs: { name: string; view: View }[] = [
     color: var(--muted-foreground);
     font-size: 14px;
 }
+.platforms-panel,
 .chart-panel {
     padding: 16px 24px;
 }
@@ -600,6 +601,7 @@ const tabs: { name: string; view: View }[] = [
     .analytics-header {
         gap: 14px;
     }
+    .platforms-panel,
     .chart-panel {
         padding: 16px;
     }
