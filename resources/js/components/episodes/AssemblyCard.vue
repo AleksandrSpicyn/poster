@@ -51,6 +51,7 @@ const mixed = computed(() => props.publications.some((item) => item.status === '
 const ordered = computed(() => props.publications.toSorted((a, b) => Number(b.status === 'published') - Number(a.status === 'published')));
 watch(reviewId, (value) => emit('review', value !== null));
 const confirmed = ref(false);
+const reviewedVersion = ref(false);
 watch(
     () => publishForm.channel_ids.slice(),
     () => {
@@ -60,6 +61,7 @@ watch(
 const acceptErrors = computed(() => Object.values(acceptForm.errors).join(' '));
 const publishErrors = computed(() => Object.values(publishForm.errors).join(' '));
 function accept() {
+    if (!reviewedVersion.value) return;
     acceptForm.post(route('episodes.assemblies.accept', params), {
         preserveScroll: true,
         preserveState: 'errors',
@@ -81,7 +83,7 @@ function publish() {
 <template>
     <div>
         <section class="studio-panel assembly-card space-y-5" :class="{ preview: section === 'preview' }">
-            <template v-if="section === 'preview'">
+            <template v-if="section === 'preview' && (assembly.status !== 'ready' || archived)">
                 <h3 class="font-semibold">Параметры</h3>
                 <dl class="grid gap-3">
                     <div>
@@ -110,9 +112,17 @@ function publish() {
                 <p v-if="assembly.error_message" role="alert" class="text-destructive text-sm">{{ assembly.error_message }}</p>
             </template>
             <form v-if="section === 'preview' && assembly.status === 'ready' && !archived" class="grid gap-4 border-t pt-5" @submit.prevent="accept">
-                <p class="text-muted-foreground text-sm">Просмотрите сборку и зафиксируйте события для следующего эпизода.</p>
+                <h3>Приёмка версии {{ String(assembly.number).padStart(2, '0') }}</h3>
+                <video
+                    v-if="assembly.media.find((item) => item.collection === 'episode-video')"
+                    :src="assembly.media.find((item) => item.collection === 'episode-video')?.url"
+                    controls
+                    preload="metadata"
+                    class="h-40 max-w-full rounded"
+                    aria-label="Видео принимаемой версии"
+                />
                 <div class="grid gap-2">
-                    <Label :for="'events-' + assembly.id">Что произошло</Label
+                    <Label :for="'events-' + assembly.id">События эпизода</Label
                     ><textarea
                         :id="'events-' + assembly.id"
                         v-model="acceptForm.confirmed_events"
@@ -146,8 +156,13 @@ function publish() {
                 <label class="flex min-h-11 items-center gap-3 text-sm"
                     ><input v-model="acceptForm.scene_closed" type="checkbox" class="size-4" />Последняя сцена завершена</label
                 >
+                <label class="flex gap-2"><input v-model="reviewedVersion" type="checkbox" required />Проверена эта версия</label>
                 <InputError :message="acceptErrors" />
-                <div><Button type="submit" class="h-11" :disabled="acceptForm.processing">Принять сборку</Button></div>
+                <div>
+                    <Button type="submit" class="h-11" :disabled="!reviewedVersion || acceptForm.processing"
+                        >Принять версию {{ String(assembly.number).padStart(2, '0') }}</Button
+                    >
+                </div>
             </form>
 
             <template v-if="section === 'recipients'">

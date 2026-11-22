@@ -21,6 +21,8 @@ const assembly = computed(
         props.assemblies.find((a) => a.id === props.workspace.episode.accepted_assembly_id) ??
         props.assemblies[0],
 );
+const recheck = computed(() => props.workspace.episode.validity === 'requires_review');
+const accepting = computed(() => !recheck.value && section.value === 'preview' && assembly.value?.status === 'ready');
 const reviewing = ref(false);
 const mixed = computed(
     () =>
@@ -30,10 +32,12 @@ const mixed = computed(
 const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== assembly.value?.id));
 </script>
 <template>
-    <div class="release-page" :class="{ detail: section !== 'preview', mixed }">
+    <div class="release-page" :class="{ detail: section !== 'preview' || recheck || accepting, mixed: mixed || recheck || accepting }">
         <header class="flex flex-wrap items-start justify-between gap-3">
             <Heading
-                :title="section === 'preview' ? 'Публикация эпизода' : 'Выпуск эпизода'"
+                :title="
+                    recheck ? 'Перепроверка эпизода' : accepting ? 'Приёмка эпизода' : section === 'preview' ? 'Публикация эпизода' : 'Выпуск эпизода'
+                "
                 :description="
                     section === 'preview'
                         ? workspace.series.name + (workspace.episode.accepted_assembly_id ? ' / Принятая сборка' : '')
@@ -44,7 +48,9 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                           : undefined
                 "
             />
-            <Button v-if="section === 'preview'" class="h-11" :disabled="!assembly" @click="section = 'confirmation'">Подтвердить отправку</Button>
+            <Button v-if="section === 'preview' && !recheck && !accepting" class="h-11" :disabled="!assembly" @click="section = 'confirmation'"
+                >Подтвердить отправку</Button
+            >
         </header>
         <div class="release-grid">
             <nav aria-label="Разделы публикации" class="studio-panel flex flex-wrap gap-2 min-[1100px]:grid">
@@ -60,7 +66,18 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                 </button>
             </nav>
             <div>
-                <p v-if="!assembly">Здесь появятся сборки для просмотра и приёмки.</p>
+                <section v-if="recheck" class="studio-panel grid gap-4">
+                    <h2>Требует перепроверки</h2>
+                    <p>После принятия этой версии изменился финал предыдущего эпизода.</p>
+                    <p class="studio-row">
+                        <strong>Эпизод</strong>{{ workspace.episode.title }} · выпуск {{ String(workspace.episode.number).padStart(2, '0') }}
+                    </p>
+                    <p v-if="workspace.sourceAssembly?.continuity_snapshot.character_state" class="studio-row">
+                        <strong>Что проверить</strong>{{ workspace.sourceAssembly.continuity_snapshot.character_state }}
+                    </p>
+                    <Button as-child class="justify-self-start"><a href="#screenplay">Открыть перепроверку</a></Button>
+                </section>
+                <p v-else-if="!assembly">Здесь появятся сборки для просмотра и приёмки.</p>
                 <AssemblyCard
                     v-else
                     :key="assembly.id + ':' + assembly.lock_version"
@@ -95,7 +112,7 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                     </button>
                 </details>
             </div>
-            <aside v-if="section !== 'preview'" class="studio-panel hidden min-[1100px]:block">
+            <aside v-if="section !== 'preview' || recheck || accepting" class="studio-panel hidden min-[1100px]:block">
                 <ProjectArtwork :name="workspace.project.name" :cover="workspace.project.cover" class="mb-3 aspect-[2.4] w-full rounded-lg" />
                 <h2>{{ workspace.episode.title }}</h2>
                 <p>Проект · {{ workspace.project.name }}</p>
@@ -118,11 +135,11 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
     </div>
 </template>
 <style scoped>
-.mixed .release-grid nav {
+.detail.mixed .release-grid nav {
     display: none;
 }
 @media (min-width: 1100px) {
-    .mixed .release-grid {
+    .detail.mixed .release-grid {
         grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
     }
 }
