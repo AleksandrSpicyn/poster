@@ -351,6 +351,7 @@ test('отправляет готовый эпизод только выбран
     $series = $episode->series()->firstOrFail();
     $project = $series->project()->firstOrFail();
     $project->update(['content_mode' => ProjectContentMode::SERIES]);
+
     $series->update(['automation_enabled' => true, 'auto_publish' => false]);
     Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'fake']]);
     $ids = $deliver ? [$channel->id] : [];
@@ -384,6 +385,7 @@ test('закрепляет пустой выбор в самом эпизоде 
     $series = $episode->series()->firstOrFail();
     $project = $series->project()->firstOrFail();
     $project->update(['content_mode' => ProjectContentMode::SERIES]);
+
     $series->update(['automation_enabled' => false, 'auto_publish' => false]);
     Bus::fake();
     $run = app(StartProductionAction::class)->run($project, 'manual-episode', $owner, $series->id, [])->sole();
