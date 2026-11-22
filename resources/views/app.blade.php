@@ -23,20 +23,17 @@
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: oklch(1 0 0);
+                background-color: #F6F6EF;
             }
 
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: #17191B;
             }
         </style>
 
         <title data-inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         @routes
         @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
