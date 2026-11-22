@@ -16,6 +16,7 @@ const props = defineProps<{
         accounts: { id: string; name: string; external_id: string; channel_id: number | null }[] | null;
         imported_at: string | null;
     };
+    accountNames: Record<string, string>;
     projectName: string | null;
     clips: {
         id: string;
@@ -43,30 +44,50 @@ function confirm() {
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading title="Сопоставление импорта" :description="connection.name" />
                 <Button v-if="!preview.imported_at" @click="confirm" :disabled="form.processing">Подтвердить импорт</Button>
-                <Button v-else-if="preview.project_id !== null" as-child
-                    ><Link :href="route('projects.show', preview.project_id)">Открыть проект</Link></Button
+                <Button v-else disabled>Подтвердить импорт</Button>
+                <Button v-if="preview.imported_at && preview.project_id !== null" as-child
+                    ><Link :href="route('projects.show', preview.project_id)">Открыть клипы проекта</Link></Button
                 >
             </div>
+            <section v-if="preview.imported_at" class="studio-panel space-y-2" role="status">
+                <h2>Импорт уже подтверждён</h2>
+                <p>{{ new Date(preview.imported_at).toLocaleString('ru-RU') }}. Те же клипы повторно не добавятся.</p>
+                <div class="studio-row">
+                    <span>Проект Poster</span><strong>{{ projectName }}</strong>
+                </div>
+                <div class="studio-row">
+                    <span>Результат</span><strong>Клипов: {{ clips.length }} · Сопоставлений: {{ preview.accounts?.length ?? 0 }}</strong>
+                </div>
+            </section>
             <p v-if="page.props.errors.project_id" role="alert" class="text-destructive">{{ page.props.errors.project_id }}</p>
             <section class="studio-panel">
                 <h2>Источник → Poster</h2>
                 <div class="studio-row">
-                    <strong>{{ preview.source_name || preview.external_id }}</strong
-                    ><span>{{ projectName || 'Новый проект' }}</span>
+                    <strong>{{ preview.source_name || 'Проект без названия' }}</strong><span>{{ projectName || 'Новый проект' }}</span>
                 </div>
                 <div v-for="account in preview.accounts" :key="account.id" class="studio-row">
-                    <span>{{ account.name || account.external_id }}</span
-                    ><span>{{ account.channel_id ? 'Канал №' + account.channel_id : 'Создать канал без права отправки' }}</span>
+                    <span>{{ account.name || 'Аккаунт без названия' }}</span><span>{{
+                        accountNames[account.id] || (preview.imported_at ? 'Без права отправки' : 'Создать канал без права отправки')
+                    }}</span>
                 </div>
                 <p v-if="page.props.errors.accounts" role="alert" class="text-destructive">{{ page.props.errors.accounts }}</p>
             </section>
             <section class="studio-panel">
                 <h2>Клипы · {{ clips.length }}</h2>
-                <p v-if="!clips.length">Источник не содержит клипов.</p>
+                <div v-if="!clips.length" class="space-y-2">
+                    <strong>В источнике нет клипов</strong>
+                    <p>
+                        {{
+                            preview.imported_at
+                                ? 'Источник сохранён. Новые клипы появятся после обновления.'
+                                : 'Подтвердите импорт, чтобы сохранить источник для следующих обновлений.'
+                        }}
+                    </p>
+                    <Link :href="route('clipping.sources', connection.id)" class="underline">Выбрать другой источник</Link>
+                </div>
                 <article v-for="clip in clips" :key="clip.id" class="studio-row">
                     <div>
-                        <strong>{{ clip.title || clip.id }}</strong>
-                        <p>{{ clip.id }}</p>
+                        <strong>{{ clip.title || 'Клип без названия' }}</strong>
                     </div>
                     <div>
                         <p v-for="(post, index) in clip.publications" :key="index">{{ post.platform }} · {{ post.status || 'Статус неизвестен' }}</p>

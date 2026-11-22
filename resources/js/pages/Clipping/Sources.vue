@@ -42,20 +42,20 @@ function submit() {
                 <Label for="external-project">Проект провайдера</Label>
                 <select id="external-project" v-model="form.external_id" required class="list-select">
                     <option value="" disabled>Выберите проект</option>
-                    <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.title || source.id }} · {{ source.id }}</option>
+                    <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.title || 'Проект без названия' }}</option>
                 </select>
                 <InputError :message="form.errors.external_id" />
                 <p v-if="!sources.length">Доступных проектов нет.</p>
                 <Label for="local-project">Проект Poster</Label>
                 <select id="local-project" v-model="form.project_id" class="list-select">
                     <option :value="null">Использовать сопоставление или создать новый</option>
-                    <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }} · №{{ project.id }}</option>
+                    <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
                 </select>
                 <InputError :message="form.errors.project_id" />
                 <fieldset v-if="accounts.length" class="space-y-3">
                     <legend>Сопоставление каналов</legend>
                     <label v-for="account in accounts" :key="account.id" class="grid gap-1">
-                        {{ account.name || account.external_id }} · {{ account.platform }}
+                        {{ account.name || 'Аккаунт без названия' }} · {{ account.platform }}
                         <select v-model="choices[account.id]" class="list-select" :disabled="!!mappings[account.id]">
                             <option :value="undefined">Пропустить</option>
                             <option v-if="['youtube', 'instagram', 'tiktok', 'vk'].includes(account.platform)" value="new">
@@ -66,7 +66,7 @@ function submit() {
                                 :key="channel.id"
                                 :value="String(channel.id)"
                             >
-                                {{ channel.name }} · №{{ channel.id }}
+                                {{ channel.name }}
                             </option>
                         </select>
                     </label>
@@ -80,8 +80,7 @@ function submit() {
                 <p v-else-if="!readsAccounts">Драйвер не предоставляет список аккаунтов.</p>
                 <p v-else-if="!accounts.length">Доступных аккаунтов нет.</p>
                 <article v-for="account in accounts" :key="account.id" class="studio-row">
-                    <span>{{ account.name || account.external_id }}</span
-                    ><span>{{ account.platform }} · {{ account.external_id }}</span>
+                    <span>{{ account.name || 'Аккаунт без названия' }}</span><span>{{ account.platform }}</span>
                 </article>
             </section>
         </div>

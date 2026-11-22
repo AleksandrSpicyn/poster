@@ -100,3 +100,21 @@ test('сохраняет привязку проекта при подтверж
         ->and($preview->refresh()->imported_at)->toBeNull();
     assertDatabaseCount('opus_sources', 0);
 });
+
+test('общее подтверждение сохраняет пустой источник для дальнейших обновлений', function (): void {
+    $owner = User::factory()->create();
+    $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    $preview = ClippingImport::query()->create([
+        'clipping_connection_id' => $connection->id, 'external_id' => 'new-season', 'source_name' => 'Новый сезон', 'clip_count' => 0, 'clips' => [],
+    ]);
+    actingAs($owner);
+
+    $result = post(route('clipping.import', [$connection, $preview->id]));
+
+    $project = Project::query()->where('owner_id', $owner->id)->sole();
+    $result->assertRedirectToRoute('projects.show', $project);
+    post(route('clipping.import', [$connection, $preview->id]))->assertRedirectToRoute('projects.show', $project);
+    expect($project->opusSources()->sole()->clipping_connection_id)->toBe($connection->id);
+    assertDatabaseCount('opus_clips', 0);
+    assertDatabaseCount('publication_requests', 0);
+});
