@@ -508,21 +508,25 @@ function submit() {
                                 id="project-start-time"
                                 type="time"
                                 required
+                                :aria-invalid="!!formErrors['schedule.time']"
+                                :aria-describedby="formErrors['schedule.time'] ? 'schedule-time-error' : undefined"
                                 :model-value="schedule.time"
                                 @update:model-value="changeSchedule({ time: String($event) })"
                             />
-                            <InputError :message="formErrors['schedule.time']" />
+                            <InputError id="schedule-time-error" :message="formErrors['schedule.time']" />
                         </div>
                         <div class="grid gap-2">
                             <Label for="project-timezone">Часовой пояс</Label>
                             <select
                                 id="project-timezone"
                                 class="list-select"
+                                :aria-invalid="!!formErrors['schedule.timezone']"
+                                :aria-describedby="formErrors['schedule.timezone'] ? 'schedule-timezone-error' : undefined"
                                 :value="schedule.timezone"
                                 @change="changeSchedule({ timezone: ($event.target as HTMLSelectElement).value })"
                             >
                                 <option v-for="timezone in scheduleSettings?.timezones" :key="timezone">{{ timezone }}</option></select
-                            ><InputError :message="formErrors['schedule.timezone']" />
+                            ><InputError id="schedule-timezone-error" :message="formErrors['schedule.timezone']" />
                         </div>
                         <p class="flex justify-between gap-3">
                             <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
