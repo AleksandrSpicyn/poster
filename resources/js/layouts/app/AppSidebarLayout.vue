@@ -38,3 +38,11 @@ withDefaults(defineProps<Props>(), {
         <StudioMobileNav />
     </AppShell>
 </template>
+
+<style>
+@media (max-width: 767px) {
+    html:has(.mobile-nav) {
+        scroll-padding-block-end: calc(66px + env(safe-area-inset-bottom));
+    }
+}
+</style>
