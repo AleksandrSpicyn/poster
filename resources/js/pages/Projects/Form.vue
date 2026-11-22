@@ -197,9 +197,14 @@ const section = ref('main');
 const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation'].includes(section.value));
 const sections = computed((): Record<string, string> =>
     isSeries.value && section.value !== 'format'
-        ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация', ...(props.project ? { automation: 'Автоматизация' } : {}) }
+        ? {
+              main: 'Мир и сюжет',
+              cast: 'Герои и звук',
+              plan: 'Выпуски и автоматизация',
+              ...(props.project ? { automation: 'Автоматизация', access: 'Доступ' } : {}),
+          }
         : props.project
-          ? { main: 'Основное', automation: 'Автоматизация', deletion: 'Удаление проекта' }
+          ? { main: 'Основное', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
 );
 const selectedChannelNames = computed(() =>
@@ -207,7 +212,10 @@ const selectedChannelNames = computed(() =>
 );
 function readSection() {
     const hash = window.location.hash.slice(1);
-    section.value = ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) ? hash : 'main';
+    section.value =
+        ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) || (hash === 'access' && props.project)
+            ? hash
+            : 'main';
 }
 onMounted(() => {
     readSection();
@@ -300,7 +308,7 @@ function submit() {
                     "
                 />
                 <Button
-                    v-if="section !== 'deletion' && !detailSection"
+                    v-if="!['access', 'deletion'].includes(section) && !detailSection"
                     type="submit"
                     form="project-form"
                     class="h-11"
@@ -518,6 +526,20 @@ function submit() {
                         <span class="text-muted-foreground text-sm">Каналы</span>
                         <a href="#channels" class="list-select flex items-center">{{ selectedChannelNames.join(', ') || 'Выбрать каналы' }}</a>
                     </div>
+                    <dl v-if="project && section === 'access'" class="grid gap-4">
+                        <div>
+                            <dt class="text-muted-foreground text-sm">Владелец проекта</dt>
+                            <dd>{{ auth.user.name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground text-sm">Электронная почта</dt>
+                            <dd class="break-all">{{ auth.user.email }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground text-sm">Роль</dt>
+                            <dd>{{ auth.can_view_logs ? 'Администратор' : 'Владелец' }}</dd>
+                        </div>
+                    </dl>
                     <div v-if="project && section === 'deletion'" class="space-y-4">
                         <div class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
                             <strong>Удаление проекта</strong>
@@ -639,7 +661,7 @@ function submit() {
                         >
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
-                    <div v-if="section !== 'main' && section !== 'deletion'" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
+                    <div v-if="!['main', 'access', 'deletion'].includes(section)" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
                         <Button as-child variant="outline" class="h-11"><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button>
                         <Button type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
