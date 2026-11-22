@@ -74,7 +74,7 @@ test('ошибка проверки прямой публикации сохра
     Http::assertSentCount(2);
 })->with([true, false]);
 
-test('видео показывает квитанцию выбранного канала владельца', function (): void {
+test('видео показывает квитанцию выбранного канала владельца', function (?string $publishedAccount, bool $currentRecipient): void {
     Storage::fake('local');
     $owner = User::factory()->create();
     $project = Project::factory()->create(['owner_id' => $owner->id]);
@@ -83,7 +83,7 @@ test('видео показывает квитанцию выбранного к
     $prompt = Prompt::factory()->for($project)->create(['generated' => true]);
     $media = $prompt->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection('default', 'local');
     $receipt = PublicationRequest::create(['prompt_id' => $prompt->id, 'channel_id' => $channel->id, 'created_by' => $owner->id,
-        'status' => 'published', 'payload' => [], 'published_at' => now()]);
+        'status' => 'published', 'payload' => ['tiktok' => ['account_id' => $publishedAccount]], 'published_at' => now()]);
     Post::factory()->for($channel)->create(['publication_request_id' => $receipt->id, 'url' => 'https://example.test/confirmed']);
     PublicationRequest::create(['prompt_id' => $prompt->id, 'channel_id' => $other->id, 'created_by' => $owner->id, 'status' => 'inbox', 'payload' => []]);
 
@@ -93,7 +93,13 @@ test('видео показывает квитанцию выбранного к
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('videos.data.0.id', $media->id)
             ->where('videos.data.0.project.id', $project->id)
+            ->where('videos.data.0.assembly_number', null)
             ->where('videos.data.0.receipt.id', $receipt->id)
             ->where('videos.data.0.receipt.status', 'published')
+            ->where('videos.data.0.receipt.current_recipient', $currentRecipient)
             ->where('videos.data.0.receipt.url', 'https://example.test/confirmed'));
-});
+})->with([
+    'текущий аккаунт' => ['qa', true],
+    'переподключённый аккаунт' => ['previous', false],
+    'без сохранённого аккаунта' => [null, false],
+]);
