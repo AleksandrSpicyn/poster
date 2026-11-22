@@ -23,11 +23,10 @@ import { Head, Link } from '@inertiajs/vue3';
                 </p>
             </section>
             <section class="mt-8">
-                <h2 class="text-xl font-semibold">Connecting TikTok</h2>
+                <h2 class="text-xl font-semibold">Connecting a social account</h2>
                 <p class="mt-3 leading-relaxed">
-                    You sign in on TikTok and choose whether to grant Poster access. TikTok gives Poster an authorization token to act within those
-                    permissions. Poster stores your encrypted connection credentials, token expiry and TikTok display name with your channel. Your
-                    TikTok password stays with TikTok.
+                    When you connect a channel, its platform authorizes Poster to use the permissions you grant. Poster stores the encrypted
+                    credentials, expiry and display name with the channel. Your password stays with the platform.
                 </p>
                 <p class="mt-3 leading-relaxed">
                     Poster reads your creator settings to show your account, available audiences and interaction options. It can also retrieve your
@@ -37,9 +36,8 @@ import { Head, Link } from '@inertiajs/vue3';
             <section class="mt-8">
                 <h2 class="text-xl font-semibold">What Poster sends</h2>
                 <p class="mt-3 leading-relaxed">
-                    When you confirm a Direct Post, Poster sends the selected video, caption, audience, interaction choices and applicable disclosures
-                    to TikTok. Poster uses the publication identifier returned by TikTok to check processing and show the result. If the inbox upload
-                    feature is enabled and you choose it, TikTok receives a draft that you can finish in its app.
+                    When you confirm a publication, Poster sends the selected video, caption, audience, interaction choices and applicable disclosures
+                    to the connected platform. Poster uses the identifier it receives to check processing and show the result.
                 </p>
                 <p class="mt-3 leading-relaxed">
                     In the production workspace, the services involved depend on the project. Generation providers receive the prompts and reference
@@ -53,9 +51,9 @@ import { Head, Link } from '@inertiajs/vue3';
                     workspace channel clears its saved credentials.
                 </p>
                 <p class="mt-3 leading-relaxed">
-                    You can revoke Poster’s access in your social account settings. To remove a video already delivered to TikTok, use TikTok’s own
-                    video controls. To request access, correction or deletion of information held by Poster, email the operator below and identify the
-                    account or project involved. Please omit passwords and access tokens.
+                    You can revoke Poster’s access in your social account settings. To remove a video already delivered to a connected platform, use
+                    its video controls. To request access, correction or deletion of information held by Poster, email the operator below and identify
+                    the account or project involved. Please omit passwords and access tokens.
                 </p>
             </section>
             <footer class="mt-10 flex flex-wrap gap-5 border-t pt-6 text-sm">

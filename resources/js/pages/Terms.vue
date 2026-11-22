@@ -20,10 +20,6 @@ import { Head, Link } from '@inertiajs/vue3';
                     else. You may use features made available to you for personal or professional creative work. You must have authority to act for
                     any account or organization you represent.
                 </p>
-                <p class="mt-3 leading-relaxed">
-                    Access depends on the feature. During Sandbox testing, TikTok access is limited to enabled test accounts. It lets a participating
-                    creator connect their own account and try a private publication.
-                </p>
             </section>
             <section class="mt-8">
                 <h2 class="text-xl font-semibold">Your content and permissions</h2>
@@ -36,9 +32,8 @@ import { Head, Link } from '@inertiajs/vue3';
             <section class="mt-8">
                 <h2 class="text-xl font-semibold">Publishing to a connected channel</h2>
                 <p class="mt-3 leading-relaxed">
-                    Before confirming a Direct Post, check the recipient, preview the file, review the caption and choose an audience. Select any
-                    required commercial or AI-content disclosures and review the music terms shown in the form. With an inbox upload, you complete
-                    publication in TikTok.
+                    Before confirming a publication, check the recipient, preview the file, review the caption and choose an audience. Select any
+                    required commercial or AI-content disclosures and review the music terms shown in the form.
                 </p>
                 <p class="mt-3 leading-relaxed">
                     Delivery and processing are separate steps. Check the publication status before submitting the same file again. You are

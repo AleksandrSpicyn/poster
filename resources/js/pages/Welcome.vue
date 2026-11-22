@@ -1,142 +1,583 @@
 <script setup lang="ts">
-import PublicHeader from '@/components/PublicHeader.vue';
-import type { HomepageProps } from '@/types/homepage';
-import { Head, Link } from '@inertiajs/vue3';
-import { onMounted, useTemplateRef } from 'vue';
-import forestCourier from '../../assets/studio/forest-courier.webp';
+import type { SharedData } from '@/types';
+import { Head, usePage } from '@inertiajs/vue3';
+import { onMounted, onUnmounted, useTemplateRef } from 'vue';
+import { useRoute } from 'ziggy-js';
+import projectTray from '../../assets/studio/project-tray.webp';
 
+const route = useRoute();
+const page = usePage<SharedData>();
 const workflow = useTemplateRef<HTMLDetailsElement>('workflow');
-const tiktok = useTemplateRef<HTMLDetailsElement>('tiktok');
 
-function showWorkflow() {
+function openWorkflow() {
     if (workflow.value) workflow.value.open = true;
 }
 
-onMounted(() => {
-    if (window.location.hash === '#workspace') showWorkflow();
-    if (window.location.hash === '#tiktok' && tiktok.value) tiktok.value.open = true;
-});
+function revealSection() {
+    if (window.location.hash === '#workflow' || window.location.hash === '#workspace') openWorkflow();
+}
 
-defineProps<{ homepage: HomepageProps; channelsUrl: string }>();
+onMounted(() => {
+    revealSection();
+    window.addEventListener('hashchange', revealSection);
+});
+onUnmounted(() => window.removeEventListener('hashchange', revealSection));
 </script>
 
 <template>
-    <div class="public-frame">
-        <Head title="Студия короткого видео">
-            <meta name="description" :content="homepage.hero.summary" />
-        </Head>
-        <PublicHeader workspace-link />
-        <main>
-            <section class="hero">
-                <div>
-                    <h1>Студия короткого <strong>видео</strong></h1>
-                    <p>Сценарии, кадры, монтаж и выпуск на подключённых каналах.</p>
-                    <a class="process-link" @click="showWorkflow" :href="homepage.hero.secondary_cta.href">Посмотреть процесс</a>
+    <div class="landing">
+        <Head title="Poster — студия коротких форм" /> <a class="skip" href="#main">К содержанию</a>
+        <div class="top">
+            <header class="head">
+                <div class="outer nav">
+                    <a class="logo" href="#main" aria-label="Poster, главная"
+                        ><i aria-hidden="true"><b></b><b></b><b></b></i>Poster</a
+                    >
+                    <nav aria-label="Навигация">
+                        <a href="#features">Возможности</a><a href="#workflow" class="flow-link" @click="openWorkflow">Рабочий процесс</a>
+                    </nav>
+                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">Войти в студию</a>
                 </div>
-                <img :src="forestCourier" alt="" />
-            </section>
-            <details ref="workflow" id="workspace" class="workflow">
-                <summary>Серия от сценария до публикации</summary>
+            </header>
+            <main id="main">
+                <div class="outer">
+                    <section class="hero" aria-labelledby="title">
+                        <div class="copy">
+                            <h1 id="title"><span>Ваша студия</span> <span>коротких</span> <span>форм.</span></h1>
+                            <p class="lede">Создавайте сериалы, собирайте клипы и планируйте публикации в одном месте.</p>
+                            <a class="cta" href="#features">Изучить возможности <span aria-hidden="true">↓</span></a>
+                        </div>
+                        <figure class="art">
+                            <svg viewBox="602 82 900 680" role="img" aria-labelledby="art-title">
+                                <title id="art-title">В синем лотке лежат карточки проектов «Лунный атлас», «Ночной маршрут» и «Лесная почта».</title>
+                                <defs>
+                                    <image id="texture" x="607" y="88" width="885" height="660" :href="projectTray" />
+                                    <path
+                                        id="body"
+                                        d="M626 654 Q627 624 637 593 L675 557 Q639 551 640 530 Q646 478 662 445 Q666 434 678 425 L827 299 L880 134 L950 141 L965 108 L1047 116 L1059 99 L1450 138 L1408 306 L1451 311 Q1460 314 1462 325 L1460 444 L1440 463 L1439 481 Q1451 480 1451 493 L1449 534 Q1448 551 1435 564 L1229 717 Q1217 732 1194 733 L642 678 Q626 675 626 654Z"
+                                    />
+                                    <path id="card" d="M880 134 L1358 175 L1249 580 Q1244 596 1229 596 L745 544Z" />
+                                    <clipPath id="tray-cut"><use href="#body" /></clipPath>
+                                    <clipPath id="sheet-cut"><use href="#card" /></clipPath>
+                                    <clipPath id="lip">
+                                        <path d="M624 539 L742 543 L1228 594 Q1243 595 1249 578 L1258 544 Q1261 494 1300 466 L1465 320 V747 H606Z" />
+                                    </clipPath>
+                                </defs>
+                                <g clip-path="url(#tray-cut)">
+                                    <use href="#texture" />
+                                    <use href="#card" fill="#393248" />
+                                </g>
+                                <g class="sheet"><use href="#texture" clip-path="url(#sheet-cut)" /></g>
+                                <g clip-path="url(#tray-cut)"><use href="#texture" clip-path="url(#lip)" /></g>
+                            </svg>
+                        </figure>
+                    </section>
+                    <section class="features" id="features" aria-labelledby="cap">
+                        <h2 id="cap">Возможности студии</h2>
+                        <div class="items">
+                            <article class="feature" style="--i: 0">
+                                <svg viewBox="0 0 60 52" aria-hidden="true" fill="none" stroke="#c5a1ee" stroke-width="2.5" stroke-linejoin="round">
+                                    <path d="M5 13a3 3 0 0 1 3-3h13l5 5h21a3 3 0 0 1 3 3v24a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3Z" />
+                                </svg>
+                                <h3>Проекты</h3>
+                                <p>Собирайте материалы и версии каждого проекта в одном месте.</p>
+                            </article>
+                            <article class="feature" style="--i: 1">
+                                <svg viewBox="0 0 60 52" aria-hidden="true" fill="none" stroke="#a5b4ff" stroke-width="2.5" stroke-linejoin="round">
+                                    <path d="M6 21h35v23H6z M19 21V10h35v23H41" />
+                                </svg>
+                                <h3>Сериалы и клипы</h3>
+                                <p>Планируйте эпизоды и собирайте клипы из исходных материалов.</p>
+                            </article>
+                            <article class="feature" style="--i: 2">
+                                <svg viewBox="0 0 60 52" aria-hidden="true" fill="none" stroke="#a9e4b8" stroke-width="2.5" stroke-linejoin="round">
+                                    <path d="M24 7h12v12H24z M6 34h12v12H6z M24 34h12v12H24z M42 34h12v12H42z M30 19v15 M12 34v-8h36v8" />
+                                </svg>
+                                <h3>Каналы</h3>
+                                <p>Подключайте аккаунты и выбирайте площадки для выпуска.</p>
+                            </article>
+                            <article class="feature" style="--i: 3">
+                                <svg viewBox="0 0 60 52" aria-hidden="true" fill="none" stroke="#f3b4a5" stroke-width="2.5" stroke-linejoin="round">
+                                    <path d="M6 30h10v15H6z M24 20h10v25H24z M42 8h10v37H42z" />
+                                </svg>
+                                <h3>Аналитика</h3>
+                                <p>Отслеживайте просмотры и реакции по каналам и публикациям.</p>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+        <div class="outer">
+            <details ref="workflow" id="workflow" class="flow">
+                <summary>Рабочий процесс</summary>
                 <ol>
-                    <li v-for="item in homepage.services.items" :key="item">{{ item }}</li>
+                    <li>Создайте проект, задайте формат и добавьте материалы.</li>
+                    <li>Подготовьте эпизод или выберите клипы для выпуска.</li>
+                    <li>Выберите канал, подтвердите публикацию и следите за результатом.</li>
                 </ol>
             </details>
-            <section class="workflow"><Link :href="channelsUrl">Подключённые каналы</Link></section>
-            <details ref="tiktok" id="tiktok" class="workflow">
-                <summary>Подключение TikTok</summary>
-                <ol>
-                    <li v-for="item in homepage.process.items" :key="item">{{ item }}</li>
-                </ol>
-                <p>During Sandbox testing, participating creators use a private TikTok account and select “Only me”.</p>
-                <Link :href="channelsUrl" class="underline">Connect TikTok in your workspace</Link>
-            </details>
-        </main>
-        <footer id="contact" class="flex flex-wrap justify-between gap-4 border-t py-6 text-sm">
-            <div>
-                <p>Poster · {{ homepage.footer.legal_name }}</p>
-                <a :href="homepage.contact.cta_href" class="underline">{{ homepage.contact.email }}</a>
-            </div>
-            <nav aria-label="Юридическая информация" class="flex gap-5 underline">
-                <Link :href="route('policy')">Privacy Policy</Link>
-                <Link :href="route('terms')">Terms of Service</Link>
-            </nav>
-        </footer>
+            <footer class="foot"><a :href="route('policy')">Privacy Policy</a><a :href="route('terms')">Terms of Service</a></footer>
+        </div>
     </div>
 </template>
-
 <style scoped>
-.hero {
-    display: grid;
-    gap: 24px;
-    padding-block: 22px 24px;
+.landing {
+    color-scheme: dark;
+    --bg: #12111c;
+    --ink: #fbf6ed;
+    --muted: #d1cddc;
+    --edge: #514c62;
+    --lime: #c9fa48;
+    --pad: clamp(20px, 3.4vw, 66px);
 }
-.hero h1 {
-    margin-top: 14px;
-    font-size: 34px;
-    line-height: 1.42;
-    font-weight: 700;
+* {
+    box-sizing: border-box;
 }
-.hero strong {
-    display: block;
-    font-size: 47px;
-    color: var(--ring);
+:global(html:has(.landing)) {
+    scroll-behavior: smooth;
+    scroll-padding-top: 20px;
 }
-.hero p {
-    margin: 13px 0 20px;
-    font-size: 18px;
-    line-height: 1.42;
-    color: var(--muted-foreground);
+.landing {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font:
+        16px/1.45 'Poster Sans',
+        system-ui,
+        sans-serif;
 }
-.hero img {
-    width: 100%;
-    height: 216px;
-    border-radius: 12px;
-    object-fit: cover;
-    object-position: 50% 54%;
+a {
+    color: inherit;
+    text-decoration: none;
 }
-.process-link {
-    display: inline-flex;
-    min-height: 44px;
+a:focus-visible,
+summary:focus-visible {
+    outline: 3px solid var(--lime);
+    outline-offset: 5px;
+}
+h1,
+h2,
+h3,
+p,
+figure {
+    margin: 0;
+}
+.top {
+    overflow: hidden;
+    background: radial-gradient(ellipse at 72% 38%, #392569 0%, #24203d 26%, #151420 49%, #12111c 75%);
+}
+.outer {
+    max-width: 1780px;
+    margin-inline: auto;
+    padding-inline: var(--pad);
+}
+.head {
+    border-bottom: 1px solid #696276;
+}
+.nav {
+    display: flex;
     align-items: center;
-    padding: 0 16px;
-    border-radius: 10px;
-    color: var(--primary-foreground);
-    background: var(--primary);
-    font-size: 14px;
+    gap: clamp(25px, 4.2vw, 80px);
+    min-height: clamp(70px, 5.2vw, 92px);
+}
+.logo {
+    display: inline-flex;
+    gap: 13px;
+    align-items: center;
+    line-height: 1;
+    font-size: clamp(29px, 3vw, 48px);
+    letter-spacing: -0.072em;
     font-weight: 700;
 }
-.workflow {
-    border-top: 1px solid var(--border);
-    padding: 14px 0;
+.logo i {
+    display: inline-flex;
+    gap: 4px;
+    transform: skew(-24deg);
+    margin-inline: 5px;
 }
-.workflow summary,
-.workflow > a:first-child {
-    font-size: 17px;
+.logo b {
+    height: 0.74em;
+    width: 0.17em;
+    background: currentColor;
+}
+.nav nav {
+    display: flex;
+    gap: clamp(18px, 3.2vw, 54px);
+}
+.nav nav a,
+.login,
+.cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
     font-weight: 700;
+    letter-spacing: -0.04em;
+}
+.nav nav a {
+    font-size: clamp(14px, 1.4vw, 22px);
+}
+.nav nav a:hover {
+    color: #d8c5ff;
+}
+.login {
+    margin-left: auto;
+    border: 1.5px solid currentColor;
+    border-radius: 11px;
+    padding: 6px 21px;
+}
+.login:hover {
+    background: var(--ink);
+    color: var(--bg);
+}
+.hero {
+    min-height: clamp(530px, 44vw, 765px);
+    display: grid;
+    align-items: center;
+    position: relative;
+    isolation: isolate;
+}
+.copy {
+    z-index: 1;
+    width: 54%;
+    padding: clamp(32px, 4vw, 72px) 0;
+    pointer-events: none;
+}
+.copy a {
+    pointer-events: auto;
+}
+h1 {
+    font-size: clamp(64px, 7.15vw, 128px);
+    letter-spacing: -0.075em;
+    line-height: 0.96;
+}
+h1 span {
+    display: block;
+    white-space: nowrap;
+}
+h1 span:last-child {
+    width: fit-content;
+    color: #f5eaff;
+    background: linear-gradient(179deg, #fbf6ed 47%, #dec5ff 94%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.lede {
+    max-width: 23em;
+    margin: clamp(19px, 1.8vw, 36px) 0 clamp(22px, 2.6vw, 42px);
+    font-size: clamp(17px, 1.68vw, 29px);
+    line-height: 1.28;
+    letter-spacing: -0.034em;
+}
+.cta {
+    gap: 12px;
+    padding: 12px clamp(16px, 1.65vw, 28px);
+    border-radius: 11px;
+    background: var(--lime);
+    color: #19200d;
+    font-size: clamp(16px, 1.45vw, 24px);
+}
+.cta span {
+    transition: transform 0.2s ease;
+}
+.cta:hover {
+    background: #dafb78;
+}
+.cta:hover span,
+.cta:focus-visible span {
+    transform: translateY(3px);
+}
+.art {
+    z-index: 0;
+    position: absolute;
+    right: 0.7%;
+    width: 60%;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.art::before {
+    content: '';
+    position: absolute;
+    inset: 5% -3% -2%;
+    background: radial-gradient(ellipse at 55% 48%, #7444deaa, transparent 62%), radial-gradient(ellipse at 76% 75%, #266a922e, transparent 52%);
+    filter: blur(14px);
+}
+.art svg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    filter: drop-shadow(0 14px 10px #07051185);
+}
+.sheet {
+    transform-box: fill-box;
+    transform-origin: 50% 90%;
+}
+.features {
+    padding-bottom: clamp(36px, 4vw, 70px);
+}
+.features h2 {
+    border-top: 1px solid #797286;
+    padding: 12px 0 25px;
+    font-size: clamp(23px, 2vw, 34px);
+    letter-spacing: -0.055em;
+    line-height: 1.2;
+}
+.items {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.feature {
+    padding: 0 clamp(15px, 1.9vw, 34px);
+    border-left: 1px solid #655e73;
+}
+.feature:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+.feature:last-child {
+    padding-right: 0;
+}
+.feature svg {
+    height: clamp(32px, 3.8vw, 62px);
+    width: auto;
+    display: block;
+    margin-bottom: 9px;
+}
+.feature h3 {
+    font-size: clamp(20px, 1.85vw, 32px);
+    line-height: 1.18;
+    letter-spacing: -0.055em;
+}
+.feature p {
+    margin-top: 5px;
+    max-width: 30ch;
+    line-height: 1.32;
+    color: var(--muted);
+    letter-spacing: -0.02em;
+    font-size: clamp(14px, 1.16vw, 19px);
+}
+.flow {
+    padding-block: clamp(28px, 3vw, 50px);
+    border-top: 1px solid var(--edge);
+}
+.flow summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
     cursor: pointer;
+    list-style: none;
+    font-size: clamp(22px, 2.1vw, 34px);
+    font-weight: 700;
+    letter-spacing: -0.05em;
 }
-.workflow ol {
-    list-style: decimal;
-    padding: 16px 0 8px 24px;
+.flow summary::-webkit-details-marker {
+    display: none;
 }
-.workflow li,
-.workflow p {
-    margin-bottom: 8px;
-    color: var(--muted-foreground);
+.flow summary::after {
+    content: '+';
+    color: #cfb2ff;
 }
-@media (min-width: 710px) {
+.flow[open] summary::after {
+    content: '−';
+}
+.flow ol {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(20px, 4vw, 64px);
+    padding-left: 22px;
+    margin: 25px 0 0;
+    color: var(--muted);
+}
+.flow li {
+    padding-left: 4px;
+    max-width: 32ch;
+}
+.foot {
+    border-top: 1px solid var(--edge);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding-block: 20px 32px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.foot a:hover {
+    text-decoration: underline;
+}
+.skip {
+    position: absolute;
+    top: -8em;
+    left: 18px;
+}
+.skip:focus {
+    top: 10px;
+    z-index: 5;
+    background: var(--bg);
+    padding: 12px;
+}
+@keyframes place-sheet {
+    from {
+        transform: translate(7px, -15px) rotate(0.9deg);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes enter-card {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .sheet {
+        animation: place-sheet 0.82s cubic-bezier(0.2, 0.72, 0.2, 1) both;
+    }
+    .feature {
+        animation: enter-card 0.4s ease-out both;
+        animation-delay: calc(0.14s + var(--i) * 0.055s);
+    }
+    .login,
+    .cta {
+        transition:
+            background-color 0.17s,
+            color 0.17s;
+    }
+}
+@media (max-width: 900px) and (min-width: 701px) {
     .hero {
-        grid-template-columns: 49% 1fr;
-        padding-top: 31px;
+        min-height: 465px;
     }
-    .hero h1 {
-        font-size: 49px;
+    .copy {
+        width: 54%;
     }
-    .hero strong {
-        font-size: 76px;
+    h1 {
+        font-size: 7.3vw;
     }
-    .hero img {
-        height: 410px;
+    .art {
+        width: 57%;
     }
+    .items {
+        grid-template-columns: 1fr 1fr;
+        gap: 26px 0;
+    }
+    .feature:nth-child(3) {
+        border: 0;
+        padding-left: 0;
+    }
+}
+@media (max-width: 700px) {
+    .nav {
+        min-height: 62px;
+        gap: 8px;
+    }
+    .nav nav {
+        display: none;
+    }
+    .login {
+        padding: 5px 13px;
+        font-size: 14px;
+        border-radius: 9px;
+    }
+    .hero {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .copy {
+        width: 100%;
+        padding: 32px 0 0;
+    }
+    .copy h1 {
+        font-size: clamp(48px, 12.5vw, 78px);
+        line-height: 0.96;
+    }
+    .copy h1 span {
+        display: inline;
+    }
+    .copy h1 span:first-child {
+        display: block;
+    }
+    .lede {
+        max-width: 31ch;
+        margin: 16px 0;
+        font-size: 17px;
+    }
+    .cta {
+        min-height: 45px;
+        padding: 9px 15px;
+    }
+    .art {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: min(104%, 540px);
+        margin: 7px auto 10px;
+        align-self: center;
+    }
+    .features h2 {
+        padding: 14px 0 22px;
+    }
+    .items {
+        grid-template-columns: 1fr 1fr;
+        gap: 23px 0;
+    }
+    .feature {
+        padding-inline: 12px;
+    }
+    .feature:nth-child(3) {
+        border: 0;
+        padding-left: 0;
+    }
+    .feature p {
+        font-size: 14px;
+    }
+    .feature h3 {
+        font-size: 20px;
+    }
+    .flow ol {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .top {
+        background: radial-gradient(ellipse at 72% 48%, #342453, transparent 48%), #13121c;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    :global(html:has(.landing)) {
+        scroll-behavior: auto;
+    }
+    .cta span {
+        transition: none;
+    }
+    .cta:hover span,
+    .cta:focus-visible span {
+        transform: none;
+    }
+}
+.landing {
+    min-height: 100vh;
+}
+h1,
+h2,
+h3 {
+    font-weight: 700;
+}
+.flow ol {
+    list-style: decimal;
+}
+.skip:focus {
+    position: absolute;
 }
 </style>

@@ -11,16 +11,12 @@ use function Pest\Laravel\get;
 test('главная возвращает утверждённый публичный контент', function (): void {
     get(route('home'))
         ->assertOk()
-        ->assertInertia(function (Assert $page): void {
-            $page->component('Welcome');
-
-            /** @var array<string, mixed> $content */
-            $content = require base_path('tests/Fixtures/homepage.php');
-
-            foreach ($content as $key => $value) {
-                $page->where($key, $value);
-            }
-        });
+        ->assertInertia(
+            fn(Assert $page): Assert => $page
+                ->component('Welcome')
+                ->missing('homepage')
+                ->missing('channelsUrl'),
+        );
 });
 
 test('главная возвращает данные текущего пользователя', function (): void {
@@ -34,8 +30,4 @@ test('главная возвращает данные текущего поль
                 ->component('Welcome')
                 ->where('auth.user.email', $user->email),
         );
-});
-
-test('главная ведёт в личный кабинет для подключения канала', function (): void {
-    get(route('home'))->assertInertia(fn(Assert $page): Assert => $page->where('channelsUrl', route('channels.index', absolute: false)));
 });
