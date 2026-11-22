@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useNavigation } from '@/composables/useNavigation';
 import type { User } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import { Info, Menu } from '@lucide/vue';
@@ -11,6 +12,7 @@ defineProps<{ user: User }>();
 const emit = defineEmits<{ navigate: [] }>();
 const route = useRoute();
 const open = ref(false);
+const { adminLinks } = useNavigation();
 const sections = [
     { label: 'Профиль', description: 'Почта и личные данные', href: route('profile.edit') },
     { label: 'Безопасность', description: 'Пароль и сеансы', href: route('password.edit') },
@@ -49,6 +51,17 @@ function close() {
                         ><small class="text-muted-foreground">{{ section.description }}</small></span
                     >
                 </Link>
+            </nav>
+            <nav v-if="adminLinks.length" aria-label="Ссылки администратора">
+                <a
+                    v-for="item in adminLinks"
+                    :key="item.href"
+                    :href="item.href"
+                    class="hover:bg-accent flex min-h-11 items-center gap-3 border-b py-2"
+                    @click="close"
+                >
+                    <component :is="item.icon" class="text-primary size-5" aria-hidden="true" />{{ item.title }}
+                </a>
             </nav>
             <Button as-child variant="outline" class="mt-3 h-11 justify-self-start">
                 <Link method="post" :href="route('logout')" as="button" @click="router.flushAll()" @start="close">Выйти</Link>
