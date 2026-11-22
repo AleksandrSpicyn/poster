@@ -27,11 +27,15 @@ export function useNavigation() {
                 : path;
         return items.map((item) => ({ ...item, isActive: section === item.href || section.startsWith(item.href + '/') }));
     });
-    const footer = computed<NavItem[]>(() => [
-        ...(page.props.auth.can_view_logs ? [{ title: 'Logs', href: route('log-viewer.index'), icon: Logs }] : []),
-        ...(page.props.auth.can_view_queues ? [{ title: 'Horizon', href: route('horizon.index'), icon: ListOrdered }] : []),
-        { title: 'Privacy Policy', href: route('policy'), icon: GlobeLock },
-        { title: 'Terms of Service', href: route('terms'), icon: Handshake },
-    ]);
-    return { main, footer };
+    const adminLinks = computed<NavItem[]>(() =>
+        page.props.auth.can_view_logs
+            ? [
+                  { title: 'Logs', href: route('log-viewer.index'), icon: Logs },
+                  ...(page.props.auth.can_view_queues ? [{ title: 'Horizon', href: route('horizon.index'), icon: ListOrdered }] : []),
+                  { title: 'Privacy Policy', href: route('policy'), icon: GlobeLock },
+                  { title: 'Terms of Service', href: route('terms'), icon: Handshake },
+              ]
+            : [],
+    );
+    return { main, adminLinks };
 }

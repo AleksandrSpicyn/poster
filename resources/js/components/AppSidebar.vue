@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppLogo from './AppLogo.vue';
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -12,7 +11,7 @@ import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 
-const { main, footer: footerNavItems } = useNavigation();
+const { main } = useNavigation();
 const groups = computed(() => [
     { title: 'Студия', items: main.value.filter((item) => ['Обзор', 'Проекты', 'Сериалы', 'Генерации'].includes(item.title)) },
     { title: 'Доставка', items: main.value.filter((item) => ['Публикации', 'Каналы', 'Источники'].includes(item.title)) },
@@ -50,7 +49,6 @@ const groups = computed(() => [
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
             <div class="hidden group-data-[collapsible=icon]:block"><NavUser /></div>
             <slot />
         </SidebarFooter>
