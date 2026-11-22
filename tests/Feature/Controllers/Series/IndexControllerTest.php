@@ -55,8 +55,8 @@ test('подтверждённый посторонний пользовател
 
 test('фильтры каталога сохраняют владение и отделяют активные сериалы', function (): void {
     $owner = User::factory()->create();
-    $active = Project::factory()->for($owner, 'owner')->create(['is_active' => true]);
-    $paused = Project::factory()->for($owner, 'owner')->create(['is_active' => false]);
+    $active = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => true]);
+    $paused = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
     $recent = Series::factory()->for($active)->create(['updated_at' => now()]);
     $older = Series::factory()->for($active)->create(['updated_at' => now()->subDay()]);
     Series::factory()->for($active)->create(['archived_at' => now()]);
