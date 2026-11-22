@@ -34,9 +34,9 @@ const groups = computed(() => [
         <SidebarHeader class="px-4 pt-4 pb-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1">
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
+                    <SidebarMenuButton size="lg" class="group-data-[collapsible=icon]:mx-auto" as-child>
                         <Link :href="route('dashboard')" aria-label="Poster — обзор студии">
-                            <AppLogo />
+                            <AppLogo class="sidebar-brand" />
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -54,3 +54,19 @@ const groups = computed(() => [
         </SidebarFooter>
     </Sidebar>
 </template>
+
+<style scoped>
+.sidebar-brand {
+    translate: -4px -4px;
+}
+:global([data-state='collapsed'][data-slot='sidebar'] .sidebar-brand) {
+    translate: 1px 5px;
+    scale: 1.08 1;
+}
+.sidebar-brand :deep(.studio-brand-mark i) {
+    height: 21px;
+}
+.sidebar-brand :deep(strong) {
+    translate: -1px -2px;
+}
+</style>

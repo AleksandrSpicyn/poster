@@ -1,16 +1,28 @@
 import type { NavItem, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Clapperboard, Film, FolderOpen, GlobeLock, Handshake, LayoutGrid, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
+import { Clapperboard, createLucideIcon, Film, GlobeLock, Handshake, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
+
+const StudioOverviewIcon = createLucideIcon({
+    name: 'studio-overview',
+    size: 24,
+    node: [['path', { d: 'M2 19v-8h5v8m2 0V3h6v16m2 0V7h5v12', 'stroke-linecap': 'butt', 'stroke-linejoin': 'miter' }]],
+});
+
+const StudioFolderIcon = createLucideIcon({
+    name: 'studio-folder',
+    size: 24,
+    node: [['path', { d: 'M2 6h8l2 3h10v10H2z', 'stroke-linejoin': 'miter' }]],
+});
 
 export function useNavigation() {
     const route = useRoute();
     const page = usePage<SharedData & { project?: { content_mode: string } | null }>();
     const main = computed<NavItem[]>(() => {
         const items: NavItem[] = [
-            { title: 'Обзор', href: route('dashboard', undefined, false), icon: LayoutGrid },
-            { title: 'Проекты', href: route('projects.index', undefined, false), icon: FolderOpen },
+            { title: 'Обзор', href: route('dashboard', undefined, false), icon: StudioOverviewIcon },
+            { title: 'Проекты', href: route('projects.index', undefined, false), icon: StudioFolderIcon },
             ...(page.props.auth.can_manage_series ? [{ title: 'Сериалы', href: route('series.index', undefined, false), icon: Film }] : []),
             { title: 'Генерации', href: route('prompts', undefined, false), icon: Clapperboard },
             { title: 'Публикации', href: route('posts', undefined, false), icon: Send },

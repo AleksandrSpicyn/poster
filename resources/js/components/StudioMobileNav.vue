@@ -50,6 +50,7 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
     justify-content: center;
     flex-direction: column;
     gap: 4px;
+    padding-bottom: 6px;
     color: var(--muted-foreground);
     font-size: 11px;
 }
@@ -59,8 +60,8 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
     color: var(--ring);
 }
 .mobile-nav svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
 }
 .mobile-nav :focus-visible {
     outline: 2px solid var(--ring);
