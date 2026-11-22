@@ -24,6 +24,7 @@ export interface ProjectSummary {
 }
 
 export interface ProjectChannel {
+    can_receive_production: boolean;
     id: number;
     name: string;
     type: ChannelType;

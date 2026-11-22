@@ -2,6 +2,12 @@ export interface ProductionRun {
     id: number;
     project_id: number;
     series_id: number | null;
+    channel_ids?: number[] | null;
+    episode_title?: string | null;
+    episode_number?: number | null;
+    has_unresolved_effects?: boolean;
+    has_reviewed_take?: boolean;
+    has_late_take?: boolean;
     episode_id: number | null;
     series_assembly_id: number | null;
     prompt_id: number | null;

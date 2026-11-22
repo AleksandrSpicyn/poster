@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import type { SharedData } from '@/types';
@@ -99,7 +100,7 @@ function stop() {
         </p>
         <div class="flex flex-wrap items-center gap-3 border-t pt-4">
             <Button
-                v-if="run && ['stopped', 'needs_attention'].includes(run.status) && projectEnabled && enabled"
+                v-if="run?.series_id && ['stopped', 'needs_attention'].includes(run.status) && projectEnabled && enabled && !archived"
                 variant="outline"
                 @click="stopForm.post(route('production_runs.resume', run.id), { preserveScroll: true })"
                 >Продолжить после проверки</Button
@@ -119,9 +120,28 @@ function stop() {
                 />
                 {{ seriesId ? 'Создать следующий эпизод' : 'Создать ролик' }}
             </Button>
-            <Button v-if="run?.blocks_next_run" type="button" variant="outline" class="h-11" :disabled="stopForm.processing" @click="stop"
-                ><Square class="size-4" aria-hidden="true" />Остановить следующие этапы</Button
+            <ConfirmationDialog
+                v-if="run?.blocks_next_run"
+                heading="Остановка производства"
+                title="Остановить производство?"
+                description="Новые этапы не начнутся. Уже отправленный дубль может завершиться у провайдера."
+                action="Остановить этапы"
+                cancel="Продолжить производство"
+                destructive
+                :processing="stopForm.processing"
+                :error="Object.values(stopForm.errors).join(' ')"
+                @confirm="stop"
             >
+                <template #trigger>
+                    <Button type="button" variant="outline" class="h-11"
+                        ><Square class="size-4" aria-hidden="true" />Остановить следующие этапы</Button
+                    >
+                </template>
+                <div class="studio-row">
+                    <dt>Текущий этап</dt>
+                    <dd>{{ run.stage_label }}</dd>
+                </div>
+            </ConfirmationDialog>
             <Button v-if="run?.episode_id && run.series_id" as-child variant="outline" class="h-11"
                 ><Link :href="route('episodes.show', { series: run.series_id, episode: run.episode_id })">Открыть эпизод</Link></Button
             >

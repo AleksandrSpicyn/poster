@@ -6,10 +6,12 @@ namespace App\Repositories;
 
 use App\Data\Series\GetSeriesListData;
 use App\Data\Series\SeriesWorkspaceData;
+use App\Enums\GenerationOperationStatus;
 use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\Project;
+use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,7 +41,18 @@ readonly class SeriesRepository extends EloquentRepository
 
     public function workspace(Series $series, int $page, bool $withArchived = true): SeriesWorkspaceData
     {
-        $series->loadMissing('project.media', 'project.coverFrame', 'latestProductionRun')->loadCount('characters', 'episodes');
+        $series->loadMissing('project.media', 'project.coverFrame', 'latestProductionRun.episode')->loadCount('characters', 'episodes');
+        $series->project?->loadMissing(['channels' => fn($query) => $query->where('channels.owner_id', $series->project?->owner_id)]);
+        $series->latestProductionRun?->loadExists([
+            'generationOperations as has_reviewed_take' => fn(Builder $query) => $query
+                ->where('status', GenerationOperationStatus::SUCCEEDED)
+                ->where('updated_at', '>=', $series->latestProductionRun?->updated_at)
+                ->whereNotNull('result_snapshot->resolved_at')
+                ->whereHas('prompt', fn(Builder $prompt) => $prompt->where('generated', true)),
+            'generationOperations as has_late_take' => fn(Builder $query) => $query
+                ->where('status', GenerationOperationStatus::CANCELLED)
+                ->whereHas('prompt.media', fn(Builder $media) => $media->where('collection_name', Prompt::SHOT_VIDEO)),
+        ]);
 
         return new SeriesWorkspaceData(
             series: $series,

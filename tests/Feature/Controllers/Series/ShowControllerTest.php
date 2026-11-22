@@ -3,12 +3,18 @@
 declare(strict_types=1);
 
 use App\Enums\AssemblyStatus;
+use App\Enums\GenerationOperationStage;
+use App\Enums\GenerationOperationStatus;
+use App\Enums\ProductionStage;
+use App\Enums\ProductionStatus;
 use App\Enums\ScriptGenerationStatus;
 use App\Models\Character;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
+use App\Models\ProductionRun;
 use App\Models\Project;
+use App\Models\Prompt;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -69,6 +75,41 @@ test('карточка передаёт состояние сценария и �
             ->where('episodes.0.current_revision_id', $revision->id)
             ->where('episodes.0.accepted_assembly_id', $assembly->id)
             ->where('episodes.0.script_generation_status', ScriptGenerationStatus::COMPLETED->value));
+});
+
+test('производство показывает ручную проверку только для готового дубля своего запуска', function (): void {
+    $context = serialCharacterContext();
+    $series = $context['series'];
+    $episode = Episode::factory()->for($series)->create();
+    $run = ProductionRun::factory()->for($series)->create([
+        'project_id' => $series->project_id,
+        'episode_id' => $episode->id,
+        'status' => ProductionStatus::NEEDS_ATTENTION,
+        'stage' => ProductionStage::MEDIA,
+    ]);
+    $prompt = Prompt::factory()->create(['project_id' => $series->project_id, 'generated' => false]);
+    $prompt->generationOperations()->create([
+        'production_run_id' => $run->id, 'stage' => GenerationOperationStage::VIDEO,
+        'status' => GenerationOperationStatus::SUCCEEDED, 'request_key' => 'existing-take',
+        'idempotency_key' => 'existing-take', 'request_snapshot' => [],
+        'result_snapshot' => ['resolved_at' => now()->toISOString()],
+    ]);
+
+    actingAs(serialOperator())
+        ->get(route('series.show', $context['params']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('series.latest_production.has_reviewed_take', false)
+            ->where('series.latest_production.episode_title', $episode->title));
+
+    $prompt->update(['generated' => true]);
+
+    actingAs(serialOperator())
+        ->get(route('series.show', $context['params']))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('series.latest_production.has_reviewed_take', true)
+            ->where('series.latest_production.has_late_take', false));
 });
 
 test('фильтр архивных персонажей применяется до разбивки на страницы', function (): void {

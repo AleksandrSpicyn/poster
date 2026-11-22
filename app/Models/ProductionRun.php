@@ -10,6 +10,7 @@ use Database\Factories\ProductionRunFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -60,6 +61,12 @@ class ProductionRun extends Model
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
+
+    /** @return HasMany<GenerationOperation, $this> */
+    public function generationOperations(): HasMany
+    {
+        return $this->hasMany(GenerationOperation::class);
+    }
 
     /** @return BelongsTo<SeriesAssembly, $this> */
     public function seriesAssembly(): BelongsTo

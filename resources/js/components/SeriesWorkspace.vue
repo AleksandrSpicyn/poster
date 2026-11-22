@@ -3,7 +3,6 @@ import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
-import ProductionPanel from '@/components/ProductionPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,10 +25,14 @@ const params = { project: props.project.id, series: props.series.id };
 const characterForm = useForm({ name: '', story_role: '' });
 const characterErrors = computed<Record<string, string | undefined>>(() => characterForm.errors);
 const episodeForm = useForm({ title: '', objective: '' });
+const actions = ref<HTMLDetailsElement | null>(null);
+const showingPlan = ref(false);
+const planHeading = ref<HTMLElement | null>(null);
 const adding = ref<'episode' | 'character' | null>(null);
 const episodeField = ref<InstanceType<typeof Input> | null>(null);
 const characterField = ref<InstanceType<typeof Input> | null>(null);
 async function openEntry(kind: 'episode' | 'character') {
+    if (actions.value) actions.value.open = false;
     adding.value = kind;
     await nextTick();
     (kind === 'episode' ? episodeField.value : characterField.value)?.focus();
@@ -80,6 +83,43 @@ function toggleArchived(event: Event) {
         <p v-if="series.archived_at" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
             Сериал в архиве. История доступна для просмотра.
         </p>
+        <details v-if="!series.archived_at || series.cycle_plan" ref="actions" class="relative w-fit">
+            <summary class="cursor-pointer rounded-md px-3 py-2 text-sm font-medium">Меню сериала</summary>
+            <div class="bg-popover text-popover-foreground absolute z-20 mt-1 grid min-w-52 gap-1 rounded-lg border p-2 shadow-md">
+                <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('episode')">Новый эпизод</Button>
+                <Button v-if="!series.archived_at" type="button" variant="ghost" @click="openEntry('character')">Новый персонаж</Button>
+                <Button
+                    v-if="series.cycle_plan"
+                    type="button"
+                    variant="ghost"
+                    @click="
+                        showingPlan = true;
+                        actions?.removeAttribute('open');
+                        $nextTick(() => planHeading?.focus());
+                    "
+                    >План полной версии</Button
+                >
+                <ConfirmationDialog
+                    v-if="!series.archived_at"
+                    heading="Архивация сериала"
+                    title="Архивировать сериал?"
+                    description="Новые эпизоды не будут запускаться автоматически."
+                    action="Архивировать сериал"
+                    :processing="archiveForm.processing"
+                    :error="archiveForm.errors.lock_version"
+                    @confirm="archive"
+                >
+                    <div class="studio-row">
+                        <dt>Эпизоды</dt>
+                        <dd>{{ series.episodes_count ?? episodes.length }}</dd>
+                    </div>
+                    <div class="studio-row">
+                        <dt>Производство</dt>
+                        <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
+                    </div>
+                </ConfirmationDialog>
+            </div>
+        </details>
         <div class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
             <ProjectArtwork :name="project.name" :cover="project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
             <section class="min-w-0 [&_h2]:mb-4" aria-labelledby="series-episodes">
@@ -106,7 +146,7 @@ function toggleArchived(event: Event) {
                 </p>
             </section>
         </div>
-        <Button v-if="!series.archived_at && adding !== 'episode'" type="button" variant="outline" @click="openEntry('episode')">Новый эпизод</Button>
+
         <form v-if="!series.archived_at && adding === 'episode'" class="studio-panel grid gap-4" @submit.prevent="createEpisode">
             <h2 class="text-xl font-bold">Новый эпизод</h2>
             <div class="grid min-w-48 flex-1 gap-2">
@@ -131,16 +171,11 @@ function toggleArchived(event: Event) {
                 <Button type="button" variant="outline" :disabled="episodeForm.processing" @click="cancelEntry">Отмена</Button>
             </div>
         </form>
-        <ProductionPanel
-            :project-id="project.id"
-            :series-id="series.id"
-            :enabled="series.automation_enabled"
-            :project-enabled="project.is_active"
-            :archived="!!series.archived_at"
-            :run="series.latest_production"
-        />
-        <section v-if="series.cycle_plan" class="bg-card space-y-3 rounded-xl border p-5" aria-label="План полной версии">
-            <h2 class="text-lg font-semibold">План полной версии</h2>
+        <Button as-child variant="outline" class="h-11">
+            <Link :href="route('series.show', { ...params, section: 'production' })">Производство</Link>
+        </Button>
+        <section v-if="showingPlan && series.cycle_plan" class="bg-card space-y-3 rounded-xl border p-5" aria-label="План полной версии">
+            <h2 ref="planHeading" tabindex="-1" class="text-lg font-semibold">План полной версии</h2>
             <Button v-if="series.output_mode === 'single_video'" as-child variant="outline"
                 ><Link :href="route('series_assemblies.create', series.id)">Параметры сборки</Link></Button
             >
@@ -153,9 +188,6 @@ function toggleArchived(event: Event) {
         </section>
         <section class="space-y-4" aria-labelledby="series-characters">
             <h2 id="series-characters" class="text-lg font-semibold">Персонажи</h2>
-            <Button v-if="!series.archived_at && adding !== 'character'" type="button" variant="outline" @click="openEntry('character')"
-                >Новый персонаж</Button
-            >
             <form v-if="!series.archived_at && adding === 'character'" class="studio-panel grid gap-4" @submit.prevent="createCharacter">
                 <h3 class="text-xl font-bold">Новый персонаж</h3>
                 <div class="grid min-w-48 flex-1 gap-2">
@@ -215,25 +247,5 @@ function toggleArchived(event: Event) {
                 </div>
             </ListPanel>
         </section>
-        <div v-if="!series.archived_at" class="flex justify-end border-t pt-5">
-            <ConfirmationDialog
-                heading="Архивация сериала"
-                title="Архивировать сериал?"
-                description="Новые эпизоды не будут запускаться автоматически."
-                action="Архивировать сериал"
-                :processing="archiveForm.processing"
-                :error="archiveForm.errors.lock_version"
-                @confirm="archive"
-            >
-                <div class="studio-row">
-                    <dt>Эпизоды</dt>
-                    <dd>{{ series.episodes_count ?? episodes.length }}</dd>
-                </div>
-                <div class="studio-row">
-                    <dt>Производство</dt>
-                    <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
-                </div>
-            </ConfirmationDialog>
-        </div>
     </div>
 </template>
