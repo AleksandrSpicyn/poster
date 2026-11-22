@@ -258,6 +258,9 @@
         [data-slot='sidebar-wrapper'] {
             --studio-content-width: calc(100% - 32px);
         }
+        .workspace-page {
+            padding-block-start: 16px;
+        }
     }
     @media (min-width: 1920px) {
         [data-slot='sidebar-wrapper'] {
