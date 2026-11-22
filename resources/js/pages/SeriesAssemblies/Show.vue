@@ -11,6 +11,7 @@ import { useRoute } from 'ziggy-js';
 const props = defineProps<{
     assembly: {
         id: number;
+        number: number;
         status: string;
         lock_version: number;
         video_url: string | null;
