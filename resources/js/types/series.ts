@@ -32,6 +32,7 @@ export interface SeriesSummary {
     archived_at: string | null;
     characters_count?: number;
     episodes_count?: number;
+    accepted_episodes_count?: number;
     project?: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'cover'>;
 }
 
@@ -44,6 +45,7 @@ export interface CharacterReference {
 }
 
 export interface CharacterRevision {
+    title?: string | null;
     id: number;
     character_id: number;
     number: number;

@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Episode;
+use App\Models\EpisodeAssembly;
+use App\Models\EpisodeRevision;
+use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -47,4 +51,33 @@ test('подтверждённый посторонний пользовател
     actingAs(User::factory()->create(['email' => 'reader@example.test']))
         ->get(route('series.index'))
         ->assertInertia(fn(Assert $page): Assert => $page->where('series.meta.total', 0));
+});
+
+test('фильтры каталога сохраняют владение и отделяют активные сериалы', function (): void {
+    $owner = User::factory()->create();
+    $active = Project::factory()->for($owner, 'owner')->create(['is_active' => true]);
+    $paused = Project::factory()->for($owner, 'owner')->create(['is_active' => false]);
+    $recent = Series::factory()->for($active)->create(['updated_at' => now()]);
+    $older = Series::factory()->for($active)->create(['updated_at' => now()->subDay()]);
+    Series::factory()->for($active)->create(['archived_at' => now()]);
+    Series::factory()->for($paused)->create();
+    Series::factory()->create();
+    $episode = Episode::factory()->for($recent)->create();
+    $revision = EpisodeRevision::factory()->for($episode)->create();
+    $assembly = EpisodeAssembly::factory()->for($revision, 'episodeRevision')->create();
+    $episode->update(['accepted_assembly_id' => $assembly->id]);
+
+    actingAs($owner)
+        ->get(route('series.index', ['active' => 1, 'updated' => 1]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('filters.active', true)
+            ->where('filters.updated', true)
+            ->where('series.meta.total', 2)
+            ->where('series.data.0.id', $recent->id)
+            ->where('series.data.0.accepted_episodes_count', 1)
+            ->where('series.data.1.id', $older->id));
+
+    get(route('series.index'))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('series.meta.total', 4));
 });

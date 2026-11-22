@@ -31,6 +31,7 @@ class SeriesResource extends JsonResource
             'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null ? null : ProductionRunResource::make($this->latestProductionRun)->resolve($request)),
             'archived_at' => $this->archived_at?->toISOString(),
             'characters_count' => $this->whenCounted('characters'),
+            'accepted_episodes_count' => $this->whenCounted('acceptedEpisodes'),
             'episodes_count' => $this->whenCounted('episodes'),
             'project' => $this->whenLoaded('project', fn(): array => ProjectResource::make($this->project)->resolve($request)),
             'created_at' => $this->created_at?->toISOString(),

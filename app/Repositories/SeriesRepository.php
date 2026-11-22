@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Data\Series\GetSeriesListData;
 use App\Data\Series\SeriesWorkspaceData;
 use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
@@ -12,6 +13,7 @@ use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -24,13 +26,15 @@ readonly class SeriesRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, Series> */
-    public function paginate(User $owner, int $page): LengthAwarePaginator
+    public function paginate(User $owner, GetSeriesListData $data): LengthAwarePaginator
     {
         return Series::query()->whereRelation('project', 'owner_id', $owner->id)
             ->with('project')
-            ->withCount('characters', 'episodes')
+            ->withCount(['characters', 'episodes', 'episodes as accepted_episodes_count' => static fn(Builder $query) => $query->whereNotNull('accepted_assembly_id')])
+            ->when($data->active, static fn(Builder $query) => $query->whereNull('archived_at')->whereRelation('project', 'is_active', true))
+            ->when($data->updated, static fn(Builder $query) => $query->latest('updated_at'))
             ->latest('id')
-            ->paginate(20, page: $page)
+            ->paginate(20, page: $data->page)
             ->withQueryString();
     }
 

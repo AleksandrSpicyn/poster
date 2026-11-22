@@ -15,13 +15,13 @@ const initials = computed(() =>
 </script>
 
 <template>
-    <div class="bg-muted text-muted-foreground grid place-items-center overflow-hidden" aria-hidden="true">
+    <div class="bg-muted text-muted-foreground relative grid place-items-center overflow-hidden" aria-hidden="true">
         <img
             v-if="cover"
             :src="cover.url"
             :style="{ objectPosition: cover.x + '% ' + cover.y + '%' }"
             alt=""
-            class="h-full w-full object-cover"
+            class="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
         />
         <span v-else class="text-xl font-bold">{{ initials }}</span>
