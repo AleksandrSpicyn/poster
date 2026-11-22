@@ -27,6 +27,7 @@ final class MetricPeriodData extends Data
         #[RequiredWith('from'), DateFormat('Y-m-d'), AfterOrEqual('from'), BeforeOrEqual('today')] public ?string $to = null,
         public ?ProjectContentMode $format = null,
         public array $exclude_channels = [],
+        #[Min(1)] public ?int $channel = null,
     ) {}
 
     /** @return array<string, list<string>> */

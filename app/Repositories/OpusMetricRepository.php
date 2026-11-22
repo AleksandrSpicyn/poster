@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Data\MetricPeriodData;
 use App\Enums\ChannelType;
+use App\Models\Channel;
 use App\Models\OpusClipMetric;
 use App\Models\Project;
 use App\Models\User;
@@ -47,7 +48,7 @@ final readonly class OpusMetricRepository
     }
 
     /** @return LazyCollection<int, OpusClipMetric> */
-    public function forDashboard(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
+    public function forDashboard(User $owner, MetricPeriodData $filters, string $from, string $to, ?Channel $channel = null): LazyCollection
     {
         // Historical observations did not store a channel ID. Only resolve an unambiguous assigned account.
         $accounts = DB::table('channel_project')->join('channels', 'channels.id', '=', 'channel_project.channel_id')
@@ -61,6 +62,8 @@ final readonly class OpusMetricRepository
             ->join('projects', 'projects.id', '=', 'opus_sources.project_id')
             ->leftJoinSub($accounts, 'assigned', fn(JoinClause $join) => $join->on('assigned.project_id', '=', 'projects.id')->on('assigned.type', '=', 'opus_clip_metrics.platform'))
             ->where('projects.owner_id', $owner->id)
+            ->when($channel, fn($query, Channel $selected) => $query->where('opus_clip_metrics.platform', $selected->type->value)
+                ->whereRaw('coalesce(opus_clip_metrics.account_id, assigned.account) = ?', [$selected->metricAccount()]))
             ->where(fn($query) => $query->whereNotNull('opus_clip_metrics.account_id')->orWhereNotNull('assigned.account'))
             ->when($filters->project, fn($query) => $query->where('projects.id', $filters->project))
             ->whereBetween('opus_clip_metrics.observed_on', [$from, $to])

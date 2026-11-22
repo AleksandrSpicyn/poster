@@ -70,7 +70,7 @@ final readonly class PublicationObservationRepository
     }
 
     /** @return LazyCollection<int, PublicationObservation> */
-    public function period(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
+    public function period(User $owner, MetricPeriodData $filters, string $from, string $to, ?Channel $channel = null): LazyCollection
     {
         return PublicationObservation::query()->join('publication_metric_identities as identity', static fn(JoinClause $join) => $join
             ->on('identity.owner_id', '=', 'publication_observations.owner_id')->on('identity.publication_key', '=', 'publication_observations.publication_key'))
@@ -87,6 +87,9 @@ final readonly class PublicationObservationRepository
                 'clip_publications' => OpusClip::query()->select('publications')->whereColumn('id', 'publication_observations.opus_clip_id')
                     ->whereRelation('source.project', 'owner_id', $owner->id)->limit(1),
             ])->withCasts(['clip_publications' => 'array'])->where('publication_observations.owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
+            ->when($channel, fn($query, Channel $selected) => $query->where(fn($scope) => $scope->where('publication_observations.channel_id', $selected->id)
+                ->orWhere(fn($historical) => $historical->whereNull('publication_observations.channel_id')->where('identity.platform', $selected->type->value)
+                    ->whereRaw('identity.account = ?', [$selected->metricAccount()]))))
             ->when($filters->platform, fn($query) => $query->where('platform', $filters->platform?->value))
             ->when($filters->format, fn($query) => $query->whereIn('publication_observations.publication_key', DB::table('publication_metric_origins as origin')
                 ->join('projects', 'projects.id', '=', 'origin.project_id')->where('projects.owner_id', $owner->id)->where('origin.owner_id', $owner->id)

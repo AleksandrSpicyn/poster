@@ -64,3 +64,50 @@ test('считает изменение времени просмотра за �
         ->assertUnprocessable()
         ->assertJsonValidationErrors('to');
 });
+
+test('разделяет одноимённые каналы, пропуски и предыдущий период', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $selected = Channel::factory()->for($project)->create(['name' => 'Канал игр', 'type' => ChannelType::YOUTUBE, 'external_account' => 'studio-a']);
+    $other = Channel::factory()->for($project)->create(['name' => 'Канал игр', 'type' => ChannelType::YOUTUBE, 'external_account' => 'studio-b']);
+    $foreign = Channel::factory()->create();
+    $clip = OpusClip::factory()->for(OpusSource::factory()->for($project), 'source')->create();
+    $end = now('UTC')->startOfDay();
+
+    foreach ([[$selected, 2, 0], [$selected, 0, 150], [$other, 1, 2000], [$other, 4, 900]] as [$channel, $ago, $views]) {
+        $clip->latestMetrics()->create(['platform' => 'youtube', 'account_id' => $channel->external_account, 'media_id' => $channel->external_account,
+            'observed_on' => $end->copy()->subDays($ago)->toDateString(), 'metrics' => ['views' => $views]]);
+    }
+
+    $period = ['from' => $end->copy()->subDays(2)->toDateString(), 'to' => $end->toDateString()];
+    actingAs($owner);
+
+    get(route('dashboard.analytics', [...$period, 'channel' => $selected->id]))
+        ->assertInertia(fn(Assert $page): Assert => $page->has('analytics.coverage', 1)
+            ->where('analytics.coverage.0.id', $selected->id)->has('analytics.publications', 1)
+            ->where('analytics.channelReport.observations.' . $period['from'], 0)
+            ->where('analytics.channelReport.observations.' . $end->copy()->subDay()->toDateString(), null)
+            ->where('analytics.channelReport.observations.' . $period['to'], 150)
+            ->where('analytics.channelReport.previousFrom', $end->copy()->subDays(5)->toDateString())
+            ->where('analytics.channelReport.previousTo', $end->copy()->subDays(3)->toDateString())
+            ->where('analytics.channelReport.currentChange', 150)
+            ->where('analytics.channelReport.previousObserved', false)
+            ->where('analytics.channelReport.previousChange', null));
+
+    get(route('dashboard.analytics', [...$period, 'channel' => $other->id]))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('analytics.channelReport.previousObserved', true)
+            ->where('analytics.channelReport.previousChange', null)
+            ->where('analytics.channelReport.currentChange', null));
+
+    foreach ([4, 5] as $ago) {
+        $clip->latestMetrics()->create(['platform' => 'youtube', 'account_id' => $selected->external_account, 'media_id' => $selected->external_account,
+            'observed_on' => $end->copy()->subDays($ago)->toDateString(), 'metrics' => ['views' => 42]]);
+    }
+
+    get(route('dashboard.analytics', [...$period, 'channel' => $selected->id]))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('analytics.channelReport.currentChange', 150)
+            ->where('analytics.channelReport.previousChange', 0)->where('analytics.channelReport.previousObserved', true));
+
+    get(route('dashboard.analytics', [...$period, 'channel' => $foreign->id]))->assertNotFound();
+});
