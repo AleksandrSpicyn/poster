@@ -9,6 +9,7 @@ type Timeline = {
     account: string;
     platform: string;
     mediaId: string;
+    url: string | null;
     title: string;
     change: number | null;
     snapshots: Record<string, number>;
@@ -119,8 +120,7 @@ function filter(key: keyof Filters, event: Event) {
                 </circle>
             </svg>
             <div class="text-muted-foreground flex justify-between text-xs">
-                <time>{{ report.from }}</time
-                ><time>{{ report.to }}</time>
+                <time>{{ report.from }}</time><time>{{ report.to }}</time>
             </div>
             <details class="mt-3 text-sm">
                 <summary class="cursor-pointer">Данные графика</summary>
@@ -151,6 +151,9 @@ function filter(key: keyof Filters, event: Event) {
             <summary class="cursor-pointer">
                 {{ item.title }} · {{ item.platform }} · {{ item.change === null ? 'Нет базы сравнения' : format.format(item.change) }}
             </summary>
+            <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="inline-block py-2 underline"
+                >Открыть публикацию на площадке <span class="sr-only">(в новой вкладке)</span></a
+            >
             <p class="break-all">{{ item.account }} · {{ item.mediaId }}</p>
             <p v-if="!Object.keys(item.snapshots).length">Площадка не вернула показатель.</p>
             <dl v-else class="grid grid-cols-[auto_1fr] gap-x-4">

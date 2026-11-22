@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tasks\Dashboard;
 
+use App\Classes\OpusClip\VideoReference;
 use App\Data\MetricPeriodData;
 use App\Data\PublicationMetricsData;
 use App\Data\PublicationTimelineData;
+use App\Enums\ChannelType;
 use App\Enums\PublicationCounter;
 use App\Models\ChannelMetricSync;
 use App\Models\OpusClipMetric;
+use App\Models\PublicationObservation;
 use App\Models\User;
 use App\Repositories\OpusMetricRepository;
 use App\Repositories\ProjectRepository;
@@ -44,6 +47,14 @@ final readonly class GetPublicationMetrics
                 $key = serialize([$row->platform, $row->account, $row->media_id]);
                 $title = $row instanceof OpusClipMetric ? ($row->clip_title ?? $row->media_id) : $row->title;
                 $publications[$key] ??= new PublicationTimelineData($row->platform, $row->account, $row->media_id, $title);
+                $publication = $publications[$key];
+                $platform = ChannelType::tryFrom($row->platform);
+
+                if ($platform !== null) {
+                    $postUrl = $row instanceof PublicationObservation ? $row->post_url : null;
+                    $publication->url = VideoReference::publicUrl($platform, $row->media_id, [$postUrl, $publication->url, ...array_column($row->clip_publications ?? [], 'url')]);
+                }
+
                 $updated = max($updated, $row->updated_at?->toIso8601String());
 
                 foreach (PublicationCounter::cases() as $counter) {

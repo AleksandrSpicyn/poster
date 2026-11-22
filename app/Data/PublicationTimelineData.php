@@ -17,6 +17,7 @@ final class PublicationTimelineData extends Data
         public string $account,
         public string $mediaId,
         public string $title,
+        public ?string $url = null,
         public array $snapshots = [],
         public array $intervals = [],
         public int|float|null $change = null,

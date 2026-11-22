@@ -69,7 +69,12 @@ final readonly class PublicationObservationRepository
     /** @return LazyCollection<int, PublicationObservation> */
     public function period(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
     {
-        return PublicationObservation::query()->where('owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
+        return PublicationObservation::query()->select('publication_observations.*')->addSelect([
+            'post_url' => Post::query()->select('url')->whereColumn('id', 'publication_observations.post_id')
+                ->whereRelation('channel', 'owner_id', $owner->id)->limit(1),
+            'clip_publications' => OpusClip::query()->select('publications')->whereColumn('id', 'publication_observations.opus_clip_id')
+                ->whereRelation('source.project', 'owner_id', $owner->id)->limit(1),
+        ])->withCasts(['clip_publications' => 'array'])->where('owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
             ->when($filters->platform, fn($query) => $query->where('platform', $filters->platform?->value))
             ->when($filters->project, fn($query) => $query->whereIn('publication_key', DB::table('publication_metric_origins')
                 ->where('owner_id', $owner->id)->where('project_id', $filters->project)->select('publication_key')))

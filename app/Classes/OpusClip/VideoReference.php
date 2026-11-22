@@ -8,6 +8,20 @@ use App\Enums\ChannelType;
 
 final class VideoReference
 {
+    /** @param list<mixed> $urls */
+    public static function publicUrl(ChannelType $type, string $id, array $urls): ?string
+    {
+        foreach ($urls as $url) {
+            if (is_string($url) && filter_var($url, FILTER_VALIDATE_URL) && ! str_contains($url, '\\')
+                && parse_url($url, PHP_URL_SCHEME) === 'https' && parse_url($url, PHP_URL_USER) === null
+                && self::fromUrl($type, $url) === $id) {
+                return $url;
+            }
+        }
+
+        return null;
+    }
+
     public static function fromUrl(ChannelType $type, string $url): ?string
     {
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));

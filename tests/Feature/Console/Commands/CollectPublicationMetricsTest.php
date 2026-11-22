@@ -54,6 +54,7 @@ test('объединяет собственный ролик и импорт п�
         ->and($observation->post_id)->not->toBeNull();
     actingAs($owner);
     get(route('dashboard'))->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 1)
+        ->where('analytics.publications.0.url', 'https://youtu.be/abcdefghijk')
         ->where('analytics.publications.0.snapshots.' . now('UTC')->toDateString(), 77));
     get(route('dashboard.analytics', ['project' => $project->id]))->assertInertia(fn(Assert $page): Assert => $page->has('analytics.publications', 1));
     actingAs(User::factory()->create());

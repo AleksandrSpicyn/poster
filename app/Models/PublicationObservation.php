@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $media_id
  * @property string $observed_on
  * @property string $title
+ * @property-read list<array{url?: string|null}>|null $clip_publications
+ * @property-read string|null $post_url
  * @property array<string, int|float> $metrics
  */
 final class PublicationObservation extends Model
