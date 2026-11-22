@@ -36,6 +36,7 @@ test('невалидные настройки не создают канал', f
     'платформа' => [['type' => 'unknown'], 'type'],
     'неподдерживаемая платформа' => [['type' => 'vk'], 'type'],
     'тип идентификатора' => [['client_id' => ['invalid']], 'client_id'],
+    'секрет без идентификатора' => [['client_id' => '', 'client_secret' => 'private-value'], 'client_id'],
     'длина секрета' => [['client_secret' => str_repeat('x', 2049)], 'client_secret'],
     'флаг активности' => [['is_active' => 'invalid'], 'is_active'],
 ]);

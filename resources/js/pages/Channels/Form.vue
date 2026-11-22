@@ -41,6 +41,7 @@ const connection = useForm({});
 const deletion = useForm({});
 const deletionErrors = computed<Record<string, string | undefined>>(() => deletion.errors);
 const requestError = ref('');
+const replacingSecret = ref(false);
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
 const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
 const tab = ref('');
@@ -72,7 +73,10 @@ function submit() {
     requestError.value = '';
     form.submit(props.channel ? 'patch' : 'post', props.channel ? route('channels.update', props.channel.id) : route('channels.store'), {
         preserveScroll: 'errors',
-        onSuccess: () => form.reset('client_secret'),
+        onSuccess: () => {
+            form.reset('client_secret');
+            replacingSecret.value = false;
+        },
         onError: (errors) => {
             if (!props.channel) window.location.hash = errors.client_id || errors.client_secret ? 'oauth-settings' : 'channel-name';
         },
@@ -113,6 +117,66 @@ function remove() {
             @save="submit"
             @disconnect="disconnect"
         />
+        <div v-else-if="channel?.connected && (!tab || tab === 'overview')" class="workspace-page new-channel channel-overview">
+            <ProjectNotice />
+            <header class="channel-heading flex items-start justify-between gap-3">
+                <Heading title="Настройки канала" :description="channel.name + ' / Подключение'" />
+                <Button v-if="channel.type === 'tiktok'" as-child class="h-11"><a href="#authorization">Переподключить</a></Button>
+                <Button
+                    v-else-if="oauthSupported"
+                    type="button"
+                    class="h-11"
+                    :disabled="connection.processing || !channel.oauth_configured"
+                    @click="connect"
+                    >Переподключить</Button
+                >
+            </header>
+            <InputError :message="page.props.errors.oauth" />
+            <div class="channel-layout grid items-start gap-4">
+                <nav aria-label="Разделы канала" class="overview-nav">
+                    <h2>В этом разделе</h2>
+                    <a :href="channel.type === 'tiktok' ? '#platform' : '#overview'" aria-current="page">Подключение</a>
+                    <a href="#connected-projects">Связанные проекты</a>
+                    <DisconnectChannelDialog
+                        :channel="channel"
+                        :processing="connection.processing"
+                        :error="page.props.errors.oauth"
+                        label="Отключить аккаунт"
+                        @confirm="disconnect"
+                    />
+                    <a href="#channel-name">Основное</a>
+                </nav>
+                <section class="studio-panel overview-fields">
+                    <h2>Параметры</h2>
+                    <dl>
+                        <dt>Площадка</dt>
+                        <dd>{{ channel.type_label }}</dd>
+                        <dt>Владелец</dt>
+                        <dd>{{ channel.account_name || channel.name }}</dd>
+                        <dt>Права</dt>
+                        <dd>
+                            {{
+                                channel.type === 'tiktok'
+                                    ? [
+                                          channel.tiktok_statistics && 'Статистика',
+                                          channel.tiktok_inbox && 'Отправка во входящие',
+                                          channel.tiktok_direct && 'Прямая публикация',
+                                      ]
+                                          .filter(Boolean)
+                                          .join(' · ') || 'Нет действующих разрешений'
+                                    : channel.permission_labels?.join(' · ') || 'Площадка не подтвердила список разрешений'
+                            }}
+                        </dd>
+                        <dt>Проекты</dt>
+                        <dd>
+                            <a href="#connected-projects">{{
+                                channel.projects?.map((project) => project.name).join(', ') || 'Нет связанных проектов'
+                            }}</a>
+                        </dd>
+                    </dl>
+                </section>
+            </div>
+        </div>
         <div v-else-if="channel && tab === 'connected-projects'" class="workspace-page linked-projects">
             <Heading :title="channel.name" description="Связанные проекты" />
             <div class="linked-layout">
@@ -270,18 +334,28 @@ function remove() {
                                 /><InputError :message="form.errors.client_id" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="client-secret">Client secret / App secret</Label
-                                ><Input
-                                    id="client-secret"
-                                    v-model="form.client_secret"
-                                    type="password"
-                                    maxlength="2048"
-                                    autocomplete="new-password"
-                                    :disabled="form.processing"
-                                    :aria-invalid="!!form.errors.client_secret"
-                                    :placeholder="channel?.has_client_secret ? 'Секрет сохранён' : 'Введите секрет приложения'"
-                                    aria-describedby="secret-help"
-                                />
+                                <template v-if="channel?.has_client_secret && !replacingSecret">
+                                    <Label for="saved-secret">Сохранённый Client Secret</Label>
+                                    <Input id="saved-secret" model-value="••••••••••••••••" readonly />
+                                    <p class="text-muted-foreground text-sm">Секрет сохранён</p>
+                                    <Button type="button" variant="outline" class="justify-self-start" @click="replacingSecret = true"
+                                        >Заменить секрет</Button
+                                    >
+                                </template>
+                                <template v-else>
+                                    <Label for="client-secret">Client secret / App secret</Label
+                                    ><Input
+                                        id="client-secret"
+                                        v-model="form.client_secret"
+                                        type="password"
+                                        maxlength="2048"
+                                        autocomplete="new-password"
+                                        :disabled="form.processing"
+                                        :aria-invalid="!!form.errors.client_secret"
+                                        :placeholder="channel?.has_client_secret ? 'Секрет сохранён' : 'Введите секрет приложения'"
+                                        aria-describedby="secret-help"
+                                    />
+                                </template>
                                 <p id="secret-help" class="text-muted-foreground text-xs">
                                     При прежнем ID оставьте поле пустым, чтобы сохранить действующий секрет.
                                 </p>
@@ -435,6 +509,84 @@ function remove() {
 </template>
 
 <style scoped>
+.overview-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: start;
+}
+.overview-nav h2 {
+    display: none;
+}
+.overview-nav a,
+.overview-nav :deep(button) {
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    font-size: 14px;
+    text-align: left;
+}
+.overview-nav [aria-current] {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 600;
+}
+.overview-fields {
+    padding: 20px 24px 48px;
+}
+.overview-fields h2,
+.overview-nav h2 {
+    font-weight: 700;
+    font-size: 20px;
+}
+.overview-fields dt {
+    margin: 12px 0 6px;
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
+.overview-fields dt:first-child {
+    margin-top: 20px;
+}
+.overview-fields dd {
+    padding: 10px 12px;
+    border: 1px solid var(--input);
+    border-radius: 8px;
+    min-height: 48px;
+    background: var(--background);
+}
+.overview-fields dd a {
+    display: block;
+}
+@media (min-width: 1100px) {
+    .overview-nav {
+        display: grid;
+        align-content: start;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
+    .overview-nav h2 {
+        display: block;
+        padding: 0 8px 8px;
+    }
+    .overview-nav a:not([aria-current]),
+    .overview-nav :deep(button) {
+        background: transparent;
+    }
+    .overview-nav :deep(button) {
+        justify-content: start;
+        height: auto;
+        font-weight: 400;
+    }
+}
+@media (max-width: 767px) {
+    .overview-fields {
+        padding: 16px;
+    }
+}
+
 .linked-projects {
     padding-top: 14px;
 }
