@@ -1,19 +1,10 @@
 <script setup lang="ts">
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import ProjectNotice from '@/components/projects/ProjectNotice.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -42,7 +33,6 @@ const form = useForm({
 const connection = useForm({});
 const deletion = useForm({});
 const deletionErrors = computed<Record<string, string | undefined>>(() => deletion.errors);
-const deleteOpen = ref(false);
 const requestError = ref('');
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
 const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
@@ -69,12 +59,7 @@ function disconnect() {
     if (props.channel) connection.delete(route('channels.disconnect', props.channel.id), { preserveScroll: true });
 }
 function remove() {
-    if (props.channel)
-        deletion.delete(route('channels.destroy', props.channel.id), {
-            onSuccess: () => {
-                deleteOpen.value = false;
-            },
-        });
+    if (props.channel) deletion.delete(route('channels.destroy', props.channel.id));
 }
 </script>
 
@@ -270,14 +255,31 @@ function remove() {
                                     Нужен профессиональный аккаунт Instagram.
                                 </p>
                             </template>
-                            <Button
+                            <ConfirmationDialog
                                 v-if="channel.connected"
-                                variant="outline"
-                                class="h-11 w-full"
-                                :disabled="connection.processing"
-                                @click="disconnect"
-                                ><Unplug class="size-4" aria-hidden="true" />Отключить от Poster</Button
+                                heading="Отзыв доступа к площадке"
+                                :title="'Отключить аккаунт ' + channel.type_label + '?'"
+                                description="Poster перестанет отправлять видео от имени этого аккаунта."
+                                action="Отключить аккаунт"
+                                destructive
+                                :processing="connection.processing"
+                                :error="page.props.errors.oauth"
+                                @confirm="disconnect"
                             >
+                                <template #trigger>
+                                    <Button variant="outline" class="h-11 w-full" :disabled="connection.processing">
+                                        <Unplug class="size-4" aria-hidden="true" />Отключить от Poster
+                                    </Button>
+                                </template>
+                                <div class="studio-row">
+                                    <dt>Канал Poster</dt>
+                                    <dd>{{ channel.name }}</dd>
+                                </div>
+                                <div class="studio-row">
+                                    <dt>После отключения</dt>
+                                    <dd>Для отправки потребуется авторизоваться снова</dd>
+                                </div>
+                            </ConfirmationDialog>
                         </section>
                         <section class="bg-card space-y-3 rounded-xl border p-5">
                             <h2 tabindex="-1" id="connected-projects" class="text-sm font-semibold">Связанные проекты</h2>
@@ -296,23 +298,30 @@ function remove() {
                                 Для удаления отвяжите канал от всех проектов. Канал с публикациями можно приостановить.
                             </p>
                             <InputError :message="deletionErrors.channel" />
-                            <Dialog v-model:open="deleteOpen"
-                                ><DialogTrigger as-child
-                                    ><Button variant="destructive" class="h-11" :disabled="!deletingAllowed"
-                                        ><Trash2 class="size-4" aria-hidden="true" />Удалить канал</Button
-                                    ></DialogTrigger
-                                ><DialogContent
-                                    ><DialogHeader
-                                        ><DialogTitle>Удалить {{ channel.name }}?</DialogTitle
-                                        ><DialogDescription>Канал и его подключение будут удалены.</DialogDescription></DialogHeader
-                                    ><InputError :message="deletionErrors.channel" /><DialogFooter
-                                        ><DialogClose as-child><Button variant="outline" :disabled="deletion.processing">Отмена</Button></DialogClose
-                                        ><Button variant="destructive" :disabled="deletion.processing" @click="remove">{{
-                                            deletion.processing ? 'Удаление…' : 'Удалить канал'
-                                        }}</Button></DialogFooter
-                                    ></DialogContent
-                                ></Dialog
+                            <ConfirmationDialog
+                                heading="Подтверждение удаления канала"
+                                :title="'Удалить канал «' + channel.name + '»?'"
+                                description="Канал больше не появится в списке получателей Poster."
+                                action="Удалить канал"
+                                destructive
+                                :processing="deletion.processing"
+                                :error="deletionErrors.channel"
+                                @confirm="remove"
                             >
+                                <template #trigger>
+                                    <Button variant="destructive" class="h-11" :disabled="!deletingAllowed">
+                                        <Trash2 class="size-4" aria-hidden="true" />Удалить канал
+                                    </Button>
+                                </template>
+                                <div class="studio-row">
+                                    <dt>Связанные проекты</dt>
+                                    <dd>{{ channel.projects?.length ?? 0 }}</dd>
+                                </div>
+                                <div class="studio-row">
+                                    <dt>Аккаунт площадки</dt>
+                                    <dd>{{ channel.account_name || channel.name }} · {{ channel.type_label }}</dd>
+                                </div>
+                            </ConfirmationDialog>
                         </section>
                     </aside>
                 </div>
