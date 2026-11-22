@@ -100,7 +100,7 @@ final readonly class OpusClipRepository extends EloquentRepository
                 ? new Project(['name' => $preview->source_name ?? $preview->game ?? $preview->external_id, 'prompt' => '', 'is_active' => false])
                 : $projects->whereNull('opus_source_id')->where('content_mode', 'short')->findOrFail($projectId);
 
-            if (($project->clipping_workspace !== null && $project->clipping_connection_id !== $connection->id)
+            if ((($project->clipping_connection_id !== null || $project->clipping_workspace !== null) && $project->clipping_connection_id !== $connection->id)
                 || ($project->exists && $project->productionRuns()->whereIn('status', ProductionStatus::blockingValues())->exists())) {
                 throw ValidationException::withMessages(['project_id' => 'Проверьте подключение проекта и завершите активное производство.']);
             }

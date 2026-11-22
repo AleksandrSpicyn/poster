@@ -82,3 +82,21 @@ test('повторно проверяет владельца канала пер
     assertDatabaseCount('opus_sources', 0);
     assertDatabaseCount('clipping_account_mappings', 0);
 });
+
+test('сохраняет привязку проекта при подтверждении устаревшего выбора подключения', function (): void {
+    $owner = User::factory()->create();
+    $first = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    $second = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    $project = Project::factory()->create(['owner_id' => $owner->id, 'clipping_connection_id' => $first->id]);
+    $preview = ClippingImport::query()->create([
+        'clipping_connection_id' => $second->id, 'project_id' => $project->id,
+        'external_id' => 'other-source', 'clip_count' => 0, 'clips' => [],
+    ]);
+    actingAs($owner);
+
+    post(route('clipping.import', [$second, $preview->id]))->assertSessionHasErrors('project_id');
+
+    expect($project->refresh()->clipping_connection_id)->toBe($first->id)
+        ->and($preview->refresh()->imported_at)->toBeNull();
+    assertDatabaseCount('opus_sources', 0);
+});

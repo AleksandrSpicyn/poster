@@ -66,6 +66,7 @@ final readonly class ClippingConnectionRepository
     public function projects(ClippingConnection $connection): Collection
     {
         return Project::query()->where('owner_id', $connection->owner_id)->whereNull('opus_source_id')
+            ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))
             ->where('content_mode', 'short')->orderBy('name')->get(['id', 'name']);
     }
 
@@ -106,7 +107,8 @@ final readonly class ClippingConnectionRepository
             $projectId = $data->project_id ?? $bound;
 
             if ($projectId !== null) {
-                Project::query()->where('owner_id', $connection->owner_id)->whereNull('opus_source_id')->where('content_mode', 'short')->findOrFail($projectId);
+                Project::query()->where('owner_id', $connection->owner_id)->whereNull('opus_source_id')->where('content_mode', 'short')
+                    ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))->findOrFail($projectId);
             }
 
             return ClippingImport::query()->create([

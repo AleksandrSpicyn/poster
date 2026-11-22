@@ -21,6 +21,8 @@ test('привязывает существующий проект и аккау
     expect($project->refresh()->clipping_workspace)->toBe(Project::OPUS_CLIP_WORKSPACE)
         ->and($youtube->refresh()->external_account)->toBe('fixture-channel')
         ->and($instagram->refresh()->external_account)->toBe('fixture_creator');
+    expect($project->clipping_connection_id)->not->toBeNull();
+    assertDatabaseCount('clipping_connections', 1);
     assertDatabaseCount('projects', 1);
     assertDatabaseCount('channels', 2);
 });

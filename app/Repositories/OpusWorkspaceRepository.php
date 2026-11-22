@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Enums\ChannelType;
+use App\Enums\ClippingDriver;
 use App\Enums\ProductionStatus;
 use App\Models\Channel;
+use App\Models\ClippingConnection;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,20 @@ final readonly class OpusWorkspaceRepository
             $this->bindAccount($channels, $project->owner_id, ChannelType::YOUTUBE, $youtubeAccount);
             $this->bindAccount($channels, $project->owner_id, ChannelType::INSTAGRAM, $instagramAccount);
             $this->bindAccount($channels, $project->owner_id, ChannelType::TIKTOK, $tiktokAccount);
+
+            if ($project->clipping_connection_id !== null && ! ClippingConnection::query()
+                ->whereKey($project->clipping_connection_id)->where('owner_id', $project->owner_id)->where('uses_server_key', true)->exists()) {
+                throw new RuntimeException('This project already uses a different clipping connection.');
+            }
+
+            if ($project->clipping_connection_id === null) {
+                $connection = new ClippingConnection(['name' => 'OpusClip', 'driver' => ClippingDriver::OPUS_CLIP->value]);
+                $connection->owner_id = $project->owner_id;
+                $connection->uses_server_key = true;
+                $connection->save();
+                $project->clipping_connection_id = $connection->id;
+                $project->opusSources()->whereNull('clipping_connection_id')->update(['clipping_connection_id' => $connection->id]);
+            }
 
             $project->clipping_workspace = Project::OPUS_CLIP_WORKSPACE;
             $project->save();
