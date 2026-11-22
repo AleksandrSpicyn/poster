@@ -25,6 +25,8 @@ class PostResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'title' => $this->title,
+            'channel_name' => $this->channel?->name,
             'channel' => $this->channel?->type,
             'url' => $this->url,
             'created_at' => $this->created_at?->toFormattedDateString(),

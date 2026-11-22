@@ -10,6 +10,7 @@ use App\Enums\ChannelType;
 use App\Enums\FilterValue;
 use App\Enums\SortDirection;
 use App\Http\Resources\PostResource;
+use App\Http\Resources\PublicationActivityResource;
 use App\Http\Resources\PublicationRequestResource;
 use App\Models\Channel;
 use App\Models\User;
@@ -112,8 +113,14 @@ class ListController
             $data,
         );
 
+        $channels = $getPostsList->channels($owner);
+
         return inertia('Posts', [
-            'destinations' => fn() => $getPostsList->destinations($owner)->map(fn(Channel $channel): array => ['id' => $channel->id, 'name' => $channel->name])->all(),
+            'verifiableChannels' => $channels->filter(fn(Channel $channel): bool => $channel->canVerifyPublication())->values()->modelKeys(),
+            'destinations' => fn() => $channels->filter(fn(Channel $channel): bool => $channel->canSendTiktokInboxVideo() || $channel->canDirectPostTiktok())->values()->map(fn(Channel $channel): array => ['id' => $channel->id, 'name' => $channel->name, 'inbox' => $channel->canSendTiktokInboxVideo(), 'direct' => $channel->canDirectPostTiktok()])->all(),
+            'activity' => fn() => PublicationActivityResource::collection($getPostsList->activity($owner, $data)),
+            'periodDays' => $data->days,
+            'search' => $data->search ?? '',
             'requests' => fn() => PublicationRequestResource::collection($getPostsList->recent($owner))->resolve(),
             'posts' => PostResource::collection($posts),
             'sortDirections' => SortDirection::labels(),

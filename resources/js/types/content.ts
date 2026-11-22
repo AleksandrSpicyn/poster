@@ -2,6 +2,8 @@ import type { ChannelType, SharedData } from '@/types';
 
 /** Wire contracts of PostResource and PromptResource (including nullable deleted relations). */
 export interface PostSummary {
+    title: string;
+    channel_name: string | null;
     id: number;
     channel: ChannelType | null;
     url: string | null;
@@ -41,6 +43,7 @@ export interface ListFilters {
     page: number;
     type?: string;
     search?: string;
+    days?: number;
     active?: number;
     updated?: number;
 }
@@ -52,8 +55,29 @@ export interface ListPageProps extends SharedData {
 }
 
 export interface PostsPageProps extends ListPageProps {
-    destinations: { id: number; name: string }[];
-    requests: { id: number; can_verify: boolean; channel_name: string; status: string; error_message: string | null }[];
+    activity: PaginatedResource<{
+        id: number;
+        title: string;
+        channel_id: number | null;
+        channel_name: string | null;
+        url: string | null;
+        platform: ChannelType | null;
+        status: string;
+        kind: 'post' | 'request';
+    }>;
+    periodDays: number;
+    search: string;
+    verifiableChannels: number[];
+    destinations: { id: number; name: string; inbox: boolean; direct: boolean }[];
+    requests: {
+        id: number;
+        title: string;
+        platform: string | null;
+        can_verify: boolean;
+        channel_name: string;
+        status: string;
+        error_message: string | null;
+    }[];
     posts: PaginatedResource<PostSummary>;
     allTypes: string;
     types: Record<string, string>;

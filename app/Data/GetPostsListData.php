@@ -30,5 +30,9 @@ class GetPostsListData extends Data
         public ?int $page = 1,
         #[In(FilterValue::ALL, ChannelType::YOUTUBE, ChannelType::TIKTOK, ChannelType::INSTAGRAM, ChannelType::VK)]
         public string|null|Optional $type = new Optional(),
+        #[Max(200)]
+        public ?string $search = null,
+        #[In([0, 7, 30, 90])]
+        public int $days = 30,
     ) {}
 }

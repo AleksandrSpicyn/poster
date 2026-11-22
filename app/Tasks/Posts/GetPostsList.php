@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Models\User;
 use App\Repositories\PostRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
+use stdClass;
 
 /**
  * Готовит общую выборку публикаций кабинета с фильтром канала и пагинацией.
@@ -17,6 +18,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class GetPostsList
 {
     public function __construct(private readonly PostRepository $posts) {}
+
+    /** @return LengthAwarePaginator<int, stdClass> */
+    public function activity(User $owner, GetPostsListData $filters): LengthAwarePaginator
+    {
+        return $this->posts->activity($owner, $filters);
+    }
 
     /** @return LengthAwarePaginator<int, Post> */
     public function run(User $owner, GetPostsListData $dto): LengthAwarePaginator

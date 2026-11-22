@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Enums\ChannelType;
+use App\Enums\PublicationStatus;
 use App\Models\Channel;
 use App\Models\Post;
+use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -130,4 +133,40 @@ test('список передаёт варианты сортировки из e
             ->where('sortDirections', ['desc' => 'Newest', 'asc' => 'Oldest'])
             ->where('defaultSort', 'desc')
             ->where('allTypes', 'All'));
+});
+
+test('лента объединяет запросы и результаты, сохраняя период и владельца', function (): void {
+    $owner = workspaceOwner();
+    $prompt = Prompt::factory()->recycle($owner)->create();
+    Channel::factory()->recycle($owner)->create(['name' => 'A', 'type' => ChannelType::VK]);
+    $channel = Channel::factory()->recycle($owner)->create(['name' => 'B', 'type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $request = PublicationRequest::query()->create([
+        'created_by' => $owner->id, 'channel_id' => $channel->id, 'prompt_id' => $prompt->id,
+        'status' => PublicationStatus::SUBMISSION_UNKNOWN, 'payload' => ['title' => 'Ночная смена'],
+    ]);
+    $sent = Post::factory()->for($prompt)->for($channel)->create(['title' => 'Вечерний поезд']);
+    Post::factory()->recycle($owner)->create(['title' => 'Старый поезд', 'created_at' => now()->subDays(45)]);
+    Post::factory()->recycle(User::factory()->create())->create(['title' => 'Чужой поезд']);
+
+    actingAs($owner)
+        ->get(route('posts'))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('activity.meta.total', 2)
+            ->where('verifiableChannels', [$channel->id]));
+    get(route('posts', ['type' => 'youtube', 'search' => 'смена']))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('activity.meta.total', 1)
+            ->where('activity.data.0.id', $request->id)
+            ->where('activity.data.0.status', 'submission_unknown'));
+    get(route('posts', ['days' => 0, 'search' => 'поезд']))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('activity.meta.total', 2));
+
+    $sent->update(['publication_request_id' => $request->id]);
+    $request->update(['status' => PublicationStatus::PUBLISHED]);
+
+    get(route('posts'))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('activity.meta.total', 1)
+            ->where('activity.data.0.kind', 'post')
+            ->where('activity.data.0.title', 'Вечерний поезд'));
 });

@@ -15,8 +15,11 @@ use App\Models\PublicationRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
+use stdClass;
 
 /** @extends EloquentRepository<Post> */
 readonly class PostRepository extends EloquentRepository
@@ -44,6 +47,38 @@ readonly class PostRepository extends EloquentRepository
             ->orderBy('id', $direction->value)
             ->paginate($dto->perPage ?? 10, page: $dto->page ?? 1)
             ->withQueryString();
+    }
+
+    /** @return LengthAwarePaginator<int, stdClass> */
+    public function activity(User $owner, GetPostsListData $filters): LengthAwarePaginator
+    {
+        $published = $this->owned($owner)
+            ->leftJoin('channels', 'channels.id', '=', 'posts.channel_id')
+            ->select(['posts.id', 'posts.title', 'posts.url', 'posts.created_at', 'channels.type as platform', 'channels.name as channel_name', 'posts.channel_id'])
+            ->selectRaw("'published' as status, 'post' as kind");
+
+        $requests = PublicationRequest::query()
+            ->join('channels', 'channels.id', '=', 'publication_requests.channel_id')
+            ->where('publication_requests.created_by', $owner->id)
+            ->where('channels.owner_id', $owner->id)
+            ->where(fn(Builder $query) => $query->whereRelation('prompt.project', 'owner_id', $owner->id)
+                ->orWhereRelation('assembly.episodeRevision.episode.series.project', 'owner_id', $owner->id)
+                ->orWhereRelation('seriesAssembly.series.project', 'owner_id', $owner->id))
+            ->whereNotExists(fn(QueryBuilder $query) => $query->selectRaw('1')->from('posts')->whereColumn('posts.publication_request_id', 'publication_requests.id'))
+            ->select(['publication_requests.id', 'publication_requests.payload->title as title'])
+            ->selectRaw('NULL as url')
+            ->addSelect(['publication_requests.created_at', 'channels.type as platform', 'channels.name as channel_name', 'publication_requests.channel_id', 'publication_requests.status'])
+            ->selectRaw("'request' as kind");
+
+        $type = is_string($filters->type) ? ChannelType::tryFrom($filters->type) : null;
+        $order = $filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC;
+
+        return DB::query()->fromSub($published->toBase()->unionAll($requests->toBase()), 'activity')
+            ->when($filters->days > 0, fn($query) => $query->where('created_at', '>=', now()->subDays($filters->days)))
+            ->when($type, fn($query) => $query->where('platform', $type?->value))
+            ->when(filled($filters->search), fn($query) => $query->whereLike('title', '%' . $filters->search . '%'))
+            ->orderBy('created_at', $order->value)->orderBy('kind')->orderBy('id', $order->value)
+            ->paginate($filters->perPage ?? 10, page: $filters->page ?? 1)->withQueryString();
     }
 
     /** @return LazyCollection<int, Post> */
