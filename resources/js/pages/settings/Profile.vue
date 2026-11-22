@@ -93,14 +93,37 @@ const submit = () => {
                 </div>
                 <Link :href="route('verification.send')" method="post" as="button" class="underline">Отправить письмо повторно</Link>
             </section>
-            <form v-else id="profile-form" @submit.prevent="submit">
+            <form v-else id="profile-form" class="account-form" @submit.prevent="submit">
                 <h2>Параметры</h2>
-                <Label for="name">Имя</Label><Input id="name" v-model="form.name" required autocomplete="name" />
-                <InputError :message="form.errors.name" />
-                <Label for="email">Email</Label><Input id="email" v-model="form.email" type="email" required autocomplete="email" />
-                <InputError :message="form.errors.email" />
-                <Label for="verified">Подтверждение</Label
-                ><Input id="verified" :model-value="user.email_verified_at ? 'Адрес подтверждён' : 'Адрес ещё не подтверждён'" readonly />
+                <div>
+                    <Label for="name">Имя</Label>
+                    <Input
+                        id="name"
+                        v-model="form.name"
+                        required
+                        autocomplete="name"
+                        :aria-invalid="!!form.errors.name"
+                        :aria-describedby="form.errors.name ? 'name-error' : undefined"
+                    />
+                    <InputError id="name-error" :message="form.errors.name" />
+                </div>
+                <div>
+                    <Label for="email">Email</Label>
+                    <Input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        required
+                        autocomplete="email"
+                        :aria-invalid="!!form.errors.email"
+                        :aria-describedby="form.errors.email ? 'email-error' : undefined"
+                    />
+                    <InputError id="email-error" :message="form.errors.email" />
+                </div>
+                <div>
+                    <Label for="verified">Подтверждение</Label>
+                    <Input id="verified" :model-value="user.email_verified_at ? 'Адрес подтверждён' : 'Адрес ещё не подтверждён'" readonly />
+                </div>
                 <Link
                     v-if="mustVerifyEmail && !user.email_verified_at"
                     :href="route('verification.send')"

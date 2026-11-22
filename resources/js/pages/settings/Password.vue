@@ -57,63 +57,64 @@ const updatePassword = () => {
                     form.processing ? 'Сохранение…' : 'Обновить пароль'
                 }}</Button></template
             >
-            <div class="space-y-6">
+            <form id="password-form" class="account-form" @submit.prevent="updatePassword">
                 <h2>Параметры</h2>
 
-                <form id="password-form" @submit.prevent="updatePassword">
-                    <div class="grid">
-                        <Label for="current_password">Текущий пароль</Label>
-                        <Input
-                            id="current_password"
-                            ref="currentPasswordInput"
-                            v-model="form.current_password"
-                            type="password"
-                            class="mt-1 block w-full"
-                            autocomplete="current-password"
-                            placeholder="Текущий пароль"
-                        />
-                        <InputError :message="form.errors.current_password" />
-                    </div>
+                <div class="grid">
+                    <Label for="current_password">Текущий пароль</Label>
+                    <Input
+                        id="current_password"
+                        ref="currentPasswordInput"
+                        v-model="form.current_password"
+                        type="password"
+                        :aria-invalid="!!form.errors.current_password"
+                        :aria-describedby="form.errors.current_password ? 'current_password-error' : undefined"
+                        autocomplete="current-password"
+                        placeholder="Текущий пароль"
+                    />
+                    <InputError id="current_password-error" :message="form.errors.current_password" />
+                </div>
 
-                    <div class="grid">
-                        <Label for="password">Новый пароль</Label>
-                        <Input
-                            id="password"
-                            ref="passwordInput"
-                            v-model="form.password"
-                            type="password"
-                            class="mt-1 block w-full"
-                            autocomplete="new-password"
-                            placeholder="Новый пароль"
-                        />
-                        <InputError :message="form.errors.password" />
-                    </div>
+                <div class="grid">
+                    <Label for="password">Новый пароль</Label>
+                    <Input
+                        id="password"
+                        ref="passwordInput"
+                        v-model="form.password"
+                        type="password"
+                        :aria-invalid="!!form.errors.password"
+                        :aria-describedby="form.errors.password ? 'password-error' : undefined"
+                        autocomplete="new-password"
+                        placeholder="Новый пароль"
+                    />
+                    <InputError id="password-error" :message="form.errors.password" />
+                </div>
 
-                    <div class="grid">
-                        <Label for="password_confirmation">Подтверждение</Label>
-                        <Input
-                            id="password_confirmation"
-                            v-model="form.password_confirmation"
-                            type="password"
-                            class="mt-1 block w-full"
-                            autocomplete="new-password"
-                            placeholder="Подтверждение"
-                        />
-                        <InputError :message="form.errors.password_confirmation" />
-                    </div>
+                <div class="grid">
+                    <Label for="password_confirmation">Подтверждение</Label>
+                    <Input
+                        id="password_confirmation"
+                        :aria-invalid="!!form.errors.password_confirmation"
+                        :aria-describedby="form.errors.password_confirmation ? 'confirmation-error' : undefined"
+                        v-model="form.password_confirmation"
+                        type="password"
+                        autocomplete="new-password"
+                        placeholder="Подтверждение"
+                    />
+                    <InputError id="confirmation-error" :message="form.errors.password_confirmation" />
+                </div>
 
-                    <div class="flex items-center gap-4">
-                        <Transition
-                            enter-active-class="transition ease-in-out"
-                            enter-from-class="opacity-0"
-                            leave-active-class="transition ease-in-out"
-                            leave-to-class="opacity-0"
-                        >
-                            <p v-show="form.recentlySuccessful" role="status" class="text-primary text-sm">Пароль обновлён.</p>
-                        </Transition>
-                    </div>
-                </form>
-            </div>
+                <div class="flex items-center gap-4">
+                    <Transition
+                        enter-active-class="transition ease-in-out"
+                        enter-from-class="opacity-0"
+                        leave-active-class="transition ease-in-out"
+                        leave-to-class="opacity-0"
+                    >
+                        <p v-show="form.recentlySuccessful" role="status" class="text-primary text-sm">Пароль обновлён.</p>
+                    </Transition>
+                </div>
+            </form>
         </SettingsLayout>
     </AppLayout>
 </template>
