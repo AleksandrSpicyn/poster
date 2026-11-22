@@ -65,9 +65,14 @@ readonly class EpisodeRepository extends EloquentRepository
             ->orderByDesc('id')
             ->limit(100)
             ->get();
-        $channels = $series->project()->firstOrFail()->channels()->where('is_active', true)->orderBy('name')->limit(100)->get()
+        $project = $series->project()->firstOrFail();
+        $channels = $project->channels()
+            ->where('channels.owner_id', $project->owner_id)->where('is_active', true)->whereNotNull('credentials->access_token')
+            ->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM, ChannelType::TIKTOK])
+            ->orderBy('name')->limit(100)->get()
             ->reject(fn(Channel $channel): bool => $channel->type === ChannelType::TIKTOK && ! $channel->canSendTiktokInboxVideo())->values();
-        $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())->with('channel')->orderByDesc('id')->limit(200)->get();
+        $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())
+            ->where('created_by', $project->owner_id)->with('channel', 'post')->orderByDesc('id')->limit(200)->get();
 
         return new EpisodeWorkspaceData($episode, $characters, $assemblies, $publications, $channels);
     }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AssemblyCard from '@/components/episodes/AssemblyCard.vue';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import type { EpisodeAssemblySummary, EpisodeWorkspaceProps } from '@/types/episodes';
@@ -10,8 +11,9 @@ const sections = [
     { key: 'preview', label: 'Предпросмотр' },
     { key: 'recipients', label: 'Получатели' },
     { key: 'confirmation', label: 'Подтверждение' },
+    { key: 'results', label: 'Результаты' },
 ] as const;
-const section = ref<(typeof sections)[number]['key']>('preview');
+const section = ref<(typeof sections)[number]['key']>(props.workspace.publications.length ? 'results' : 'preview');
 const selectedId = ref<number | null>(null);
 const assembly = computed(
     () =>
@@ -19,22 +21,36 @@ const assembly = computed(
         props.assemblies.find((a) => a.id === props.workspace.episode.accepted_assembly_id) ??
         props.assemblies[0],
 );
+const reviewing = ref(false);
+const mixed = computed(
+    () =>
+        section.value === 'results' &&
+        props.workspace.publications.some((item) => item.episode_assembly_id === assembly.value?.id && item.status === 'submission_unknown'),
+);
 const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== assembly.value?.id));
 </script>
 <template>
-    <div class="release-page">
+    <div class="release-page" :class="{ detail: section !== 'preview', mixed }">
         <header class="flex flex-wrap items-start justify-between gap-3">
             <Heading
-                title="Публикация эпизода"
-                :description="workspace.series.name + ' / Эпизод ' + String(workspace.episode.number).padStart(2, '0')"
+                :title="section === 'preview' ? 'Публикация эпизода' : 'Выпуск эпизода'"
+                :description="
+                    section === 'preview'
+                        ? workspace.series.name + (workspace.episode.accepted_assembly_id ? ' / Принятая сборка' : '')
+                        : mixed
+                          ? reviewing
+                              ? 'Сверка вручную'
+                              : 'Результаты'
+                          : undefined
+                "
             />
-            <Button :disabled="!assembly" @click="section = 'confirmation'">Подтвердить отправку</Button>
+            <Button v-if="section === 'preview'" class="h-11" :disabled="!assembly" @click="section = 'confirmation'">Подтвердить отправку</Button>
         </header>
         <div class="release-grid">
             <nav aria-label="Разделы публикации" class="studio-panel flex flex-wrap gap-2 min-[1100px]:grid">
                 <h2 class="hidden font-bold min-[1100px]:block">В этом разделе</h2>
                 <button
-                    v-for="item in sections"
+                    v-for="item in sections.filter((item) => item.key !== 'results' || section !== 'preview' || workspace.publications.length)"
                     :key="item.key"
                     class="rounded-md px-3 py-2 text-left"
                     :aria-current="section === item.key ? 'step' : undefined"
@@ -49,6 +65,11 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                     v-else
                     :key="assembly.id + ':' + assembly.lock_version"
                     :assembly="assembly"
+                    :episode-title="workspace.episode.title"
+                    :project="workspace.project"
+                    @review="reviewing = $event"
+                    :episode-number="workspace.episode.number"
+                    :caption="workspace.screenplay?.public_caption"
                     :section="section"
                     @navigate="section = $event"
                     :params="{ series: workspace.series.id, episode: workspace.episode.id }"
@@ -74,13 +95,61 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                     </button>
                 </details>
             </div>
+            <aside v-if="section !== 'preview'" class="studio-panel hidden min-[1100px]:block">
+                <ProjectArtwork :name="workspace.project.name" :cover="workspace.project.cover" class="mb-3 aspect-[2.4] w-full rounded-lg" />
+                <h2>{{ workspace.episode.title }}</h2>
+                <p>Проект · {{ workspace.project.name }}</p>
+                <p v-if="assembly">Версия {{ String(assembly.number).padStart(2, '0') }}</p>
+            </aside>
         </div>
         <nav aria-label="Этапы эпизода" class="mt-6 flex flex-wrap gap-4">
+            <button
+                v-if="mixed"
+                type="button"
+                @click="
+                    section = 'preview';
+                    reviewing = false;
+                "
+            >
+                Предпросмотр
+            </button>
             <a href="#screenplay">Сценарий</a><a href="#shots">Кадры</a><a href="#montage">Монтаж</a>
         </nav>
     </div>
 </template>
 <style scoped>
+.mixed .release-grid nav {
+    display: none;
+}
+@media (min-width: 1100px) {
+    .mixed .release-grid {
+        grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
+    }
+}
+
+.detail .release-grid nav {
+    display: flex;
+    min-height: 0;
+    gap: 6px;
+    flex-wrap: wrap;
+    grid-column: 1/-1;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+.detail .release-grid nav h2 {
+    display: none;
+}
+.detail .release-grid nav button {
+    background: var(--muted);
+}
+@media (min-width: 1100px) {
+    .detail .release-grid {
+        grid-template-columns: minmax(0, 2.35fr) minmax(0, 1fr);
+        max-width: 1236px;
+    }
+}
+
 .release-page header {
     margin-bottom: 20px;
 }

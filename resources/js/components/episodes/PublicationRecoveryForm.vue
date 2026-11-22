@@ -8,7 +8,11 @@ import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
-const props = defineProps<{ publication: PublicationSummary; params: EpisodeRouteParams & { revision: number; assembly: number } }>();
+const props = defineProps<{
+    publication: PublicationSummary;
+    expanded?: boolean;
+    params: EpisodeRouteParams & { revision: number; assembly: number };
+}>();
 const route = useRoute();
 const form = useForm({ external_id: '' });
 const errors = computed(() => Object.values(form.errors).join(' '));
@@ -22,8 +26,8 @@ function resolve() {
 </script>
 
 <template>
-    <details class="mt-3 rounded-lg border p-3">
-        <summary class="cursor-pointer text-sm font-medium">Сверить результат отправки</summary>
+    <component :is="expanded ? 'section' : 'details'" class="mt-3">
+        <summary v-if="!expanded" class="cursor-pointer text-sm font-medium">Сверить результат отправки</summary>
         <p class="text-muted-foreground mt-3 text-xs">
             Если ролик уже появился в подключённом аккаунте, введите ссылку или ID. Poster сверит его с площадкой.
         </p>
@@ -38,5 +42,5 @@ function resolve() {
             /><InputError :message="errors" />
             <div><Button type="submit" variant="outline" class="h-11" :disabled="form.processing">Проверить публикацию</Button></div>
         </form>
-    </details>
+    </component>
 </template>

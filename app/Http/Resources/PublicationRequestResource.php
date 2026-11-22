@@ -23,6 +23,7 @@ class PublicationRequestResource extends JsonResource
             'can_verify' => $this->whenLoaded('channel', fn(): bool => $this->channel?->canVerifyPublication() ?? false),
             'channel_name' => $this->whenLoaded('channel', fn(): ?string => $this->channel?->name),
             'status' => $this->status->value,
+            'url' => $this->whenLoaded('post', fn(): ?string => $this->post?->url),
             'error_message' => $this->error_message,
             'scheduled_at' => $this->scheduled_at?->toISOString(),
             'published_at' => $this->published_at?->toISOString(),

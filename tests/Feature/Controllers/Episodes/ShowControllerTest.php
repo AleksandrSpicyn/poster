@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ChannelType;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Models\Channel;
@@ -103,4 +104,22 @@ test('возвращает выбранный дубль и интервал б�
             ->where('assemblies.0.selection.0.trim_start_ms', 501)
             ->where('assemblies.0.selection.0.trim_end_ms', 1234)
             ->missing('assemblies.0.selection.0.media_id'));
+});
+
+test('выбор получателей исключает отключённые и чужие каналы даже при старой связи', function (): void {
+    $context = episodeHttpFixture();
+    $series = $context['episode']->series()->firstOrFail();
+    $project = $series->project()->firstOrFail();
+    $ready = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'is_active' => true, 'credentials' => ['access_token' => 'local-only']]);
+    $foreign = Channel::factory()->create(['type' => ChannelType::YOUTUBE, 'is_active' => true, 'credentials' => ['access_token' => 'foreign-only']]);
+    $project->channels()->attach($foreign);
+    Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM, 'is_active' => true, 'credentials' => null]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'is_active' => true, 'credentials' => ['access_token' => 'read-only', 'scope' => 'video.list']]);
+
+    actingAs($context['user'])
+        ->get(route('episodes.show', ['series' => $series, 'episode' => $context['episode']]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->has('channels', 1)
+            ->where('channels.0.id', $ready->id));
 });

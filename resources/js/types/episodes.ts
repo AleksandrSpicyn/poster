@@ -78,6 +78,7 @@ export interface EpisodeAssemblySummary {
     accepted_at: string | null;
 }
 export interface PublicationSummary {
+    platform?: string | null;
     url?: string | null;
     id: number;
     episode_assembly_id: number;
