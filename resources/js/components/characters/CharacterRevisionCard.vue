@@ -120,6 +120,10 @@ function selectFile(event: Event) {
     uploadForm.file = (event.target as HTMLInputElement).files?.[0] ?? null;
     uploadForm.clearErrors('file');
 }
+function imageCountLabel(count: number) {
+    const form = new Intl.PluralRules('ru').select(count);
+    return form === 'one' ? 'изображение' : form === 'few' ? 'изображения' : 'изображений';
+}
 </script>
 
 <template>
@@ -228,7 +232,7 @@ function selectFile(event: Event) {
                                 ></template
                             >
                             <template #preview>
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-3 py-4">
                                     <img :src="reference.url" alt="" class="h-14 w-20 rounded-md object-cover" /><span
                                         ><template v-if="reference.file_name || reference.label"
                                             >{{ reference.file_name || reference.label }} · </template
@@ -238,7 +242,10 @@ function selectFile(event: Event) {
                             </template>
                             <div class="studio-row">
                                 <dt>Сейчас</dt>
-                                <dd>{{ revision.references?.length }} · после удаления останется {{ (revision.references?.length ?? 1) - 1 }}</dd>
+                                <dd>
+                                    {{ revision.references?.length }} {{ imageCountLabel(revision.references?.length ?? 0) }} · после удаления
+                                    останется {{ (revision.references?.length ?? 1) - 1 }}
+                                </dd>
                             </div>
                         </ConfirmationDialog>
                     </figure>
