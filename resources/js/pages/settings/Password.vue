@@ -15,13 +15,13 @@ const route = useRoute();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
-        title: 'Password settings',
+        title: 'Безопасность',
         href: route('password.edit', undefined, false),
     },
 ];
 
-const passwordInput = ref<HTMLInputElement | null>(null);
-const currentPasswordInput = ref<HTMLInputElement | null>(null);
+const passwordInput = ref<InstanceType<typeof Input> | null>(null);
+const currentPasswordInput = ref<InstanceType<typeof Input> | null>(null);
 
 const form = useForm({
     current_password: '',
@@ -36,16 +36,12 @@ const updatePassword = () => {
         onError: (errors) => {
             if (errors.password) {
                 form.reset('password', 'password_confirmation');
-                if (passwordInput.value instanceof HTMLInputElement) {
-                    passwordInput.value.focus();
-                }
+                passwordInput.value?.focus();
             }
 
             if (errors.current_password) {
                 form.reset('current_password');
-                if (currentPasswordInput.value instanceof HTMLInputElement) {
-                    currentPasswordInput.value.focus();
-                }
+                currentPasswordInput.value?.focus();
             }
         },
     });
@@ -54,15 +50,15 @@ const updatePassword = () => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Password settings" />
+        <Head title="Безопасность" />
 
-        <SettingsLayout>
+        <SettingsLayout title="Безопасность" description="Учётная запись / Пароль">
             <div class="space-y-6">
-                <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
+                <HeadingSmall title="Параметры" />
 
                 <form @submit.prevent="updatePassword" class="space-y-6">
                     <div class="grid gap-2">
-                        <Label for="current_password">Current password</Label>
+                        <Label for="current_password">Текущий пароль</Label>
                         <Input
                             id="current_password"
                             ref="currentPasswordInput"
@@ -70,13 +66,13 @@ const updatePassword = () => {
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="current-password"
-                            placeholder="Current password"
+                            placeholder="Текущий пароль"
                         />
                         <InputError :message="form.errors.current_password" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password">New password</Label>
+                        <Label for="password">Новый пароль</Label>
                         <Input
                             id="password"
                             ref="passwordInput"
@@ -84,26 +80,26 @@ const updatePassword = () => {
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            placeholder="New password"
+                            placeholder="Новый пароль"
                         />
                         <InputError :message="form.errors.password" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password_confirmation">Confirm password</Label>
+                        <Label for="password_confirmation">Подтверждение</Label>
                         <Input
                             id="password_confirmation"
                             v-model="form.password_confirmation"
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            placeholder="Confirm password"
+                            placeholder="Подтверждение"
                         />
                         <InputError :message="form.errors.password_confirmation" />
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <Button :disabled="form.processing">{{ form.processing ? 'Saving…' : 'Save password' }}</Button>
+                        <Button :disabled="form.processing">{{ form.processing ? 'Сохранение…' : 'Обновить пароль' }}</Button>
 
                         <Transition
                             enter-active-class="transition ease-in-out"
@@ -111,7 +107,7 @@ const updatePassword = () => {
                             leave-active-class="transition ease-in-out"
                             leave-to-class="opacity-0"
                         >
-                            <p v-show="form.recentlySuccessful" role="status" class="text-primary text-sm">Changes saved.</p>
+                            <p v-show="form.recentlySuccessful" role="status" class="text-primary text-sm">Пароль обновлён.</p>
                         </Transition>
                     </div>
                 </form>

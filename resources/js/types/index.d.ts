@@ -4,6 +4,8 @@ import type { Config } from 'ziggy-js';
 
 export interface Auth {
     user: User;
+    can_view_logs: boolean;
+    can_view_queues: boolean;
     can_manage_series: boolean;
     can_manage_channels: boolean;
 }

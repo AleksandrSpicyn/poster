@@ -11,7 +11,7 @@ const route = useRoute();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
-        title: 'Appearance settings',
+        title: 'Оформление',
         href: route('appearance', undefined, false),
     },
 ];
@@ -19,11 +19,11 @@ const breadcrumbItems: BreadcrumbItem[] = [
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Appearance settings" />
+        <Head title="Оформление" />
 
-        <SettingsLayout>
+        <SettingsLayout title="Оформление" description="Учётная запись / Внешний вид">
             <div class="space-y-6">
-                <HeadingSmall title="Appearance settings" description="Update your account's appearance settings" />
+                <HeadingSmall title="Тема интерфейса" />
                 <AppearanceTabs />
             </div>
         </SettingsLayout>

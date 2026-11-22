@@ -14,7 +14,7 @@ const { main: mainNavItems, footer: footerNavItems } = useNavigation();
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" variant="sidebar">
         <SidebarHeader>
             <SidebarMenu>
                 <SidebarMenuItem>

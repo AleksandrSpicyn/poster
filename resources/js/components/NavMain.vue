@@ -12,16 +12,16 @@ const page = usePage<SharedData>();
 
 <template>
     <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        <SidebarGroupLabel>Студия</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <SidebarMenuButton
-                    class="h-11 md:h-8"
+                    class="h-11"
                     as-child
                     :is-active="item.isActive ?? (item.href === page.url.split('?')[0] || page.url.split('?')[0].startsWith(item.href + '/'))"
                     :tooltip="item.title"
                 >
-                    <Link :href="item.href">
+                    <Link :href="item.href" :aria-current="item.isActive ? 'page' : undefined">
                         <component :is="item.icon" />
                         <span>{{ item.title }}</span>
                     </Link>

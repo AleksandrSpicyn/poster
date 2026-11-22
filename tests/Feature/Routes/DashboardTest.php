@@ -27,6 +27,8 @@ test('пользователь видит кабинет', function (): void {
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('Dashboard')
+            ->where('auth.can_view_logs', false)
+            ->where('auth.can_view_queues', false)
             ->where('stats', ['prompts' => 0, 'pending' => 0, 'ready' => 0, 'posts' => 0])
             ->has('recentPrompts.data', 0)
             ->has('recentPosts.data', 0));

@@ -9,7 +9,7 @@ defineProps<Props>();
 
 <template>
     <div class="space-y-2">
-        <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ title }}</h1>
+        <h1 class="text-[30px] leading-[1.4] font-bold md:text-[40px]">{{ title }}</h1>
         <p v-if="description" class="text-muted-foreground max-w-2xl text-sm leading-relaxed">
             {{ description }}
         </p>

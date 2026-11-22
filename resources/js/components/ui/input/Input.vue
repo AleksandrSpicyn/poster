@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
+import { useTemplateRef } from 'vue'
 import { useVModel } from '@vueuse/core'
 
 const props = defineProps<{
@@ -13,6 +14,9 @@ const emits = defineEmits<{
   (e: 'update:modelValue', payload: string | number): void
 }>()
 
+const element = useTemplateRef<HTMLInputElement>('element')
+defineExpose({ focus: () => element.value?.focus() })
+
 const modelValue = useVModel(props, 'modelValue', emits, {
   passive: true,
   defaultValue: props.defaultValue,
@@ -21,6 +25,7 @@ const modelValue = useVModel(props, 'modelValue', emits, {
 
 <template>
   <input
+    ref="element"
     v-model="modelValue"
     data-slot="input"
     :class="cn(

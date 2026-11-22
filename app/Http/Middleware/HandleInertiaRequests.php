@@ -60,6 +60,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'can_view_logs' => $request->user() !== null && Gate::forUser($request->user())->allows('viewLogViewer'),
+                'can_view_queues' => $request->user() !== null && Gate::forUser($request->user())->allows('viewHorizon'),
                 'can_manage_channels' => $request->user() !== null && Gate::forUser($request->user())->allows('manageChannels'),
                 'can_manage_series' => $request->user() !== null && Gate::forUser($request->user())->allows('manageSeries'),
             ],
