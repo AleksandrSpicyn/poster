@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
-import { platformNames } from '@/types/analytics';
+import { counterNames, platformNames } from '@/types/analytics';
 import type { AnalyticsFilters, MetricsReport } from '@/types/analytics';
 
 const props = defineProps<{ report: MetricsReport; detail?: boolean; interval: string }>();
@@ -14,8 +14,9 @@ const filters = computed(() => props.report.filters);
 const draft = reactive<AnalyticsFilters>({ ...filters.value, exclude_channels: [...filters.value.exclude_channels] });
 const custom = ref(!!filters.value.from);
 watch(
-    () => props.report.filters,
-    (value) => {
+    () => JSON.stringify(props.report.filters),
+    () => {
+        const value = props.report.filters;
         Object.assign(draft, value, { exclude_channels: [...value.exclude_channels] });
         custom.value = !!value.from;
     },
@@ -35,7 +36,17 @@ function apply() {
     router.get(route(props.detail ? 'dashboard.analytics' : 'dashboard'), values);
 }
 function reset() {
-    Object.assign(draft, { days: 7, metric: 'views', project: null, platform: null, format: null, from: null, to: null, exclude_channels: [] });
+    Object.assign(draft, {
+        days: 7,
+        metric: 'views',
+        project: null,
+        platform: null,
+        format: null,
+        channel: null,
+        from: null,
+        to: null,
+        exclude_channels: [],
+    });
     custom.value = false;
 }
 function choosePeriod(event: Event) {
@@ -67,6 +78,21 @@ function toggle(id: number, event: Event) {
         ><select id="metric-project" v-model="draft.project">
             <option :value="null">Все проекты</option>
             <option v-for="p in report.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+        <label for="metric-platform">Площадка</label>
+        <select id="metric-platform" v-model="draft.platform">
+            <option :value="null">Все площадки</option>
+            <option v-for="(label, value) in platformNames" :key="value" :value="value">{{ label }}</option>
+        </select>
+        <label for="metric-format">Формат производства</label>
+        <select id="metric-format" v-model="draft.format">
+            <option :value="null">Все форматы</option>
+            <option value="short">Короткие ролики</option>
+            <option value="series">Сериалы</option>
+        </select>
+        <label for="metric-counter">Показатель</label>
+        <select id="metric-counter" v-model="draft.metric">
+            <option v-for="(label, value) in counterNames" :key="value" :value="value">{{ label }}</option>
         </select>
         <label v-for="c in filterChannels" :key="c.id" class="filter-channel"
             ><input type="checkbox" :checked="!draft.exclude_channels.includes(c.id)" @change="toggle(c.id, $event)" /><span
