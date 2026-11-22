@@ -15,6 +15,7 @@ const props = defineProps<{
     seriesId: number;
     enabled: boolean;
     autoPublish: boolean;
+    planComplete: boolean;
     pinnedChannelIds?: number[] | null;
     episodeTitle: string;
     episodeNumber: number;
@@ -45,9 +46,11 @@ const title = computed(() =>
           ? 'Производство остановлено'
           : attention.value
             ? 'Проверка производства'
-            : props.run
-              ? 'Ход производства'
-              : 'Запуск следующего эпизода',
+            : !props.run && props.planComplete
+              ? 'Производство завершено'
+              : props.run
+                ? 'Ход производства'
+                : 'Запуск следующего эпизода',
 );
 const episodeLabel = computed(() => 'Эпизод ' + String(props.episodeNumber).padStart(2, '0'));
 const recipients = computed(() =>
@@ -124,7 +127,9 @@ function change(action: 'stop' | 'resume') {
                               ? run.is_active
                                   ? 'Производство идёт'
                                   : run.status_label
-                              : 'Следующий эпизод'
+                              : planComplete
+                                ? 'Все эпизоды приняты'
+                                : 'Следующий эпизод'
                 }}</strong>
                 <p>
                     {{
@@ -141,7 +146,7 @@ function change(action: 'stop' | 'resume') {
                 </p>
             </div>
         </div>
-        <fieldset v-if="!run" class="run-channels">
+        <fieldset v-if="!run && !planComplete" class="run-channels">
             <legend class="sr-only">Каналы выпуска</legend>
             <label v-for="channel in channels" :key="channel.id">
                 <input
@@ -229,8 +234,10 @@ function change(action: 'stop' | 'resume') {
                     <dd>{{ recipientLabel }}</dd>
                 </div>
             </ConfirmationDialog>
-            <Button v-else-if="!run && enabled" :disabled="starting.processing" @click="start">Запустить производство</Button>
-            <p v-else class="text-muted-foreground text-sm">Проверьте настройки проекта и автоматизации сериала.</p>
+            <Button v-else-if="!run && !planComplete && enabled" :disabled="starting.processing" @click="start">Запустить производство</Button>
+            <p v-else-if="!planComplete && run?.status !== 'completed'" class="text-muted-foreground text-sm">
+                Проверьте настройки проекта и автоматизации сериала.
+            </p>
         </div>
         <InputError :message="Object.values(starting.errors).join(' ') || Object.values(transition.errors).join(' ')" />
     </section>
