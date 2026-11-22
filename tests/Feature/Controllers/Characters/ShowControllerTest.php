@@ -32,6 +32,7 @@ test('карточка возвращает версии и безопасные
         ->assertDontSee($media->getPath())
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('Characters/Show')
+            ->where('selectedEpisode', null)
             ->where('episodesCount', 1)
             ->where('character.id', $context['character']->id)
             ->where('revisions.data.0.references.0.id', $media->id)
@@ -81,4 +82,30 @@ test('гость не видит персонажа', function (): void {
     $context = serialCharacterContext();
 
     get(route('characters.show', $context['params']))->assertRedirect(route('login'));
+});
+
+test('сохраняет контекст выбранного эпизода с участием персонажа', function (): void {
+    $context = serialCharacterContext();
+    $episode = Episode::factory()->for($context['series'])->create(['number' => 3]);
+    $script = EpisodeRevision::factory()->for($episode)->create();
+    $script->characterRevisions()->attach($context['revision']);
+
+    actingAs(serialOperator())
+        ->get(route('characters.show', [...$context['params'], 'episode' => $episode->id]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('selectedEpisode', ['id' => $episode->id, 'number' => 3]));
+});
+
+test('отклоняет чужой эпизод и эпизод без персонажа', function (): void {
+    $context = serialCharacterContext();
+    $unrelated = Episode::factory()->for($context['series'])->create();
+    $foreign = Episode::factory()->create();
+    $script = EpisodeRevision::factory()->for($foreign)->create();
+    $script->characterRevisions()->attach($context['revision']);
+
+    foreach ([$unrelated, $foreign] as $episode) {
+        actingAs(serialOperator())
+            ->get(route('characters.show', [...$context['params'], 'episode' => $episode->id]))
+            ->assertNotFound();
+    }
 });

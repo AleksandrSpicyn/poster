@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { workspaceSubscription } from '@/composables/useWorkspaceRealtime';
-import type { ContinuationSource, Screenplay } from '@/types/episodes';
+import { Link, usePage } from '@inertiajs/vue3';
+import { useRoute } from 'ziggy-js';
+import type { ContinuationSource, EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
+import type { SharedData } from '@/types';
 import type { CharacterRevision } from '@/types/series';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue';
 import { computed, inject, ref, watch } from 'vue';
@@ -23,6 +26,8 @@ const props = defineProps<{
     online: boolean;
     draftStored: boolean;
 }>();
+const page = usePage<SharedData & EpisodeWorkspaceProps>();
+const route = useRoute();
 const subscription = inject(workspaceSubscription, null);
 const recoveringLine = defineModel<string>('recoveringLine', { required: true });
 const interrupted = ref(!props.online);
@@ -106,14 +111,30 @@ function error(path: string): string | undefined {
         <fieldset class="space-y-3 rounded-lg border p-4">
             <legend class="px-2 text-sm font-semibold">Персонажи и версии образов</legend>
             <p class="text-muted-foreground text-xs">Выберите утверждённый образ для каждого персонажа эпизода.</p>
-            <label v-for="character in characters" :key="character.id" class="flex min-h-11 cursor-pointer items-center gap-3 text-sm"
-                ><input
-                    type="checkbox"
-                    :checked="model.character_revision_ids.includes(character.id)"
-                    class="size-4"
-                    @change="toggleCharacter(character, $event)"
-                /><span>{{ character.character_name ?? 'Персонаж' }} · версия образа {{ character.number }}</span></label
-            >
+            <div v-for="character in characters" :key="character.id" class="flex min-h-11 flex-wrap items-center gap-3 text-sm">
+                <label class="flex cursor-pointer items-center gap-3"
+                    ><input
+                        type="checkbox"
+                        :checked="model.character_revision_ids.includes(character.id)"
+                        class="size-4"
+                        @change="toggleCharacter(character, $event)"
+                    /><span>{{ character.character_name ?? 'Персонаж' }} · версия образа {{ character.number }}</span></label
+                >
+                <Link
+                    v-if="page.props.screenplay?.character_revision_ids.includes(character.id)"
+                    class="text-primary underline"
+                    :href="
+                        route('characters.show', {
+                            project: page.props.project.id,
+                            series: page.props.series.id,
+                            character: character.character_id,
+                            episode: page.props.episode.id,
+                        })
+                    "
+                    :aria-label="'Открыть персонажа ' + (character.character_name || '')"
+                    >Открыть персонажа</Link
+                >
+            </div>
             <p v-if="!characters.length" class="text-muted-foreground text-sm">Сначала утвердите версию образа в библиотеке персонажей сериала.</p>
             <InputError :message="error('character_revision_ids')" />
         </fieldset>

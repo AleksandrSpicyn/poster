@@ -3,16 +3,21 @@ import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import type { BreadcrumbItemType } from '@/types';
+import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
-withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>(), { breadcrumbs: () => [] });
+const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>(), { breadcrumbs: () => [] });
+const mobileReturn = computed(() => props.breadcrumbs.find((item) => item.mobileReturn));
 const route = useRoute();
 const { setOpenMobile } = useSidebar();
 </script>
 <template>
     <header class="studio-top">
         <Link :href="route('dashboard')" class="md:hidden" aria-label="Poster — обзор студии"><AppLogo /></Link>
+        <nav v-if="mobileReturn" class="mx-3 min-w-0 md:hidden" aria-label="Хлебные крошки">
+            <Link :href="mobileReturn.href" class="block truncate text-sm underline" :title="mobileReturn.title">{{ mobileReturn.title }}</Link>
+        </nav>
         <button class="text-muted-foreground ml-auto min-h-11 text-sm md:hidden" @click="setOpenMobile(true)">Моя студия</button>
         <div class="hidden min-w-0 flex-1 items-center gap-4 md:flex">
             <Link class="text-muted-foreground shrink-0 text-sm" :href="route('dashboard')">Моя студия</Link>

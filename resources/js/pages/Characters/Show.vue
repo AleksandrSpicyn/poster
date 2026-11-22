@@ -18,6 +18,7 @@ const props = defineProps<{
     series: SeriesSummary;
     character: CharacterSummary;
     episodesCount: number;
+    selectedEpisode: { id: number; number: number } | null;
     revisions: PaginatedResource<CharacterRevision>;
     referenceViews: Record<string, string>;
 }>();
@@ -61,11 +62,15 @@ const nameForm = useForm({ name: props.character.name, lock_version: props.chara
 const revisionForm = useForm({ title: '', description: '', file: null as File | null });
 const revisionErrors = computed<Record<string, string | undefined>>(() => revisionForm.errors);
 const archiveForm = useForm({ lock_version: props.character.lock_version });
-const breadcrumbs = [
+const characterUrl = computed(() => route('characters.show', { ...params, ...(props.selectedEpisode ? { episode: props.selectedEpisode.id } : {}) }));
+const breadcrumbs = computed(() => [
     { title: 'Проекты', href: route('projects.index') },
     { title: props.project.name, href: route('projects.show', props.project.id) },
-    { title: props.character.name, href: route('characters.show', params) },
-];
+    { title: props.character.name, href: characterUrl.value + '#overview', mobileReturn: !!uploadRevision.value || newVersion.value },
+    ...(uploadRevision.value || newVersion.value
+        ? [{ title: uploadRevision.value ? 'Референсы' : 'Новая версия', href: characterUrl.value + sectionHash.value }]
+        : []),
+]);
 function saveName() {
     nameForm.patch(route('characters.update', params), { preserveState: 'errors' });
 }
@@ -84,7 +89,7 @@ function archive() {
     archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
 }
 function changePage(page: number) {
-    router.get(route('characters.show', params), { page }, { preserveScroll: true });
+    router.get(characterUrl.value, { page }, { preserveScroll: true });
 }
 </script>
 
@@ -177,11 +182,16 @@ function changePage(page: number) {
                     <img v-if="portrait" :src="portrait.url" :alt="character.name" class="aspect-[2.8] w-full rounded-lg object-cover" />
                     <strong>{{ series.name }}</strong>
                     <div>
-                        <p class="text-muted-foreground text-sm">Проект</p>
-                        <Link :href="route('projects.show', project.id)">{{ project.name }}</Link>
+                        <p class="text-muted-foreground text-sm">Сериал</p>
+                        <Link :href="route('series.show', { project: project.id, series: series.id })">{{ series.name }}</Link>
+                    </div>
+                    <div v-if="selectedEpisode">
+                        <p class="text-muted-foreground text-sm">Эпизод</p>
+                        <Link :href="route('episodes.show', { series: series.id, episode: selectedEpisode.id })"
+                            >Серия {{ String(selectedEpisode.number).padStart(2, '0') }}</Link
+                        >
                     </div>
                 </aside>
-                <a href="#overview" class="text-sm underline">К персонажу</a>
             </div>
             <div v-else class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
                 <img
