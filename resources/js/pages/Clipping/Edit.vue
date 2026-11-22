@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 type Connection = { id: number; name: string; driver: string };
@@ -42,6 +42,29 @@ const scope = useForm({ ...props.scope, import_accounts: props.supportsAccounts 
 const checking = ref(false);
 const keyOpen = ref(false);
 const keySaved = ref(false);
+const keyInput = ref<InstanceType<typeof Input> | null>(null);
+const keyToggle = ref<HTMLButtonElement | null>(null);
+function closeKey() {
+    keys.reset();
+    keys.clearErrors();
+    keyOpen.value = false;
+}
+async function toggleKey() {
+    if (keys.processing) return;
+    keySaved.value = false;
+    if (keyOpen.value) {
+        closeKey();
+        keyToggle.value?.focus();
+        return;
+    }
+    keyOpen.value = true;
+    await nextTick();
+    keyInput.value?.focus();
+}
+watch(tab, () => {
+    closeKey();
+    keySaved.value = false;
+});
 const tabs: { id: Tab; name: string }[] = [
     { id: 'driver', name: 'Драйвер' },
     { id: 'access', name: 'Доступ' },
@@ -103,10 +126,15 @@ function check() {
 }
 function updateKey() {
     keys.patch(route('clipping.key.update', props.connection.id), {
+        preserveScroll: true,
         onSuccess: () => {
-            keys.reset();
-            keyOpen.value = false;
+            closeKey();
             keySaved.value = true;
+            keyToggle.value?.focus();
+        },
+        onError: () => {
+            keys.reset();
+            keyInput.value?.focus();
         },
     });
 }
@@ -176,16 +204,38 @@ function selectConnection(event: Event) {
                         <button
                             type="button"
                             class="key-toggle text-sm underline"
+                            ref="keyToggle"
+                            aria-controls="connection-key"
                             :aria-expanded="keyOpen"
-                            @click="
-                                keyOpen = !keyOpen;
-                                keys.reset();
-                                keySaved = false;
-                            "
+                            :disabled="keys.processing"
+                            @click="toggleKey"
                         >
                             Обновить ключ
                         </button>
                     </div>
+                    <form v-if="keyOpen" id="connection-key" class="provider-key" novalidate @submit.prevent="updateKey">
+                        <Label for="new-key">Новый ключ API</Label>
+                        <Input
+                            ref="keyInput"
+                            id="new-key"
+                            v-model="keys.api_key"
+                            type="password"
+                            autocomplete="new-password"
+                            maxlength="4096"
+                            required
+                            :disabled="keys.processing"
+                            :aria-invalid="!!keys.errors.api_key"
+                            :aria-describedby="keys.errors.api_key ? 'key-error' : undefined"
+                        />
+                        <InputError id="key-error" role="alert" :message="keys.errors.api_key" />
+                        <div class="flex flex-wrap gap-2">
+                            <Button type="submit" :disabled="keys.processing">Сохранить ключ</Button>
+                            <Button type="button" variant="outline" :disabled="keys.processing" @click="toggleKey">Отмена</Button>
+                        </div>
+                    </form>
+                    <p v-else-if="keySaved" role="status" class="provider-result permission" data-status="available">
+                        <span class="permission-icon" aria-hidden="true">✓</span><strong>Ключ обновлён</strong>
+                    </p>
                     <div v-for="row in accessRows" :key="row.name" class="provider-result permission" :data-status="row.status">
                         <span class="permission-icon" aria-hidden="true">{{ row.status === 'available' ? '✓' : '!' }}</span>
                         <details v-if="row.name.startsWith('Проекты') && evidence?.projects === 'available'" class="checked-projects">
@@ -203,12 +253,6 @@ function selectConnection(event: Event) {
                         }}</span>
                     </div>
                     <Button :disabled="checking" @click="check">Проверить подключение</Button>
-                    <p v-if="keySaved" role="status">Ключ обновлён</p>
-                    <form v-if="keyOpen" class="studio-form" @submit.prevent="updateKey">
-                        <Label for="new-key">Новый ключ API</Label
-                        ><Input id="new-key" v-model="keys.api_key" type="password" autocomplete="new-password" maxlength="4096" required />
-                        <InputError :message="keys.errors.api_key" /><Button :disabled="keys.processing">Сохранить ключ</Button>
-                    </form>
                 </section>
                 <form v-else class="studio-panel scope-panel space-y-4" @submit.prevent="updateScope">
                     <h2>Область импорта</h2>
@@ -261,6 +305,19 @@ function selectConnection(event: Event) {
     </AppLayout>
 </template>
 <style scoped>
+.provider-key {
+    display: grid;
+    gap: 10px;
+    border-block-end: 1px solid var(--border);
+    padding: 12px 0 18px;
+}
+.provider-key input {
+    height: 44px;
+}
+.provider-key button {
+    min-height: 44px;
+}
+
 .provider-grid {
     display: grid;
     grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
