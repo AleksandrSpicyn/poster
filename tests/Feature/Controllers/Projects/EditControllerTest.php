@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Channel;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -68,4 +69,22 @@ test('оператор получает все каналы и точный вы
 
     actingAs(serialOperator())->get(route('projects.edit', $project))->assertInertia(fn(Assert $page): Assert => $page
         ->has('channels', 2)->where('selectedChannelIds', [$attached->id])->missing('channels.0.credentials')->missing('channels.0.client_secret'));
+});
+
+test('следующий запуск учитывает пропущенный час при переходе на летнее время', function (): void {
+    $project = Project::factory()->recycle(workspaceOwner())->create([
+        'schedule_enabled' => true, 'schedule_timezone' => 'America/New_York', 'schedule_time' => '02:30',
+    ]);
+    config(['production.schedule_enabled' => true]);
+    Carbon::setTestNow('2026-03-08T05:30:00Z');
+
+    try {
+        actingAs(workspaceOwner())->get(route('projects.edit', $project))
+            ->assertInertia(fn(Assert $page): Assert => $page
+                ->where('scheduleSettings.next', '2026-03-09T02:30:00-04:00')
+                ->where('scheduleSettings.time', '02:30')
+                ->where('scheduleSettings.configured', true));
+    } finally {
+        Carbon::setTestNow();
+    }
 });

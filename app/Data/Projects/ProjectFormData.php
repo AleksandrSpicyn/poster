@@ -14,5 +14,5 @@ class ProjectFormData extends Data
     /** @param Collection<int, Channel> $channels
      * @param list<int> $selectedChannelIds
      */
-    public function __construct(public ?Project $project, public Collection $channels, public array $selectedChannelIds) {}
+    public function __construct(public ?Project $project, public Collection $channels, public array $selectedChannelIds, public ?ProjectScheduleSettingsData $scheduleSettings = null) {}
 }

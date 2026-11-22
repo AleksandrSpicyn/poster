@@ -38,6 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('app:reconcile-publications --limit=50')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-productions --limit=50')->everyMinute()->withoutOverlapping(5);
 
+        $schedule->command('app:produce-content --scheduled --project-clock')
+            ->everyMinute()
+            ->when(fn(): bool => (bool) config('production.schedule_enabled'))
+            ->withoutOverlapping(5);
+
         $schedule->command('app:produce-content --scheduled')
             ->cron(config()->string('production.schedule_cron'))
             ->timezone(config()->string('production.schedule_timezone'))

@@ -11,13 +11,16 @@ use Illuminate\Support\Str;
 
 class ProduceContent extends Command
 {
-    protected $signature = 'app:produce-content {--project= : Produce content for one project} {--scheduled : Respect the disabled-by-default schedule switch}';
+    protected $signature = 'app:produce-content {--project= : Produce content for one project} {--scheduled : Respect the disabled-by-default schedule switch} {--project-clock : Check the local daily time of each configured project}';
 
     protected $description = 'Queue the next episode for series projects, or a standalone video for other projects';
 
     public function handle(StartProductionAction $action, GetActiveProjects $getProjects): int
     {
-        if ($this->option('scheduled') && ! config('production.schedule_enabled')) {
+        $projectClock = (bool) $this->option('project-clock');
+        $scheduled = $projectClock || $this->option('scheduled');
+
+        if ($scheduled && ! config('production.schedule_enabled')) {
             $this->info('Scheduled content production is disabled.');
 
             return self::SUCCESS;
@@ -31,12 +34,25 @@ class ProduceContent extends Command
             return self::INVALID;
         }
 
-        $key = $this->option('scheduled') ? 'schedule:' . now()->format('YmdHi') : 'manual:' . Str::uuid();
-        $projects = $getProjects->run($projectId);
+        $now = now();
+        $key = $scheduled ? 'schedule:' . $now->format('YmdHi') : 'manual:' . Str::uuid();
+        $projects = $getProjects->run($projectId, $scheduled ? $projectClock : null);
         $count = 0;
 
         foreach ($projects as $project) {
-            $count += $action->run($project, $key)->count();
+            $requestKey = $key;
+
+            if ($projectClock) {
+                $local = $now->copy()->setTimezone($project->schedule_timezone ?? 'UTC');
+
+                if ($local->format('H:i') !== $project->schedule_time) {
+                    continue;
+                }
+
+                $requestKey = 'project-day:' . $local->format('Ymd');
+            }
+
+            $count += $action->run($project, $requestKey)->count();
         }
 
         $this->info('Production requests: ' . $count);

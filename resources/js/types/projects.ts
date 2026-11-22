@@ -68,7 +68,14 @@ export interface ProjectPageProps extends SharedData {
     episodes: EpisodeSummary[];
 }
 
+export interface ProjectSchedule {
+    enabled: boolean;
+    time: string;
+    timezone: string;
+}
+
 export interface ProjectFormProps extends SharedData {
+    scheduleSettings?: ProjectSchedule & { configured: boolean; next: string | null; timezones: string[] };
     project:
         | (Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'content_mode' | 'is_active' | 'settings_version' | 'updated_at' | 'can_delete'> & {
               blocking_runs_count: number;

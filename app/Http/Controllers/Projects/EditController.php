@@ -46,6 +46,7 @@ class EditController
 
         return inertia('Projects/Form', [
             'project' => ProjectResource::make($details->project)->resolve(),
+            'scheduleSettings' => $details->scheduleSettings,
             'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
             'series' => $series === null ? null : SeriesResource::make($series)->resolve(),
             'channels' => ChannelResource::collection($details->channels)->resolve(),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Projects;
 
 use App\Data\ProjectData;
+use App\Data\Projects\ProjectScheduleData;
 use App\Enums\ProjectContentMode;
 use App\Models\Project;
 use App\Models\User;
@@ -38,6 +39,13 @@ class SaveProject
 
         $project->fill(['name' => $data->name, 'prompt' => $data->prompt, 'content_mode' => $data->content_mode,
             'is_active' => $data->is_active ?? $project->is_active]);
+
+        if ($data->schedule instanceof ProjectScheduleData) {
+            $project->schedule_enabled = $data->schedule->enabled;
+            $project->schedule_time = $data->schedule->time;
+            $project->schedule_timezone = $data->schedule->timezone;
+        }
+
         $this->projects->save($project);
 
         if ($data->content_mode === ProjectContentMode::SERIES) {

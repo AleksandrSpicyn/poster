@@ -312,3 +312,26 @@ test('сохраняет выбранные каналы одной пакетн
         ->and($project->channels()->count())->toBe($size)
         ->and($project->channels()->whereKey($removed->id)->exists())->toBeFalse();
 })->with([1, 10, 100]);
+
+test('владелец сохраняет расписание проекта отдельно от остальных настроек', function (): void {
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+    $other = Project::factory()->recycle(workspaceOwner())->create();
+    $schedule = ['enabled' => true, 'time' => '08:35', 'timezone' => 'Asia/Tokyo'];
+
+    actingAs(workspaceOwner())->patch(route('projects.update', $project), [...projectPayload(), 'schedule' => $schedule])
+        ->assertSessionHasNoErrors();
+
+    actingAs(workspaceOwner())->patch(route('projects.update', $project), projectPayload())
+        ->assertSessionHasNoErrors();
+
+    expect($project->refresh()->schedule_time)->toBe('08:35')
+        ->and($project->schedule_timezone)->toBe('Asia/Tokyo')
+        ->and($project->schedule_enabled)->toBeTrue()
+        ->and($other->refresh()->schedule_enabled)->toBeNull();
+
+    actingAs(workspaceOwner())->patchJson(route('projects.update', $project), [...projectPayload(), 'schedule' => [...$schedule, 'time' => '26:17', 'timezone' => 'somewhere']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['schedule.time', 'schedule.timezone']);
+
+    expect($project->refresh()->schedule_time)->toBe('08:35');
+});
