@@ -120,6 +120,7 @@ test('собирает фрагмент короче ста миллисекун
     expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
     expect($assembly->manifest['duration_ms'])->toBe($end - $start);
     expect($assembly->duration_ms)->toBe($end - $start);
+
     $video = $assembly->getFirstMedia(EpisodeAssembly::VIDEO);
     assert($video !== null);
     $decoded = Process::run(['ffmpeg', '-v', 'error', '-nostdin', '-i', $video->getPath(), '-map', '0:v:0', '-frames:v', '1', '-f', 'framemd5', '-']);
