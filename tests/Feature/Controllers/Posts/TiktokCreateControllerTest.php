@@ -77,7 +77,7 @@ test('ошибка проверки прямой публикации сохра
 test('видео показывает квитанцию выбранного канала владельца', function (): void {
     Storage::fake('local');
     $owner = User::factory()->create();
-    $project = Project::factory()->for($owner, 'owner')->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
     $channel = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK, 'credentials' => ['channel_id' => 'qa', 'scope' => 'video.upload', 'access_token' => 'fake-access']]);
     $other = Channel::factory()->for($project)->create();
     $prompt = Prompt::factory()->for($project)->create(['generated' => true]);
