@@ -146,13 +146,13 @@ class Tiktok extends AbstractPublisher implements StagedPublisher, VerifiablePub
     public function verifyPublication(string $externalId): VerifiedPublicationData
     {
         if (! preg_match('/^[0-9]{1,20}$/D', $externalId)) {
-            throw new PublicationVerificationException('Enter the numeric TikTok video ID.');
+            throw new PublicationVerificationException('Введите ссылку на видео TikTok или его числовой ID.');
         }
 
         $video = $this->client->videos($this->channel, [$externalId])[0] ?? [];
 
         if (($video['id'] ?? null) !== $externalId) {
-            throw new PublicationVerificationException('TikTok did not confirm ownership of this public video.');
+            throw new PublicationVerificationException('TikTok не подтвердил, что это видео опубликовано в выбранном канале.');
         }
 
         return new VerifiedPublicationData($externalId, 'https://www.tiktok.com/player/v1/' . $externalId);

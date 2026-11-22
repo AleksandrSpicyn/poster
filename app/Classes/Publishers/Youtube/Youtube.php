@@ -83,7 +83,7 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
     public function verifyPublication(string $externalId): VerifiedPublicationData
     {
         if (preg_match('/\A[A-Za-z0-9_-]{1,128}\z/', $externalId) !== 1) {
-            throw new PublicationVerificationException('Enter the YouTube video ID rather than its URL.');
+            throw new PublicationVerificationException('Введите ссылку на видео YouTube или его ID.');
         }
 
         $client = $this->getClient(readOnly: true);
@@ -96,14 +96,14 @@ class Youtube extends AbstractPublisher implements VerifiablePublisher
         $video = $videos[0] ?? null;
 
         if (! $video instanceof Video || $video->getId() !== $externalId) {
-            throw new PublicationVerificationException('YouTube did not return the selected video.');
+            throw new PublicationVerificationException('Видео не найдено на YouTube.');
         }
 
         $channelId = Payload::string($video->getSnippet()->getChannelId(), 'video.channelId');
         $owned = collect($ownedChannels)->contains(static fn(YoutubeChannel $channel): bool => $channel->getId() === $channelId);
 
         if (! $owned) {
-            throw new PublicationVerificationException('This YouTube video does not belong to the authorised channel.');
+            throw new PublicationVerificationException('Это видео принадлежит другому каналу YouTube.');
         }
 
         return new VerifiedPublicationData($externalId, $this->getUrl($externalId));

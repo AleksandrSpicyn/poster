@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Classes\Publications\PublicationReference;
 use App\Data\GetPostsListData;
 use App\Data\PostData;
 use App\Enums\ChannelType;
@@ -73,9 +74,16 @@ readonly class PostRepository extends EloquentRepository
                 ->orWhereRelation('seriesAssembly.series.project', 'owner_id', $owner->id));
     }
 
-    public function hasReceipt(PublicationRequest $request, string $externalId): bool
+    public function hasReceipt(PublicationRequest $request, PublicationReference $reference): bool
     {
-        return Post::query()->where('publication_request_id', $request->id)->where('external_id', $externalId)->exists();
+        $post = Post::query()->where('publication_request_id', $request->id)->first();
+
+        if ($post === null || $reference->platform !== ChannelType::INSTAGRAM) {
+            return $post !== null && $post->external_id === $reference->value;
+        }
+
+        return is_string($post->url) && preg_match('~\Ahttps://(?:www\.)?instagram\.com/(?:p|reel)/([A-Za-z0-9_-]+)/?(?:[?#].*)?\z~', $post->url, $match)
+            && $reference->value === 'https://www.instagram.com/reel/' . $match[1] . '/';
     }
 
     public function receiptUsedElsewhere(Channel $channel, PublicationRequest $request, string $externalId): bool

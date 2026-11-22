@@ -25,15 +25,15 @@ function resolve() {
     <details class="mt-3 rounded-lg border p-3">
         <summary class="cursor-pointer text-sm font-medium">Сверить результат отправки</summary>
         <p class="text-muted-foreground mt-3 text-xs">
-            Если ролик уже появился в подключённом аккаунте, введите его идентификатор. Poster сверит его с площадкой.
+            Если ролик уже появился в подключённом аккаунте, введите ссылку или ID. Poster сверит его с площадкой.
         </p>
         <form class="mt-3 grid gap-3" @submit.prevent="resolve">
-            <Label :for="'publication-id-' + publication.id">Идентификатор опубликованного видео</Label
+            <Label :for="'publication-id-' + publication.id">Ссылка или ID публикации</Label
             ><Input
                 :id="'publication-id-' + publication.id"
                 v-model="form.external_id"
                 required
-                maxlength="128"
+                maxlength="2048"
                 :disabled="form.processing"
             /><InputError :message="errors" />
             <div><Button type="submit" variant="outline" class="h-11" :disabled="form.processing">Проверить публикацию</Button></div>

@@ -182,7 +182,11 @@ function publish() {
                     new Date(publication.scheduled_at).toLocaleString()
                 }}</time>
                 <p v-if="publication.error_message" class="text-destructive mt-1 text-xs">{{ publication.error_message }}</p>
-                <PublicationRecoveryForm v-if="publication.status === 'submission_unknown'" :publication="publication" :params="params" />
+                <PublicationRecoveryForm
+                    v-if="publication.status === 'submission_unknown' && publication.can_verify"
+                    :publication="publication"
+                    :params="params"
+                />
             </li>
         </ul>
     </section>

@@ -20,7 +20,7 @@ readonly class VerifyPublication
         $publisher = $this->publishers->make($channel, $video);
 
         if (! $publisher instanceof VerifiablePublisher) {
-            throw new PublicationVerificationException('This provider does not support ownership verification.');
+            throw new PublicationVerificationException('Площадка не поддерживает проверку принадлежности видео.');
         }
 
         return $publisher->verifyPublication($externalId);

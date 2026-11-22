@@ -85,7 +85,8 @@ test('YouTube подтверждается только для авторизо�
         new Response(200, ['content-type' => 'application/json'], '{"items":[{"id":"video-id","snippet":{"channelId":"owned-channel"}}]}'),
     );
 
-    app(ResolveEpisodePublicationAction::class)->run($request, $user, 'video-id');
+    app(ResolveEpisodePublicationAction::class)->run($request, $user, 'https://www.youtube.com/watch?v=video-id');
+    app(ResolveEpisodePublicationAction::class)->run($request, $user, 'https://youtu.be/video-id');
 
     expect($request->refresh()->status)->toBe(PublicationStatus::PUBLISHED);
     expect(Post::query()->firstOrFail()->url)->toBe('https://www.youtube.com/shorts/video-id');
@@ -225,4 +226,31 @@ test('посторонний пользователь не проверяет п
     expect(Post::query()->exists())->toBeFalse();
     Http::assertNothingSent();
     Event::assertNotDispatched(PostCreated::class);
+});
+
+test('сверяет ссылку TikTok один раз и принимает повтор по ID', function (): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    Queue::fake();
+    $request = app(RequestEpisodePublicationAction::class)
+        ->run($assembly, new PublishEpisodeData([$channel->id]), $user)
+        ->firstOrFail();
+    $request->update(['status' => PublicationStatus::SUBMISSION_UNKNOWN]);
+
+    $channel->update(['type' => ChannelType::TIKTOK, 'external_account' => null, 'credentials' => [
+        'channel_id' => 'owned', 'access_token' => 'fake', 'scope' => 'video.list',
+        'expires_at' => now()->addDay()->toIso8601String(),
+    ]]);
+    Http::preventStrayRequests();
+    Http::fake(['*/video/query/*' => Http::response(['error' => ['code' => 'ok'], 'data' => ['videos' => [['id' => '123']]]])]);
+    Event::fake([PostCreated::class]);
+    $action = app(ResolveEpisodePublicationAction::class);
+
+    $action->run($request, $user, 'https://www.tiktok.com/@account/video/123');
+    $action->run($request, $user, '123');
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::PUBLISHED);
+    expect(Post::query()->sole()->url)->toBe('https://www.tiktok.com/player/v1/123');
+    Http::assertSentCount(1);
+    Event::assertDispatchedTimes(PostCreated::class, 1);
 });

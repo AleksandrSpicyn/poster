@@ -59,6 +59,33 @@ test('подтверждает receipt через чтение внешнего 
     Event::assertDispatchedTimes(PostCreated::class, 1);
 });
 
+test('находит видео по ссылке во второй странице аккаунта и принимает повтор без отправки', function (): void {
+    Storage::fake('local');
+    Queue::fake([PublishEpisodeJob::class]);
+    $context = publicationResolutionContext();
+    Event::fake([PostCreated::class]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'graph.instagram.com/ig-episode/media*' => Http::sequence()
+            ->push(['data' => [], 'paging' => ['next' => 'ignored', 'cursors' => ['after' => 'cursor']]])
+            ->push(['data' => [['id' => '123', 'shortcode' => 'Video']]]),
+        'graph.instagram.com/123*' => Http::response(['id' => '123', 'media_type' => 'VIDEO',
+            'owner' => ['id' => 'ig-episode'], 'permalink' => 'https://www.instagram.com/p/Video/']),
+    ]);
+
+    foreach (['https://instagram.com/reel/Video/?tracking=ignored', '123', 'https://www.instagram.com/p/Video/'] as $reference) {
+        actingAs($context['user'])
+            ->post(route('episodes.publications.resolve', $context['params']), ['external_id' => $reference])
+            ->assertSessionHasNoErrors();
+    }
+
+    expect($context['publication']->refresh()->status)->toBe(PublicationStatus::PUBLISHED);
+    expect(Post::query()->sole()->external_id)->toBe('123');
+    Http::assertSentCount(3);
+    Http::assertSent(fn(Request $request): bool => $request->method() === 'GET' && str_contains($request->url(), 'after=cursor'));
+    Event::assertDispatchedTimes(PostCreated::class, 1);
+});
+
 test('гость не подтверждает публикацию', function (): void {
     Storage::fake('local');
     Queue::fake([PublishEpisodeJob::class]);
@@ -88,14 +115,14 @@ test('неподтвержденный email блокирует проверку
     Http::assertNothingSent();
 });
 
-test('не принимает URL вместо внешнего ID', function (): void {
+test('отклоняет ссылку на другую площадку до обращения к API', function (): void {
     Storage::fake('local');
     Queue::fake([PublishEpisodeJob::class]);
     $context = publicationResolutionContext();
     Http::fake();
 
     actingAs($context['user'])
-        ->postJson(route('episodes.publications.resolve', $context['params']), ['external_id' => 'https://www.instagram.com/reel/example/'])
+        ->postJson(route('episodes.publications.resolve', $context['params']), ['external_id' => 'https://www.youtube.com/shorts/example'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['external_id']);
 

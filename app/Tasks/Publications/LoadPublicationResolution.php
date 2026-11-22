@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tasks\Publications;
 
+use App\Classes\Publications\PublicationReference;
 use App\Data\Publications\PreparedPublicationData;
+use App\Data\Publications\PublicationResolutionData;
 use App\Data\PublishVideoData;
+use App\Enums\ChannelType;
 use App\Enums\PublicationStatus;
 use App\Models\PublicationRequest;
 use App\Models\User;
@@ -26,35 +29,31 @@ class LoadPublicationResolution
         private readonly PostRepository $posts,
     ) {}
 
-    public function run(PublicationRequest $request, User $actor, string $externalId, bool $lock = false): ?PreparedPublicationData
+    public function run(PublicationRequest $request, User $actor, PublicationReference $reference, bool $lock = false): ?PreparedPublicationData
     {
-        $actor = $this->users->fresh($actor);
-
-        if (! $actor instanceof User) {
-            throw new AuthorizationException();
-        }
-
-        Gate::forUser($actor)->authorize('manageSeries', $request);
-
-        $context = $this->publications->resolutionContext($request, $lock);
+        $context = $this->context($request, $actor, $lock);
         $request = $context->request;
         $channel = $context->channel;
 
-        if (! $this->users->isVerified($actor->id) || $request->created_by !== $actor->id || $channel->owner_id !== $actor->id || $context->project->owner_id !== $actor->id || ! $this->channels->belongsToProject($channel, $context->project->id)) {
-            throw ValidationException::withMessages(['publication' => 'A verified operator and a channel from this project are required.']);
+        if ($reference->platform instanceof ChannelType && $reference->platform !== $channel->type) {
+            throw ValidationException::withMessages(['external_id' => 'Ссылка должна вести на площадку выбранного канала.']);
         }
 
         if ($request->status === PublicationStatus::PUBLISHED
-            && $this->posts->hasReceipt($request, $externalId)) {
+            && $this->posts->hasReceipt($request, $reference)) {
             return null;
         }
 
         if ($request->status !== PublicationStatus::SUBMISSION_UNKNOWN) {
-            throw ValidationException::withMessages(['publication' => 'Only an unknown external publication can be confirmed by its receipt.']);
+            throw ValidationException::withMessages(['publication' => 'Ручная сверка доступна только для отправок с неизвестным результатом.']);
         }
 
-        if ($this->posts->receiptUsedElsewhere($channel, $request, $externalId)) {
-            throw ValidationException::withMessages(['external_id' => 'This external video is already linked to another publication.']);
+        if (! $channel->canVerifyPublication()) {
+            throw ValidationException::withMessages(['publication' => 'Для сверки подключите канал с правом чтения публикаций.']);
+        }
+
+        if ($this->posts->receiptUsedElsewhere($channel, $request, $reference->value)) {
+            throw ValidationException::withMessages(['external_id' => 'Это видео уже связано с другой публикацией.']);
         }
 
         return new PreparedPublicationData($channel, new PublishVideoData(
@@ -68,5 +67,26 @@ class LoadPublicationResolution
             $request->series_assembly_id,
             short: $context->short,
         ), $request);
+    }
+
+    public function context(PublicationRequest $request, User $actor, bool $lock = false): PublicationResolutionData
+    {
+        $actor = $this->users->fresh($actor);
+
+        if (! $actor instanceof User) {
+            throw new AuthorizationException();
+        }
+
+        Gate::forUser($actor)->authorize('manageSeries', $request);
+
+        $context = $this->publications->resolutionContext($request, $lock);
+        $request = $context->request;
+        $channel = $context->channel;
+
+        if ($request->created_by !== $actor->id || $channel->owner_id !== $actor->id || $context->project->owner_id !== $actor->id || ! $this->channels->belongsToProject($channel, $context->project->id)) {
+            throw ValidationException::withMessages(['publication' => 'Проверьте привязку канала к проекту и доступ к аккаунту.']);
+        }
+
+        return $context;
     }
 }

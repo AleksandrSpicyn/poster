@@ -74,6 +74,15 @@ class Channel extends Model
         return $this->external_account === null && config()->boolean('services.tiktok.direct_post') && $this->hasTiktokScope('video.publish');
     }
 
+    public function canVerifyPublication(): bool
+    {
+        return $this->is_active && match ($this->type) {
+            ChannelType::TIKTOK => $this->hasTiktokScope('video.list'),
+            ChannelType::INSTAGRAM, ChannelType::YOUTUBE => filled($this->credentials['access_token'] ?? null),
+            ChannelType::VK => false,
+        };
+    }
+
     public function hasTiktokScope(string $permission): bool
     {
         $scope = $this->credentials['scope'] ?? null;

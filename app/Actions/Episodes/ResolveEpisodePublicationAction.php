@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Episodes;
 
+use App\Classes\Publications\PublicationReference;
 use App\Classes\Story\Snapshot;
 use App\Data\PostData;
 use App\Data\Publications\PreparedPublicationData;
+use App\Data\Publications\PublicationResolutionData;
 use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\PublicationRequest;
@@ -28,36 +30,33 @@ readonly class ResolveEpisodePublicationAction
 
     public function run(PublicationRequest $request, User $actor, string $externalId): void
     {
-        if (strlen($externalId) > 128 || preg_match('/\A[A-Za-z0-9_-]+\z/', $externalId) !== 1) {
-            throw ValidationException::withMessages(['external_id' => 'Enter an external video ID rather than a URL.']);
-        }
-
-        $context = $this->load->run($request, $actor, $externalId);
+        $reference = PublicationReference::parse($externalId);
+        $context = $this->load->run($request, $actor, $reference);
 
         if (! $context instanceof PreparedPublicationData) {
             return;
         }
 
         try {
-            $verified = $this->verify->run($context->channel, $context->video, $externalId);
+            $verified = $this->verify->run($context->channel, $context->video, $reference->value);
         } catch (PublicationVerificationException $exception) {
             throw ValidationException::withMessages(['external_id' => $exception->getMessage()]);
         } catch (Throwable) {
-            throw ValidationException::withMessages(['external_id' => 'The provider could not verify this video. Check the video ID and account read permissions before trying again.']);
+            throw ValidationException::withMessages(['external_id' => 'Площадка не подтвердила видео. Проверьте ссылку и права чтения у подключённого аккаунта.']);
         }
 
         $fingerprint = $this->channelFingerprint($context->channel);
         $payloadHash = Snapshot::hash($context->request->payload);
 
-        DB::transaction(function () use ($request, $actor, $externalId, $verified, $fingerprint, $payloadHash): void {
-            $current = $this->load->run($request, $actor, $externalId, lock: true);
+        DB::transaction(function () use ($request, $actor, $verified, $fingerprint, $payloadHash): void {
+            $current = $this->load->run($request, $actor, PublicationReference::parse($verified->externalId), lock: true);
 
             if (! $current instanceof PreparedPublicationData) {
                 return;
             }
 
             if ($fingerprint !== $this->channelFingerprint($current->channel) || $payloadHash !== Snapshot::hash($current->request->payload)) {
-                throw ValidationException::withMessages(['publication' => 'The publication or account changed during verification. Verify it again.']);
+                throw ValidationException::withMessages(['publication' => 'Данные публикации или канала изменились. Повторите проверку.']);
             }
 
             $video = $current->video;
@@ -73,6 +72,11 @@ readonly class ResolveEpisodePublicationAction
                 $video->seriesAssemblyId,
             ));
         });
+    }
+
+    public function review(PublicationRequest $request, User $actor): PublicationResolutionData
+    {
+        return $this->load->context($request, $actor);
     }
 
     private function channelFingerprint(Channel $channel): string

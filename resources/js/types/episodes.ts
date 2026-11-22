@@ -78,6 +78,7 @@ export interface PublicationSummary {
     id: number;
     episode_assembly_id: number;
     channel_id: number;
+    can_verify: boolean;
     channel_name: string | null;
     status: string;
     error_message: string | null;

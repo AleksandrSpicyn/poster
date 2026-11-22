@@ -69,8 +69,12 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
 
     public function verifyPublication(string $externalId): VerifiedPublicationData
     {
+        if (str_starts_with($externalId, 'https://www.instagram.com/reel/')) {
+            $externalId = $this->findMediaId(basename($externalId));
+        }
+
         if (preg_match('/\A[0-9]{1,64}\z/', $externalId) !== 1) {
-            throw new PublicationVerificationException('Enter the numeric Instagram media ID.');
+            throw new PublicationVerificationException('Введите ссылку на видео Instagram или его числовой ID.');
         }
 
         $response = $this->getClient($externalId)->get('', ['fields' => 'id,permalink,owner{id},media_type'])->throw();
@@ -81,15 +85,42 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
 
         if (! is_string($id) || $id !== $externalId || ! is_string($owner) || $owner !== $expectedOwner
             || $response->json('media_type') !== 'VIDEO') {
-            throw new PublicationVerificationException('Instagram did not confirm that this video belongs to the configured account.');
+            throw new PublicationVerificationException('Instagram не подтвердил принадлежность видео выбранному аккаунту.');
         }
 
         if (! is_string($url) || parse_url($url, PHP_URL_SCHEME) !== 'https'
             || ! in_array(parse_url($url, PHP_URL_HOST), ['instagram.com', 'www.instagram.com'], true)) {
-            throw new PublicationVerificationException('Instagram did not return a valid video permalink.');
+            throw new PublicationVerificationException('Instagram не вернул ссылку на опубликованное видео.');
         }
 
         return new VerifiedPublicationData($id, $url);
+    }
+
+    private function findMediaId(string $shortcode): string
+    {
+        $query = ['fields' => 'id,shortcode', 'limit' => 100];
+        $seen = [];
+
+        do {
+            $page = $this->getClient()->get('media', $query)->throw();
+
+            foreach ($page->collect('data') as $item) {
+                if (is_array($item) && ($item['shortcode'] ?? null) === $shortcode && is_string($item['id'] ?? null)) {
+                    return $item['id'];
+                }
+            }
+
+            $after = $page->json('paging.cursors.after');
+
+            if (! $page->json('paging.next') || ! is_string($after) || $after === '' || isset($seen[$after])) {
+                break;
+            }
+
+            $seen[$after] = true;
+            $query['after'] = $after;
+        } while (true);
+
+        throw new PublicationVerificationException('Видео по этой ссылке не найдено в подключённом аккаунте Instagram.');
     }
 
     protected function getClient(?string $id = null): PendingRequest|Factory

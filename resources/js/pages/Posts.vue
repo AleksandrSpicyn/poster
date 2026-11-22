@@ -10,7 +10,7 @@ import { publicationStates } from '@/lib/publicationStatus';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { PostsPageProps } from '@/types/content';
-import { Form, Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ExternalLink } from '@lucide/vue';
 import { useRoute } from 'ziggy-js';
 
@@ -46,17 +46,13 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Публикации', href: ro
                     <li v-for="item in page.props.requests" :key="item.id" class="py-2">
                         #{{ item.id }} · {{ item.channel_name }} · {{ publicationStates[item.status] ?? item.status }}
                         <span v-if="item.error_message">{{ item.error_message }}</span>
-                        <Form
-                            v-if="item.status === 'submission_unknown'"
-                            :action="route('posts.requests.resolve', item.id)"
-                            method="post"
-                            v-slot="{ errors, processing }"
+                        <Link
+                            v-if="item.status === 'submission_unknown' && item.can_verify"
+                            class="list-select"
+                            :href="route('posts.requests.review', item.id)"
                         >
-                            <h3 class="my-3 font-semibold">Сверка операции</h3>
-                            <label>Идентификатор видео на площадке <input name="external_id" class="list-select" required maxlength="128" /></label>
-                            <button type="submit" class="list-select" :disabled="processing">Проверить публикацию</button>
-                            <p v-if="errors.external_id || errors.publication" role="alert">{{ errors.external_id ?? errors.publication }}</p>
-                        </Form>
+                            Сверка операции
+                        </Link>
                     </li>
                 </ul>
             </section>
