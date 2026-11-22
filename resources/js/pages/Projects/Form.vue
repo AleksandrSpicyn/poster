@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -201,10 +202,10 @@ const sections = computed((): Record<string, string> =>
               main: 'Мир и сюжет',
               cast: 'Герои и звук',
               plan: 'Выпуски и автоматизация',
-              ...(props.project ? { automation: 'Автоматизация', access: 'Доступ' } : {}),
+              ...(props.project && section.value !== 'cast' ? { automation: 'Автоматизация', access: 'Доступ' } : {}),
           }
         : props.project
-          ? { main: 'Основное', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
+          ? { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
 );
 const selectedChannelNames = computed(() =>
@@ -291,7 +292,7 @@ function submit() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
-        <div class="workspace-page project-editor" :class="{ 'project-detail': detailSection }">
+        <div class="workspace-page project-editor" :class="{ 'project-detail': detailSection, 'schedule-editor': section === 'automation', 'cast-editor': section === 'cast' }">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading
                     :title="title"
@@ -330,7 +331,7 @@ function submit() {
                         class="project-tab"
                         >{{ label }}</a
                     >
-                    <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
+                    <Link v-if="project && section !== 'cast'" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
                 </nav>
                 <form
                     ref="formElement"
@@ -347,7 +348,7 @@ function submit() {
                                 : section === 'channels'
                                   ? 'Каналы проекта'
                                   : section === 'automation'
-                                    ? 'Расписание производства'
+                                    ? 'Расписание'
                                     : (sections[section] ?? (section === 'format' ? 'Формат производства' : ''))
                         }}
                     </h2>
@@ -662,10 +663,12 @@ function submit() {
                         <p class="text-muted-foreground text-xs">Отправка доступна после подключения и включения канала.</p>
                     </fieldset>
                     <div v-if="!['main', 'access', 'deletion'].includes(section)" class="flex flex-wrap items-center justify-end gap-3 border-t pt-5">
-                        <Button as-child variant="outline" class="h-11"><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button>
+                        <Button v-if="section !== 'automation'" as-child variant="outline" class="h-11"
+                            ><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button
+                        >
                         <Button type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
-                                v-else
+                                v-else-if="section !== 'automation'"
                                 class="size-4"
                                 aria-hidden="true"
                             />{{
@@ -685,9 +688,18 @@ function submit() {
                     </div>
                 </form>
                 <aside v-if="detailSection" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
-                    <h2 class="text-lg font-semibold">{{ isSeries && section !== 'format' ? form.name || 'Паспорт сериала' : 'Мои проекты' }}</h2>
+                    <ProjectArtwork v-if="project" :name="project.name" :cover="project.cover" class="aspect-[3/1] rounded-lg" />
+                    <h2 class="text-lg font-semibold">
+                        {{ project?.name || (isSeries && section !== 'format' ? form.name || 'Паспорт сериала' : 'Мои проекты') }}
+                    </h2>
+                    <template v-if="section === 'cast'">
+                        <div><span class="text-muted-foreground block text-sm">Проект</span>{{ project?.name || form.name }}</div>
+                        <div><span class="text-muted-foreground block text-sm">Сериал</span>{{ series?.last_episode_number ? 'Эпизод ' + String(series.last_episode_number).padStart(2, '0') : 'Нет эпизодов' }}</div>
+                    </template>
+                    <template v-else>
                     <div><span class="text-muted-foreground block text-sm">Студия</span>{{ auth.user.name }}</div>
                     <div><span class="text-muted-foreground block text-sm">Рабочая область</span>Моя студия</div>
+                </template>
                 </aside>
             </div>
         </div>
@@ -793,4 +805,46 @@ function submit() {
         grid-column: 1;
     }
 }
+.schedule-editor #project-form fieldset > label {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0 0 14px;
+}
+.schedule-editor fieldset input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+}
+.schedule-editor fieldset :is(input[type='time'], select) {
+    height: 46px;
+    background: var(--background);
+    color: var(--foreground);
+}
+.schedule-editor fieldset > p {
+    justify-content: start;
+    align-items: baseline;
+    gap: 16px;
+}
+.schedule-editor fieldset > p span {
+    width: 36%;
+}
+.schedule-editor #project-form > div:last-child {
+    justify-content: start;
+    margin-top: 14px;
+    padding-top: 12px;
+}
+@media (max-width: 767px) {
+    .schedule-editor #project-form {
+        padding: 14px 16px 20px;
+    }
+    .schedule-editor fieldset > p {
+        flex-direction: column;
+        gap: 0;
+    }
+    .schedule-editor fieldset > p span {
+        width: auto;
+    }
+}
+.cast-editor #project-form > .justify-end { justify-content: flex-start; }
 </style>
