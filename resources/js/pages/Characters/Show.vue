@@ -198,7 +198,7 @@ function changePage(page: number) {
                     v-if="portrait"
                     :src="portrait.url"
                     :alt="portrait.label || character.name"
-                    class="h-[211px] w-full rounded-xl object-cover md:h-[393px]"
+                    class="h-[210px] w-full rounded-xl object-cover max-md:object-[50%_54%] md:h-[393px]"
                 />
                 <div v-else class="studio-panel">
                     <h2>{{ character.name }}</h2>
@@ -336,10 +336,19 @@ function changePage(page: number) {
 }
 @media (max-width: 767px) {
     .character-overview {
-        gap: 19px;
+        padding-top: 16px;
+        gap: 27px;
     }
 }
 
+.character-overview .character-header > button {
+    font-weight: 700;
+}
+@media (min-width: 1100px) {
+    .character-overview .character-header > button {
+        margin-top: 6px;
+    }
+}
 .character-header {
     display: flex;
     align-items: start;
@@ -365,6 +374,9 @@ function changePage(page: number) {
     }
 }
 @media (max-width: 767px) {
+    .character-overview #character-versions {
+        margin-bottom: 21px;
+    }
     .character-version-row {
         grid-template-columns: 1fr;
         gap: 2px;

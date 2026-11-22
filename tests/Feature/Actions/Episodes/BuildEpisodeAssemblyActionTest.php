@@ -120,5 +120,10 @@ test('собирает фрагмент короче ста миллисекун
     expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
     expect($assembly->manifest['duration_ms'])->toBe($end - $start);
     expect($assembly->duration_ms)->toBe($end - $start);
-    expect($assembly->getFirstMedia(EpisodeAssembly::VIDEO))->not->toBeNull();
-})->with([[999, 1000], [480, 579]]);
+    $video = $assembly->getFirstMedia(EpisodeAssembly::VIDEO);
+    assert($video !== null);
+    $decoded = Process::run(['ffmpeg', '-v', 'error', '-nostdin', '-i', $video->getPath(), '-map', '0:v:0', '-frames:v', '1', '-f', 'framemd5', '-']);
+
+    expect($decoded->successful())->toBeTrue();
+    expect($decoded->output())->toMatch('/^0,.*[a-f0-9]{32}$/m');
+})->with([[999, 1000], [310, 330], [480, 579]]);
