@@ -61,6 +61,7 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
             foreach ($scene->shots as $shotPosition => $shot) {
                 $shots[] = [
                     'scene_id' => $saved->id, 'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
+                    'title' => $shot->title, 'plan_type' => $shot->plan_type,
                     'action' => $shot->action, 'camera' => ['description' => $shot->camera],
                     'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
                     'transition_mode' => $shot->transition_mode, 'source_prompt_id' => $shot->source_prompt_id,

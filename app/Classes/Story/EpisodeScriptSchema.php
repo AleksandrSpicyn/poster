@@ -18,6 +18,8 @@ class EpisodeScriptSchema
             'text' => $schema->string()->max(2000)->required(),
         ]);
         $shot = $schema->object([
+            'title' => $schema->string()->max(255)->required(),
+            'plan_type' => $schema->string()->max(255)->required(),
             'duration_ms' => $schema->integer()->min(4000)->max(30000)->required(),
             'action' => $schema->string()->required(),
             'camera' => $schema->string()->required(),

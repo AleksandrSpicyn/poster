@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property int $scene_id
  * @property int $position
  * @property int $duration_ms
+ * @property string|null $title
+ * @property string|null $plan_type
  * @property string $action
  * @property array<string, mixed> $camera
  * @property list<array<string, mixed>> $dialogue
@@ -41,6 +43,8 @@ class Shot extends Model
         'scene_id',
         'position',
         'duration_ms',
+        'title',
+        'plan_type',
         'action',
         'camera',
         'dialogue',

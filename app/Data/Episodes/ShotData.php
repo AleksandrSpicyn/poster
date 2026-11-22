@@ -22,5 +22,7 @@ class ShotData extends Data
         #[Min(1)] public ?int $source_prompt_id = null,
         #[Min(1)] public ?int $source_assembly_id = null,
         #[Min(0)] public int $source_time_ms = 0,
+        #[Max(255)] public ?string $title = null,
+        #[Max(255)] public ?string $plan_type = null,
     ) {}
 }

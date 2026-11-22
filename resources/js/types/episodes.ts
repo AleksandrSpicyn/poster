@@ -27,6 +27,8 @@ export interface ShotTake {
     operations: GenerationOperation[];
 }
 export interface ShotSummary {
+    title?: string | null;
+    plan_type?: string | null;
     transition_mode_label: string;
     id: number;
     scene_id: number;
@@ -105,6 +107,8 @@ export interface EpisodeSummary {
     script_generation_error: string | null;
 }
 export interface ScreenplayShot {
+    title?: string | null;
+    plan_type?: string | null;
     duration_ms: number;
     action: string;
     camera: string;
@@ -153,6 +157,8 @@ export interface EpisodeWorkspaceProps {
     requestKey: string;
     transitionModes: Record<string, string>;
     sourceAssembly: EpisodeAssemblySummary | null;
+    memoryAssembly: EpisodeAssemblySummary | null;
+    predecessorNumber: number | null;
 }
 export interface EpisodeRouteParams {
     series: number;

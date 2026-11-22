@@ -52,6 +52,10 @@ class ShowController
             'screenplay' => $details->script?->toArray(),
             'requestKey' => (string) Str::uuid(),
             'transitionModes' => TransitionMode::labels(),
+            'memoryAssembly' => $details->episode->currentRevision?->sourceAssembly === null
+                ? null
+                : EpisodeAssemblyResource::make($details->episode->currentRevision->sourceAssembly)->resolve(),
+            'predecessorNumber' => $details->episode->predecessor?->number,
             'sourceAssembly' => $details->episode->predecessor?->acceptedAssembly === null
                 ? null
                 : EpisodeAssemblyResource::make($details->episode->predecessor->acceptedAssembly)->resolve(),

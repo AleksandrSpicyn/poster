@@ -47,6 +47,8 @@ class GetEpisode
                         $shot->source_prompt_id,
                         $shot->source_assembly_id,
                         is_int($shot->source_anchor['time_ms'] ?? null) ? $shot->source_anchor['time_ms'] : 0,
+                        $shot->title,
+                        $shot->plan_type,
                     ))->all()),
                 ))->all()),
                 $revision->public_caption,

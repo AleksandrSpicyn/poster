@@ -19,6 +19,8 @@ class ShotResource extends JsonResource
             'scene_id' => $this->scene_id,
             'position' => $this->position,
             'duration_ms' => $this->duration_ms,
+            'title' => $this->title,
+            'plan_type' => $this->plan_type,
             'action' => $this->action,
             'camera' => $this->camera,
             'dialogue' => $this->dialogue,

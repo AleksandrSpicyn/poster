@@ -43,7 +43,10 @@ readonly class EpisodeRepository extends EloquentRepository
                 $query->with('media', 'generationOperations')->orderByDesc('take_number')->limit(10);
             },
             'acceptedAssembly.media',
-            'predecessor.acceptedAssembly.media',
+            'predecessor' => fn($previous) => $previous->where('series_id', $episode->series_id)->with(['acceptedAssembly' => fn($source) => $source
+                ->where('status', AssemblyStatus::ACCEPTED)->whereRelation('episodeRevision', 'episode_id', $episode->predecessor_episode_id)->with('media')]),
+            'currentRevision.sourceAssembly' => fn($source) => $source->where('status', AssemblyStatus::ACCEPTED)->whereHas('episodeRevision.episode', fn($previous) => $previous
+                ->whereKey($episode->predecessor_episode_id)->where('series_id', $episode->series_id))->with('media'),
         ]);
         $series = $episode->series ?? throw new LogicException('Missing episode series.');
         $assemblies = EpisodeAssembly::query()

@@ -92,6 +92,7 @@ test('дубль получает локальную цель и финал то
         ->for($context['scene'])
         ->create(['position' => 2, 'action' => 'The cat guides the boat into the tray.']);
     $shot = $position === 1 ? $context['shot'] : $lastShot;
+    $shot->update(['plan_type' => 'Крупный план']);
     Bus::fake([SubmitShotGenerationJob::class]);
     Process::fake();
 
@@ -100,6 +101,8 @@ test('дубль получает локальную цель и финал то
         ->assertRedirect();
 
     $take = $shot->prompts()->sole();
+    expect(data_get($take->input_snapshot, 'video_prompt'))->toContain('Крупный план');
+    expect(($position === 1 ? $lastShot : $context['shot'])->prompts()->count())->toBe(0);
     expect(data_get($take->input_snapshot, 'image_prompt'))
         ->toContain('Shelter the paper boat.', 'Water flows toward a paper boat.', $shot->action, 'Warm clay animation', 'No dialogue or narration.');
     expect(data_get($take->input_snapshot, 'image_prompt'))

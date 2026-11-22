@@ -275,8 +275,25 @@ function error(path: string): string | undefined {
                             >
                         </div>
                     </div>
-                    <div v-if="thumbnails?.[sceneIndex]?.[shotIndex]" class="flex items-center gap-3">
-                        <img class="size-16 rounded-md object-cover" :src="thumbnails[sceneIndex][shotIndex]" alt="" /><span>{{ shot.camera }}</span>
+                    <div class="shot-identity">
+                        <img
+                            v-if="thumbnails?.[sceneIndex]?.[shotIndex]"
+                            class="rounded-md object-cover"
+                            :src="thumbnails[sceneIndex][shotIndex]"
+                            alt=""
+                        />
+                        <div>
+                            <label class="sr-only" :for="`shot-title-${sceneIndex}-${shotIndex}`">Название кадра</label>
+                            <input
+                                :id="`shot-title-${sceneIndex}-${shotIndex}`"
+                                v-model="shot.title"
+                                maxlength="255"
+                                placeholder="Название кадра"
+                                class="shot-title"
+                            />
+                            <label class="sr-only" :for="`shot-plan-${sceneIndex}-${shotIndex}`">Тип плана</label>
+                            <input :id="`shot-plan-${sceneIndex}-${shotIndex}`" v-model="shot.plan_type" maxlength="255" placeholder="Тип плана" />
+                        </div>
                     </div>
                     <ShotScriptFields
                         v-model="scene.shots[shotIndex]"
@@ -304,6 +321,35 @@ function error(path: string): string | undefined {
 </template>
 
 <style scoped>
+.shot-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.shot-identity img {
+    width: clamp(64px, 7vw, 100px);
+    height: clamp(52px, 5.5vw, 80px);
+}
+.shot-identity > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.shot-identity input {
+    width: 100%;
+    border-radius: 4px;
+    padding: 5px;
+    color: var(--muted-foreground);
+    background: transparent;
+}
+.shot-identity input:focus-visible {
+    outline: 2px solid var(--ring);
+}
+.shot-identity .shot-title {
+    font-weight: 700;
+    color: var(--foreground);
+}
 .shot-forms {
     display: grid;
     gap: 12px;
