@@ -88,6 +88,7 @@ const project = computed(() => {
     return first && props.videos.data.every((item) => item.project?.id === first.id) ? first : null;
 });
 const duration = ref(0);
+const durationError = ref(false);
 const consentChanged = ref(false);
 const videoSelect = ref<HTMLSelectElement>();
 const tooLong = computed(() => form.mode === 'direct' && props.creator && duration.value > props.creator.duration);
@@ -107,6 +108,7 @@ const canSubmit = computed(
         (form.mode === 'inbox'
             ? props.inbox
             : props.creator &&
+              duration.value > 0 &&
               form.privacy &&
               (!form.disclose || form.own_brand || form.partner) &&
               (!form.partner || ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS'].includes(form.privacy))),
@@ -135,11 +137,14 @@ watch(
     () => form.media_id,
     () => {
         duration.value = 0;
+        durationError.value = false;
     },
 );
 function readDuration(event: Event) {
     const player = event.currentTarget;
-    if (player instanceof HTMLVideoElement && player.currentSrc === video.value?.url) duration.value = player.duration;
+    if (!(player instanceof HTMLVideoElement) || player.currentSrc !== video.value?.url) return;
+    duration.value = Number.isFinite(player.duration) && !player.error ? player.duration : 0;
+    durationError.value = duration.value <= 0;
 }
 function submit() {
     if (canSubmit.value)
@@ -253,6 +258,7 @@ watch(
                         aria-label="Предпросмотр ролика"
                         class="direct-video"
                         @loadedmetadata="readDuration"
+                        @error="readDuration"
                     />
                     <section v-if="tab === 'Статус'" class="studio-panel grid gap-4" aria-live="polite">
                         <h2>Статус отправки</h2>
@@ -326,6 +332,7 @@ watch(
                                 preload="metadata"
                                 class="h-48 max-w-full rounded-md bg-black"
                                 @loadedmetadata="readDuration"
+                                @error="readDuration"
                             />
                             <div v-else>
                                 <h2>Предпросмотр</h2>
@@ -348,6 +355,9 @@ watch(
                                 >
                             </div>
                         </template>
+                        <p v-if="video && durationError && form.mode === 'direct'" role="alert">
+                            Не удалось прочитать длительность ролика. Выберите другое видео.
+                        </p>
                         <p v-if="video && form.mode === 'inbox'">
                             Откройте уведомление в TikTok, чтобы завершить редактирование и опубликовать ролик.
                         </p>
