@@ -10,10 +10,15 @@ const chart = computed(() => {
     const spread = Math.max(1, maximum - minimum);
     const magnitude = 10 ** Math.floor(Math.log10(spread / 2));
     const step = Math.max(1, Math.ceil(spread / (2 * magnitude)) * magnitude);
-    const low = props.snapshots ? Math.floor(minimum / magnitude) * magnitude : Math.min(0, minimum);
-    const high = props.snapshots ? low + step * Math.ceil(Math.max(1, maximum - low) / step) : Math.max(low + 1, maximum);
+    const range = Math.max(1, Math.max(0, maximum) - Math.min(0, minimum));
+    const unit = 10 ** Math.floor(Math.log10(range / 3));
+    const dailyStep = Math.max(1, ([1, 2, 5, 10].find((n) => n * unit >= range / 3) ?? 10) * unit);
+    const low = props.snapshots ? Math.floor(minimum / magnitude) * magnitude : Math.floor(Math.min(0, minimum) / dailyStep) * dailyStep;
+    const high = props.snapshots
+        ? low + step * Math.ceil(Math.max(1, maximum - low) / step)
+        : Math.max(low + dailyStep, Math.ceil(Math.max(0, maximum) / dailyStep) * dailyStep);
     const y = (v: number) => (100 * (high - v)) / (high - low);
-    const tickCount = props.snapshots ? Math.round((high - low) / step) + 1 : 4;
+    const tickCount = Math.round((high - low) / (props.snapshots ? step : dailyStep)) + 1;
     const ticks = Array.from({ length: tickCount }, (_, i) => ({
         y: (100 * i) / (tickCount - 1),
         value: high - ((high - low) * i) / (tickCount - 1),
