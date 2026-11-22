@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data\Projects;
 
 use App\Data\OpusClip\GamingTrendReport;
+use App\Data\OpusClip\WeeklyClipViewsData;
 use App\Models\Character;
 use App\Models\Episode;
 use App\Models\OpusClip;
@@ -32,5 +33,6 @@ class ProjectWorkspaceData extends Data
         public Collection $episodes,
         public ?LengthAwarePaginator $clips,
         public array $trends,
+        public ?WeeklyClipViewsData $week = null,
     ) {}
 }

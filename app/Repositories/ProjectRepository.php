@@ -11,6 +11,8 @@ use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\LazyCollection;
 
@@ -43,10 +45,20 @@ readonly class ProjectRepository extends EloquentRepository
 
         return $query
             ->when($data->active, fn($query) => $query->where('is_active', true))
-            ->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value)
+            ->when($data->alphabetical, fn($query) => $query->orderBy('name'),
+                fn($query) => $query->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value))
             ->orderBy('id', $direction->value)
             ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
             ->withQueryString();
+    }
+
+    public function information(User $owner, int $id): Project
+    {
+        return Project::query()->where('owner_id', $owner->id)->with([
+            'media', 'coverFrame',
+            'channels' => fn(BelongsToMany $channels) => $channels->where('channels.owner_id', $owner->id),
+            'series' => fn(HasMany $series) => $series->withCount(['episodes', 'episodes as accepted_episodes_count' => fn(Builder $episodes) => $episodes->whereNotNull('accepted_assembly_id')]),
+        ])->withCount('prompts', 'readyPrompts')->findOrFail($id);
     }
 
     /** @return list<array{id: int, name: string}> */

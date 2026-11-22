@@ -24,5 +24,7 @@ class GetProjectsListData extends Data
         public ?int $page = 1,
         public bool $active = false,
         public bool $updated = false,
+        public bool $alphabetical = false,
+        #[IntegerType, Min(1)] public ?int $info = null,
     ) {}
 }

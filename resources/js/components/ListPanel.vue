@@ -10,6 +10,7 @@ defineProps<{
     loading: boolean;
     error: string;
     externalControls?: boolean;
+    compactFooter?: boolean;
     emptyTitle: string;
     emptyDescription: string;
 }>();
@@ -41,9 +42,12 @@ const emit = defineEmits<{ page: [value: number]; refresh: [] }>();
                 <EmptyState v-else :title="emptyTitle" :description="emptyDescription" />
             </div>
         </div>
-        <footer class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 text-sm sm:px-5">
-            <p class="text-muted-foreground" aria-live="polite">{{ meta.from ?? 0 }}–{{ meta.to ?? 0 }} из {{ meta.total }}</p>
-            <div class="flex items-center gap-2">
+        <footer class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm sm:px-5" :class="{ 'border-t': !compactFooter }">
+            <p class="text-muted-foreground" aria-live="polite">
+                <template v-if="compactFooter">Показано </template><template v-else>{{ meta.from ?? 0 }}–</template>{{ meta.to ?? 0 }} из
+                {{ meta.total }}
+            </p>
+            <div v-if="!compactFooter || meta.last_page > 1" class="flex items-center gap-2">
                 <Button
                     variant="outline"
                     size="icon"

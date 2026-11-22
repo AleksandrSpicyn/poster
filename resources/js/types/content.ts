@@ -47,6 +47,7 @@ export interface ListFilters {
     days?: number;
     active?: number | null;
     updated?: number;
+    alphabetical?: number;
 }
 
 export interface ListPageProps extends SharedData {

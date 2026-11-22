@@ -35,6 +35,7 @@ readonly class GetProjectAction
             episodes: $details->episodes ?? new Collection(),
             clips: $canReadClips ? $this->getClips->run($project, $filters) : null,
             trends: $canReadClips ? $this->getClips->trends($project) : [],
+            week: $canReadClips && $filters->week !== null ? $this->getClips->week($project, $filters->week) : null,
         );
     }
 }

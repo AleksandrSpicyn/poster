@@ -242,7 +242,7 @@ final readonly class OpusClipRepository extends EloquentRepository
     }
 
     /** @return LengthAwarePaginator<int, OpusClip> */
-    public function paginate(Project $project, int $perPage, int $page): LengthAwarePaginator
+    public function paginate(Project $project, int $perPage, int $page, bool $updated = false): LengthAwarePaginator
     {
         $clips = $this->query();
 
@@ -253,6 +253,7 @@ final readonly class OpusClipRepository extends EloquentRepository
         }
 
         return $clips->with(['source','latestMetrics'])
+            ->when($updated, fn($query) => $query->orderByDesc('updated_at'))
             ->orderByDesc('id')->paginate($perPage, page: $page)->withQueryString();
     }
 

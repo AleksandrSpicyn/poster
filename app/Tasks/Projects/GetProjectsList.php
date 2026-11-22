@@ -14,6 +14,11 @@ class GetProjectsList
 {
     public function __construct(private readonly ProjectRepository $projects) {}
 
+    public function information(User $owner, int $id): Project
+    {
+        return $this->projects->information($owner, $id);
+    }
+
     /** @return LengthAwarePaginator<int, Project> */
     public function run(User $owner, GetProjectsListData $data): LengthAwarePaginator
     {

@@ -26,6 +26,23 @@ final readonly class OpusMetricRepository
             ->where('observed_on', $day)->with('clip.source')->get();
     }
 
+    /** @return Collection<int, OpusClipMetric> */
+    public function clipWeek(Project $project, string $baseline, string $end): Collection
+    {
+        return OpusClipMetric::query()
+            ->join('opus_clips', 'opus_clips.id', '=', 'opus_clip_metrics.opus_clip_id')
+            ->join('opus_sources', 'opus_sources.id', '=', 'opus_clips.opus_source_id')
+            ->join('projects', 'projects.id', '=', 'opus_sources.project_id')
+            ->where('projects.owner_id', $project->owner_id)
+            ->when(
+                $project->opus_source_id,
+                fn($query) => $query->where('opus_sources.id', $project->opus_source_id),
+                fn($query) => $query->where('opus_sources.project_id', $project->id),
+            )
+            ->whereBetween('observed_on', [$baseline, $end])->orderBy('observed_on')->orderBy('opus_clip_metrics.id')
+            ->get(['opus_clip_metrics.*', 'opus_clips.title as clip_title']);
+    }
+
     /** @return LazyCollection<int, OpusClipMetric> */
     public function forDashboard(User $owner, MetricPeriodData $filters, string $from, string $to): LazyCollection
     {

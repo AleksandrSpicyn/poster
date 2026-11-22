@@ -8,6 +8,7 @@ use App\Actions\Projects\GetProjectsListAction;
 use App\Data\GetProjectsListData;
 use App\Enums\SortDirection;
 use App\Http\Resources\ProjectResource;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
@@ -36,10 +37,17 @@ class IndexController
      */
     public function __invoke(#[CurrentUser] User $owner, GetProjectsListData $data, GetProjectsListAction $action): Response
     {
+        $information = $data->info === null ? null : $action->information($owner, $data->info);
+
         return inertia('Projects/Index', [
+            'information' => $information instanceof Project ? [
+                'project' => ProjectResource::make($information)->resolve(), 'owner' => $owner->name,
+                'episodes' => $information->series->sum('episodes_count'),
+                'accepted' => $information->series->sum('accepted_episodes_count'),
+            ] : null,
             'projects' => ProjectResource::collection($action->run($owner, $data)),
             'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value,
-                ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : [])],
+                ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : []), ...($data->alphabetical ? ['alphabetical' => true] : [])],
             'sortDirections' => SortDirection::labels(),
         ]);
     }

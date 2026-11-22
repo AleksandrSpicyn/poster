@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Models\Channel;
+use App\Models\Episode;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -124,4 +126,32 @@ test('показывает активные проекты владельца п
     get(route('projects.index', ['active' => 1, 'updated' => 1]))
         ->assertInertia(fn(Assert $page): Assert => $page->has('projects.data', 2)
             ->where('projects.data.0.id', $new->id)->where('projects.data.1.id', $old->id)->where('filters.active', true));
+});
+
+test('алфавитный порядок и сведения проекта ограничены его владельцем', function (): void {
+    $owner = workspaceOwner();
+    $b = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Берег']);
+    $a = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Атлас']);
+    $series = Series::factory()->for($a)->create();
+    Episode::factory()->for($series)->create();
+    $channel = Channel::factory()->for($a)->create(['name' => 'Моя студия', 'client_secret' => 'protected-test-secret']);
+    $foreign = Channel::factory()->create();
+    $a->channels()->attach($foreign);
+
+    actingAs($owner)
+        ->get(route('projects.index', ['alphabetical' => 1, 'info' => $a->id]))
+        ->assertOk()
+        ->assertDontSee('protected-test-secret')
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('projects.data.0.id', $a->id)
+            ->where('projects.data.1.id', $b->id)
+            ->where('information.owner', $owner->name)
+            ->where('information.episodes', 1)
+            ->where('information.accepted', 0)
+            ->has('information.project.channels', 1)
+            ->where('information.project.channels.0.id', $channel->id));
+
+    actingAs(User::factory()->create())
+        ->get(route('projects.index', ['info' => $a->id]))
+        ->assertNotFound();
 });

@@ -14,6 +14,11 @@ readonly class GetProjectsListAction
 {
     public function __construct(private GetProjectsList $getProjects) {}
 
+    public function information(User $owner, int $id): Project
+    {
+        return $this->getProjects->information($owner, $id);
+    }
+
     /** @return LengthAwarePaginator<int, Project> */
     public function run(User $owner, GetProjectsListData $data): LengthAwarePaginator
     {
