@@ -34,9 +34,26 @@ onMounted(() => {
     window.addEventListener('hashchange', restoreTab);
 });
 onUnmounted(() => window.removeEventListener('hashchange', restoreTab));
+const requestError = ref('');
 const form = useForm({ external_id: '' });
 function verify() {
-    form.post(route('posts.requests.resolve', props.id), { preserveScroll: true });
+    requestError.value = '';
+    const anchor = window.location.hash;
+    form.post(route('posts.requests.resolve', props.id), {
+        preserveScroll: true,
+        onError: () => {
+            if (anchor) window.history.replaceState(window.history.state, '', anchor);
+        },
+        onNetworkError: () => {
+            requestError.value = 'Связь прервана. Повторите проверку после подключения.';
+            return false;
+        },
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            requestError.value = 'Не удалось сверить публикацию. Повторите проверку.';
+            return false;
+        },
+    });
 }
 </script>
 
@@ -71,7 +88,7 @@ function verify() {
                     ><Input id="channel" :model-value="channel" readonly /> <Label for="decision">Решение</Label
                     ><Input id="decision" model-value="Проверить на площадке" readonly /> <Label for="reference">Ссылка</Label
                     ><Input id="reference" v-model="form.external_id" maxlength="2048" required placeholder="Ссылка или ID публикации" />
-                    <p v-if="Object.keys(form.errors).length" role="alert">{{ Object.values(form.errors).join(' ') }}</p>
+                    <p v-if="requestError || form.hasErrors" role="alert">{{ requestError || Object.values(form.errors).join(' ') }}</p>
                 </form>
             </div>
             <div v-else class="review-detail">
@@ -105,7 +122,7 @@ function verify() {
                     <Label for="manual-reference">Ссылка или ID опубликованного видео</Label
                     ><Input id="manual-reference" v-model="form.external_id" required maxlength="2048" />
                     <p class="bg-muted p-3">Poster запросит состояние этой публикации. Видео повторно не отправляется.</p>
-                    <p v-if="Object.keys(form.errors).length" role="alert">{{ Object.values(form.errors).join(' ') }}</p>
+                    <p v-if="requestError || form.hasErrors" role="alert">{{ requestError || Object.values(form.errors).join(' ') }}</p>
                     <Button type="submit" :disabled="form.processing">Проверить публикацию</Button>
                 </form>
                 <aside class="studio-panel grid gap-2">
