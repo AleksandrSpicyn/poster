@@ -170,6 +170,7 @@ onMounted(() => {
 });
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
+const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation'].includes(section.value));
 const sections = computed((): Record<string, string> =>
     isSeries.value && section.value !== 'format'
         ? { main: 'Мир и сюжет', cast: 'Герои и звук', plan: 'Выпуски и автоматизация' }
@@ -198,10 +199,14 @@ function revealRequiredField(event: Event) {
     void nextTick(() => input.focus());
 }
 const formErrors = computed<Record<string, string | undefined>>(() => form.errors);
-const title = computed(() => (isSeries.value ? 'Паспорт сериала' : props.project ? 'Настройки проекта' : 'Новый проект'));
+const title = computed(() =>
+    isSeries.value && section.value !== 'format' ? 'Паспорт сериала' : props.project ? 'Настройки проекта' : 'Новый проект',
+);
 const cancelUrl = computed(() => (props.project ? route('projects.show', props.project.id) : route('projects.index')));
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    isSeries.value ? { title: 'Сериалы', href: route('series.index') } : { title: 'Проекты', href: route('projects.index') },
+    isSeries.value && section.value !== 'format'
+        ? { title: 'Сериалы', href: route('series.index') }
+        : { title: 'Проекты', href: route('projects.index') },
 ]);
 
 function submit() {
@@ -253,17 +258,30 @@ function submit() {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
-        <div class="workspace-page project-editor">
+        <div class="workspace-page project-editor" :class="{ 'project-detail': detailSection }">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading
                     :title="title"
                     :description="
-                        isSeries ? 'Создание или изменение проекта сериала' : project ? project.name + ' / Настройки' : 'Создание / Основные сведения'
+                        detailSection
+                            ? section === 'format'
+                                ? 'Формат производства'
+                                : undefined
+                            : isSeries
+                              ? 'Создание или изменение проекта сериала'
+                              : project
+                                ? project.name + ' / Настройки'
+                                : 'Создание / Основные сведения'
                     "
                 />
-                <Button v-if="section !== 'deletion'" type="submit" form="project-form" class="h-11" :disabled="form.processing || conflict">{{
-                    isSeries ? 'Сохранить сериал' : project ? 'Сохранить' : 'Создать проект'
-                }}</Button>
+                <Button
+                    v-if="section !== 'deletion' && !detailSection"
+                    type="submit"
+                    form="project-form"
+                    class="h-11"
+                    :disabled="form.processing || conflict"
+                    >{{ isSeries ? 'Сохранить сериал' : project ? 'Сохранить' : 'Создать проект' }}</Button
+                >
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
                 <nav
@@ -350,7 +368,7 @@ function submit() {
                         class="grid gap-2"
                     >
                         <fieldset v-if="section === 'format'" class="grid gap-2">
-                            <legend class="mb-2 text-sm font-semibold">Формат производства</legend>
+                            <legend class="sr-only">Формат производства</legend>
                             <label
                                 v-for="(label, value) in contentModes"
                                 :key="value"
@@ -405,12 +423,7 @@ function submit() {
                             :message="form.errors.series_specification"
                         /><InputError :message="formErrors['series_specification.premise']" />
                     </div>
-                    <div
-                        v-if="
-                            section === 'plan' || (!isSeries && (section === 'automation' || section === 'format' || (project && section === 'main')))
-                        "
-                        class="grid gap-2"
-                    >
+                    <div v-if="!isSeries && (section === 'automation' || (project && section === 'main'))" class="grid gap-2">
                         <Label for="project-active">Состояние</Label>
                         <select id="project-active" v-model="form.is_active" class="list-select" :disabled="form.processing || conflict">
                             <option :value="true">Активен</option>
@@ -508,8 +521,8 @@ function submit() {
                         v-if="auth.can_manage_channels && section === 'channels'"
                         class="space-y-3 rounded-lg border p-4 sm:p-5"
                     >
-                        <legend class="px-2 text-sm font-semibold">Каналы публикации</legend>
-                        <p class="text-muted-foreground text-sm">Снятие выбора затронет только этот проект.</p>
+                        <legend class="sr-only">Каналы публикации</legend>
+
                         <div v-if="channels.length" class="grid gap-2">
                             <label
                                 v-for="channel in channels"
@@ -547,6 +560,10 @@ function submit() {
                         <p v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
                             Подключите канал, чтобы выбрать его для проекта.
                         </p>
+                        <div class="border-primary bg-muted rounded-md border-l-4 px-3 py-2">
+                            <strong class="block text-sm">Один владелец</strong>
+                            <p class="text-muted-foreground text-sm">Снятие выбора затронет только этот проект.</p>
+                        </div>
                         <InputError :message="form.errors.channel_ids" />
                         <InputError
                             v-for="(error, key) in formErrors"
@@ -581,6 +598,11 @@ function submit() {
                         >
                     </div>
                 </form>
+                <aside v-if="detailSection" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
+                    <h2 class="text-lg font-semibold">{{ isSeries && section !== 'format' ? form.name || 'Паспорт сериала' : 'Мои проекты' }}</h2>
+                    <div><span class="text-muted-foreground block text-sm">Студия</span>{{ auth.user.name }}</div>
+                    <div><span class="text-muted-foreground block text-sm">Рабочая область</span>Моя студия</div>
+                </aside>
             </div>
         </div>
     </AppLayout>
@@ -650,6 +672,39 @@ function submit() {
     }
     .project-editor #project-form {
         padding: 16px 16px 32px;
+    }
+}
+.project-detail nav h2 {
+    display: none;
+}
+.project-detail #project-form {
+    padding: 20px 24px;
+}
+.project-detail #publishing-channels {
+    padding: 0;
+    border: 0;
+}
+@media (min-width: 1100px) {
+    .project-editor.project-detail > .grid {
+        grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+        gap: 20px;
+    }
+    .project-detail nav {
+        min-height: 0;
+        padding: 0;
+        grid-column: 1 / -1;
+        flex-direction: row;
+        border: 0;
+        background: transparent;
+    }
+    .project-detail nav .project-tab {
+        background: var(--muted);
+    }
+    .project-detail nav .project-tab[aria-current='page'] {
+        background: var(--sidebar-accent);
+    }
+    .project-detail #project-form {
+        grid-column: 1;
     }
 }
 </style>
