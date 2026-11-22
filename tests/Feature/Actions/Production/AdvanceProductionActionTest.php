@@ -347,13 +347,14 @@ test('неподключённый или выключенный канал за
 test('отправляет готовый эпизод только выбранным каналам', function (bool $deliver): void {
     Storage::fake('local');
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
-    $episode = $assembly->episodeRevision->episode;
-    $series = $episode->series;
-    $series->project->update(['content_mode' => ProjectContentMode::SERIES]);
+    $episode = $assembly->episodeRevision()->firstOrFail()->episode()->firstOrFail();
+    $series = $episode->series()->firstOrFail();
+    $project = $series->project()->firstOrFail();
+    $project->update(['content_mode' => ProjectContentMode::SERIES]);
     $series->update(['automation_enabled' => true, 'auto_publish' => false]);
-    Channel::factory()->for($series->project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'fake']]);
+    Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'fake']]);
     $ids = $deliver ? [$channel->id] : [];
-    $run = ProductionRun::factory()->for($series->project)->for($series)->create([
+    $run = ProductionRun::factory()->for($project)->for($series)->create([
         'episode_id' => $episode->id, 'episode_assembly_id' => $assembly->id, 'actor_id' => $owner->id,
         'stage' => ProductionStage::PUBLICATION, 'input_snapshot' => ['channel_ids' => $ids, 'manual_delivery' => true],
     ]);
@@ -367,7 +368,7 @@ test('отправляет готовый эпизод только выбран
     if ($deliver) {
         $request = PublicationRequest::query()->sole();
         $request->update(['scheduled_at' => now()->subMinute()]);
-        $series->project->channels()->detach($channel);
+        $project->channels()->detach($channel);
         expect(app(ClaimPublication::class)->run($request))->toBeFalse()
             ->and($request->refresh()->status)->toBe(PublicationStatus::FAILED);
     } else {
@@ -380,11 +381,12 @@ test('отправляет готовый эпизод только выбран
 test('закрепляет пустой выбор в самом эпизоде перед подготовкой сценария', function (): void {
     Storage::fake('local');
     ['episode' => $episode, 'user' => $owner] = episodeHttpFixture();
-    $series = $episode->series;
-    $series->project->update(['content_mode' => ProjectContentMode::SERIES]);
+    $series = $episode->series()->firstOrFail();
+    $project = $series->project()->firstOrFail();
+    $project->update(['content_mode' => ProjectContentMode::SERIES]);
     $series->update(['automation_enabled' => false, 'auto_publish' => false]);
     Bus::fake();
-    $run = app(StartProductionAction::class)->run($series->project, 'manual-episode', $owner, $series->id, [])->sole();
+    $run = app(StartProductionAction::class)->run($project, 'manual-episode', $owner, $series->id, [])->sole();
 
     app(AdvanceProductionAction::class)->run($run->id);
 
