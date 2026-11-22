@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import SeriesAssemblyParameters from '@/components/SeriesAssemblyParameters.vue';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
+import type { ProjectSummary } from '@/types/projects';
 import type { AssemblyParameters } from '@/types/series';
 import SeriesBoundaryReview from '@/components/SeriesBoundaryReview.vue';
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
@@ -8,8 +10,9 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { CircleCheck, Info, Circle } from '@lucide/vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -26,7 +29,15 @@ const props = defineProps<{
         source_versions: Record<number, number>;
         review: { notes?: string; boundaries?: Record<string, { notes: string; reviewed: boolean }> } | null;
     };
-    series: { id: number; name: string; project_id: number; final_assembly_id: number | null; release_started_at: string | null };
+    series: {
+        id: number;
+        name: string;
+        project_id: number;
+        newer_assembly: { number: number; status: string } | null;
+        final_assembly_id: number | null;
+        release_started_at: string | null;
+    };
+    project: Pick<ProjectSummary, 'name' | 'cover'>;
     release_started: boolean;
     parameters: AssemblyParameters;
 }>();
@@ -69,6 +80,9 @@ const parts = computed(() => {
     });
 });
 const timecode = (ms: number) => [Math.floor(ms / 60000), Math.floor(ms / 1000) % 60].map((value) => String(value).padStart(2, '0')).join(':');
+const versionNumber = (number: number) => String(number).padStart(2, '0');
+const durationLabel = computed(() => (props.assembly.duration_ms === null ? '' : timecode(props.assembly.duration_ms)));
+const partRanges = computed(() => parts.value.map((part) => timecode(part.start) + '–' + timecode(part.start + part.duration_ms)).join(', '));
 const video = ref<HTMLVideoElement | null>(null);
 const form = useForm({ lock_version: props.assembly.lock_version, boundaries_reviewed: false, review_notes: '' });
 const pinned = computed(() => props.release_started && props.assembly.id === props.series.final_assembly_id);
@@ -99,6 +113,17 @@ function savedJoint(number: number) {
     window.history.replaceState(window.history.state, '', '#joint-' + number);
 }
 const boundariesComplete = computed(() => boundaries.value.every((part) => props.assembly.review?.boundaries?.['after_' + part.number]?.reviewed));
+async function openReview() {
+    const missing = boundaries.value.find((part) => !props.assembly.review?.boundaries?.['after_' + part.number]?.reviewed);
+    if (missing) {
+        showJoint(missing.number);
+        return;
+    }
+    window.location.hash = 'assembly';
+    tab.value = 'assembly';
+    await nextTick();
+    document.querySelector<HTMLInputElement>('#assembly-review input')?.focus();
+}
 async function playBoundary(time: number) {
     if (video.value) {
         video.value.currentTime = Math.max(0, time - 2);
@@ -115,9 +140,9 @@ async function playBoundary(time: number) {
 <template>
     <AppLayout :breadcrumbs="[{ title: 'Сериалы', href: route('series.index') }]">
         <Head :title="series.name + ' · Сборка сериала'" />
-        <div class="workspace-page">
+        <div class="workspace-page" :class="{ 'status-page': tab === 'status' }">
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading title="Сборка сериала" :description="series.name + ' / Полная версия'" />
+                <Heading title="Сборка сериала" :description="tab === 'status' ? undefined : series.name + ' / Полная версия'" />
                 <Button
                     v-if="tab === 'assembly' && assembly.status === 'ready' && !release_started"
                     class="h-11"
@@ -174,15 +199,95 @@ async function playBoundary(time: number) {
                     <p v-if="playbackError" role="status">Воспроизведение доступно через элементы управления плеера.</p>
                 </aside>
             </div>
-            <section v-else-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
-                <h2>{{ pinned ? 'Версия ' + assembly.number + ' закреплена' : statusLabels[assembly.status] }}</h2>
-                <template v-if="pinned">
-                    <p>В заявке на выпуск сохранена именно эта принятая сборка.</p>
-                    <div v-if="series.release_started_at" class="studio-row">
-                        <span>Отправка</span
-                        ><time :datetime="series.release_started_at">{{ releaseTime.format(new Date(series.release_started_at)) }} UTC</time>
+            <div v-else-if="tab === 'status' && (pinned || assembly.status === 'ready')" class="assembly-status-grid">
+                <section class="studio-panel assembly-status" aria-live="polite">
+                    <h2>{{ pinned ? 'Статус' : 'Версия ' + versionNumber(assembly.number) }}</h2>
+                    <div class="assembly-notice">
+                        <CircleCheck aria-hidden="true" />
+                        <div>
+                            <h3>{{ pinned ? 'Версия ' + versionNumber(assembly.number) + ' закреплена' : 'Сборка готова' }}</h3>
+                            <p>
+                                {{
+                                    pinned
+                                        ? 'В заявке на выпуск сохранена именно эта принятая сборка.'
+                                        : 'Версия ' + versionNumber(assembly.number) + (durationLabel ? ' · ' + durationLabel : '')
+                                }}
+                            </p>
+                        </div>
                     </div>
-                </template>
+                    <template v-if="pinned">
+                        <div v-if="series.release_started_at" class="studio-row">
+                            <span>Отправка</span
+                            ><time :datetime="series.release_started_at"
+                                >{{ releaseTime.format(new Date(series.release_started_at)) }} UTC · версия {{ versionNumber(assembly.number) }}</time
+                            >
+                        </div>
+                        <template v-if="series.newer_assembly">
+                            <div class="studio-row">
+                                <span>Новый монтаж</span
+                                ><span
+                                    >Версия {{ versionNumber(series.newer_assembly.number) }} · {{ statusLabels[series.newer_assembly.status] }}</span
+                                >
+                            </div>
+                            <div class="assembly-notice history">
+                                <Info aria-hidden="true" />
+                                <div>
+                                    <h3>История выпуска</h3>
+                                    <p>Изменения версии {{ versionNumber(series.newer_assembly.number) }} относятся к следующей сборке.</p>
+                                </div>
+                            </div>
+                        </template>
+                        <a v-if="assembly.video_url" class="assembly-pinned-link" href="#assembly" @click="tab = 'assembly'"
+                            >Посмотреть отправленную сборку ↗</a
+                        >
+                        <p>
+                            Версия {{ versionNumber(assembly.number) }}<span v-if="durationLabel"> · {{ durationLabel }}</span>
+                        </p>
+                    </template>
+                    <template v-else>
+                        <a href="#assembly" class="assembly-thumbnail" aria-label="Посмотреть сборку" @click="tab = 'assembly'"
+                            ><video
+                                v-if="assembly.video_url"
+                                :src="assembly.video_url + '#t=0.001'"
+                                muted
+                                playsinline
+                                preload="auto"
+                                aria-hidden="true"
+                            /><strong>{{ series.name }} · Эпизодов {{ parts.length }}</strong></a
+                        >
+                        <div class="assembly-check">
+                            <CircleCheck v-if="assembly.video_url" aria-hidden="true" /><Circle v-else aria-hidden="true" />
+                            <div>
+                                <strong>{{ assembly.video_url ? 'Файл проверен' : 'Файл недоступен' }}</strong>
+                                <p v-if="assembly.video_url">Видео и звук читаются</p>
+                            </div>
+                        </div>
+                        <div class="assembly-check">
+                            <CircleCheck v-if="boundariesComplete" aria-hidden="true" /><Circle v-else aria-hidden="true" />
+                            <div>
+                                <strong>{{ boundariesComplete ? 'Границы проверены' : 'Проверьте границы' }}</strong>
+                                <p>{{ partRanges }}</p>
+                            </div>
+                        </div>
+                        <Button v-if="!release_started" type="button" class="h-11" @click="openReview">{{
+                            boundariesComplete ? 'Принять версию' : 'Проверить стыки'
+                        }}</Button>
+                        <p v-else>Для этого выпуска закреплена другая версия.</p>
+                    </template>
+                </section>
+                <aside class="studio-panel assembly-context">
+                    <ProjectArtwork :name="project.name" :cover="project.cover" class="h-[106px] w-full rounded-lg" />
+                    <h2>{{ series.name }}</h2>
+                    <dl>
+                        <dt>Проект</dt>
+                        <dd>{{ project.name }}</dd>
+                        <dt>Эпизоды</dt>
+                        <dd>{{ parts.length }}</dd>
+                    </dl>
+                </aside>
+            </div>
+            <section v-else-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
+                <h2>{{ statusLabels[assembly.status] }}</h2>
                 <p>
                     Версия {{ assembly.number }}<span v-if="assembly.duration_ms"> · {{ (assembly.duration_ms / 1000).toLocaleString('ru') }} с</span>
                 </p>
@@ -201,9 +306,7 @@ async function playBoundary(time: number) {
                     aria-label="Видео итоговой версии"
                     class="max-h-72 w-full rounded-xl bg-black"
                 />
-                <a v-if="assembly.video_url" href="#assembly" class="underline" @click="tab = 'assembly'">{{
-                    pinned ? 'Посмотреть отправленную сборку' : 'Посмотреть сборку'
-                }}</a>
+                <a v-if="assembly.video_url" href="#assembly" class="underline" @click="tab = 'assembly'">Посмотреть сборку</a>
                 <Button v-else variant="outline" @click="router.reload()">Обновить состояние сборки</Button>
             </section>
             <div v-if="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
@@ -300,6 +403,137 @@ async function playBoundary(time: number) {
 </template>
 
 <style scoped>
+.status-page {
+    gap: 20px;
+}
+.status-page > nav a {
+    min-height: 40px;
+    padding-inline: 12px;
+    font-weight: 400;
+}
+.assembly-status-grid {
+    display: grid;
+    align-items: start;
+    gap: 20px;
+    max-width: 1240px;
+}
+.assembly-status {
+    padding: 20px 24px 28px;
+}
+.assembly-status > h2 {
+    margin: 0 0 20px;
+}
+.assembly-status :is(h3, strong) {
+    font-size: 15px;
+    font-weight: 700;
+}
+.assembly-status p,
+.assembly-context dt {
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+.assembly-notice,
+.assembly-check,
+.assembly-thumbnail {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+}
+.assembly-notice {
+    margin-bottom: 10px;
+    padding: 12px;
+    background: var(--muted);
+    border-left: 3px solid var(--primary);
+    border-radius: 5px;
+}
+.assembly-notice svg,
+.assembly-check svg {
+    color: var(--primary);
+    width: 19px;
+    height: 19px;
+    flex: none;
+    margin-top: 2px;
+}
+.assembly-notice h3,
+.assembly-pinned-link {
+    color: var(--primary);
+}
+.assembly-notice.history {
+    margin-top: 10px;
+    border-color: var(--muted-foreground);
+}
+.assembly-notice.history :is(svg, h3) {
+    color: var(--muted-foreground);
+}
+.assembly-pinned-link {
+    display: inline-block;
+    font-weight: 700;
+    margin-top: 3px;
+}
+.assembly-thumbnail {
+    margin: 10px 0;
+    align-items: center;
+}
+.assembly-thumbnail video {
+    width: 84px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+.assembly-check {
+    border-bottom: 1px solid var(--border);
+    padding: 7px 0 14px;
+}
+.assembly-status button {
+    margin-top: 14px;
+    font-weight: 700;
+}
+.assembly-context {
+    display: none;
+}
+@media (min-width: 1100px) {
+    .assembly-status-grid {
+        grid-template-columns: minmax(0, 2.35fr) minmax(0, 1fr);
+    }
+    .assembly-context {
+        display: block;
+        padding: 15px;
+    }
+    .assembly-context h2 {
+        margin: 10px 0;
+    }
+    .assembly-context dd {
+        margin: 2px 0 10px;
+    }
+}
+@media (max-width: 767px) {
+    .status-page {
+        gap: 18px;
+    }
+    .assembly-status :deep(.studio-row) {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2px;
+        padding: 5px 0 10px;
+        border-top: 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+    }
+    .assembly-status .studio-row > :first-child {
+        color: var(--muted-foreground);
+        font-size: 13px;
+    }
+    .assembly-pinned-link {
+        font-size: 15px;
+    }
+    .assembly-status {
+        padding: 13px 15px 20px;
+    }
+    .assembly-status > h2 {
+        margin-bottom: 16px;
+    }
+}
+
 .assembly-main h2 {
     font-size: 20px;
     font-weight: 700;

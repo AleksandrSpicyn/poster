@@ -48,7 +48,7 @@ function save() {
 }
 </script>
 <template>
-    <section class="studio-panel">
+    <section class="studio-panel joint-review">
         <h2>Проверка стыков</h2>
         <div v-if="videoUrl" class="grid grid-cols-2 gap-2">
             <figure
@@ -64,7 +64,7 @@ function save() {
                     preload="auto"
                     playsinline
                     :aria-label="'Кадр эпизода ' + frame.part"
-                    class="aspect-[2.3] w-full rounded-lg bg-black object-cover"
+                    class="aspect-[1.5] w-full rounded-lg bg-black object-cover md:aspect-[2.3]"
                     @loadedmetadata="seekFrame($event, frame.at)"
                 />
                 <figcaption class="text-muted-foreground text-sm">
@@ -85,11 +85,43 @@ function save() {
                 class="border-input bg-background min-h-20 rounded-lg border p-3"
             />
             <InputError :message="form.errors.notes" />
-            <label class="flex items-center gap-2"><input v-model="form.reviewed" type="checkbox" :disabled="!editable" />Стык проверен</label>
+            <label class="flex items-center gap-2 font-semibold"
+                ><input v-model="form.reviewed" class="accent-primary size-5" type="checkbox" :disabled="!editable" />Стык проверен</label
+            >
             <p class="text-muted-foreground text-sm">Граница {{ time.toLocaleString('ru') }} с</p>
             <InputError :message="errors.review || form.errors.lock_version" />
             <p v-if="saved && saved.notes === form.notes && saved.reviewed === form.reviewed" role="status">Проверка сохранена.</p>
-            <Button v-if="editable" type="submit" class="justify-self-start" :disabled="form.processing">Сохранить проверку</Button>
+            <Button v-if="editable" type="submit" class="h-11 justify-self-start font-bold" :disabled="form.processing">Сохранить проверку</Button>
         </form>
     </section>
 </template>
+
+<style scoped>
+.joint-review {
+    padding: 20px 24px 28px;
+}
+.joint-review > h2 {
+    margin-bottom: 16px;
+}
+.joint-review .studio-row {
+    margin-block: 8px 12px;
+}
+@media (max-width: 767px) {
+    .joint-review {
+        padding: 14px 15px 20px;
+    }
+    .joint-review .studio-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3px;
+        padding: 8px 0 12px;
+        border-top: 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+    }
+    .joint-review .studio-row > :first-child {
+        font-size: 13px;
+        color: var(--muted-foreground);
+    }
+}
+</style>
