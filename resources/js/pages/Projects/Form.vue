@@ -315,6 +315,7 @@ function submit() {
             class="workspace-page project-editor"
             :class="{
                 'project-detail': detailSection,
+                'project-main': section === 'main' && !isSeries,
                 'schedule-editor': section === 'automation',
                 'cast-editor': section === 'cast',
                 'channel-editor': section === 'channels',
@@ -760,6 +761,9 @@ function submit() {
 </template>
 
 <style scoped>
+.project-main button[form='project-form'] {
+    font-weight: 700;
+}
 .project-tab {
     display: block;
     padding: 10px 12px;
@@ -813,6 +817,12 @@ function submit() {
     }
 }
 @media (max-width: 767px) {
+    .project-main.workspace-page {
+        gap: 24px;
+    }
+    .project-main > .grid {
+        gap: 22px;
+    }
     .project-editor {
         padding-block-start: 14px;
         gap: 20px;
