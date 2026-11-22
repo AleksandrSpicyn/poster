@@ -187,7 +187,7 @@ watch(
         ]"
     >
         <Head :title="title" />
-        <div class="workspace-page">
+        <div class="workspace-page" :class="{ 'direct-publication': directDetails }">
             <header class="flex flex-wrap items-start justify-between gap-3">
                 <Heading
                     :title="title"
@@ -201,7 +201,7 @@ watch(
                                 : 'Статус отправки'
                     "
                 />
-                <Button v-if="directDetails" form="tiktok-delivery-form" type="submit" :disabled="!canSubmit">Опубликовать</Button>
+                <Button v-if="directDetails" class="direct-action" form="tiktok-delivery-form" type="submit" :disabled="!canSubmit">Опубликовать</Button>
                 <Button
                     v-else-if="tab === 'Предпросмотр' && video"
                     class="preview-action"
@@ -453,7 +453,8 @@ header > button:disabled {
     color: var(--primary);
     background: var(--sidebar-accent);
 }
-.preview-action {
+.preview-action,
+.direct-action {
     min-height: 44px;
     font-weight: 700;
 }
@@ -481,6 +482,12 @@ header > button:disabled {
     background: black;
 }
 @media (max-width: 767px) {
+    .direct-publication {
+        padding-top: 17px;
+    }
+    .direct-publication :deep(h1) {
+        line-height: 40px;
+    }
     .direct-video {
         height: 190px;
     }
@@ -512,10 +519,28 @@ header > button:disabled {
         max-width: none;
     }
     .direct-details form {
-        min-height: 610px;
+        min-height: 608px;
     }
 }
 
+@media (min-width: 768px) and (max-width: 1099px) {
+    .delivery-grid.direct-details {
+        margin-top: 1px;
+    }
+    .direct-details form {
+        row-gap: 15px;
+    }
+}
+@media (min-width: 1100px) {
+    .delivery-grid.direct-details {
+        margin-top: -1px;
+    }
+}
+@media (min-width: 1920px) {
+    .delivery-grid.direct-details {
+        grid-template-columns: 30% minmax(0, 820px);
+    }
+}
 .mode-switch {
     display: flex;
     gap: 6px;
