@@ -16,9 +16,9 @@ const route = useRoute();
         ]"
     >
         <Head title="Параметры сборки" />
-        <main class="workspace-page">
+        <div class="workspace-page">
             <Heading title="Сборка сериала" :description="series.name" />
             <SeriesAssemblyParameters :series="series" :parameters="parameters" />
-        </main>
+        </div>
     </AppLayout>
 </template>

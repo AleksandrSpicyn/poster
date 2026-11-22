@@ -32,8 +32,16 @@ const route = useRoute();
 const tabs = { assembly: 'Сборка', parameters: 'Параметры', status: 'Статус' } as const;
 type Tab = keyof typeof tabs;
 const tab = ref<Tab>('assembly');
+const jointNumber = ref<number | null>(null);
+const playOnOpen = ref(false);
 function restoreTab() {
     const hash = window.location.hash.slice(1);
+    const match = /^joint-(\d+)$/.exec(hash);
+    jointNumber.value = match && boundaries.value.some((item) => item.number === Number(match[1])) ? Number(match[1]) : null;
+    if (jointNumber.value !== null) {
+        tab.value = 'status';
+        return;
+    }
     tab.value = hash === 'parameters' || hash === 'status' ? hash : 'assembly';
 }
 onMounted(() => {
@@ -68,6 +76,16 @@ const boundaries = computed(() => {
         return { number: part.number, time: elapsed };
     });
 });
+const joint = computed(() => (tab.value === 'status' ? boundaries.value.find((item) => item.number === jointNumber.value) : undefined));
+function showJoint(number: number) {
+    playbackError.value = false;
+    playOnOpen.value = true;
+    window.location.hash = 'joint-' + number;
+}
+function savedJoint(number: number) {
+    form.lock_version = props.assembly.lock_version;
+    window.history.replaceState(window.history.state, '', '#joint-' + number);
+}
 const boundariesComplete = computed(() => boundaries.value.every((part) => props.assembly.review?.boundaries?.['after_' + part.number]?.reviewed));
 async function playBoundary(time: number) {
     if (video.value) {
@@ -108,12 +126,47 @@ async function playBoundary(time: number) {
                     :href="'#' + key"
                     :aria-current="tab === key ? 'page' : undefined"
                     class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold"
-                    @click="tab = key"
+                    @click="
+                        jointNumber = null;
+                        tab = key;
+                    "
                     >{{ label }}</a
                 >
             </nav>
             <SeriesAssemblyParameters v-if="tab === 'parameters'" :series="series" :parameters="parameters" />
-            <section v-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
+            <div v-if="joint" class="grid items-start gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">
+                <SeriesBoundaryReview
+                    :key="assembly.id + '-' + joint.number"
+                    :assembly="assembly.id"
+                    :number="joint.number"
+                    :next="joint.number + 1"
+                    :time="joint.time"
+                    :version="assembly.lock_version"
+                    :video-url="assembly.video_url"
+                    :assembly-number="assembly.number"
+                    :part-count="assembly.manifest.parts?.length ?? 0"
+                    :duration="assembly.duration_ms"
+                    :editable="assembly.status === 'ready' && !release_started"
+                    :saved="assembly.review?.boundaries?.['after_' + joint.number]"
+                    @saved="savedJoint(joint.number)"
+                />
+                <aside class="studio-panel">
+                    <video
+                        v-if="assembly.video_url"
+                        ref="video"
+                        controls
+                        preload="metadata"
+                        :src="assembly.video_url"
+                        aria-label="Предпросмотр стыка"
+                        class="aspect-video w-full rounded-lg bg-black object-contain"
+                        @loadedmetadata="playOnOpen && playBoundary(joint.time)"
+                    />
+                    <h2>{{ series.name }}</h2>
+                    <p>Эпизод {{ joint.number + 1 }}</p>
+                    <p v-if="playbackError" role="status">Воспроизведение доступно через элементы управления плеера.</p>
+                </aside>
+            </div>
+            <section v-else-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
                 <h2>{{ pinned ? 'Версия ' + assembly.number + ' закреплена' : statusLabels[assembly.status] }}</h2>
                 <template v-if="pinned">
                     <p>В заявке на выпуск сохранена именно эта принятая сборка.</p>
@@ -173,19 +226,14 @@ async function playBoundary(time: number) {
                             Перед приёмкой просмотрите стыки эпизодов со звуком. Проверьте движение, речь и последовательность событий.
                         </p>
                         <div class="flex flex-wrap gap-2">
-                            <SeriesBoundaryReview
+                            <Button
                                 v-for="boundary in boundaries"
-                                :key="assembly.id + '-' + boundary.number"
-                                :assembly="assembly.id"
-                                :number="boundary.number"
-                                :next="boundary.number + 1"
-                                :time="boundary.time"
-                                :version="assembly.lock_version"
-                                :editable="assembly.status === 'ready' && !release_started"
-                                :saved="assembly.review?.boundaries?.['after_' + boundary.number]"
-                                @play="playBoundary"
-                                @saved="form.lock_version = assembly.lock_version"
-                            />
+                                :key="boundary.number"
+                                type="button"
+                                variant="outline"
+                                @click="showJoint(boundary.number)"
+                                >Эпизоды {{ boundary.number }} → {{ boundary.number + 1 }}</Button
+                            >
                         </div>
                     </section>
                     <form
