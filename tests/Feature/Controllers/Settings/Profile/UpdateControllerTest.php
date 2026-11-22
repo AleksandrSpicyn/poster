@@ -57,7 +57,7 @@ test('профиль не принимает email другого пользов
     actingAs($owner)
         ->patchJson(route('profile.update'), ['name' => 'Changed', 'email' => $other->email])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors('email');
+        ->assertJsonPath('errors.email.0', 'Этот адрес электронной почты уже используется.');
 
     expect($owner->refresh()->email)
         ->toBe($email)

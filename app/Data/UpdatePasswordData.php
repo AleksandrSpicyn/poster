@@ -19,4 +19,18 @@ class UpdatePasswordData extends Data
         #[Required, Confirmed, Password(default: true)]
         public string $password,
     ) {}
+
+    /** @return array<string, string> */
+    public static function messages(): array
+    {
+        return [
+            'current_password.required' => 'Введите текущий пароль.',
+            'current_password.string' => 'Введите текущий пароль.',
+            'current_password.current_password' => 'Пароль не подошёл',
+            'password.required' => 'Введите новый пароль.',
+            'password.string' => 'Введите новый пароль.',
+            'password.confirmed' => 'Подтверждение не совпадает с новым паролем.',
+            'password.min' => 'Новый пароль должен содержать не менее :min символов.',
+        ];
+    }
 }

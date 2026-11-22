@@ -27,7 +27,7 @@ class UpdateController
      * @bodyParam current_password string required Текущий пароль. Example: password-example
      * @bodyParam password string required Новый пароль. Example: new-password
      * @bodyParam password_confirmation string required Подтверждение пароля. Example: new-password
-     * @response 422 scenario="Validation error (JSON)" {"message": "The current_password field is required.", "errors": {"current_password": ["The current_password field is required."]}}
+     * @response 422 scenario="Validation error (JSON)" {"message": "Введите текущий пароль.", "errors": {"current_password": ["Введите текущий пароль."]}}
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @response 401 {"message":"Unauthenticated."}
      */
