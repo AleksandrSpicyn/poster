@@ -228,25 +228,31 @@ function remove() {
                     <a
                         href="#channel-name"
                         class="rounded-lg p-3 text-sm"
-                        :class="tab !== 'oauth-settings' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'bg-muted'"
+                        :aria-current="!tab || tab === 'channel-name' ? 'page' : undefined"
+                        :class="!tab || tab === 'channel-name' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'bg-muted'"
                         >{{ channel ? 'Основное' : 'Создание' }}</a
                     >
                     <a
                         v-if="!channel"
                         href="#oauth-settings"
                         class="rounded-lg p-3 text-sm"
+                        :aria-current="tab === 'oauth-settings' ? 'page' : undefined"
                         :class="tab === 'oauth-settings' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'bg-muted'"
                         >Авторизация у площадки</a
                     >
                     <button
                         v-if="!channel"
-                        class="text-muted-foreground rounded-lg p-3 text-left text-sm"
+                        class="bg-muted text-muted-foreground rounded-lg p-3 text-left text-sm"
                         disabled
                         title="Сначала создайте канал и подключите аккаунт"
                     >
                         Проверка прав
                     </button>
-                    <a v-if="channel" :href="channel.type === 'tiktok' ? '#platform' : '#connection-heading'" class="bg-muted rounded-lg p-3 text-sm"
+                    <a
+                        v-if="channel"
+                        :href="channel.type === 'tiktok' ? '#platform' : '#connection-heading'"
+                        :aria-current="tab === 'connection-heading' ? 'page' : undefined"
+                        class="bg-muted rounded-lg p-3 text-sm"
                         >Подключение</a
                     >
                     <a v-if="channel" href="#connected-projects" class="bg-muted rounded-lg p-3 text-sm">Проекты</a>
@@ -509,7 +515,7 @@ function remove() {
 </template>
 
 <style scoped>
-.channel-overview .channel-heading > [data-slot="button"] {
+.channel-overview .channel-heading > [data-slot='button'] {
     font-weight: 700;
 }
 .overview-nav {
@@ -661,6 +667,10 @@ function remove() {
     }
 }
 
+.new-channel .channel-heading > [data-slot='button'],
+.new-channel nav a[aria-current] {
+    font-weight: 700;
+}
 .new-channel #studio-channel {
     padding: 24px;
     min-height: 378px;

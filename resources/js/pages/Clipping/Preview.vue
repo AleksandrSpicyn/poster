@@ -104,20 +104,22 @@ function confirm() {
             <section v-else class="mappings">
                 <h2>Источник → Poster</h2>
                 <Link v-if="preview.external_id" class="map-row" :href="change('map-project')"
-                    ><strong>{{ preview.source_name || 'Проект без названия' }}</strong
-                    ><i>→</i><span>{{ projectName || 'Новый проект' }}</span></Link
+                    ><small>Источник</small><strong>{{ preview.source_name || 'Проект без названия' }}</strong
+                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small><span>{{ projectName || 'Новый проект' }}</span></Link
                 >
                 <Link class="map-row" v-for="a in preview.accounts" :key="a.id" :href="change('map-channel', a.id)"
-                    ><strong>{{ a.name || 'Аккаунт без названия' }}</strong
-                    ><i>→</i><span>{{ accountNames[a.id] || 'Создать канал без права отправки' }}</span></Link
+                    ><small>Источник</small><strong>{{ a.name || 'Аккаунт без названия' }}</strong
+                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small
+                    ><span>{{ accountNames[a.id] || 'Создать канал без права отправки' }}</span></Link
                 >
                 <Link v-for="account in preview.unmapped_accounts" :key="account.id" class="map-row" :href="change('map-channel', account.id)"
-                    ><strong>{{ account.name || 'Аккаунт без названия' }}</strong
-                    ><i>→</i><span class="unmapped">Выберите канал</span></Link
+                    ><small>Источник</small><strong>{{ account.name || 'Аккаунт без названия' }}</strong
+                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small><span class="unmapped">Выберите канал</span></Link
                 >
                 <details v-for="clip in clips" :key="clip.id">
                     <summary class="map-row">
-                        <strong>{{ clip.title || 'Клип без названия' }}</strong><i>→</i
+                        <small>Источник</small><strong>{{ clip.title || 'Клип без названия' }}</strong
+                        ><i aria-hidden="true">→</i><small class="target-label">В Poster</small
                         ><span>{{ existing.has(clip.id) ? 'Обновить клип' : 'Новый клип' }}</span>
                     </summary>
                     <div class="studio-panel">
@@ -156,9 +158,16 @@ function confirm() {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
-    margin: 8px 0;
+    margin: 10px 0;
     cursor: pointer;
     overflow-wrap: anywhere;
+}
+.map-row small {
+    display: none;
+}
+.map-row:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
 }
 .map-row .unmapped {
     color: #e8ac7d;
@@ -242,7 +251,18 @@ function confirm() {
 @media (max-width: 767px) {
     .map-row {
         grid-template-columns: 1fr;
+        align-content: start;
+        min-height: 138px;
         gap: 4px;
+    }
+    .map-row small {
+        display: block;
+        color: var(--muted-foreground);
+        font-size: 12px;
+        line-height: 18px;
+    }
+    .map-row .target-label {
+        margin-top: 10px;
     }
     .map-row i {
         display: none;

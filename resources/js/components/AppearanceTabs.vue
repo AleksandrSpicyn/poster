@@ -26,13 +26,13 @@ const choices = [
 <style scoped>
 .theme-options {
     display: grid;
-    gap: 12px;
+    gap: 16px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 button {
     text-align: left;
     min-width: 0;
-    padding: 14px 14px 26px;
+    padding: 14px 14px 27px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -79,7 +79,12 @@ button:focus-visible {
     border-radius: 3px;
     background: var(--preview-row);
 }
-@media (max-width: 699px) {
+@media (min-width: 768px) and (max-width: 1099px) {
+    .theme-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 767px) {
     .theme-options {
         grid-template-columns: 1fr;
     }

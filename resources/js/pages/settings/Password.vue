@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +58,7 @@ const updatePassword = () => {
                 }}</Button></template
             >
             <div class="space-y-6">
-                <HeadingSmall title="Параметры" />
+                <h2>Параметры</h2>
 
                 <form id="password-form" @submit.prevent="updatePassword">
                     <div class="grid">
