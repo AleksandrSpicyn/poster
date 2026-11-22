@@ -21,6 +21,10 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
   Граф помогает искать код; DI, routes, events/jobs и Eloquent проверяйте по исходникам и тестам.
 - Скиллы ai-init находятся в `.agents/skills/et-*/SKILL.md`; источник и commit
   записаны в `docs/ai-init-source.json`. Читайте применимый скилл и его references.
+- Проектные навыки фронтенда ищите в `.agents/skills/`.
+  Версии перечислены в `sources.json` рядом с каталогами этих навыков.
+  Для Vue используйте `vue-best-practices` и профильный навык по задаче. Для UX/UI
+  читайте `frontend-design`, `ui-ux-pro-max` и `design-taste-frontend` вместе с правилами Poster.
 - Pest: отдельный Feature-файл для каждого HTTP method + named route; Unit-файл
   для одного класса. Без `$this`, Laravel/Pest helpers импортируются через `use function`.
   Общие helpers — только при повторном использовании в нескольких файлах;
@@ -86,6 +90,10 @@ Poster — Laravel + Vue/Inertia: публичный профиль, кабин�
   Граф помогает искать код; DI, routes, events/jobs и Eloquent проверяйте по исходникам и тестам.
 - Скиллы ai-init находятся в `.agents/skills/et-*/SKILL.md`; источник и commit
   записаны в `docs/ai-init-source.json`. Читайте применимый скилл и его references.
+- Проектные навыки фронтенда ищите в `.agents/skills/`.
+  Версии перечислены в `sources.json` рядом с каталогами этих навыков.
+  Для Vue используйте `vue-best-practices` и профильный навык по задаче. Для UX/UI
+  читайте `frontend-design`, `ui-ux-pro-max` и `design-taste-frontend` вместе с правилами Poster.
 - Pest: отдельный Feature-файл для каждого HTTP method + named route; Unit-файл
   для одного класса. Без `$this`, Laravel/Pest helpers импортируются через `use function`.
   Общие helpers — только при повторном использовании в нескольких файлах;

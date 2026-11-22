@@ -1,0 +1,43 @@
+{
+  "sources": [
+    {
+      "repository": "https://github.com/anthropics/skills",
+      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "path": "skills/frontend-design",
+      "skills": [
+        "frontend-design"
+      ]
+    },
+    {
+      "repository": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+      "commit": "6ec2bb58334ca3014573c4cbd4834ee3a40afd9d",
+      "path": ".claude/skills/ui-ux-pro-max",
+      "skills": [
+        "ui-ux-pro-max"
+      ]
+    },
+    {
+      "repository": "https://github.com/Leonxlnx/taste-skill",
+      "commit": "f6b76575f949707b4e3c37cd86cb44b0b98643e8",
+      "path": "skills/taste-skill",
+      "skills": [
+        "design-taste-frontend"
+      ]
+    },
+    {
+      "repository": "https://github.com/vuejs-ai/skills",
+      "commit": "198f0cd8f7f9c0a3d9b566ccc16de6677519ee78",
+      "path": "skills",
+      "skills": [
+        "create-adaptable-composable",
+        "vue-best-practices",
+        "vue-debug-guides",
+        "vue-jsx-best-practices",
+        "vue-options-api-best-practices",
+        "vue-pinia-best-practices",
+        "vue-router-best-practices",
+        "vue-testing-best-practices"
+      ]
+    }
+  ]
+}
