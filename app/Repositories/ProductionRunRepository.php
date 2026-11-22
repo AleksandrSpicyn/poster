@@ -8,6 +8,7 @@ use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Enums\SeriesOutputMode;
 use App\Events\WorkspaceUpdated;
+use App\Models\Channel;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Project;
@@ -16,6 +17,7 @@ use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 /** @extends EloquentRepository<ProductionRun> */
 readonly class ProductionRunRepository extends EloquentRepository
@@ -69,10 +71,11 @@ readonly class ProductionRunRepository extends EloquentRepository
             ->whereIn('status', ProductionStatus::blockingValues())->first();
     }
 
-    public function createQueued(Project $project, ?Series $series, User $actor, string $key): ProductionRun
+    /** @param array<string, mixed>|null $snapshot */
+    public function createQueued(Project $project, ?Series $series, User $actor, string $key, ?array $snapshot = null): ProductionRun
     {
-        $snapshot = $series?->output_mode === SeriesOutputMode::SINGLE_VIDEO
-            ? $series->productionRuns()->whereNotNull('input_snapshot')->oldest('id')->first()?->input_snapshot : null;
+        $snapshot ??= $series?->output_mode === SeriesOutputMode::SINGLE_VIDEO
+            ? $series->productionRuns()->where('input_snapshot->output_mode', SeriesOutputMode::SINGLE_VIDEO->value)->oldest('id')->first()?->input_snapshot : null;
         $attributes = $this->queuedAttributes($project, $series, $actor, $key, $snapshot);
 
         return $project->productionRuns()->chaperone('project')->create($attributes);
@@ -96,20 +99,37 @@ readonly class ProductionRunRepository extends EloquentRepository
     }
 
     /**
+     * @param list<int>|null $selectedIds
      * @param array<string, Series> $seriesByKey
      * @return Collection<string, ProductionRun>
      */
-    public function createQueuedSeries(Project $project, User $actor, array $seriesByKey): Collection
+    public function createQueuedSeries(Project $project, User $actor, array $seriesByKey, ?array $selectedIds = null): Collection
     {
         $rows = [];
         $channelIds = null;
 
         foreach ($seriesByKey as $key => $series) {
-            if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && $series->productionRuns->isEmpty()) {
+            $single = $series->output_mode === SeriesOutputMode::SINGLE_VIDEO;
+            $episode = $series->episodes->first();
+            $cycle = $single ? $series->productionRuns->first() : null;
+            $pinned = $cycle?->input_snapshot;
+            $ids = $single ? $cycle?->deliveryChannelIds() : ($episode?->accepted_assembly_id === null ? $episode?->delivery_channel_ids : null);
+
+            if ($ids !== null && $selectedIds !== null && (array_diff($ids, $selectedIds) !== [] || array_diff($selectedIds, $ids) !== [])) {
+                throw ValidationException::withMessages(['channel_ids' => 'Получатели этого выпуска уже сохранены. Обновите страницу.']);
+            }
+
+            if ($ids === null && $selectedIds === null && $series->auto_publish) {
                 $channelIds ??= $this->deliveryChannelIds($project);
             }
 
-            $rows[] = $this->queuedAttributes($project, $series, $actor, $key, $series->productionRuns->first()?->input_snapshot, $channelIds);
+            $ids ??= $selectedIds ?? ($series->auto_publish ? $channelIds : []);
+            $snapshot = $pinned ?? [
+                'channel_ids' => ! $single && $selectedIds === null && $series->auto_publish && $ids === [] && $episode?->delivery_channel_ids === null ? null : $ids,
+                'manual_delivery' => $selectedIds !== null,
+                'skip_delivery' => $ids === [] && ($selectedIds !== null || ! $series->auto_publish || $episode?->delivery_channel_ids === []),
+            ];
+            $rows[] = $this->queuedAttributes($project, $series, $actor, $key, $snapshot, $ids);
         }
 
         foreach (array_chunk($rows, 100) as $batch) {
@@ -137,12 +157,12 @@ readonly class ProductionRunRepository extends EloquentRepository
         $single = $series?->output_mode === SeriesOutputMode::SINGLE_VIDEO;
 
         if ($single) {
-            $snapshot ??= [
+            $snapshot = [...($snapshot ?? []),
                 'output_mode' => $series->output_mode->value,
-                'episode_limit' => $series->episode_limit,
-                'specification_version' => $series->specification_version,
-                'specification' => $series->specification,
-                'channel_ids' => $channelIds ?? $this->deliveryChannelIds($project),
+                'episode_limit' => $snapshot['episode_limit'] ?? $series->episode_limit,
+                'specification_version' => $snapshot['specification_version'] ?? $series->specification_version,
+                'specification' => $snapshot['specification'] ?? $series->specification,
+                'channel_ids' => $snapshot['channel_ids'] ?? $channelIds ?? $this->deliveryChannelIds($project),
             ];
         }
 
@@ -150,16 +170,15 @@ readonly class ProductionRunRepository extends EloquentRepository
             'project_id' => $project->id, 'series_id' => $series?->id, 'actor_id' => $actor->id,
             'request_key' => $key, 'status' => ProductionStatus::QUEUED,
             'stage' => $single ? ProductionStage::PLANNING : ProductionStage::PREPARING,
-            'input_snapshot' => $single ? $snapshot : null, 'stage_started_at' => now(), 'next_check_at' => now(),
+            'input_snapshot' => $snapshot, 'stage_started_at' => now(), 'next_check_at' => now(),
         ];
     }
 
     /** @return list<int> */
-    private function deliveryChannelIds(Project $project): array
+    public function deliveryChannelIds(Project $project): array
     {
-        /** @var list<int> $ids */
-        $ids = $project->channels()->where('is_active', true)->where(fn($q) => $q->whereIn('type', ['youtube', 'instagram'])->orWhere(fn($tiktok) => $tiktok->where('type', 'tiktok')->whereNull('external_account')->whereNotNull('credentials->access_token')->where('credentials->scope', 'like', '%video.upload%')))->orderBy('id')->pluck('channels.id')->all();
-
-        return $ids;
+        return array_values($project->channels()->where('channels.owner_id', $project->owner_id)->where('is_active', true)->orderBy('channels.id')
+            ->get()->filter(fn(Channel $channel): bool => $channel->canReceiveProduction())
+            ->map(fn(Channel $channel): int => $channel->id)->all());
     }
 }

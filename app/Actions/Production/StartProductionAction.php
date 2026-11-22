@@ -12,13 +12,17 @@ use App\Tasks\Production\CreateProductionRun;
 use App\Tasks\Production\GetProductionTargets;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 readonly class StartProductionAction
 {
     public function __construct(private GetProductionTargets $targets, private CreateProductionRun $create) {}
 
-    /** @return Collection<int, ProductionRun> */
-    public function run(Project $project, string $requestKey, ?User $actor = null, ?int $seriesId = null): Collection
+    /**
+     * @param list<int>|null $channelIds
+     * @return Collection<int, ProductionRun>
+     */
+    public function run(Project $project, string $requestKey, ?User $actor = null, ?int $seriesId = null, ?array $channelIds = null): Collection
     {
         /** @var Collection<int, ProductionRun> $runs */
         $runs = collect();
@@ -27,7 +31,12 @@ readonly class StartProductionAction
             Gate::forUser($actor)->authorize('manageSeries', $project);
         }
 
-        $targets = $this->targets->run($project, $seriesId, $actor);
+        if ($channelIds !== null && $seriesId === null) {
+            throw ValidationException::withMessages(['series_id' => 'Выберите сериал для этих получателей.']);
+        }
+
+        $channelIds = $channelIds === null ? null : array_map(intval(...), $channelIds);
+        $targets = $this->targets->run($project, $seriesId, $actor, manual: $actor instanceof User && $channelIds !== null);
         $ids = [];
         $operator = null;
 
@@ -47,7 +56,7 @@ readonly class StartProductionAction
             return $runs;
         }
 
-        $runs = $this->create->forTargets($project, $ids, $operator, $requestKey, scheduled: $actor === null);
+        $runs = $this->create->forTargets($project, $ids, $operator, $requestKey, scheduled: ! $actor instanceof User, channelIds: $channelIds);
 
         foreach ($runs as $run) {
             if ($run->wasRecentlyCreated) {

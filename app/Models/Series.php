@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int $continuity_version
  * @property int|null $canonical_assembly_id
  * @property int $lock_version
+ * @property bool $auto_publish
  * @property bool $automation_enabled
  * @property int|null $automation_user_id
  * @property int|null $episode_limit
@@ -59,6 +60,7 @@ class Series extends Model
         'lock_version',
         'archived_at',
         'automation_enabled',
+        'auto_publish',
         'automation_user_id',
         'episode_limit',
     ];
@@ -74,10 +76,11 @@ class Series extends Model
         'lock_version' => 'integer',
         'archived_at' => 'datetime',
         'automation_enabled' => 'boolean',
+        'auto_publish' => 'boolean',
         'episode_limit' => 'integer',
     ];
 
-    protected $attributes = ['automation_enabled' => false, 'output_mode' => 'episodes'];
+    protected $attributes = ['automation_enabled' => false, 'auto_publish' => true, 'output_mode' => 'episodes'];
 
     /** @return BelongsTo<User, $this> */
     public function automationUser(): BelongsTo

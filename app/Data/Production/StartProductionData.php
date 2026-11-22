@@ -11,8 +11,16 @@ use Spatie\LaravelData\Data;
 
 class StartProductionData extends Data
 {
+    /** @param list<int>|null $channel_ids */
     public function __construct(
         #[Required, Min(1), Max(100)] public string $request_key,
         #[Min(1)] public ?int $series_id = null,
+        #[Max(20)] public ?array $channel_ids = null,
     ) {}
+
+    /** @return array<string, list<string>> */
+    public static function rules(): array
+    {
+        return ['channel_ids.*' => ['integer', 'min:1', 'distinct']];
+    }
 }

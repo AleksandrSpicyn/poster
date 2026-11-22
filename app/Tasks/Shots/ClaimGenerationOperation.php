@@ -47,7 +47,7 @@ class ClaimGenerationOperation
             if ($operation->stage !== GenerationOperationStage::DOWNLOAD) {
                 if ($context->series?->cycle_paused_at !== null || $project?->is_active !== true || $operation->cancel_requested_at !== null || ($operation->production_run_id !== null
                     && (! $productionRun instanceof ProductionRun || ! $productionRun->status->isActive()
-                        || $productionRun->series?->automation_enabled !== true || $productionRun->series->archived_at !== null))) {
+                        || $productionRun->series === null || (! $productionRun->series->automation_enabled && ! $productionRun->wasStartedManually()) || $productionRun->series->archived_at !== null))) {
                     $this->operations->update($operation, ['status' => GenerationOperationStatus::CANCELLED, 'cancel_requested_at' => now(),
                         'completed_at' => now(), 'next_check_at' => null]);
 

@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Data\Series\GetSeriesListData;
 use App\Data\Series\SeriesWorkspaceData;
 use App\Enums\GenerationOperationStatus;
+use App\Enums\ProductionStatus;
 use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
@@ -75,10 +76,12 @@ readonly class SeriesRepository extends EloquentRepository
     {
         return $project->series()->whereKey($ids)->orderBy('id')->lockForUpdate()
             ->when($checkHistory, fn($query) => $query->withExists('productionRuns'))
+            ->withExists(['productionRuns as final_production_completed' => fn(Builder $query) => $query
+                ->where('status', ProductionStatus::COMPLETED)->whereColumn('production_runs.series_assembly_id', 'series.final_assembly_id')])
             ->with([
                 'episodes' => fn($query) => $query->orderByDesc('number')->limit(1),
                 'activeProductionRun' => fn($query) => $query->where('project_id', $project->id),
-                'productionRuns' => fn($query) => $query->whereNotNull('input_snapshot')->oldest('id')->limit(1),
+                'productionRuns' => fn($query) => $query->where('input_snapshot->output_mode', SeriesOutputMode::SINGLE_VIDEO->value)->oldest('id')->limit(1),
             ])->get();
     }
 
@@ -112,7 +115,7 @@ readonly class SeriesRepository extends EloquentRepository
     /** @return list<int> */
     public function cycleChannelIds(Series $series): array
     {
-        $run = $series->productionRuns()->whereNotNull('input_snapshot')->oldest('id')->first();
+        $run = $series->productionRuns()->where('input_snapshot->output_mode', SeriesOutputMode::SINGLE_VIDEO->value)->oldest('id')->first();
         $ids = $run?->input_snapshot['channel_ids'] ?? [];
 
         return is_array($ids) ? array_values(array_filter($ids, is_int(...))) : [];

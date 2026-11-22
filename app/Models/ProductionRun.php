@@ -62,6 +62,43 @@ class ProductionRun extends Model
         'completed_at' => 'datetime',
     ];
 
+    /** @return list<int>|null */
+    public function deliveryChannelIds(): ?array
+    {
+        $ids = $this->input_snapshot['channel_ids'] ?? null;
+
+        if ($ids === null) {
+            return null;
+        }
+
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        $recipients = [];
+
+        foreach ($ids as $id) {
+            if (! is_int($id) && (! is_string($id) || ! ctype_digit($id)) || (int) $id < 1) {
+                return [];
+            }
+
+            $recipients[] = (int) $id;
+        }
+
+        return $recipients;
+    }
+
+    public function wasStartedManually(): bool
+    {
+        return ($this->input_snapshot['manual_delivery'] ?? false) === true;
+    }
+
+    public function allowsAutomaticDelivery(Series $series): bool
+    {
+        return ($this->input_snapshot['skip_delivery'] ?? false) !== true
+            && ($series->auto_publish || $this->wasStartedManually());
+    }
+
     /** @return HasMany<GenerationOperation, $this> */
     public function generationOperations(): HasMany
     {

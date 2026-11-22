@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property list<int>|null $delivery_channel_ids
  * @property int $series_id
  * @property int $number
  * @property string|null $objective
@@ -46,6 +47,7 @@ class Episode extends Model
 
     protected $fillable = [
         'series_id',
+        'delivery_channel_ids',
         'number',
         'title',
         'objective',
@@ -58,6 +60,7 @@ class Episode extends Model
     ];
 
     protected $casts = [
+        'delivery_channel_ids' => 'array',
         'number' => 'integer',
         'lock_version' => 'integer',
         'validity' => EpisodeValidity::class,

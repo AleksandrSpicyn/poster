@@ -64,6 +64,7 @@ const form = useForm({
     },
     series_lock_version: props.series?.lock_version ?? null,
     automation_enabled: props.series?.automation_enabled ?? true,
+    auto_publish: props.series?.auto_publish ?? false,
     episode_limit: props.series?.episode_limit ?? '',
     channel_ids: props.auth.can_manage_channels ? [...props.selectedChannelIds] : null,
 });
@@ -86,6 +87,7 @@ const settingsLabels: Record<FieldKey, string> = {
     series_specification: 'Паспорт сериала',
     series_lock_version: 'Версия сериала',
     automation_enabled: 'Автоматизация',
+    auto_publish: 'Автоматическая публикация',
     episode_limit: 'Число эпизодов',
     channel_ids: 'Каналы проекта',
 };
@@ -505,6 +507,7 @@ function submit() {
                         :section="section"
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
+                        v-model:auto-publish="form.auto_publish"
                         v-model:episode-limit="form.episode_limit"
                         v-model:output-mode="form.output_mode"
                         :output-modes="outputModes"

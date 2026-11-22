@@ -57,6 +57,7 @@ readonly class SaveProjectAction
                 automation_enabled: $data->automation_enabled,
                 episode_limit: $data->episode_limit,
                 output_mode: $data->output_mode,
+                auto_publish: $data->auto_publish,
             );
 
             try {

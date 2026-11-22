@@ -29,7 +29,7 @@ readonly class SaveSeriesSubAction
             $wasAutomationEnabled = $series instanceof Series && $series->automation_enabled;
             $series = $this->saveSeries->run($project, $data, $series, $actor?->id);
 
-            if (! $series->automation_enabled && $series->activeProductionRun !== null) {
+            if (! $series->automation_enabled && $series->activeProductionRun !== null && ! $series->activeProductionRun->wasStartedManually()) {
                 $this->stopRun->run($series->activeProductionRun, 'Series automation is paused.');
             }
 

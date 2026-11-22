@@ -21,15 +21,17 @@ const route = useRoute();
 const page = usePage();
 const production = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'production');
 const params = computed(() => ({ project: props.project.id, series: props.series.id }));
-const currentEpisode = computed(() => {
+const displayedRun = computed(() => {
     const run = props.series.latest_production;
+    return props.series.output_mode === 'episodes' && run?.status === 'completed' ? null : run;
+});
+const currentEpisode = computed(() => {
+    const run = displayedRun.value;
     if (run?.episode_id) return props.episodes.find((episode) => episode.id === run.episode_id);
     const latest = props.episodes[0];
     return latest && !latest.accepted_assembly_id ? latest : null;
 });
-const episodeNumber = computed(
-    () => props.series.latest_production?.episode_number ?? currentEpisode.value?.number ?? (props.episodes[0]?.number ?? 0) + 1,
-);
+const episodeNumber = computed(() => displayedRun.value?.episode_number ?? currentEpisode.value?.number ?? (props.episodes[0]?.number ?? 0) + 1);
 const breadcrumbs = [
     { title: 'Проекты', href: route('projects.index') },
     { title: props.project.name, href: route('projects.show', props.project.id) },
@@ -60,14 +62,21 @@ const breadcrumbs = [
                         :project-id="project.id"
                         :channels="project.channels"
                         :series-id="series.id"
-                        :episode-title="series.latest_production?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber"
-                        :episode-number="series.latest_production?.episode_number || episodeNumber"
-                        :enabled="series.automation_enabled && project.is_active && !series.archived_at"
-                        :run="series.latest_production"
+                        :auto-publish="series.auto_publish"
+                        :pinned-channel-ids="
+                            series.output_mode === 'single_video' ? series.latest_production?.channel_ids : currentEpisode?.delivery_channel_ids
+                        "
+                        :episode-title="displayedRun?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber"
+                        :episode-number="episodeNumber"
+                        :enabled="
+                            project.is_active && !series.archived_at && (!displayedRun || series.automation_enabled || displayedRun.manual_start)
+                        "
+                        :key="displayedRun?.id ?? episodeNumber + '-next'"
+                        :run="displayedRun"
                     />
                     <aside class="studio-panel run-aside">
                         <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" class="h-[106px] w-full rounded-lg" />
-                        <h2>{{ series.latest_production?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber }}</h2>
+                        <h2>{{ displayedRun?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber }}</h2>
                         <dl>
                             <dt>Проект</dt>
                             <dd>{{ project.name }}</dd>

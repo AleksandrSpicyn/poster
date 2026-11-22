@@ -33,7 +33,7 @@ readonly class ResumeProduction
                 }
             }
 
-            if (! $project->is_active || ! $series instanceof Series || ! $series->automation_enabled || $series->archived_at !== null
+            if (! $project->is_active || ! $series instanceof Series || (! $series->automation_enabled && ! $current->wasStartedManually()) || $series->archived_at !== null
                 || ! in_array($current->status, [ProductionStatus::STOPPED, ProductionStatus::NEEDS_ATTENTION], true)
                 || $this->runs->hasUnresolvedEffects($current)) {
                 throw ValidationException::withMessages(['production' => 'Enable the cycle and resolve all submitted or unknown effects before resuming.']);
@@ -48,7 +48,7 @@ readonly class ResumeProduction
                 }
 
                 $this->series->update($series, ['cycle_paused_at' => null]);
-                $next = $this->runs->createQueued($project, $series, $actor, $key);
+                $next = $this->runs->createQueued($project, $series, $actor, $key, $current->input_snapshot);
 
                 if ($current->series_assembly_id !== null) {
                     $this->runs->update($next, ['series_assembly_id' => $current->series_assembly_id, 'stage' => $current->stage,

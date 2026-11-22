@@ -20,11 +20,7 @@ class ProjectChannelResource extends JsonResource
             'name' => $this->name,
             'type' => $this->type->value,
             'type_label' => ChannelType::labels()[$this->type->value],
-            'can_receive_production' => $this->is_active && match ($this->type) {
-                ChannelType::YOUTUBE, ChannelType::INSTAGRAM => filled($this->credentials['access_token'] ?? null),
-                ChannelType::TIKTOK => $this->canSendTiktokInboxVideo(),
-                ChannelType::VK => false,
-            },
+            'can_receive_production' => $this->canReceiveProduction(),
             'posts_count' => (int) $this->posts_count,
         ];
     }

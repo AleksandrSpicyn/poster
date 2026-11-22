@@ -27,18 +27,19 @@ class CreateProductionRun
 
     public function run(Project $project, ?Series $series, User $actor, string $requestKey, bool $onlyFirstRun = false, bool $scheduled = false): ?ProductionRun
     {
-        return $this->forTargets($project, $series === null ? [] : [$series->id], $actor, $requestKey, $onlyFirstRun, $scheduled)->first();
+        return $this->forTargets($project, $series instanceof Series ? [$series->id] : [], $actor, $requestKey, $onlyFirstRun, $scheduled)->first();
     }
 
     /**
      * An empty list represents the single short-video target.
      *
+     * @param list<int>|null $channelIds
      * @param list<int> $ids
      * @return Collection<int, ProductionRun>
      */
-    public function forTargets(Project $project, array $ids, User $actor, string $requestKey, bool $onlyFirstRun = false, bool $scheduled = false): Collection
+    public function forTargets(Project $project, array $ids, User $actor, string $requestKey, bool $onlyFirstRun = false, bool $scheduled = false, ?array $channelIds = null): Collection
     {
-        return DB::transaction(function () use ($project, $ids, $actor, $requestKey, $onlyFirstRun, $scheduled): Collection {
+        return DB::transaction(function () use ($project, $ids, $actor, $requestKey, $onlyFirstRun, $scheduled, $channelIds): Collection {
             $project = $this->projects->findLockedOrFail($project->id);
 
             if (! $project->is_active || $project->isClippingProject() || $project->owner_id !== $actor->id) {
@@ -47,6 +48,10 @@ class CreateProductionRun
 
             if (($project->content_mode === ProjectContentMode::SERIES) !== ($ids !== [])) {
                 throw ValidationException::withMessages(['project' => 'The project content type changed. Refresh before starting production.']);
+            }
+
+            if ($channelIds !== null && ($ids === [] || array_diff($channelIds, $this->runs->deliveryChannelIds($project)) !== [])) {
+                throw ValidationException::withMessages(['channel_ids' => 'Выберите доступные каналы этого проекта.']);
             }
 
             if ($ids === []) {
@@ -73,13 +78,13 @@ class CreateProductionRun
 
                 if ($run !== null) {
                     $result[$series->id] = $run;
-                } elseif ($this->isDue($series, $onlyFirstRun)) {
+                } elseif ($this->isDue($series, $onlyFirstRun, $channelIds !== null && ! $scheduled)) {
                     $pending[$key] = $series;
                 }
             }
 
             if ($pending !== []) {
-                foreach ($this->runs->createQueuedSeries($project, $actor, $pending) as $run) {
+                foreach ($this->runs->createQueuedSeries($project, $actor, $pending, $channelIds) as $run) {
                     $result[$run->series_id] = $run;
                 }
             }
@@ -90,18 +95,18 @@ class CreateProductionRun
         });
     }
 
-    private function isDue(Series $series, bool $onlyFirstRun): bool
+    private function isDue(Series $series, bool $onlyFirstRun, bool $manual): bool
     {
         if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO && ($series->episode_limit === null || $series->episode_limit < 1 || $series->episode_limit > 20)) {
             throw ValidationException::withMessages(['series' => 'Configure a finite single-video cycle before starting.']);
         }
 
-        if (($onlyFirstRun && $series->getAttribute('production_runs_exists')) || ! $series->automation_enabled || $series->archived_at !== null) {
+        if (($onlyFirstRun && $series->getAttribute('production_runs_exists')) || (! $series->automation_enabled && ! $manual) || $series->archived_at !== null) {
             return false;
         }
 
         if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
-            return $series->cycle_paused_at === null && $series->release_started_at === null;
+            return $series->cycle_paused_at === null && $series->release_started_at === null && ! $series->getAttribute('final_production_completed');
         }
 
         $latest = $series->episodes->first();

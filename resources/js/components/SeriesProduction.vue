@@ -14,12 +14,20 @@ const props = defineProps<{
     channels: ProjectChannel[];
     seriesId: number;
     enabled: boolean;
+    autoPublish: boolean;
+    pinnedChannelIds?: number[] | null;
     episodeTitle: string;
     episodeNumber: number;
     run?: ProductionRun | null;
 }>();
 const route = useRoute();
-const starting = useForm({ request_key: crypto.randomUUID(), series_id: props.seriesId });
+const starting = useForm({
+    request_key: crypto.randomUUID(),
+    series_id: props.seriesId,
+    channel_ids:
+        props.pinnedChannelIds ??
+        props.channels.filter((channel) => props.autoPublish && channel.can_receive_production).map((channel) => channel.id),
+});
 const transition = useForm({});
 const checking = ref(false);
 watch(
@@ -29,9 +37,7 @@ watch(
 const stopped = computed(() => props.run?.status === 'stopped');
 const attention = computed(() => props.run?.status === 'needs_attention');
 const reviewedTake = computed(() => props.run?.stage === 'media' && props.run?.has_reviewed_take && !props.run?.has_unresolved_effects);
-const resume = computed(
-    () => (stopped.value || attention.value) && !props.run?.has_unresolved_effects && (reviewedTake.value || checking.value),
-);
+const resume = computed(() => (stopped.value || attention.value) && !props.run?.has_unresolved_effects && (reviewedTake.value || checking.value));
 const title = computed(() =>
     resume.value
         ? 'Продолжить производство'
@@ -48,7 +54,9 @@ const recipients = computed(() =>
     props.channels.filter((channel) => (props.run?.channel_ids ? props.run.channel_ids.includes(channel.id) : channel.can_receive_production)),
 );
 const recipientLabel = computed(
-    () => recipients.value.map((channel) => channel.name + ' · ' + channel.type_label).join(', ') || 'Каналы не подключены',
+    () =>
+        recipients.value.map((channel) => channel.name + ' · ' + channel.type_label).join(', ') ||
+        (props.run?.channel_ids?.length === 0 ? 'Без отправки' : 'Каналы не подключены'),
 );
 const groups = computed(() => {
     const stages = Object.keys(props.run?.stages ?? {});
@@ -80,7 +88,8 @@ const resumeStage = computed(() => {
 const reviewHref = computed(() => {
     if (props.run?.series_assembly_id) return route('series_assemblies.show', props.run.series_assembly_id);
     if (props.run?.episode_id) {
-        const panel = ({ media: 'shots/review', montage: 'montage', publication: 'release' } as Record<string, string>)[props.run.stage] ?? 'screenplay';
+        const panel =
+            ({ media: 'shots/review', montage: 'montage', publication: 'release' } as Record<string, string>)[props.run.stage] ?? 'screenplay';
         return route('episodes.show', { series: props.seriesId, episode: props.run.episode_id }) + '#' + panel;
     }
     return null;
@@ -132,6 +141,28 @@ function change(action: 'stop' | 'resume') {
                 </p>
             </div>
         </div>
+        <fieldset v-if="!run" class="run-channels">
+            <legend class="sr-only">Каналы выпуска</legend>
+            <label v-for="channel in channels" :key="channel.id">
+                <input
+                    v-model="starting.channel_ids"
+                    type="checkbox"
+                    :value="channel.id"
+                    :disabled="!channel.can_receive_production || pinnedChannelIds != null || starting.processing"
+                />
+                <span
+                    ><strong>{{ channel.name }} · {{ channel.type_label }}</strong
+                    ><small>{{
+                        !channel.can_receive_production
+                            ? 'Отправка недоступна'
+                            : starting.channel_ids.includes(channel.id)
+                              ? 'Канал подключён'
+                              : 'Оставить без отправки'
+                    }}</small></span
+                >
+            </label>
+            <p v-if="!channels.length">Каналы не подключены. Видео будет собрано без отправки.</p>
+        </fieldset>
         <template v-if="resume">
             <dl class="run-facts">
                 <div>
@@ -198,7 +229,7 @@ function change(action: 'stop' | 'resume') {
                     <dd>{{ recipientLabel }}</dd>
                 </div>
             </ConfirmationDialog>
-            <Button v-else-if="enabled" :disabled="starting.processing" @click="start">Запустить производство</Button>
+            <Button v-else-if="!run && enabled" :disabled="starting.processing" @click="start">Запустить производство</Button>
             <p v-else class="text-muted-foreground text-sm">Проверьте настройки проекта и автоматизации сериала.</p>
         </div>
         <InputError :message="Object.values(starting.errors).join(' ') || Object.values(transition.errors).join(' ')" />
@@ -206,6 +237,24 @@ function change(action: 'stop' | 'resume') {
 </template>
 
 <style scoped>
+.run-channels label {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-block: 9px;
+}
+.run-channels input {
+    accent-color: var(--primary);
+    width: 18px;
+    height: 18px;
+}
+.run-channels small {
+    display: block;
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+
 .run-steps [aria-current='step'] strong {
     color: var(--primary);
 }
@@ -286,6 +335,10 @@ function change(action: 'stop' | 'resume') {
 @media (max-width: 767px) {
     .run-panel {
         padding: 16px;
+    }
+    .run-panel:has(.run-channels) h2 {
+        font-size: 18px;
+        line-height: 24px;
     }
     .run-facts div {
         grid-template-columns: 1fr;

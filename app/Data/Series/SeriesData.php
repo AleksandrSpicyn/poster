@@ -23,5 +23,6 @@ class SeriesData extends Data
         #[Min(1), Max(1000)]
         public ?int $episode_limit = null,
         public SeriesOutputMode $output_mode = SeriesOutputMode::EPISODES,
+        public ?bool $auto_publish = null,
     ) {}
 }

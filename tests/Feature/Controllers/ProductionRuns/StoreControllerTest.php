@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\ChannelType;
 use App\Enums\ProjectContentMode;
+use App\Enums\SeriesOutputMode;
 use App\Jobs\AdvanceProductionJob;
+use App\Models\Channel;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
@@ -126,3 +129,41 @@ test('запускает все сериалы проекта пакетно и 
         ->and($project->productionRuns()->count())->toBe($size);
     Bus::assertDispatchedTimes(AdvanceProductionJob::class, $size);
 })->with([1, 10, 100, 1000]);
+
+test('сохраняет выбранных получателей и явный выпуск без отправки', function (SeriesOutputMode $mode, bool $empty): void {
+    Bus::fake();
+    $owner = serialOperator();
+    $project = Project::factory()->for($owner, 'owner')->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->for($project)->create(['output_mode' => $mode, 'episode_limit' => 3, 'automation_enabled' => false, 'auto_publish' => false]);
+    $channels = Channel::factory()->for($project)->count(2)->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'fake']]);
+    $ids = $empty ? [] : [$channels->firstOrFail()->id];
+    $payload = ['request_key' => 'selection', 'series_id' => $series->id, 'channel_ids' => $ids];
+
+    actingAs($owner)->post(route('production_runs.store', $project), $payload)->assertRedirect()->assertSessionHasNoErrors();
+    post(route('production_runs.store', $project), $payload)->assertRedirect()->assertSessionHasNoErrors();
+
+    $run = $project->productionRuns()->sole();
+    expect($run->deliveryChannelIds())->toBe($ids)
+        ->and($run->input_snapshot['manual_delivery'])->toBeTrue();
+    Bus::assertDispatchedTimes(AdvanceProductionJob::class, 1);
+    Http::assertNothingSent();
+})->with(SeriesOutputMode::cases())->with([false, true]);
+
+test('отклоняет недоступного получателя до создания выпуска и задания', function (bool $foreign): void {
+    Bus::fake();
+    $owner = serialOperator();
+    $project = Project::factory()->for($owner, 'owner')->create(['content_mode' => ProjectContentMode::SERIES]);
+    $series = Series::factory()->for($project)->create(['automation_enabled' => true]);
+    $channel = Channel::factory()->for($project)->create([
+        'owner_id' => $foreign ? User::factory()->create()->id : $owner->id,
+        'type' => ChannelType::TIKTOK, 'credentials' => ['access_token' => 'fake', 'scope' => $foreign ? 'video.upload' : 'video.list'],
+    ]);
+
+    actingAs($owner)->postJson(route('production_runs.store', $project), [
+        'request_key' => 'denied-channel', 'series_id' => $series->id, 'channel_ids' => [$channel->id],
+    ])->assertUnprocessable()->assertJsonValidationErrors('channel_ids');
+
+    expect($project->productionRuns()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+})->with([true, false]);
