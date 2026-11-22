@@ -6,13 +6,18 @@ namespace App\Models;
 
 use App\Enums\ProjectContentMode;
 use Database\Factories\ProjectFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Группирует исходную тему, историю генераций и каналы доставки роликов.
@@ -38,10 +43,32 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $prompts_count
  * @property-read int|null $ready_prompts_count
  */
-class Project extends Model
+class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
     use HasFactory;
+    use InteractsWithMedia;
+
+    public const string COVER = 'project-cover';
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::COVER)->useDisk('local')->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    /** @return HasOneThrough<Media, Prompt, $this> */
+    public function coverFrame(): HasOneThrough
+    {
+        return $this->hasOneThrough(Media::class, Prompt::class, 'project_id', 'model_id')
+            ->ofMany(['id' => 'max'], static function (Builder $query): void {
+                $query->where('media.model_type', new Prompt()->getMorphClass())->where('media.collection_name', Prompt::SHOT_IMAGE);
+            });
+    }
+
+    public function coverImage(): ?Media
+    {
+        return $this->getMedia(self::COVER)->sortByDesc('id')->first() ?? $this->coverFrame;
+    }
 
     public const string OPUS_CLIP_WORKSPACE = 'opusclip';
 

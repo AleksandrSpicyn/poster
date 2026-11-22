@@ -141,6 +141,9 @@ function submit() {
                     aria-label="Разделы проекта"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
+                    <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="bg-muted rounded-lg p-3 text-sm"
+                        >Обложка проекта</Link
+                    >
                     <h2 class="hidden text-lg font-bold min-[1100px]:block">В этом разделе</h2>
                     <a href="#project-name" class="bg-sidebar-accent text-sidebar-accent-foreground rounded-lg p-3 text-sm">Основное</a>
                     <a href="#project-active" class="bg-muted rounded-lg p-3 text-sm">Состояние</a>

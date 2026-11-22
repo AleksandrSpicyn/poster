@@ -8,6 +8,7 @@ export interface ProjectSummary {
     id: number;
     name: string;
     prompt: string;
+    cover: { id: number; url: string; x: number; y: number; source: 'upload' | 'frame' } | null;
     is_clipping: boolean;
     content_mode: string;
     content_mode_label: string;

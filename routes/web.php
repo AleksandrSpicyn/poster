@@ -9,6 +9,9 @@ use App\Http\Controllers\Posts\ResolveController;
 use App\Http\Controllers\Posts\TiktokCreateController;
 use App\Http\Controllers\Posts\TiktokPreviewController;
 use App\Http\Controllers\Posts\TiktokStoreController;
+use App\Http\Controllers\ProjectCovers\EditController as ProjectCoverEditController;
+use App\Http\Controllers\ProjectCovers\ShowController as ProjectCoverShowController;
+use App\Http\Controllers\ProjectCovers\StoreController as ProjectCoverStoreController;
 use App\Http\Controllers\Projects\CreateController as ProjectsCreateController;
 use App\Http\Controllers\Projects\DestroyController as ProjectsDestroyController;
 use App\Http\Controllers\Projects\EditController as ProjectsEditController;
@@ -54,6 +57,11 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(func
         Route::get('create', ProjectsCreateController::class)->name('create');
         Route::post('', ProjectsStoreController::class)->name('store');
         Route::get('{project}', ProjectsShowController::class)->whereNumber('project')->name('show');
+        Route::prefix('{project}/cover')->whereNumber('project')->name('cover.')->group(function (): void {
+            Route::get('edit', ProjectCoverEditController::class)->name('edit');
+            Route::get('', ProjectCoverShowController::class)->name('show');
+            Route::post('', ProjectCoverStoreController::class)->name('store');
+        });
         Route::get('{project}/edit', ProjectsEditController::class)->whereNumber('project')->name('edit');
         Route::patch('{project}', ProjectsUpdateController::class)->whereNumber('project')->name('update');
         Route::delete('{project}', ProjectsDestroyController::class)->whereNumber('project')->name('destroy');

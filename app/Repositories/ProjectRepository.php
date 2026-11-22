@@ -25,7 +25,7 @@ readonly class ProjectRepository extends EloquentRepository
     /** @return LengthAwarePaginator<int, Project> */
     public function paginate(User $owner, GetProjectsListData $data): LengthAwarePaginator
     {
-        $query = Project::query()->where('owner_id', $owner->id)->withCount([
+        $query = Project::query()->where('owner_id', $owner->id)->with('media', 'coverFrame')->withCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $owner->id), 'series',
@@ -57,7 +57,7 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function forWorkspace(Project $project): Project
     {
-        $project->load('latestProductionRun', 'seriesDefinition');
+        $project->load('latestProductionRun', 'seriesDefinition', 'media', 'coverFrame');
         $project->loadCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
@@ -80,7 +80,7 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function forSettings(Project $project): Project
     {
-        return $project->load('seriesDefinition');
+        return $project->load('seriesDefinition', 'media', 'coverFrame');
     }
 
     public function hasSeries(Project $project): bool

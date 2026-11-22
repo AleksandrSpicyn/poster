@@ -12,9 +12,6 @@ import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Pencil } from '@lucide/vue';
-import drive from '../../../assets/studio/night-drive.webp';
-import forest from '../../../assets/studio/forest-courier.webp';
-import lunar from '../../../assets/studio/lunar-landscape.webp';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -102,7 +99,27 @@ function clearSearch() {
                 <div class="project-grid">
                     <article v-for="project in page.props.projects.data" :key="project.id" class="project-card">
                         <Link :href="route('projects.show', project.id)" class="focus-visible:ring-ring block focus-visible:ring-2">
-                            <img :src="project.is_clipping ? drive : project.content_mode === 'series' ? forest : lunar" alt="" loading="lazy" />
+                            <img
+                                v-if="project.cover"
+                                :src="project.cover.url"
+                                :style="{ objectPosition: project.cover.x + '% ' + project.cover.y + '%' }"
+                                alt=""
+                                loading="lazy"
+                            />
+                            <span
+                                v-else
+                                class="bg-muted text-muted-foreground grid aspect-video place-items-center text-xl font-bold"
+                                aria-hidden="true"
+                                >{{
+                                    project.name
+                                        .trim()
+                                        .split(/\s+/)
+                                        .slice(0, 2)
+                                        .map((word) => word[0])
+                                        .join('')
+                                        .toLocaleUpperCase('ru')
+                                }}</span
+                            >
                             <h3>{{ project.name }}</h3>
                         </Link>
                         <div class="flex min-w-0 items-center justify-between gap-2 px-4 pb-2">
@@ -148,7 +165,7 @@ function clearSearch() {
 }
 .project-card img {
     width: 100%;
-    aspect-ratio: 1.85;
+    aspect-ratio: 16 / 9;
     max-height: 245px;
     object-fit: cover;
     object-position: center 45%;
