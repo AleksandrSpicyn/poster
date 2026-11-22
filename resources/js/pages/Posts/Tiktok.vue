@@ -201,6 +201,7 @@ watch(
                 <Button v-if="directDetails" form="tiktok-delivery-form" type="submit" :disabled="!canSubmit">Опубликовать</Button>
                 <Button
                     v-else-if="tab === 'Предпросмотр' && video"
+                    class="preview-action"
                     @click="
                         tab = video.receipt ? 'Статус' : 'Параметры';
                         directDetails = !video.receipt && form.mode === 'direct';
@@ -214,7 +215,7 @@ watch(
             </section>
             <p v-if="!videos.data.length">Привяжите канал к проекту с готовым видео.</p>
             <template v-else-if="inbox || creator">
-                <nav v-if="video && !directDetails" aria-label="Разделы публикации" class="flex flex-wrap gap-2">
+                <nav v-if="video && !directDetails" aria-label="Разделы публикации" class="delivery-tabs flex flex-wrap gap-2">
                     <Button
                         v-for="item in tabs"
                         :key="item"
@@ -235,9 +236,9 @@ watch(
                     />
                     <section>
                         <h2>Предпросмотр</h2>
-                        <p class="studio-row"><strong>Видео</strong>{{ video.label }}</p>
-                        <p class="studio-row"><strong>Аккаунт</strong>{{ account }}</p>
-                        <p class="studio-row"><strong>Способ доставки</strong>{{ delivery }}</p>
+                        <p class="studio-row"><strong>Видео</strong><span>{{ video.label }}</span></p>
+                        <p class="studio-row"><strong>Аккаунт</strong><span>{{ account }}</span></p>
+                        <p class="studio-row"><strong>Способ доставки</strong><span>{{ delivery }}</span></p>
                     </section>
                 </div>
                 <div v-else class="delivery-grid" :class="{ 'direct-details': directDetails }">
@@ -291,7 +292,7 @@ watch(
                         <h2 v-if="directDetails">Аккаунт · {{ creator?.nickname ?? account }}</h2>
                         <template v-else>
                             <h2>Способ доставки</h2>
-                            <p class="studio-row"><strong>Аккаунт</strong>{{ account }} · TikTok</p>
+                            <p class="studio-row"><strong>Аккаунт</strong><span>{{ account }}</span> · TikTok</p>
                             <fieldset class="mode-switch">
                                 <legend class="sr-only">Способ доставки</legend>
                                 <label v-if="inbox"
@@ -434,11 +435,36 @@ header > button:disabled {
     background: var(--muted);
     opacity: 1;
 }
+.delivery-tabs button {
+    height: 40px;
+    padding-inline: 12px;
+    border: 0;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    box-shadow: none;
+}
+.delivery-tabs button[aria-current] {
+    color: var(--primary);
+    background: var(--sidebar-accent);
+}
+.preview-action {
+    min-height: 44px;
+    font-weight: 700;
+}
+.preview-grid section h2 {
+    margin-bottom: 16px;
+}
 .preview-grid .studio-row {
+    border-top: 0;
+    border-bottom: 1px solid var(--border);
     display: grid;
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
     text-align: left;
-    padding-block: 16px;
+    padding-block: 14px;
+}
+.preview-grid .studio-row span {
+    color: var(--muted-foreground);
+    font-size: 14px;
 }
 
 .direct-video {
@@ -493,10 +519,19 @@ h2 {
     font-size: 20px;
     font-weight: 700;
 }
-@media (min-width: 1100px) {
+@media (min-width: 768px) {
     .preview-grid {
         grid-template-columns: min(34%, 390px) minmax(0, 1fr);
     }
+}
+@media (max-width: 1099px) {
+    .preview-grid .studio-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
+        padding-block: 8px;
+    }
+}
+@media (min-width: 1100px) {
     .delivery-grid {
         max-width: 1144px;
         grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr);

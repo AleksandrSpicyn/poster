@@ -186,7 +186,22 @@ function verify() {
     }
     .review-main nav {
         min-height: 240px;
+        padding: 16px 8px;
         align-content: start;
+    }
+    .review-main nav h2 {
+        margin: 0 14px 8px;
+    }
+    .review-main nav button {
+        color: var(--muted-foreground);
+    }
+    .review-main nav button[aria-current] {
+        color: var(--sidebar-accent-foreground);
+        background: var(--sidebar-accent);
+        font-weight: 700;
+    }
+    .review-main .studio-form {
+        padding-top: 18px;
     }
     .review-detail {
         grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);

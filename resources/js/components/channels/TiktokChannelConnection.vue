@@ -129,6 +129,10 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
     justify-content: space-between;
     gap: 16px;
 }
+.connection header > :last-child {
+    min-height: 44px;
+    font-weight: 700;
+}
 .connection-layout {
     display: grid;
     gap: 16px;
@@ -191,16 +195,23 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 16px;
+        padding: 16px 8px;
         min-height: 240px;
     }
     .connection nav h2 {
         display: block;
         font-size: 20px;
         font-weight: 700;
-        margin: 0 8px 8px;
+        margin: 0 14px 8px;
+    }
+    .connection-fields {
+        padding-top: 18px;
+    }
+    .connection nav a[aria-current] {
+        font-weight: 700;
     }
     .connection nav a:not([aria-current]) {
+        color: var(--muted-foreground);
         background: transparent;
     }
 }
