@@ -9,7 +9,9 @@ import { Head, Link } from '@inertiajs/vue3';
         <main class="legal-copy pt-[13px] min-[700px]:pt-[18px]" lang="en">
             <Head title="Terms of Service" />
             <h1>Terms of Service</h1>
-            <p class="mt-[17px] text-sm min-[700px]:mt-[21px]">Updated November 22, 2026</p>
+            <p class="relative -left-px mt-[17px] text-sm tracking-[0.06px] min-[700px]:mt-5">
+                <time datetime="2026-11-22">Updated November 22, 2026</time>
+            </p>
             <p class="mt-6 leading-relaxed">
                 These terms apply when you use Poster to prepare, manage or publish short videos. Poster is operated by Aleksandr Olegovich Spitsyn.
             </p>
