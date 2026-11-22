@@ -55,21 +55,25 @@ final readonly class OpusClipRepository extends EloquentRepository
     }
 
     /** @param iterable<ImportedClipData> $clips */
-    public function refreshSource(ClippingConnection $connection, int $sourceId, string $externalId, iterable $clips): void
+    public function refreshSource(ClippingConnection $connection, int $sourceId, string $externalId, iterable $clips, ?string $expectedCheckpoint = null, ?string $nextCheckpoint = null): bool
     {
-        DB::transaction(function () use ($connection, $sourceId, $externalId, $clips): void {
+        return DB::transaction(function () use ($connection, $sourceId, $externalId, $clips, $expectedCheckpoint, $nextCheckpoint): bool {
             $origin = OpusSource::query()->whereKey($sourceId)->where('clipping_connection_id', $connection->id)
-                ->where('external_id', $externalId)->whereNull('sync_paused_at')->lockForUpdate()->first();
+                ->where('external_id', $externalId)->where('publication_sync_checkpoint', $expectedCheckpoint)->whereNull('sync_paused_at')->lockForUpdate()->first();
 
             if ($origin === null) {
-                return;
+                return false;
             }
 
             $project = Project::query()->where('owner_id', $connection->owner_id)->where('clipping_connection_id', $connection->id)->lockForUpdate()->find($origin->project_id);
 
-            if ($project !== null) {
-                $this->storeClips($project, new OpusSourceData($origin->external_id), $clips, $connection->id, false);
+            if ($project === null) {
+                return false;
             }
+
+            $this->storeClips($project, new OpusSourceData($origin->external_id), $clips, $connection->id, false, $nextCheckpoint);
+
+            return true;
         }, attempts: 3);
     }
 
@@ -121,7 +125,7 @@ final readonly class OpusClipRepository extends EloquentRepository
     }
 
     /** @param iterable<ImportedClipData> $clips */
-    private function storeClips(Project $project, OpusSourceData $source, iterable $clips, ?int $connectionId, bool $legacyCards): void
+    private function storeClips(Project $project, OpusSourceData $source, iterable $clips, ?int $connectionId, bool $legacyCards, ?string $nextCheckpoint = null): void
     {
         $origin = $project->opusSources()->firstOrNew(['external_id' => $source->id, 'clipping_connection_id' => $connectionId]);
         $oldName = $this->sourceProjectName($origin);
@@ -131,7 +135,12 @@ final readonly class OpusClipRepository extends EloquentRepository
         }
 
         $origin->game = $source->game ?? $origin->game;
-        $origin->last_synced_at = now();
+        $origin->publication_sync_checkpoint = $nextCheckpoint;
+
+        if ($nextCheckpoint === null) {
+            $origin->last_synced_at = now();
+        }
+
         $origin->sync_error = null;
         $origin->sync_paused_at = null;
         $origin->save();
@@ -157,7 +166,7 @@ final readonly class OpusClipRepository extends EloquentRepository
                 'title' => $clip->title ?? $record->title,
                 'duration_ms' => $clip->durationMs ?? $record->duration_ms,
                 'score' => $clip->score ?? $record->score,
-                'publications' => [...$clip->publications, ...$oldLinks->values()->all()],
+                'publications' => $nextCheckpoint !== null ? ($record->publications ?? []) : [...$clip->publications, ...$oldLinks->values()->all()],
             ])->save();
         }
     }

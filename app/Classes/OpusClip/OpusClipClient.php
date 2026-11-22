@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Classes\OpusClip;
 
-use App\Classes\Clipping\ClippingReader;
+use App\Classes\Clipping\ClippingResourceReader;
 use App\Data\OpusClip\ImportedClipData;
 use App\Data\OpusClip\OpusSourceData;
 use App\Support\Integrations\Payload;
@@ -12,7 +12,7 @@ use Generator;
 use Illuminate\Support\Collection;
 use UnexpectedValueException;
 
-final readonly class OpusClipClient implements ClippingReader
+final readonly class OpusClipClient implements ClippingResourceReader
 {
     public function __construct(private OpusClipApi $api) {}
 
@@ -76,8 +76,32 @@ final readonly class OpusClipClient implements ClippingReader
     /** @return Collection<int, ImportedClipData> */
     public function clips(string $projectId): Collection
     {
+        $metadata = $this->clipMetadata($projectId)->keyBy('id');
+        $published = $this->clipPublications($projectId)->keyBy('id');
+
+        return $metadata->keys()->merge($published->keys())->unique()->values()->map(function ($id) use ($metadata, $published): ImportedClipData {
+            $clip = $metadata->get($id);
+
+            return new ImportedClipData((string) $id, $clip?->title, $clip?->durationMs, $clip?->score, $published->get($id)->publications ?? []);
+        });
+    }
+
+    public function clipMetadata(string $projectId): Collection
+    {
+        $rows = $this->api->rows('exportable-clips', ['q' => 'findByProjectId', 'projectId' => $projectId]);
+
+        return collect($rows)->map(fn(array $clip): ImportedClipData => new ImportedClipData(
+            $this->clipId($clip['id'] ?? null, $projectId),
+            is_string($clip['title'] ?? null) ? $clip['title'] : null,
+            is_numeric($clip['durationMs'] ?? null) ? (int) $clip['durationMs'] : null,
+            is_numeric($clip['score'] ?? null) ? (float) $clip['score'] : null,
+            [],
+        ))->keyBy('id')->values();
+    }
+
+    public function clipPublications(string $projectId): Collection
+    {
         $params = ['q' => 'findByProjectId', 'projectId' => $projectId];
-        $clips = $this->api->rows('exportable-clips', $params);
         $publications = [];
 
         foreach ($this->api->rows('post-tasks', $params) as $post) {
@@ -95,20 +119,7 @@ final readonly class OpusClipClient implements ClippingReader
             ];
         }
 
-        $items = collect($clips)->keyBy(fn(array $clip): string => $this->clipId($clip['id'] ?? null, $projectId));
-
-        return $items->keys()->merge(array_keys($publications))->unique()->values()
-            ->map(function ($id) use ($items, $publications): ImportedClipData {
-                $clip = $items->get($id, []);
-
-                return new ImportedClipData(
-                    (string) $id,
-                    is_string($clip['title'] ?? null) ? $clip['title'] : null,
-                    is_numeric($clip['durationMs'] ?? null) ? (int) $clip['durationMs'] : null,
-                    is_numeric($clip['score'] ?? null) ? (float) $clip['score'] : null,
-                    $publications[$id] ?? [],
-                );
-            });
+        return collect($publications)->map(static fn(array $posts, int|string $id): ImportedClipData => new ImportedClipData((string) $id, null, null, null, $posts))->values();
     }
 
     private function clipId(mixed $value, string $projectId): string

@@ -7,6 +7,7 @@ use App\Http\Controllers\Clipping\HistoryController;
 use App\Http\Controllers\Clipping\ImportController;
 use App\Http\Controllers\Clipping\IndexController;
 use App\Http\Controllers\Clipping\PreviewController;
+use App\Http\Controllers\Clipping\ResumeController;
 use App\Http\Controllers\Clipping\ShowPreviewController;
 use App\Http\Controllers\Clipping\SourcesController;
 use App\Http\Controllers\Clipping\StoreController;
@@ -20,6 +21,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->prefix('cl
     Route::post('', StoreController::class)->name('store');
     Route::prefix('{connection}')->whereNumber('connection')->group(function (): void {
         Route::get('sources', SourcesController::class)->name('sources');
+        Route::post('sources/{source}/resume', ResumeController::class)->whereNumber('source')->name('sources.resume');
         Route::post('previews', PreviewController::class)->name('preview');
         Route::prefix('previews/{preview}')->whereNumber('preview')->group(function (): void {
             Route::get('', ShowPreviewController::class)->name('preview.show');

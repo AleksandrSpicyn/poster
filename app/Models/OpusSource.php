@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $project_id
  * @property int|null $clipping_connection_id
  * @property string $external_id
+ * @property string|null $publication_sync_checkpoint
  * @property string|null $title
  * @property string|null $game
  * @property Carbon|null $last_synced_at
@@ -25,6 +26,8 @@ class OpusSource extends Model
     use HasFactory;
 
     protected $casts = ['last_synced_at' => 'datetime', 'sync_paused_at' => 'datetime'];
+
+    protected $hidden = ['publication_sync_checkpoint'];
 
     protected $guarded = ['id'];
 

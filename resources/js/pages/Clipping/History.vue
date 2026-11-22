@@ -2,17 +2,19 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 const route = useRoute();
 defineProps<{
     sources: {
         id: number;
+        clipping_connection_id: number;
         external_id: string;
         title: string | null;
         last_synced_at: string | null;
         sync_paused_at: string | null;
         sync_error: string | null;
+        publications_pending: boolean;
     }[];
     imports: {
         id: number;
@@ -46,6 +48,28 @@ defineProps<{
                         run.source_name || run.external_id
                     }}</Link>
                     <span>{{ run.imported_at ? 'Завершено' : 'Предпросмотр' }} · Клипов: {{ run.clip_count }}</span>
+                </article>
+            </section>
+            <section v-if="sources.length" class="studio-panel">
+                <h2>Обновление источников</h2>
+                <article v-for="source in sources" :key="source.id" class="studio-row">
+                    <div>
+                        <strong>{{ source.title || source.external_id }}</strong>
+                        <p v-if="source.last_synced_at">Последнее полное обновление · {{ new Date(source.last_synced_at).toLocaleString('ru') }}</p>
+                    </div>
+                    <div>
+                        <span v-if="source.sync_paused_at">Приостановлено. Проверьте доступ у провайдера.</span>
+                        <span v-else-if="source.publications_pending">Клипы сохранены. Ожидается обновление публикаций.</span>
+                        <p v-if="source.sync_error">{{ source.sync_error }}</p>
+                        <Form
+                            v-if="source.sync_paused_at"
+                            :action="route('clipping.sources.resume', [source.clipping_connection_id, source.id])"
+                            method="post"
+                            v-slot="{ processing }"
+                        >
+                            <Button type="submit" variant="outline" :disabled="processing">Возобновить обновление</Button>
+                        </Form>
+                    </div>
                 </article>
             </section>
         </div></AppLayout

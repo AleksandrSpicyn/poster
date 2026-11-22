@@ -34,23 +34,40 @@ final readonly class ClippingConnectionRepository
             ->whereIn('clipping_connection_id', ClippingConnection::query()->where('uses_server_key', false)->select('id'))->lazyById();
     }
 
-    public function activeConnection(int $connectionId, int $sourceId): ?ClippingConnection
+    public function find(int $id): ?ClippingConnection
     {
-        $connection = ClippingConnection::query()->find($connectionId);
-
-        if ($connection === null || ! OpusSource::query()->whereKey($sourceId)->where('clipping_connection_id', $connectionId)
-            ->whereNull('sync_paused_at')->whereHas('project', fn($query) => $query->where('owner_id', $connection->owner_id)
-            ->where('clipping_connection_id', $connectionId))->exists()) {
-            return null;
-        }
-
-        return $connection;
+        return ClippingConnection::query()->find($id);
     }
 
-    public function markSyncError(int $connectionId, int $sourceId, string $message, bool $pause = false): void
+    public function syncSource(ClippingConnection $connection, int $id, string $externalId): ?OpusSource
     {
-        OpusSource::query()->whereKey($sourceId)->where('clipping_connection_id', $connectionId)
-            ->update(['sync_error' => $message, ...($pause ? ['sync_paused_at' => now()] : [])]);
+        return OpusSource::query()->where('clipping_connection_id', $connection->id)->where('external_id', $externalId)
+            ->whereRelation('project', 'owner_id', $connection->owner_id)->whereRelation('project', 'clipping_connection_id', $connection->id)
+            ->whereNull('sync_paused_at')->find($id);
+    }
+
+    public function resume(ClippingConnection $connection, int $id): ?OpusSource
+    {
+        return DB::transaction(function () use ($connection, $id): ?OpusSource {
+            $source = OpusSource::query()->where('clipping_connection_id', $connection->id)
+                ->whereRelation('project', 'owner_id', $connection->owner_id)->whereRelation('project', 'clipping_connection_id', $connection->id)
+                ->lockForUpdate()->findOrFail($id);
+
+            if ($source->sync_paused_at === null) {
+                return null;
+            }
+
+            $source->forceFill(['sync_paused_at' => null, 'sync_error' => null])->save();
+
+            return $source;
+        }, attempts: 3);
+    }
+
+    public function markSyncError(ClippingConnection $connection, int $sourceId, ?string $checkpoint, string $message, bool $pause = false): void
+    {
+        OpusSource::query()->whereKey($sourceId)->where('clipping_connection_id', $connection->id)
+            ->whereRelation('project', 'owner_id', $connection->owner_id)->whereRelation('project', 'clipping_connection_id', $connection->id)
+            ->where('publication_sync_checkpoint', $checkpoint)->update(['sync_error' => $message, ...($pause ? ['sync_paused_at' => now()] : [])]);
     }
 
     public function save(User $owner, ClippingConnectionData $data): ClippingConnection
@@ -80,7 +97,8 @@ final readonly class ClippingConnectionRepository
     {
         return OpusSource::query()->whereRelation('project', 'owner_id', $owner->id)
             ->whereIn('clipping_connection_id', ClippingConnection::query()->where('owner_id', $owner->id)->select('id'))
-            ->orderByDesc('updated_at')->limit(100)->get(['id', 'external_id', 'title', 'last_synced_at', 'sync_paused_at', 'sync_error']);
+            ->orderByDesc('updated_at')->limit(100)->select(['id', 'clipping_connection_id', 'external_id', 'title', 'last_synced_at', 'sync_paused_at', 'sync_error'])
+            ->selectRaw('publication_sync_checkpoint IS NOT NULL as publications_pending')->withCasts(['publications_pending' => 'boolean'])->get();
     }
 
     /** @return Collection<int, ClippingImport> */

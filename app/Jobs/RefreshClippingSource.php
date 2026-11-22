@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Classes\Clipping\ClippingReaders;
+use App\Classes\Clipping\ClippingResourceReader;
 use App\Exceptions\ClippingProviderException;
 use App\Models\ClippingConnection;
+use App\Models\OpusSource;
 use App\Repositories\ClippingConnectionRepository;
 use App\Repositories\OpusClipRepository;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
@@ -37,17 +40,42 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
 
     public function handle(ClippingReaders $readers, ClippingConnectionRepository $connections, OpusClipRepository $clips): void
     {
-        $connection = $connections->activeConnection($this->connectionId, $this->sourceId);
+        $connection = $connections->find($this->connectionId);
 
         if (! $connection instanceof ClippingConnection) {
             return;
         }
 
+        $source = $connections->syncSource($connection, $this->sourceId, $this->externalId);
+
+        if (! $source instanceof OpusSource) {
+            return;
+        }
+
+        $checkpoint = $source->publication_sync_checkpoint;
+
         try {
-            $items = $readers->forConnection($connection)->clips($this->externalId);
+            $reader = $readers->forConnection($connection);
+
+            if ($reader instanceof ClippingResourceReader) {
+                if ($checkpoint === null) {
+                    $items = $reader->clipMetadata($this->externalId);
+                    $next = (string) Str::uuid();
+
+                    if (! $clips->refreshSource($connection, $source->id, $this->externalId, $items, null, $next)) {
+                        return;
+                    }
+
+                    $checkpoint = $next;
+                }
+
+                $items = $reader->clipPublications($this->externalId);
+            } else {
+                $items = $reader->clips($this->externalId);
+            }
         } catch (ClippingProviderException $error) {
             $auth = in_array($error->status, [401, 403], true);
-            $connections->markSyncError($connection->id, $this->sourceId, 'HTTP ' . $error->status, $auth);
+            $connections->markSyncError($connection, $this->sourceId, $checkpoint, 'HTTP ' . $error->status, $auth);
 
             if ($error->status === 429) {
                 $this->release($error->retryAfter);
@@ -61,11 +89,11 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
 
             throw $error;
         } catch (RuntimeException $error) {
-            $connections->markSyncError($connection->id, $this->sourceId, 'Не удалось прочитать источник.');
+            $connections->markSyncError($connection, $this->sourceId, $checkpoint, 'Не удалось прочитать источник.');
 
             throw $error;
         }
 
-        $clips->refreshSource($connection, $this->sourceId, $this->externalId, $items);
+        $clips->refreshSource($connection, $this->sourceId, $this->externalId, $items, $checkpoint);
     }
 }
