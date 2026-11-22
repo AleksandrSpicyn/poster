@@ -29,6 +29,21 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const hasDraft = computed(
         () => scriptForm.isDirty || Boolean(generateForm.brief) || scriptText.value !== JSON.stringify(scriptForm.script, null, 2),
     );
+    const changedFields = computed(() => {
+        const saved: Screenplay = props.screenplay ?? JSON.parse(initialScriptJson);
+        const current = scriptForm.script;
+        const changes: string[] = [];
+        if (generateForm.brief) changes.push('Задание на сценарий');
+        if (current.title !== saved.title) changes.push('Название');
+        if (current.objective !== saved.objective) changes.push('Цель эпизода');
+        if (current.public_caption !== saved.public_caption) changes.push('Описание для публикации');
+        if (JSON.stringify(current.character_revision_ids) !== JSON.stringify(saved.character_revision_ids)) changes.push('Состав персонажей');
+        for (let i = 0; i < Math.max(current.scenes.length, saved.scenes.length); i++) {
+            if (JSON.stringify(current.scenes[i]) !== JSON.stringify(saved.scenes[i])) changes.push('Сцена ' + (i + 1));
+        }
+        if (scriptText.value !== initialScriptJson && scriptText.value !== JSON.stringify(current, null, 2)) changes.push('Текст для импорта');
+        return changes;
+    });
     const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
     function clearDraft() {
         try {
@@ -135,6 +150,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         editorStale,
         clearDraft,
         hasDraft,
+        changedFields,
         saveScript,
         importScript,
         generateScript,

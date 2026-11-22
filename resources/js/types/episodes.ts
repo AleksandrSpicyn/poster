@@ -41,6 +41,7 @@ export interface SceneSummary {
     shots: ShotSummary[];
 }
 export interface EpisodeRevisionSummary {
+    created_at: string | null;
     id: number;
     number: number;
     title: string;

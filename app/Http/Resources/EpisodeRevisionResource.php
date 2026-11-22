@@ -17,6 +17,7 @@ class EpisodeRevisionResource extends JsonResource
         return [
             'id' => $this->id,
             'number' => $this->number,
+            'created_at' => $this->created_at?->toISOString(),
             'status' => $this->status->value,
             'title' => $this->title,
             'objective' => $this->objective,

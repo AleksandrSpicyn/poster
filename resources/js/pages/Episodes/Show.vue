@@ -8,6 +8,16 @@ import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import TrimInterval from '@/components/episodes/TrimInterval.vue';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,6 +36,14 @@ const breadcrumbs = [
     { title: props.episode.title, href: route('episodes.show', params) },
 ];
 const revision = computed(() => props.episode.current_revision);
+const saveTime = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+const scriptStatusLabels: Record<string, string> = {
+    queued: 'В очереди',
+    running: 'В работе',
+    completed: 'Готово',
+    failed: 'Не удалось подготовить сценарий',
+    outcome_unknown: 'Результат требует проверки',
+};
 const archived = computed(() => !!props.series.archived_at);
 const storyContext = computed(() => revision.value?.context ?? props.sourceAssembly?.continuity_snapshot);
 const {
@@ -41,6 +59,7 @@ const {
     editorStale,
     clearDraft,
     hasDraft,
+    changedFields,
     saveScript,
     importScript,
     generateScript,
@@ -84,9 +103,17 @@ onMounted(() => {
 onUnmounted(() => window.removeEventListener('hashchange', restorePanel));
 const preview = computed(() => allAssemblies.value.flatMap((item) => item.media).find((item) => item.collection === 'episode-video'));
 function refresh() {
-    if (hasDraft.value && !window.confirm('Обновить эпизод и сбросить несохранённые изменения сценария?')) return;
-    clearDraft();
-    router.get(route('episodes.show', params) + window.location.hash, {}, { preserveState: false, replace: true });
+    router.get(
+        route('episodes.show', params) + window.location.hash,
+        {},
+        {
+            replace: true,
+            preserveState: () => {
+                clearDraft();
+                return false;
+            },
+        },
+    );
 }
 </script>
 
@@ -98,7 +125,43 @@ function refresh() {
                 <Heading
                     :title="panelTitles[panel] ?? 'Сценарий эпизода'"
                     :description="series.name + ' / Эпизод ' + episode.number + ' · ' + episode.title"
-                /><Button variant="outline" class="h-11" @click="refresh"><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button>
+                />
+                <Dialog v-if="hasDraft">
+                    <DialogTrigger as-child
+                        ><Button variant="outline" class="h-11"
+                            ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
+                        ></DialogTrigger
+                    >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Сбросить черновик?</DialogTitle>
+                            <DialogDescription>Несохранённые изменения будут заменены последней сохранённой версией сценария.</DialogDescription>
+                        </DialogHeader>
+                        <dl class="divide-y">
+                            <div class="studio-row">
+                                <dt>Последнее сохранение</dt>
+                                <dd>
+                                    <template v-if="revision"
+                                        ><time v-if="revision.created_at" :datetime="revision.created_at"
+                                            >{{ saveTime.format(new Date(revision.created_at)) }} UTC · </time
+                                        >Версия {{ revision.number }}</template
+                                    ><template v-else>Сценарий ещё не сохранён</template>
+                                </dd>
+                            </div>
+                            <div class="studio-row">
+                                <dt>Несохранено</dt>
+                                <dd>{{ changedFields.join(', ') || 'Черновик сценария' }}</dd>
+                            </div>
+                        </dl>
+                        <DialogFooter>
+                            <DialogClose as-child><Button variant="outline">Остаться в редакторе</Button></DialogClose>
+                            <Button variant="destructive" @click="refresh">Сбросить изменения</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                <Button v-else variant="outline" class="h-11" @click="refresh"
+                    ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
+                >
             </div>
             <nav aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
                 <a
@@ -122,7 +185,7 @@ function refresh() {
                 role="alert"
                 class="border-destructive/30 text-destructive rounded-lg border p-4 text-sm"
             >
-                An earlier accepted episode changed. Review the source and save a new screenplay before continuing or publishing this episode.
+                Предыдущий принятый эпизод изменился. Проверьте источник и сохраните новую версию сценария перед продолжением или публикацией.
             </p>
             <div
                 class="grid items-start gap-4"
@@ -158,10 +221,10 @@ function refresh() {
                     <div v-show="panel === 'screenplay'" class="space-y-5">
                         <details class="bg-card space-y-4 rounded-xl border p-5 sm:p-7">
                             <summary class="cursor-pointer font-semibold">
-                                {{ revision ? 'Story context saved with this screenplay' : 'Story context for the next episode' }}
+                                {{ revision ? 'Память истории на момент сохранения' : 'Память истории для следующего эпизода' }}
                             </summary>
                             <p v-if="revision" class="text-muted-foreground text-xs">
-                                Series brief version {{ revision.context.specification_version ?? '—' }} · story version
+                                Версия паспорта {{ revision.context.specification_version ?? '—' }} · версия истории
                                 {{ revision.base_continuity_version }}
                             </p>
                             <dl
@@ -182,7 +245,7 @@ function refresh() {
                                 </div>
                             </dl>
                             <p v-else class="text-muted-foreground text-sm">
-                                The first episode starts from the series brief and approved character appearances.
+                                Первый эпизод опирается на паспорт сериала и утверждённые образы персонажей.
                             </p>
                             <p
                                 v-if="storyContext?.scene_closed !== undefined && storyContext?.scene_closed !== null"
@@ -190,8 +253,8 @@ function refresh() {
                             >
                                 {{
                                     storyContext.scene_closed
-                                        ? 'The previous scene has finished. Begin a new scene.'
-                                        : 'The previous scene is open and can continue from its final frames.'
+                                        ? 'Предыдущая сцена завершена. Начните новую сцену.'
+                                        : 'Предыдущая сцена открыта. Её можно продолжить с последних кадров.'
                                 }}
                             </p>
                         </details>
@@ -224,9 +287,9 @@ function refresh() {
                                 </div>
                             </form>
                             <p v-if="episode.script_generation_status" class="text-muted-foreground text-sm" role="status">
-                                Подготовка сценария · {{ episode.script_generation_status.replaceAll('_', ' ') }}
+                                Подготовка сценария · {{ scriptStatusLabels[episode.script_generation_status] }}
                             </p>
-                            <p v-if="episode.script_generation_error" class="text-destructive text-sm">{{ episode.script_generation_error }}</p>
+                            <p v-if="episode.script_generation_error" class="text-destructive text-sm">Проверьте доступность проекта и актуальность сценария перед повторной подготовкой.</p>
                             <p v-if="!characters.length" class="text-muted-foreground text-sm">
                                 Чтобы написать эпизод, утвердите образ хотя бы одного персонажа.
                                 <Link :href="route('projects.show', project.id)" class="text-primary underline">Персонажи</Link>
@@ -261,7 +324,7 @@ function refresh() {
                                         type="submit"
                                         class="h-11"
                                         :disabled="archived || scriptForm.processing || editorStale || !characters.length"
-                                        >Save as new draft version</Button
+                                        >Сохранить новую версию</Button
                                     ><Button
                                         v-if="revision?.status === 'draft'"
                                         type="button"
@@ -276,13 +339,10 @@ function refresh() {
                             </form>
                             <details class="space-y-4 rounded-lg border p-4">
                                 <summary class="cursor-pointer text-sm font-medium">Импорт и экспорт сценария в JSON</summary>
-                                <p class="text-muted-foreground mt-3 text-xs">
-                                    Use these tools to exchange a structured screenplay. The scene editor above is the current draft. Importing
-                                    creates a new version after server validation.
-                                </p>
+                                <p class="text-muted-foreground mt-3 text-xs">Импорт сохранит новую версию сценария.</p>
                                 <Button type="button" variant="outline" class="h-11" @click="scriptText = JSON.stringify(scriptForm.script, null, 2)"
-                                    >Export current draft to JSON</Button
-                                ><Label for="screenplay-json">Screenplay JSON</Label
+                                    >Экспортировать черновик в JSON</Button
+                                ><Label for="screenplay-json">Сценарий в формате JSON</Label
                                 ><textarea
                                     id="screenplay-json"
                                     v-model="scriptText"
@@ -292,7 +352,7 @@ function refresh() {
                                     class="border-input bg-background focus-visible:ring-ring/50 mt-2 w-full resize-y rounded-md border p-4 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2"
                                 />
                                 <p class="text-muted-foreground text-xs">
-                                    For imports, source_time_ms: 0 uses the final frame; a positive value selects a time in milliseconds.
+                                    При импорте нулевая отметка времени выбирает последний кадр. Остальные отметки задаются в миллисекундах.
                                 </p>
                                 <InputError :message="jsonError" /><Button
                                     type="button"
@@ -300,7 +360,7 @@ function refresh() {
                                     class="h-11"
                                     :disabled="archived || scriptForm.processing || editorStale"
                                     @click="importScript"
-                                    >Import JSON as a new draft version</Button
+                                    >Импортировать новую версию</Button
                                 >
                             </details>
                         </section>
