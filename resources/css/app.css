@@ -354,3 +354,67 @@
         @apply mt-4 min-h-11 justify-self-start;
     }
 }
+
+.studio-confirm[data-slot='dialog-content'] {
+    width: min(620px, calc(100% - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    gap: 0;
+    padding: 19px 23px 27px;
+    border-radius: 12px;
+    background: var(--card);
+}
+.dark .studio-confirm {
+    --card: #202427;
+    --muted: #292d30;
+}
+.studio-confirm > [data-slot='dialog-title'] {
+    margin-bottom: 21px;
+    font-size: 21px;
+    line-height: 26px;
+    font-weight: 700;
+}
+[data-slot='dialog-overlay']:has(+ .studio-confirm) { background: rgb(0 0 0 / 54%); }
+.studio-confirm-notice {
+    position: relative;
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    column-gap: 10px;
+    align-content: start;
+    row-gap: 7px;
+    padding: 10px 12px 17px;
+    border-radius: 9px;
+    background: var(--muted);
+}
+.studio-confirm-notice::before {
+    content: '';
+    position: absolute;
+    inset: 8px auto 8px 2px;
+    width: 3px;
+    background: #eba882;
+    border-radius: 2px;
+}
+.studio-confirm-notice svg { height: 20px; width: 20px; margin-top: 4px; }
+.studio-confirm-notice svg, .studio-confirm-notice strong { color: #974b1e; }
+.dark .studio-confirm-notice svg, .dark .studio-confirm-notice strong { color: #efb089; }
+.studio-confirm-notice p { grid-column: 2; font-size: 15px; line-height: 17px; }
+.studio-confirm dl .studio-row {
+    display: grid;
+    grid-template-columns: 39% 1fr;
+    align-items: start;
+    gap: 0;
+    padding: 11px 0;
+    border-top: 0;
+    min-height: 47px;
+    border-bottom: 1px solid var(--border);
+}
+.studio-confirm dl dt { color: var(--muted-foreground); font-size: 14px; }
+.studio-confirm dl dd { font-size: 15px; }
+.studio-confirm .studio-confirm-actions { display: flex; flex-flow: row wrap; justify-content: start; gap: 10px; margin-top: 14px; }
+.studio-confirm-actions button { height: 44px; padding-inline: 15px; font-weight: 700; }
+@media (max-width: 639px) {
+    .studio-confirm[data-slot='dialog-content'] { padding: 10px 15px 20px; }
+    .studio-confirm > [data-slot='dialog-title'] { margin-bottom: 20px; font-size: 19px; }
+    .studio-confirm dl .studio-row { grid-template-columns: 1fr; gap: 3px; padding: 6px 0 12px; }
+}

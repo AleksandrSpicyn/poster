@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ArchiveDialog from '@/components/ArchiveDialog.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import forest from '../../assets/studio/forest-courier.webp';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -151,7 +151,8 @@ function changePage(page: number) {
             </ListPanel>
         </section>
         <div v-if="!series.archived_at" class="flex justify-end border-t pt-5">
-            <ArchiveDialog
+            <ConfirmationDialog
+                heading="Архивация сериала"
                 title="Архивировать сериал?"
                 description="Новые эпизоды не будут запускаться автоматически."
                 action="Архивировать сериал"
@@ -167,7 +168,7 @@ function changePage(page: number) {
                     <dt>Производство</dt>
                     <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
                 </div>
-            </ArchiveDialog>
+            </ConfirmationDialog>
         </div>
     </div>
 </template>

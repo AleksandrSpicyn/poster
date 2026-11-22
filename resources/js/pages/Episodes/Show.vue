@@ -8,16 +8,7 @@ import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import TrimInterval from '@/components/episodes/TrimInterval.vue';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -126,39 +117,35 @@ function refresh() {
                     :title="panelTitles[panel] ?? 'Сценарий эпизода'"
                     :description="series.name + ' / Эпизод ' + episode.number + ' · ' + episode.title"
                 />
-                <Dialog v-if="hasDraft">
-                    <DialogTrigger as-child
-                        ><Button variant="outline" class="h-11"
-                            ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
-                        ></DialogTrigger
+                <ConfirmationDialog
+                    v-if="hasDraft"
+                    heading="Сброс несохранённых изменений"
+                    title="Сбросить черновик?"
+                    description="Несохранённые изменения будут заменены последней сохранённой версией сценария."
+                    action="Сбросить изменения"
+                    cancel="Остаться в редакторе"
+                    destructive
+                    @confirm="refresh"
+                >
+                    <template #trigger
+                        ><Button variant="outline" class="h-11"><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button></template
                     >
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Сбросить черновик?</DialogTitle>
-                            <DialogDescription>Несохранённые изменения будут заменены последней сохранённой версией сценария.</DialogDescription>
-                        </DialogHeader>
-                        <dl class="divide-y">
-                            <div class="studio-row">
-                                <dt>Последнее сохранение</dt>
-                                <dd>
-                                    <template v-if="revision"
-                                        ><time v-if="revision.created_at" :datetime="revision.created_at"
-                                            >{{ saveTime.format(new Date(revision.created_at)) }} UTC · </time
-                                        >Версия {{ revision.number }}</template
-                                    ><template v-else>Сценарий ещё не сохранён</template>
-                                </dd>
-                            </div>
-                            <div class="studio-row">
-                                <dt>Несохранено</dt>
-                                <dd>{{ changedFields.join(', ') || 'Черновик сценария' }}</dd>
-                            </div>
-                        </dl>
-                        <DialogFooter>
-                            <DialogClose as-child><Button variant="outline">Остаться в редакторе</Button></DialogClose>
-                            <Button variant="destructive" @click="refresh">Сбросить изменения</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+
+                    <div class="studio-row">
+                        <dt>Последнее сохранение</dt>
+                        <dd>
+                            <template v-if="revision"
+                                ><time v-if="revision.created_at" :datetime="revision.created_at"
+                                    >{{ saveTime.format(new Date(revision.created_at)) }} UTC · </time
+                                >Версия {{ revision.number }}</template
+                            ><template v-else>Сценарий ещё не сохранён</template>
+                        </dd>
+                    </div>
+                    <div class="studio-row">
+                        <dt>Несохранено</dt>
+                        <dd>{{ changedFields.join(', ') || 'Черновик сценария' }}</dd>
+                    </div>
+                </ConfirmationDialog>
                 <Button v-else variant="outline" class="h-11" @click="refresh"
                     ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
                 >
@@ -289,7 +276,9 @@ function refresh() {
                             <p v-if="episode.script_generation_status" class="text-muted-foreground text-sm" role="status">
                                 Подготовка сценария · {{ scriptStatusLabels[episode.script_generation_status] }}
                             </p>
-                            <p v-if="episode.script_generation_error" class="text-destructive text-sm">Проверьте доступность проекта и актуальность сценария перед повторной подготовкой.</p>
+                            <p v-if="episode.script_generation_error" class="text-destructive text-sm">
+                                Проверьте доступность проекта и актуальность сценария перед повторной подготовкой.
+                            </p>
                             <p v-if="!characters.length" class="text-muted-foreground text-sm">
                                 Чтобы написать эпизод, утвердите образ хотя бы одного персонажа.
                                 <Link :href="route('projects.show', project.id)" class="text-primary underline">Персонажи</Link>

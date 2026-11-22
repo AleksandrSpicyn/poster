@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ArchiveDialog from '@/components/ArchiveDialog.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import CharacterRevisionCard from '@/components/characters/CharacterRevisionCard.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -162,7 +162,8 @@ function changePage(page: number) {
                         >
                     </nav>
                     <div v-if="!archived" class="flex justify-end border-t pt-5">
-                        <ArchiveDialog
+                        <ConfirmationDialog
+                            heading="Архивация персонажа"
                             title="Архивировать персонажа?"
                             description="Персонаж исчезнет из выбора для новых сцен. Принятые версии останутся в истории эпизодов."
                             action="Архивировать персонажа"
@@ -180,7 +181,7 @@ function changePage(page: number) {
                                 <dt>Использование</dt>
                                 <dd>{{ series.name }} · Эпизодов: {{ episodesCount }}</dd>
                             </div>
-                        </ArchiveDialog>
+                        </ConfirmationDialog>
                     </div>
                     <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
                         Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
