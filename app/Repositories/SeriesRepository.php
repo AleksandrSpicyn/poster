@@ -38,13 +38,14 @@ readonly class SeriesRepository extends EloquentRepository
             ->withQueryString();
     }
 
-    public function workspace(Series $series, int $page): SeriesWorkspaceData
+    public function workspace(Series $series, int $page, bool $withArchived = true): SeriesWorkspaceData
     {
         $series->load('project', 'latestProductionRun')->loadCount('characters', 'episodes');
 
         return new SeriesWorkspaceData(
             series: $series,
             characters: $series->characters()
+                ->when(!$withArchived, static fn(Builder $query) => $query->whereNull('archived_at'))
                 ->with('currentRevision')
                 ->orderBy('name')
                 ->orderBy('id')

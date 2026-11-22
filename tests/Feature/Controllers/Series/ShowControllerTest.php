@@ -70,3 +70,24 @@ test('карточка передаёт состояние сценария и �
             ->where('episodes.0.accepted_assembly_id', $assembly->id)
             ->where('episodes.0.script_generation_status', ScriptGenerationStatus::COMPLETED->value));
 });
+
+test('фильтр архивных персонажей применяется до разбивки на страницы', function (): void {
+    $context = serialCharacterContext();
+    Character::factory()->count(20)->for($context['series'])->create(['archived_at' => now(), 'name' => 'AAA']);
+
+    actingAs(serialOperator())
+        ->get(route('series.show', [...$context['params'], 'with_archived' => 0]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('withArchived', false)
+            ->where('characters.meta.total', 1)
+            ->where('characters.data.0.id', $context['character']->id));
+
+    actingAs(serialOperator())
+        ->get(route('series.show', [...$context['params'], 'page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('withArchived', true)
+            ->where('characters.meta.total', 21)
+            ->has('characters.data', 1));
+});

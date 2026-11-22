@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import type { ProjectSummary } from '@/types/projects';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
@@ -52,6 +52,8 @@ function episodeLabel(episode: EpisodeSummary) {
     if (episode.script_generation_status === 'outcome_unknown') return 'Результат неизвестен';
     return episode.current_revision_id || episode.script_generation_status ? 'В работе' : 'Черновик';
 }
+const workspace = usePage();
+const withArchived = computed(() => workspace.props.withArchived !== false);
 const archiveForm = useForm({ lock_version: props.series.lock_version });
 
 function createCharacter() {
@@ -65,7 +67,11 @@ function archive() {
 }
 function changePage(page: number) {
     const url = route().current('series.show') ? route('series.show', params) : route('projects.show', props.project.id);
-    router.get(url, { page }, { preserveScroll: true });
+    router.get(url, { page, with_archived: Number(withArchived.value) }, { preserveScroll: true });
+}
+function toggleArchived(event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    router.get(route('series.show', params), { with_archived: Number(checked) }, { preserveScroll: true, preserveState: true });
 }
 </script>
 
@@ -175,6 +181,9 @@ function changePage(page: number) {
                     <Button type="button" variant="outline" :disabled="characterForm.processing" @click="cancelEntry">Отмена</Button>
                 </div>
             </form>
+            <label class="inline-flex min-h-11 items-center gap-2 text-sm">
+                <input type="checkbox" :checked="withArchived" @change="toggleArchived" />Показывать архивных
+            </label>
             <ListPanel
                 :meta="characters.meta"
                 :count="characters.data.length"

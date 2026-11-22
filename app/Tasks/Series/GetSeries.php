@@ -12,8 +12,8 @@ class GetSeries
 {
     public function __construct(private readonly SeriesRepository $seriess) {}
 
-    public function run(Series $series, int $page): SeriesWorkspaceData
+    public function run(Series $series, int $page, bool $withArchived = true): SeriesWorkspaceData
     {
-        return $this->seriess->workspace($series, $page);
+        return $this->seriess->workspace($series, $page, $withArchived);
     }
 }
