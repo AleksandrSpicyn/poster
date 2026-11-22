@@ -27,7 +27,7 @@ class ChannelResource extends JsonResource
             'oauth_configured' => filled($this->oauthClientId()) && filled($this->oauthClientSecret()),
             'can_delete' => $this->relationLoaded('projects') && $this->projects->isEmpty() && $this->posts_count === 0 && $this->publication_requests_count === 0,
             'posts_count' => $this->whenCounted('posts'),
-            'projects' => $this->whenLoaded('projects', fn() => $this->projects->map(fn($project): array => ['id' => $project->id, 'name' => $project->name])->all()),
+            'projects' => $this->whenLoaded('projects', fn() => $this->projects->map(fn($project): array => ['id' => $project->id, 'name' => $project->name, 'content_mode' => $project->content_mode->value])->all()),
         ];
     }
 

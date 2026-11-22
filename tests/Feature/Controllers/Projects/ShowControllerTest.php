@@ -80,7 +80,7 @@ test('страница показывает только историю прое
             ->where('project.can_delete', false)
             ->where('project.channels.0', [
                 'id' => $channel->id, 'name' => $channel->name,
-                'type' => 'youtube', 'type_label' => 'Youtube', 'posts_count' => 1,
+                'type' => 'youtube', 'type_label' => 'YouTube', 'posts_count' => 1,
             ])
             ->where('prompts.meta.total', 2)
             ->has('prompts.data', 1)

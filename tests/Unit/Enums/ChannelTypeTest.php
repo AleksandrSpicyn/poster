@@ -9,7 +9,7 @@ test('типы каналов сохраняют публичные значен
         ->toBe(['youtube', 'tiktok', 'instagram', 'vk'])
         ->and(ChannelType::labels())
         ->toBe([
-            'youtube' => 'Youtube', 'tiktok' => 'Tiktok', 'instagram' => 'Instagram', 'vk' => 'Vk',
+            'youtube' => 'YouTube', 'tiktok' => 'TikTok', 'instagram' => 'Instagram', 'vk' => 'VK',
         ])
         ->and(ChannelType::has('youtube'))
         ->toBeTrue()

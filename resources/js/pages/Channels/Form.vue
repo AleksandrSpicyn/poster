@@ -113,6 +113,36 @@ function remove() {
             @save="submit"
             @disconnect="disconnect"
         />
+        <div v-else-if="channel && tab === 'connected-projects'" class="workspace-page linked-projects">
+            <Heading :title="channel.name" description="Связанные проекты" />
+            <div class="linked-layout">
+                <section class="studio-panel">
+                    <h2>Связанные проекты</h2>
+                    <div class="linked-note" :class="{ connected: channel.connected }">
+                        <strong>{{ channel.connected ? 'Аккаунт подключён' : 'Аккаунт не подключён' }}</strong>
+                        <p>{{ channel.name }} · {{ channel.type_label }}</p>
+                    </div>
+                    <Link v-for="project in channel.projects" :key="project.id" :href="route('projects.edit', project.id)" class="studio-row">
+                        <span>{{ project.name }}</span><span
+                            >{{ project.content_mode === 'series' ? 'Сериал' : 'Короткие ролики' }} · владелец {{ page.props.auth.user.name }}</span
+                        >
+                    </Link>
+                    <div class="linked-note">
+                        <strong>Связи с проектами</strong>
+                        <p>
+                            {{ channel.projects?.length ? 'Каждая строка ссылается на этот же канал.' : 'Выберите этот канал в настройках проекта.' }}
+                        </p>
+                    </div>
+                </section>
+                <aside class="studio-panel">
+                    <h3>{{ channel.name }}</h3>
+                    <p>Студия</p>
+                    <span>{{ page.props.auth.user.name }}</span>
+                    <p>Владелец</p>
+                    <span>{{ page.props.auth.user.name }}</span>
+                </aside>
+            </div>
+        </div>
         <div v-else class="workspace-page" :class="{ 'new-channel': !channel }">
             <ProjectNotice />
             <div class="channel-heading flex items-start justify-between gap-3">
@@ -405,6 +435,74 @@ function remove() {
 </template>
 
 <style scoped>
+.linked-projects {
+    padding-top: 14px;
+}
+.linked-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+    width: min(100%, 1240px);
+}
+.linked-layout section {
+    padding: 20px 24px 28px;
+}
+.linked-layout h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+.linked-layout aside {
+    padding: 16px;
+    min-height: 176px;
+}
+.linked-layout aside h3 {
+    font-size: 18px;
+    font-weight: 700;
+}
+.linked-layout aside p {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    margin-top: 12px;
+}
+.linked-layout .studio-row {
+    min-height: 48px;
+}
+.linked-note {
+    border-inline-start: 3px solid var(--muted-foreground);
+    border-radius: 6px;
+    background: var(--muted);
+    padding: 10px 16px;
+}
+.linked-note:last-child {
+    margin-top: 8px;
+}
+.linked-note.connected {
+    border-color: var(--primary);
+}
+.linked-note.connected strong {
+    color: var(--primary);
+}
+.linked-note p {
+    color: var(--muted-foreground);
+    margin-top: 4px;
+    font-size: 14px;
+}
+@media (max-width: 1099px) {
+    .linked-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .linked-layout aside {
+        display: none;
+    }
+}
+@media (max-width: 767px) {
+    .linked-layout section {
+        padding: 16px;
+    }
+}
+
 .new-channel #studio-channel {
     padding: 24px;
     min-height: 378px;

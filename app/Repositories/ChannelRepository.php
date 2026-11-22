@@ -30,7 +30,7 @@ readonly class ChannelRepository extends EloquentRepository
     /** @return LengthAwarePaginator<int, Channel> */
     public function paginate(User $owner, GetChannelListData $filters): LengthAwarePaginator
     {
-        return Channel::query()->where('owner_id', $owner->id)->with(['projects' => fn($query) => $query->where('projects.owner_id', $owner->id)->select('projects.id', 'name')])->withCount('posts', 'publicationRequests')
+        return Channel::query()->where('owner_id', $owner->id)->with(['projects' => fn($query) => $query->where('projects.owner_id', $owner->id)->select('projects.id', 'name', 'content_mode')])->withCount('posts', 'publicationRequests')
             ->when(filled($filters->search), fn(Builder $query) => $query->whereLike('name', '%' . $filters->search . '%'))
             ->when($filters->active !== null, fn(Builder $query) => $query->where('is_active', $filters->active))
             ->when(
@@ -49,7 +49,7 @@ readonly class ChannelRepository extends EloquentRepository
 
     public function forManagement(Channel $channel): Channel
     {
-        return $channel->load(['projects' => fn($query) => $query->where('projects.owner_id', $channel->owner_id)->select('projects.id', 'name')])->loadCount('posts', 'publicationRequests');
+        return $channel->load(['projects' => fn($query) => $query->where('projects.owner_id', $channel->owner_id)->select('projects.id', 'name', 'content_mode')])->loadCount('posts', 'publicationRequests');
     }
 
     /** @param list<int> $ids */

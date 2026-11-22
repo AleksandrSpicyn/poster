@@ -15,7 +15,7 @@ test('оператор получает форму поддерживаемых 
     actingAs(serialOperator())->get(route('channels.create'))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->component('Channels/Form')
-            ->where('channel', null)->where('channelTypes.youtube', 'Youtube')->where('channelTypes.instagram', 'Instagram'));
+            ->where('channel', null)->where('channelTypes.youtube', 'YouTube')->where('channelTypes.instagram', 'Instagram'));
 
     assertDatabaseCount('channels', 0);
     Http::assertNothingSent();

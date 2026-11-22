@@ -15,6 +15,16 @@ enum ChannelType: string
     case INSTAGRAM = 'instagram';
     case VK = 'vk';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::YOUTUBE => 'YouTube',
+            self::TIKTOK => 'TikTok',
+            self::INSTAGRAM => 'Instagram',
+            self::VK => 'VK',
+        };
+    }
+
     /** @return list<self> */
     public static function oauthProviders(): array
     {

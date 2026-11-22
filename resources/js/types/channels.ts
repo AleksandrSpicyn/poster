@@ -18,5 +18,5 @@ export interface ManagedChannel {
     oauth_configured: boolean;
     can_delete: boolean;
     posts_count?: number;
-    projects?: { id: number; name: string }[];
+    projects?: { id: number; name: string; content_mode: 'short' | 'series' }[];
 }
