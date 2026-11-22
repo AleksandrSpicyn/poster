@@ -28,7 +28,27 @@ export type MetricsReport = {
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
 const route = useRoute();
 const counters: Record<Counter, string> = { views: 'Просмотры', likes: 'Лайки', shares: 'Репосты', comments: 'Комментарии' };
-const scale = computed(() => Math.max(1, ...Object.values(props.report.daily).map((value) => Math.abs(value ?? 0))));
+const chart = computed(() => {
+    const days = Object.entries(props.report.daily);
+    const values = days.flatMap(([, value]) => (value === null ? [] : [value]));
+    const low = Math.min(0, ...values);
+    const high = Math.max(0, ...values);
+    const y = (value: number) => (high === low ? 72 : 134 - ((value - low) / (high - low)) * 120);
+    const points = [];
+    let path = '';
+    let startsSegment = true;
+    for (const [index, [date, value]] of days.entries()) {
+        if (value === null) {
+            startsSegment = true;
+            continue;
+        }
+        const x = 12 + (index / Math.max(1, days.length - 1)) * 976;
+        path += `${startsSegment ? 'M' : 'L'}${x},${y(value)} `;
+        points.push({ date, value, x, y: y(value) });
+        startsSegment = false;
+    }
+    return { path, points, zero: y(0) };
+});
 const format = new Intl.NumberFormat('ru', { signDisplay: 'exceptZero' });
 function filter(key: keyof Filters, event: Event) {
     const value = (event.target as HTMLSelectElement).value;
@@ -81,24 +101,36 @@ function filter(key: keyof Filters, event: Event) {
         <h3 class="mt-5 font-semibold">{{ counters[report.filters.metric] }} · наблюдаемый прирост</h3>
         <p class="text-3xl font-semibold tabular-nums">{{ report.change === null ? 'Нет базы сравнения' : format.format(report.change) }}</p>
         <p v-if="report.updatedAt">Последнее наблюдение {{ new Date(report.updatedAt).toLocaleString('ru', { timeZone: 'UTC' }) }} UTC</p>
-        <div
-            v-if="report.change !== null"
-            class="chart mt-4 flex h-24 gap-px"
-            role="img"
-            aria-label="Суточный прирост по публикациям с двумя соседними наблюдениями"
-        >
-            <span
-                v-for="(value, date) in report.daily"
-                :key="date"
-                class="relative min-w-0 flex-1"
-                :title="date + ' · ' + (value === null ? 'Нет суточной пары' : format.format(value))"
-                ><span
-                    v-if="value !== null"
-                    class="absolute inset-x-0"
-                    :class="value < 0 ? 'bg-destructive top-1/2' : 'bg-primary bottom-1/2'"
-                    :style="{ height: Math.max(1, (Math.abs(value) / scale) * 49) + '%' }"
-            /></span>
-        </div>
+        <figure v-if="chart.points.length" class="mt-4 rounded-lg border px-4 py-3">
+            <figcaption class="font-semibold">{{ counters[report.filters.metric] }} по дням</figcaption>
+            <svg
+                viewBox="0 0 1000 150"
+                preserveAspectRatio="none"
+                class="text-primary mt-3 h-40 w-full"
+                role="img"
+                aria-label="Суточный прирост по соседним наблюдениям"
+            >
+                <line v-for="row in [14, 74, 134]" :key="row" x1="0" x2="1000" :y1="row" :y2="row" stroke="var(--border)" />
+                <line x1="0" x2="1000" :y1="chart.zero" :y2="chart.zero" stroke="var(--muted-foreground)" stroke-dasharray="3 6" />
+                <path :d="chart.path" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <circle v-for="point in chart.points" :key="point.date" :cx="point.x" :cy="point.y" r="3" fill="currentColor">
+                    <title>{{ point.date }} · {{ format.format(point.value) }}</title>
+                </circle>
+            </svg>
+            <div class="text-muted-foreground flex justify-between text-xs">
+                <time>{{ report.from }}</time
+                ><time>{{ report.to }}</time>
+            </div>
+            <details class="mt-3 text-sm">
+                <summary class="cursor-pointer">Данные графика</summary>
+                <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4">
+                    <template v-for="(value, date) in report.daily" :key="date">
+                        <dt>{{ date }}</dt>
+                        <dd>{{ value === null ? 'Нет суточной пары' : format.format(value) }}</dd>
+                    </template>
+                </dl>
+            </details>
+        </figure>
         <p v-if="report.publications.length" class="mt-2 text-sm">
             График учитывает соседние дни. Прирост за пропущенные дни указан в интервалах публикации.
         </p>
@@ -133,9 +165,6 @@ function filter(key: keyof Filters, event: Event) {
     </section>
 </template>
 <style scoped>
-.chart {
-    background: linear-gradient(to bottom, transparent calc(50% - 1px), var(--border) calc(50% - 1px), var(--border) 50%, transparent 50%);
-}
 select {
     display: block;
     padding: 0.375rem 0.5rem;

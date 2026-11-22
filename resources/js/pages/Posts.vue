@@ -21,37 +21,49 @@ const { filters, loading, error, applyFilters, changeSort, changePerPage, change
     perPage: page.props.posts.meta.per_page,
     page: page.props.posts.meta.current_page,
 }));
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }];
+const requestStates: Record<string, string> = {
+    planned: 'Запланировано',
+    submitting: 'Отправка',
+    processing: 'В обработке',
+    publishing_container: 'Площадка готовит публикацию',
+    inbox: 'Доставлено во входящие',
+    published: 'Опубликовано',
+    submission_unknown: 'Требует сверки',
+    failed: 'Ошибка отправки',
+};
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Публикации', href: route('posts') }];
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Posts" />
+        <Head title="Публикации" />
         <div class="workspace-page">
-            <Heading title="Posts" description="Published videos across your channels. Your complete publishing history in one place." />
-            <section v-if="page.props.destinations.length" class="flex flex-wrap gap-3" aria-label="Create a TikTok publication">
+            <Heading title="Публикации" description="История публикаций и запросы на отправку по вашим каналам." />
+            <section v-if="page.props.destinations.length" class="flex flex-wrap gap-3" aria-label="Новая публикация в TikTok">
                 <Link
                     v-for="channel in page.props.destinations"
                     :key="channel.id"
                     :href="route('posts.tiktok.create', channel.id)"
                     class="list-select"
                 >
-                    Publish to {{ channel.name }}
+                    Отправить в {{ channel.name }}
                 </Link>
             </section>
-            <section v-if="page.props.requests.length" class="space-y-2">
-                <h2 class="font-semibold">Recent publication requests</h2>
+            <section v-if="page.props.requests.length" class="studio-panel space-y-2">
+                <h2 class="font-semibold">Последние запросы на отправку</h2>
                 <ul class="divide-y">
                     <li v-for="item in page.props.requests" :key="item.id" class="py-2">
-                        #{{ item.id }} · {{ item.channel_name }} · {{ item.status }} <span v-if="item.error_message">{{ item.error_message }}</span>
+                        #{{ item.id }} · {{ item.channel_name }} · {{ requestStates[item.status] ?? item.status }}
+                        <span v-if="item.error_message">{{ item.error_message }}</span>
                         <Form
                             v-if="item.status === 'submission_unknown'"
                             :action="route('posts.requests.resolve', item.id)"
                             method="post"
                             v-slot="{ errors, processing }"
                         >
-                            <label>External video ID <input name="external_id" class="list-select" required maxlength="128" /></label>
-                            <button type="submit" class="list-select" :disabled="processing">Verify publication</button>
+                            <h3 class="my-3 font-semibold">Сверка операции</h3>
+                            <label>Идентификатор видео на площадке <input name="external_id" class="list-select" required maxlength="128" /></label>
+                            <button type="submit" class="list-select" :disabled="processing">Проверить публикацию</button>
                             <p v-if="errors.external_id || errors.publication" role="alert">{{ errors.external_id ?? errors.publication }}</p>
                         </Form>
                     </li>
@@ -62,8 +74,8 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                 :count="page.props.posts.data.length"
                 :loading="loading"
                 :error="error"
-                empty-title="No posts to show"
-                empty-description="Published videos will appear here. If a channel filter is selected, try choosing all channels."
+                empty-title="Пока нет публикаций"
+                empty-description="Здесь появятся опубликованные видео. Если выбран фильтр, проверьте другие каналы."
                 @page="changePage"
                 @refresh="refresh"
             >
@@ -77,9 +89,9 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                         @per-page="changePerPage"
                     >
                         <div class="grid gap-1.5">
-                            <label for="post-channel" class="text-muted-foreground text-xs font-medium">Channel</label>
+                            <label for="post-channel" class="text-muted-foreground text-xs font-medium">Канал</label>
                             <select id="post-channel" v-model="filters.type" class="list-select" :disabled="loading" @change="applyFilters">
-                                <option :value="page.props.allTypes">All channels</option>
+                                <option :value="page.props.allTypes">Все каналы</option>
                                 <option v-for="(label, value) in page.props.types" :key="value" :value="value">{{ label }}</option>
                             </select>
                         </div>
@@ -89,17 +101,17 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                 <Table class="hidden md:table">
                     <TableHeader
                         ><TableRow
-                            ><TableHead>Publication</TableHead><TableHead>Channel</TableHead><TableHead>Published</TableHead
-                            ><TableHead class="text-right">Link</TableHead></TableRow
+                            ><TableHead>Публикация</TableHead><TableHead>Канал</TableHead><TableHead>Дата</TableHead
+                            ><TableHead class="text-right">Ссылка</TableHead></TableRow
                         ></TableHeader
                     >
                     <TableBody>
                         <TableRow v-for="post in page.props.posts.data" :key="post.id">
-                            <TableCell class="font-medium">Post #{{ post.id }}</TableCell>
+                            <TableCell class="font-medium">Публикация №{{ post.id }}</TableCell>
                             <TableCell
                                 ><span class="inline-flex items-center gap-2"
                                     ><ChannelIcon :channel="post.channel" />{{
-                                        post.channel ? (page.props.types[post.channel] ?? post.channel) : 'Deleted channel'
+                                        post.channel ? (page.props.types[post.channel] ?? post.channel) : 'Канал удалён'
                                     }}</span
                                 ></TableCell
                             >
@@ -111,10 +123,10 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Posts', href: route('posts') }]
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="text-primary inline-flex min-h-9 items-center gap-1.5 font-medium hover:underline"
-                                    >Open post<ExternalLink class="size-3.5" aria-hidden="true" /><span class="sr-only">
-                                        #{{ post.id }} (opens in a new tab)</span
+                                    >Открыть<ExternalLink class="size-3.5" aria-hidden="true" /><span class="sr-only">
+                                        #{{ post.id }} (в новой вкладке)</span
                                     ></a
-                                ><span v-else class="text-muted-foreground">Link unavailable</span></TableCell
+                                ><span v-else class="text-muted-foreground">Ссылки пока нет</span></TableCell
                             >
                         </TableRow>
                     </TableBody>

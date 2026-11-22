@@ -20,21 +20,21 @@ const { filters, loading, error, changeSort, changePerPage, changePage, refresh 
     perPage: page.props.prompts.meta.per_page,
     page: page.props.prompts.meta.current_page,
 }));
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Prompts', href: route('prompts') }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Генерации', href: route('prompts') }];
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Prompts" />
+        <Head title="Генерации" />
         <div class="workspace-page">
-            <Heading title="Prompts" description="Follow each idea from its first image to a finished video. Refresh to check the latest results." />
+            <Heading title="Генерации" description="Все проекты / Последние операции" />
             <ListPanel
                 :meta="page.props.prompts.meta"
                 :count="page.props.prompts.data.length"
                 :loading="loading"
                 :error="error"
-                empty-title="No generations yet"
-                empty-description="Ideas and their results will appear here once a project starts generating videos."
+                empty-title="Пока нет генераций"
+                empty-description="Когда в проекте начнётся генерация, здесь появятся её этапы и результат."
                 @page="changePage"
                 @refresh="refresh"
             >
@@ -51,8 +51,8 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Prompts', href: route('prompts'
                 <Table class="hidden md:table">
                     <TableHeader
                         ><TableRow
-                            ><TableHead class="min-w-64">Idea</TableHead><TableHead>Project</TableHead><TableHead class="min-w-44">Stage</TableHead
-                            ><TableHead>Created</TableHead><TableHead class="text-right">Video</TableHead></TableRow
+                            ><TableHead class="min-w-64">Идея</TableHead><TableHead>Проект</TableHead><TableHead class="min-w-44">Этап</TableHead
+                            ><TableHead>Создано</TableHead><TableHead class="text-right">Видео</TableHead></TableRow
                         ></TableHeader
                     >
                     <TableBody>
@@ -61,7 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Prompts', href: route('prompts'
                                 ><p class="line-clamp-2 leading-relaxed font-medium" :title="prompt.title">{{ prompt.title }}</p>
                                 <span class="text-muted-foreground mt-1 block text-xs">#{{ prompt.id }}</span></TableCell
                             >
-                            <TableCell>{{ prompt.project ?? 'Deleted project' }}</TableCell>
+                            <TableCell>{{ prompt.project ?? 'Проект удалён' }}</TableCell>
                             <TableCell><GenerationStage :prompt="prompt" /></TableCell>
                             <TableCell class="text-muted-foreground">{{ prompt.created_at ?? '—' }}</TableCell>
                             <TableCell class="text-right"><VideoPreview :prompt="prompt" /></TableCell>
@@ -70,7 +70,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Prompts', href: route('prompts'
                 </Table>
             </ListPanel>
             <p class="text-muted-foreground text-xs leading-relaxed">
-                Stages reflect saved results. A waiting stage may also mean that a task needs attention; publication is tracked separately in Posts.
+                Этапы обновляются по мере готовности материалов. Отправку готового ролика можно проверить в разделе «Публикации».
             </p>
         </div>
     </AppLayout>

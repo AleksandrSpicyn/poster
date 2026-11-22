@@ -37,12 +37,12 @@ export function useListFilters(
                     if (response.status === 419) return;
                     error.value =
                         response.status === 403
-                            ? 'You no longer have access to this list.'
-                            : 'This list could not be updated. Your previous results are still shown.';
+                            ? 'Доступ к списку ограничен.'
+                            : 'Не удалось обновить список. На экране остались последние загруженные данные.';
                     return false;
                 },
                 onNetworkError: () => {
-                    error.value = 'Connection lost. Check your connection and try again.';
+                    error.value = 'Нет связи. Проверьте подключение и повторите попытку.';
                     return false;
                 },
             },

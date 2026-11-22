@@ -47,8 +47,7 @@ const metrics = computed(() => [
                     </div>
                 </div>
             </section>
-            <PublicationMetrics :report="page.props.analytics" />
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Производство">
+            <section v-if="page.props.analytics.projects.length" class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Производство">
                 <div v-for="metric in metrics" :key="metric.label" class="bg-card rounded-xl border p-4 sm:p-5">
                     <div class="mb-4 flex items-start justify-between gap-2">
                         <p class="text-muted-foreground text-sm font-medium">{{ metric.label }}</p>
@@ -58,7 +57,19 @@ const metrics = computed(() => [
                     <p class="text-muted-foreground mt-2 text-xs">{{ metric.note }}</p>
                 </div>
             </section>
-            <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+            <div v-if="page.props.analytics.projects.length" class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)]">
+                <PublicationMetrics :report="page.props.analytics" />
+                <section class="studio-panel">
+                    <h2>Каналы</h2>
+                    <ul v-if="page.props.analytics.coverage.length" class="mt-3 divide-y">
+                        <li v-for="(channel, index) in page.props.analytics.coverage" :key="index" class="flex flex-wrap justify-between gap-2 py-3">
+                            <span>{{ channel.name }}</span><small>{{ channel.status }}</small>
+                        </li>
+                    </ul>
+                    <Link :href="route('channels.index')" class="mt-3 inline-block underline">Мои каналы</Link>
+                </section>
+            </div>
+            <div v-if="page.props.analytics.projects.length" class="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
                 <section class="bg-card min-w-0 overflow-hidden rounded-xl border">
                     <header class="flex items-center justify-between gap-4 border-b px-5 py-4">
                         <div>
