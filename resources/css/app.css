@@ -104,7 +104,7 @@
 
 :root {
     color-scheme: light;
-    --background: #f6f6ef;
+    --background: #f7f6f0;
     --foreground: #20251e;
     --card: #ffffff;
     --card-foreground: #20251e;
@@ -129,7 +129,7 @@
     --chart-4: hsl(43 74% 66%);
     --chart-5: hsl(27 87% 67%);
     --radius: 0.625rem;
-    --sidebar-background: #e7e9e4;
+    --sidebar-background: #e6e9e4;
     --sidebar-foreground: #485346;
     --sidebar-primary: #a6c76a;
     --sidebar-primary-foreground: #1a2414;
@@ -137,44 +137,44 @@
     --sidebar-accent-foreground: #405b25;
     --sidebar-border: #cbd0c9;
     --sidebar-ring: #405b25;
-    --sidebar: #e7e9e4;
+    --sidebar: #e6e9e4;
 }
 
 .dark {
     color-scheme: dark;
-    --background: #17191b;
+    --background: #17191a;
     --foreground: #f6f4ed;
-    --card: #202326;
+    --card: #202427;
     --card-foreground: #f6f4ed;
-    --popover: #202326;
+    --popover: #202427;
     --popover-foreground: #f6f4ed;
-    --primary: #d3ee91;
+    --primary: #d3ed90;
     --primary-foreground: #20241c;
     --secondary: #292d30;
     --secondary-foreground: #f6f4ed;
     --muted: #292d30;
     --muted-foreground: #b0b5b0;
-    --accent: #30352b;
-    --accent-foreground: #d3ee91;
+    --accent: #30342a;
+    --accent-foreground: #d3ed90;
     --destructive: #ffaca9;
     --destructive-foreground: #450a0a;
     --border: #373c3d;
     --input: #7f8981;
-    --ring: #d3ee91;
+    --ring: #d3ed90;
     --chart-1: hsl(220 70% 50%);
     --chart-2: hsl(160 60% 45%);
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: #121415;
+    --sidebar-background: #121416;
     --sidebar-foreground: #b0b5b0;
-    --sidebar-primary: #d3ee91;
+    --sidebar-primary: #d3ed90;
     --sidebar-primary-foreground: #20241c;
-    --sidebar-accent: #30352b;
-    --sidebar-accent-foreground: #d3ee91;
+    --sidebar-accent: #30342a;
+    --sidebar-accent-foreground: #d3ed90;
     --sidebar-border: #373c3d;
-    --sidebar-ring: #d3ee91;
-    --sidebar: #121415;
+    --sidebar-ring: #d3ed90;
+    --sidebar: #121416;
 }
 
 @layer base {
