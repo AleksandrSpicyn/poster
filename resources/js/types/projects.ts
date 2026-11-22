@@ -35,7 +35,7 @@ export interface ProjectChannel {
 export interface ProjectsPageProps extends SharedData {
     projects: PaginatedResource<ProjectSummary>;
     information: { project: ProjectSummary & { channels: ProjectChannel[] }; owner: string; episodes: number; accepted: number } | null;
-    filters: { search: string; sort: string; active?: boolean; updated?: boolean; alphabetical?: boolean };
+    filters: { search: string; sort: string; active?: boolean; updated?: boolean; clipping?: boolean; alphabetical?: boolean };
     sortDirections: Record<string, string>;
 }
 

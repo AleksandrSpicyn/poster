@@ -48,6 +48,7 @@ export interface ListFilters {
     active?: number | null;
     updated?: number;
     alphabetical?: number;
+    clipping?: number;
 }
 
 export interface ListPageProps extends SharedData {

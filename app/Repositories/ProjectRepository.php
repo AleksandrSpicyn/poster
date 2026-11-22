@@ -44,6 +44,8 @@ readonly class ProjectRepository extends EloquentRepository
         $direction = $data->sort ?? SortDirection::DESC;
 
         return $query
+            ->when($data->clipping, fn(Builder $query) => $query->where(fn(Builder $projects) => $projects
+                ->whereNotNull('clipping_connection_id')->orWhereNotNull('clipping_workspace')->orWhereNotNull('opus_source_id')))
             ->when($data->active, fn($query) => $query->where('is_active', true))
             ->when(
                 $data->alphabetical,

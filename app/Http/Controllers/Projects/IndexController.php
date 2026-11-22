@@ -28,6 +28,7 @@ class IndexController
      * @header X-Inertia-Version {ASSET_VERSION}
      * @queryParam search string Поиск по названию и базовому промпту, до 200 символов. Example: Animals
      * @queryParam sort string Порядок создания: asc или desc, по умолчанию desc. Example: desc
+     * @queryParam clipping boolean Только собственные проекты клиппинга. Example: 1
      * @queryParam perPage integer Размер страницы от 1 до 100, по умолчанию 10. Example: 10
      * @queryParam page integer Номер страницы от 1. Example: 1
      * @response 200 {"component":"Projects/Index","props":{"projects":{"data":[],"meta":{"current_page":1,"per_page":10,"total":0}},"filters":{"search":"","sort":"desc"}}}
@@ -47,7 +48,7 @@ class IndexController
             ] : null,
             'projects' => ProjectResource::collection($action->run($owner, $data)),
             'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value,
-                ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : []), ...($data->alphabetical ? ['alphabetical' => true] : [])],
+                ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : []), ...($data->alphabetical ? ['alphabetical' => true] : []), ...($data->clipping ? ['clipping' => true] : [])],
             'sortDirections' => SortDirection::labels(),
         ]);
     }
