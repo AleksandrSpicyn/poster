@@ -24,7 +24,7 @@ class EpisodeAssemblyPlanData extends Data
         $clips = collect($shots)->map(AssemblyClipData::fromSnapshot(...));
         $duration = $clips->sum(fn(AssemblyClipData $clip): int => $clip->durationMs);
 
-        if ($duration < 100 || $duration > 600000) {
+        if ($duration < 1 || $duration > 600000) {
             throw new RuntimeException('The assembly duration is outside the supported range.');
         }
 

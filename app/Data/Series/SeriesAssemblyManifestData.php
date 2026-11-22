@@ -25,7 +25,7 @@ class SeriesAssemblyManifestData extends Data
         foreach ($snapshot['parts'] as $part) {
             if (! is_array($part) || ! is_int($part['number'] ?? null) || ! is_int($part['episode_id'] ?? null)
                 || ! is_int($part['assembly_id'] ?? null) || ! is_int($part['media_id'] ?? null)
-                || ! is_string($part['checksum'] ?? null) || ! is_int($part['duration_ms'] ?? null) || $part['duration_ms'] < 100) {
+                || ! is_string($part['checksum'] ?? null) || ! is_int($part['duration_ms'] ?? null) || $part['duration_ms'] < 1) {
                 throw new RuntimeException('The final assembly has an invalid part.');
             }
 

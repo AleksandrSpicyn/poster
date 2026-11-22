@@ -25,7 +25,7 @@ class AssemblyClipData extends Data
             || ! is_string($shot['checksum'] ?? null) || ! is_int($shot['trim_start_ms'] ?? null)
             || ! is_int($shot['trim_end_ms'] ?? null) || ! is_int($shot['duration_ms'] ?? null)
             || (array_key_exists('mute_audio', $shot) && ! is_bool($shot['mute_audio']))
-            || $shot['trim_start_ms'] < 0 || $shot['duration_ms'] < 100
+            || $shot['trim_start_ms'] < 0 || $shot['duration_ms'] < 1
             || $shot['trim_end_ms'] - $shot['trim_start_ms'] !== $shot['duration_ms']) {
             throw new RuntimeException('The assembly manifest contains an invalid trim or media reference.');
         }

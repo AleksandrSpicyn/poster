@@ -8,7 +8,7 @@ import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import TrimInterval from '@/components/episodes/TrimInterval.vue';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps } from '@/types/episodes';
@@ -46,7 +46,7 @@ const {
     generateScript,
     approveScript,
 } = useEpisodeScreenplay(props);
-const { assemblyForm, assemblyErrors, shots, buildAssembly } = useEpisodeMontage(props);
+const { assemblyForm, assemblyErrors, shots, buildAssembly, canBuildAssembly } = useEpisodeMontage(props);
 const { continuationSources, readySourcesFor } = useEpisodeSources(props);
 const allAssemblies = computed(() =>
     props.episode.accepted_assembly && !props.assemblies.some((item) => item.id === props.episode.accepted_assembly?.id)
@@ -354,29 +354,26 @@ function refresh() {
                                     >
                                         <option :value="0" disabled>Выберите готовый дубль</option>
                                         <option v-for="take in shot.takes.filter((item) => item.generated)" :key="take.id" :value="take.id">
-                                            Take {{ take.take_number }}
+                                            Дубль {{ take.take_number }}
                                         </option>
                                     </select>
                                 </div>
-                                <div class="grid gap-2">
-                                    <Label :for="'trim-start-' + shot.id">Начало, мс</Label
-                                    ><Input :id="'trim-start-' + shot.id" v-model="assemblyForm.shots[index].trim_start_ms" type="number" min="0" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label :for="'trim-end-' + shot.id">Конец, мс</Label
-                                    ><Input
-                                        :id="'trim-end-' + shot.id"
-                                        v-model="assemblyForm.shots[index].trim_end_ms"
-                                        type="number"
-                                        min="1"
-                                        :max="shot.duration_ms"
-                                    />
-                                </div>
+                                <TrimInterval
+                                    :shot-id="shot.id"
+                                    :duration="shot.duration_ms"
+                                    :thumbnail="
+                                        shot.takes
+                                            .find((take) => take.id === assemblyForm.shots[index].prompt_id)
+                                            ?.media.find((media) => media.collection === 'shot-image')?.url
+                                    "
+                                    v-model:start="assemblyForm.shots[index].trim_start_ms"
+                                    v-model:end="assemblyForm.shots[index].trim_end_ms"
+                                />
                             </div>
                             <InputError :message="assemblyErrors" /><Button
                                 type="submit"
                                 class="h-11"
-                                :disabled="!project.is_active || assemblyForm.processing || assemblyForm.shots.some((item) => !item.prompt_id)"
+                                :disabled="!project.is_active || assemblyForm.processing || !canBuildAssembly"
                                 >Собрать монтаж</Button
                             >
                         </form>

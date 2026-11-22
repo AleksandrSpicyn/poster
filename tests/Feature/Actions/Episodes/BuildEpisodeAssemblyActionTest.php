@@ -108,3 +108,17 @@ test('немой монтаж убирает фактический звук д�
 
     $disk->assertExists($output->getPathRelativeToRoot());
 });
+
+test('собирает фрагмент короче ста миллисекунд', function (int $start, int $end): void {
+    Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt] = assemblyFixture();
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, $start, $end)]));
+
+    app(BuildEpisodeAssemblyAction::class)->run($assembly);
+
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
+    expect($assembly->manifest['duration_ms'])->toBe($end - $start);
+    expect($assembly->duration_ms)->toBe($end - $start);
+    expect($assembly->getFirstMedia(EpisodeAssembly::VIDEO))->not->toBeNull();
+})->with([[999, 1000], [480, 579]]);

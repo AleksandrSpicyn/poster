@@ -64,11 +64,11 @@ class SaveEpisodeAssembly
                 || $prompt->project_id !== $series->project_id || $media === null
                 || ! in_array($media->disk, ['local', 'public'], true)
                 || ! is_file($media->getPath()) || $selection->trim_start_ms < 0
-                || $end > $shot->duration_ms || $end - $selection->trim_start_ms < 100
+                || $end > $shot->duration_ms || $end - $selection->trim_start_ms < 1
                 || data_get($prompt->input_snapshot, 'context_hash') !== $revision->context_hash
                 || data_get($prompt->input_snapshot, 'specification_version') !== data_get($revision->context_snapshot, 'specification_version')
                 || data_get($prompt->input_snapshot, 'continuity_version') !== $revision->base_continuity_version) {
-                throw ValidationException::withMessages(['shots.' . $position => 'Select a ready, current take in screenplay order and a valid trim of at least 100 ms.']);
+                throw ValidationException::withMessages(['shots.' . $position => 'Select a ready, current take in screenplay order and a valid trim of at least 1 ms.']);
             }
 
             $checksum = hash_file('sha256', $media->getPath());

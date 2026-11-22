@@ -28,7 +28,7 @@ class StoreController
      * @bodyParam shots object[] required Дубли в порядке планов сценария с prompt_id и trim_start_ms/trim_end_ms.
      * @bodyParam shots[].prompt_id integer required ID готового дубля соответствующего плана. Example: 1
      * @bodyParam shots[].trim_start_ms integer Начало обрезки от 0 мс. Example: 0
-     * @bodyParam shots[].trim_end_ms integer Конец обрезки или null для конца плана. Остаток не менее 100 мс. Example: 5000
+     * @bodyParam shots[].trim_end_ms integer Конец обрезки или null для конца плана. Остаток не менее 1 мс. Example: 5000
      * @response 302
      * @response 401 {"message":"Unauthenticated."}
      * @response 403 {"message":"Your email address is not verified."}

@@ -38,7 +38,7 @@ readonly class BuildEpisodeAssembly
 
         try {
             foreach ($plan->shots as $index => $shot) {
-                $clip = 'clip-' . $index . '.mp4';
+                $clip = 'clip-' . $index . '.mov';
                 $this->normalize($shot, $workspace . '/' . $clip, $deadline);
                 $clips[] = "file '" . $clip . "'";
             }
@@ -47,7 +47,7 @@ readonly class BuildEpisodeAssembly
             $output = $workspace . '/episode.mp4';
             $result = Process::path($workspace)->timeout($this->remainingSeconds($deadline))->run([
                 'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-                '-f', 'concat', '-safe', '1', '-i', 'concat.txt', '-c', 'copy', '-movflags', '+faststart', $output,
+                '-f', 'concat', '-safe', '1', '-i', 'concat.txt', '-c:v', 'copy', '-c:a', 'aac', '-t', $this->seconds($duration), '-movflags', '+faststart', $output,
             ]);
 
             if (! $result->successful() || ! is_file($output) || filesize($output) < 1) {
@@ -87,13 +87,25 @@ readonly class BuildEpisodeAssembly
 
         $useAudio = $probe->hasAudio && ! $shot->muteAudio;
         $audioInput = $useAudio ? [] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo'];
+        $seek = $shot->trimStartMs;
+        $videoFilter = 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24';
+        $audioFilter = 'aresample=48000,apad';
+
+        if ($shot->durationMs < 100) {
+            // Decode the preceding frame as the selection may fall entirely between two source timestamps.
+            $seek = max(0, $shot->trimStartMs - 1000);
+            $offset = $this->seconds($shot->trimStartMs - $seek);
+            $videoFilter = 'fps=1000:round=up,tpad=stop_mode=clone:stop_duration=0.05,trim=start=' . $offset . ',setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1';
+            $audioFilter = 'atrim=start=' . $offset . ',asetpts=PTS-STARTPTS,' . $audioFilter;
+        }
+
         $command = [
             'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-            '-ss', $this->seconds($shot->trimStartMs), '-f', 'mov', '-i', $path, ...$audioInput,
+            '-ss', $this->seconds($seek), '-f', 'mov', '-i', $path, ...$audioInput,
             '-map', '0:v:0', '-map', $useAudio ? '0:a:0' : '1:a:0', '-t', $this->seconds($shot->durationMs),
-            '-vf', 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24',
+            '-vf', $videoFilter, '-video_track_timescale', '24000',
             '-c:v', 'libx264', '-preset', 'veryfast', '-threads', '2', '-pix_fmt', 'yuv420p',
-            '-af', 'aresample=48000,apad', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $output,
+            '-af', $audioFilter, '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $output,
         ];
         $result = Process::timeout($this->remainingSeconds($deadline))->run($command);
 

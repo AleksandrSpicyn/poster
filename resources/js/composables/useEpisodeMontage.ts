@@ -63,13 +63,26 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
             assemblyForm.shots = shots.value.map((shot) => ({ prompt_id: 0, trim_start_ms: 0, trim_end_ms: shot.duration_ms }));
         },
     );
+    const canBuildAssembly = computed(
+        () =>
+            assemblyForm.shots.length > 0 &&
+            assemblyForm.shots.every(
+                (item, index) =>
+                    item.prompt_id > 0 &&
+                    Number.isInteger(item.trim_start_ms) &&
+                    Number.isInteger(item.trim_end_ms) &&
+                    item.trim_start_ms >= 0 &&
+                    item.trim_end_ms > item.trim_start_ms &&
+                    item.trim_end_ms <= shots.value[index]?.duration_ms,
+            ),
+    );
     function buildAssembly() {
-        if (revision.value)
+        if (revision.value && canBuildAssembly.value)
             assemblyForm.post(route('episodes.assemblies.store', { ...params, revision: revision.value.id }), {
                 preserveScroll: true,
                 preserveState: 'errors',
                 onSuccess: clearMontageDraft,
             });
     }
-    return { assemblyForm, assemblyErrors, shots, buildAssembly };
+    return { assemblyForm, assemblyErrors, shots, buildAssembly, canBuildAssembly };
 }
