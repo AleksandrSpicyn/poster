@@ -13,6 +13,8 @@ const route = useRoute();
 const filters = computed(() => props.report.filters);
 const draft = reactive<AnalyticsFilters>({ ...filters.value, exclude_channels: [...filters.value.exclude_channels] });
 const custom = ref(!!filters.value.from);
+const applying = ref(false);
+const requestError = ref('');
 watch(
     () => JSON.stringify(props.report.filters),
     () => {
@@ -32,8 +34,24 @@ const filterChannels = computed(() =>
     ),
 );
 function apply() {
+    if (applying.value) return;
+    applying.value = true;
+    requestError.value = '';
     const values = { ...draft, from: custom.value ? draft.from : null, to: custom.value ? draft.to : null };
-    router.get(route(props.detail ? 'dashboard.analytics' : 'dashboard'), values);
+    router.get(route(props.detail ? 'dashboard.analytics' : 'dashboard'), values, {
+        onHttpException: (response) => {
+            if (response.status === 419) return;
+            requestError.value = response.status === 403 ? 'Доступ к отчёту ограничен.' : 'Не удалось загрузить отчёт. Повторите попытку.';
+            return false;
+        },
+        onNetworkError: () => {
+            requestError.value = 'Нет связи. Проверьте подключение и повторите попытку.';
+            return false;
+        },
+        onFinish: () => {
+            applying.value = false;
+        },
+    });
 }
 function reset() {
     Object.assign(draft, {
@@ -48,6 +66,7 @@ function reset() {
         exclude_channels: [],
     });
     custom.value = false;
+    requestError.value = '';
 }
 function choosePeriod(event: Event) {
     const v = (event.target as HTMLSelectElement).value;
@@ -61,7 +80,7 @@ function toggle(id: number, event: Event) {
 }
 </script>
 <template>
-    <form class="studio-panel filter-panel" @submit.prevent="apply">
+    <form :aria-busy="applying" class="studio-panel filter-panel" @submit.prevent="apply">
         <h2>Фильтры</h2>
         <label for="metric-period">Период</label
         ><select id="metric-period" :value="custom ? 'custom' : draft.days" @change="choosePeriod">
@@ -103,8 +122,15 @@ function toggle(id: number, event: Event) {
         <p v-if="page.props.errors.from || page.props.errors.to" class="text-destructive" role="alert">
             {{ page.props.errors.from || page.props.errors.to }}
         </p>
+        <p v-if="requestError" role="alert" class="text-destructive">{{ requestError }}</p>
         <div class="flex flex-wrap gap-2">
-            <Button>Применить фильтр</Button><Button type="button" variant="outline" @click="reset">Сбросить</Button>
+            <Button :disabled="applying">{{ applying ? 'Загрузка…' : 'Применить фильтр' }}</Button><Button
+                type="button"
+                variant="outline"
+                :disabled="applying"
+                @click="reset"
+                >Сбросить</Button
+            >
         </div>
     </form>
 </template>
