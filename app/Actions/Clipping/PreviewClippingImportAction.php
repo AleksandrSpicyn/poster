@@ -70,6 +70,7 @@ final readonly class PreviewClippingImportAction
         $selected = $this->accounts->preview($connection, $data->accounts, $available);
         $selectedIds = array_fill_keys(array_column($selected, 'id'), true);
         $unmapped = [];
+
         foreach ($available as $account) {
             if (! isset($selectedIds[$account['id']])) {
                 $unmapped[] = ['id' => $account['id'], 'name' => $account['name'], 'platform' => $account['platform']];

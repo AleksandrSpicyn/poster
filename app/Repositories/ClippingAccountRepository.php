@@ -74,7 +74,7 @@ final readonly class ClippingAccountRepository
             }
 
             if ($id !== null && $channels->get($id)?->type !== $type) {
-                throw (new ModelNotFoundException())->setModel(Channel::class, [$id]);
+                throw new ModelNotFoundException()->setModel(Channel::class, [$id]);
             }
 
             $result[$selection->id] = [...$account, 'channel_id' => $id];
@@ -118,7 +118,7 @@ final readonly class ClippingAccountRepository
                 : $channels->get($id);
 
             if ($channel === null || $channel->type->value !== $account['platform']) {
-                throw (new ModelNotFoundException())->setModel(Channel::class, $id ?? []);
+                throw new ModelNotFoundException()->setModel(Channel::class, $id ?? []);
             }
 
             if (! $channel->exists) {

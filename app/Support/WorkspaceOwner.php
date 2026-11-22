@@ -49,7 +49,7 @@ final class WorkspaceOwner
             return null;
         }
 
-        if ($boundParent !== null && ! $model->relationLoaded($relation)) {
+        if ($boundParent instanceof Model && ! $model->relationLoaded($relation)) {
             $link = $model->{$relation}();
 
             if ($link->getRelated()::class === $boundParent::class

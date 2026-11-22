@@ -79,6 +79,7 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
     public function withContext(int $id, bool $includeParts = false): SeriesAssembly
     {
         $assembly = SeriesAssembly::query()->with('series.project', 'media')->findOrFail($id);
+
         if ($includeParts) {
             $assembly->load(['episodeAssemblies' => fn($query) => $query
                 ->whereRelation('episodeRevision.episode', 'series_id', $assembly->series_id)

@@ -42,6 +42,7 @@ test('сохраняет показатели обеих площадок за �
     } finally {
         DB::disableQueryLog();
     }
+
     expect($clipReads)->toHaveCount(1);
     consoleCommand('opus:metrics')->assertSuccessful();
 

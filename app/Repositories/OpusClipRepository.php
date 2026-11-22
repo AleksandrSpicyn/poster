@@ -229,6 +229,7 @@ final readonly class OpusClipRepository extends EloquentRepository
                     $received++;
                     $added += (int) ! $record->exists;
                 }
+
                 $publications += count(array_diff(array_unique(array_filter(array_column($record->publications, 'url'))), $oldUrls));
                 $merged[$canonical] = $record;
 
@@ -248,6 +249,7 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($run->failed_at !== null && $run->resumed_at === null) {
                 $run->resumed_at = now();
             }
+
             $run->clips_received += $publicationStage ? $added : $received;
             $run->clips_added += $added;
             $run->publications_added += $publications;
@@ -259,6 +261,7 @@ final readonly class OpusClipRepository extends EloquentRepository
             if ($nextCheckpoint === null) {
                 $run->completed_at = now();
             }
+
             $run->save();
         }
     }

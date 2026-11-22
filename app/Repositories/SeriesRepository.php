@@ -57,7 +57,7 @@ readonly class SeriesRepository extends EloquentRepository
         return new SeriesWorkspaceData(
             series: $series,
             characters: $series->characters()
-                ->when(!$withArchived, static fn(Builder $query) => $query->whereNull('archived_at'))
+                ->when(! $withArchived, static fn(Builder $query) => $query->whereNull('archived_at'))
                 ->with('currentRevision')
                 ->orderBy('name')
                 ->orderBy('id')

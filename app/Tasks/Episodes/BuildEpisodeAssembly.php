@@ -73,9 +73,10 @@ readonly class BuildEpisodeAssembly
 
     private function normalize(AssemblyClipData $shot, ?Media $media, string $output, float $deadline): void
     {
-        if ($media === null || $media->collection_name !== Prompt::SHOT_VIDEO) {
+        if (! $media instanceof Media || $media->collection_name !== Prompt::SHOT_VIDEO) {
             throw new RuntimeException('A selected take is unavailable.');
         }
+
         $path = $media->getPath();
 
         if ($media->model_type !== new Prompt()->getMorphClass() || $media->model_id !== $shot->promptId

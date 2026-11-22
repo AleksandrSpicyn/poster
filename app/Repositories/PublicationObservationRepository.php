@@ -123,6 +123,7 @@ final readonly class PublicationObservationRepository
             foreach (array_keys($metrics) as $id) {
                 $keys[$id] = hash('sha256', serialize([$channel->type->value, $account, $targets[$id]->mediaId]));
             }
+
             $existing = PublicationObservation::query()->where('owner_id', $channel->owner_id)->where('observed_on', $day)
                 ->whereIn('publication_key', $keys)->get()->keyBy('publication_key');
 
@@ -157,6 +158,7 @@ final readonly class PublicationObservationRepository
                             $newOrigins[$observationKey][] = $origin->id;
                         }
                     }
+
                     $linked = true;
                 }
 
