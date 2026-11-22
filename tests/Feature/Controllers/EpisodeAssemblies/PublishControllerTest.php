@@ -43,6 +43,7 @@ test('разовая подпись остаётся в первой заявк�
     $context = episodeHttpFixture();
     $revision = $context['revision'];
     $revision->update(['public_caption' => 'Подпись сценария']);
+
     $episode = $context['episode'];
     $assembly = EpisodeAssembly::factory()->for($revision)->create(['status' => AssemblyStatus::ACCEPTED]);
     $episode->update(['accepted_assembly_id' => $assembly->id]);
