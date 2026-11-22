@@ -14,7 +14,7 @@ class ConfigureOpusWorkspace extends Command
     protected $signature = 'opus:configure {project : Existing Poster project ID}
         {--youtube-account= : External ID of the attached YouTube channel}
         {--instagram-account= : Username of the attached Instagram channel}
-        {--tiktok-account= : Open ID of the optional dedicated TikTok channel}';
+        {--tiktok-account= : Open ID of the optional attached TikTok channel}';
 
     protected $description = 'Use an existing Poster project and its channels for the OpusClip workspace';
 

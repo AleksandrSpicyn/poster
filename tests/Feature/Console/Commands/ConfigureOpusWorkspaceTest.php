@@ -38,7 +38,7 @@ test('откатывает настройку при несовпадении в
         ->and($instagram->refresh()->credentials)->toBe(['account_name' => 'fixture_original']);
 });
 
-test('общий с другим проектом канал не становится игровым', function (): void {
+test('отклоняет канал со связью с проектом другого владельца', function (): void {
     $project = Project::factory()->create();
     $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE]);
     $channel->projects()->attach(Project::factory()->create());
@@ -49,4 +49,19 @@ test('общий с другим проектом канал не станови
 
     expect($project->refresh()->clipping_workspace)->toBeNull()
         ->and($channel->refresh()->external_account)->toBeNull();
+});
+
+test('использует канал владельца в двух игровых проектах', function (): void {
+    $project = Project::factory()->create();
+    $game = Project::factory()->create(['owner_id' => $project->owner_id]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::YOUTUBE]);
+    $channel->projects()->attach($game);
+    Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM]);
+
+    consoleCommand('opus:configure', ['project' => $project->id, '--youtube-account' => 'fixture-channel', '--instagram-account' => 'fixture_creator'])
+        ->assertSuccessful();
+
+    expect($channel->refresh()->external_account)->toBe('fixture-channel')
+        ->and($channel->projects()->count())->toBe(2)
+        ->and($project->refresh()->clipping_workspace)->toBe(Project::OPUS_CLIP_WORKSPACE);
 });

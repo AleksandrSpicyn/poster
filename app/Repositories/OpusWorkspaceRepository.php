@@ -28,6 +28,10 @@ final readonly class OpusWorkspaceRepository
                 throw new RuntimeException('Poster project not found.');
             }
 
+            if ($project->owner_id === null) {
+                throw new RuntimeException('Assign the workspace owner before configuring clipping.');
+            }
+
             if (Project::query()->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)->whereKeyNot($projectId)->exists()) {
                 throw new RuntimeException('The OpusClip workspace is already assigned to another Poster project.');
             }
@@ -38,9 +42,9 @@ final readonly class OpusWorkspaceRepository
 
             $channels = $project->channels()->orderBy('channels.id')->lockForUpdate()->get();
 
-            $this->bindAccount($channels, $projectId, ChannelType::YOUTUBE, $youtubeAccount);
-            $this->bindAccount($channels, $projectId, ChannelType::INSTAGRAM, $instagramAccount);
-            $this->bindAccount($channels, $projectId, ChannelType::TIKTOK, $tiktokAccount);
+            $this->bindAccount($channels, $project->owner_id, ChannelType::YOUTUBE, $youtubeAccount);
+            $this->bindAccount($channels, $project->owner_id, ChannelType::INSTAGRAM, $instagramAccount);
+            $this->bindAccount($channels, $project->owner_id, ChannelType::TIKTOK, $tiktokAccount);
 
             $project->clipping_workspace = Project::OPUS_CLIP_WORKSPACE;
             $project->save();
@@ -48,7 +52,7 @@ final readonly class OpusWorkspaceRepository
     }
 
     /** @param Collection<int, Channel> $channels */
-    private function bindAccount(Collection $channels, int $projectId, ChannelType $type, ?string $requested): void
+    private function bindAccount(Collection $channels, int $ownerId, ChannelType $type, ?string $requested): void
     {
         $matches = $channels->filter(fn(Channel $channel): bool => $channel->type === $type);
 
@@ -62,8 +66,8 @@ final readonly class OpusWorkspaceRepository
 
         $channel = $matches->sole();
 
-        if ($channel->projects()->whereKeyNot($projectId)->exists()) {
-            throw new RuntimeException('Attach a dedicated channel for each clipping account.');
+        if ($channel->owner_id !== $ownerId || $channel->projects()->where(fn($query) => $query->whereNull('owner_id')->orWhere('owner_id', '!=', $ownerId))->exists()) {
+            throw new RuntimeException('The channel and all linked projects must belong to the workspace owner.');
         }
 
         $credential = $type === ChannelType::INSTAGRAM ? 'account_name' : 'channel_id';
@@ -86,6 +90,6 @@ final readonly class OpusWorkspaceRepository
     /** @return Collection<int, Channel> */
     public function channels(Project $project): Collection
     {
-        return $project->channels()->whereNotNull('external_account')->where('channels.is_active', true)->get();
+        return $project->channels()->whereNotNull('channels.owner_id')->where('channels.owner_id', $project->owner_id)->whereNotNull('external_account')->where('channels.is_active', true)->get();
     }
 }
