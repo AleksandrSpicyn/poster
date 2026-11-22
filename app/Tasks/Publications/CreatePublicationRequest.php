@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Spatie\LaravelData\Optional;
 
 class CreatePublicationRequest
 {
@@ -83,7 +84,11 @@ class CreatePublicationRequest
 
             $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series);
 
-            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $tiktok);
+            $description = $data->caption instanceof Optional
+                ? trim(($revision->public_caption ?? '') . "\n\n" . $series->name . ' · ' . $episode->number)
+                : ($data->caption ?? '');
+
+            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $description, $tiktok);
         });
     }
 }

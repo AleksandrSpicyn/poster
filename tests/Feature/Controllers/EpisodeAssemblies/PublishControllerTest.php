@@ -33,10 +33,42 @@ test('публикация создаёт receipt для выбранного к
     $request = PublicationRequest::query()->firstOrFail();
     expect($request->episode_assembly_id)->toBe($assembly->id);
     expect($request->channel_id)->toBe($channel->id);
+    expect($request->payload['description'])->toBe(trim(($context['revision']->public_caption ?? '') . "\n\n" . $series->name . ' · ' . $context['episode']->number));
     expect($request->scheduled_at?->isFuture())->toBeTrue();
     Bus::assertNothingDispatched();
     Http::assertNothingSent();
 });
+
+test('разовая подпись остаётся в первой заявке каждого канала', function (?string $caption): void {
+    $context = episodeHttpFixture();
+    $revision = $context['revision'];
+    $revision->update(['public_caption' => 'Подпись сценария']);
+    $episode = $context['episode'];
+    $assembly = EpisodeAssembly::factory()->for($revision)->create(['status' => AssemblyStatus::ACCEPTED]);
+    $episode->update(['accepted_assembly_id' => $assembly->id]);
+    $channel = Channel::factory()->recycle(workspaceOwner())->create(['project_id' => $episode->series()->firstOrFail()->project_id, 'type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'test']]);
+    $url = route('episodes.assemblies.publish', [...$context['params'], 'assembly' => $assembly]);
+    Bus::fake();
+
+    actingAs($context['user'])
+        ->postJson($url, ['channel_ids' => [$channel->id], 'caption' => str_repeat('я', 1001)])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('caption');
+    expect(PublicationRequest::query()->count())->toBe(0);
+
+    actingAs($context['user'])
+        ->post($url, ['channel_ids' => [$channel->id], 'caption' => $caption])
+        ->assertRedirect();
+    actingAs($context['user'])
+        ->post($url, ['channel_ids' => [$channel->id], 'caption' => 'Другая подпись'])
+        ->assertRedirect();
+
+    $request = PublicationRequest::query()->sole();
+    expect($request->payload['description'])->toBe($caption ?? '');
+    expect($revision->refresh()->public_caption)->toBe('Подпись сценария');
+    Bus::assertNothingDispatched();
+    Http::assertNothingSent();
+})->with(['Только для этой отправки', '', null]);
 
 test('черновик не создаёт публикацию', function (): void {
     $context = episodeHttpFixture();
