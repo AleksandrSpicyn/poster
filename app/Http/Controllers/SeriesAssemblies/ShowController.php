@@ -26,7 +26,8 @@ class ShowController
         $assembly = $action->run($assembly);
 
         return inertia('SeriesAssemblies/Show', ['assembly' => SeriesAssemblyResource::make($assembly)->resolve(),
-            'series' => ['id' => $assembly->series_id, 'name' => $assembly->series->name, 'project_id' => $assembly->series->project_id],
+            'series' => ['id' => $assembly->series_id, 'name' => $assembly->series->name, 'project_id' => $assembly->series->project_id,
+                'final_assembly_id' => $assembly->series->final_assembly_id, 'release_started_at' => $assembly->series->release_started_at?->toISOString()],
             'release_started' => $assembly->series->release_started_at !== null]);
     }
 }

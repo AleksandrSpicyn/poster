@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -14,13 +14,14 @@ const props = defineProps<{
         number: number;
         status: string;
         lock_version: number;
+        started_at: string | null;
         video_url: string | null;
         duration_ms: number | null;
         error_message: string | null;
         manifest: { parts?: { number: number; duration_ms: number }[] };
         review: { notes: string } | null;
     };
-    series: { id: number; name: string; project_id: number };
+    series: { id: number; name: string; project_id: number; final_assembly_id: number | null; release_started_at: string | null };
     release_started: boolean;
 }>();
 const route = useRoute();
@@ -46,6 +47,14 @@ const statusLabels: Record<string, string> = {
 };
 const video = ref<HTMLVideoElement | null>(null);
 const form = useForm({ lock_version: props.assembly.lock_version, boundaries_reviewed: false, review_notes: '' });
+const pinned = computed(() => props.release_started && props.assembly.id === props.series.final_assembly_id);
+const releaseTime = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+watch(
+    () => props.assembly.status,
+    (status) => {
+        if (status === 'ready') form.lock_version = props.assembly.lock_version;
+    },
+);
 const errors = computed<Record<string, string | undefined>>(() => form.errors);
 const playbackError = ref(false);
 const boundaries = computed(() => {
@@ -112,17 +121,38 @@ async function playBoundary(time: number) {
                 </div>
             </section>
             <section v-if="tab === 'status'" class="studio-panel space-y-3" aria-live="polite">
-                <h2>{{ statusLabels[assembly.status] }}</h2>
+                <h2>{{ pinned ? 'Версия ' + assembly.number + ' закреплена' : statusLabels[assembly.status] }}</h2>
+                <template v-if="pinned">
+                    <p>В заявке на выпуск сохранена именно эта принятая сборка.</p>
+                    <div v-if="series.release_started_at" class="studio-row">
+                        <span>Отправка</span
+                        ><time :datetime="series.release_started_at">{{ releaseTime.format(new Date(series.release_started_at)) }} UTC</time>
+                    </div>
+                </template>
                 <p>
                     Версия {{ assembly.number }}<span v-if="assembly.duration_ms"> · {{ (assembly.duration_ms / 1000).toLocaleString('ru') }} с</span>
                 </p>
                 <p v-if="assembly.status === 'failed'" role="alert">Проверьте готовность эпизодов и исходные видео.</p>
-                <p v-else-if="assembly.status === 'building'">Соединяются эпизоды.</p>
-                <p v-if="release_started">Для этого выпуска закреплена отправленная версия файла.</p>
-                <a v-if="assembly.video_url" href="#assembly" class="underline" @click="tab = 'assembly'">Посмотреть сборку</a>
+                <div v-else-if="assembly.status === 'building'" class="grid gap-2">
+                    <p v-if="assembly.started_at">Начата в {{ releaseTime.format(new Date(assembly.started_at)) }} UTC</p>
+                    <div class="studio-row"><span>Монтаж</span><strong>Соединяются эпизоды</strong></div>
+                    <div class="studio-row"><span>Проверка файла и границ</span><span>Ожидает монтажа</span></div>
+                </div>
+                <p v-if="release_started && !pinned">Для этого выпуска закреплена другая версия.</p>
+                <video
+                    v-if="assembly.video_url"
+                    :src="assembly.video_url"
+                    controls
+                    preload="metadata"
+                    aria-label="Видео итоговой версии"
+                    class="max-h-72 w-full rounded-xl bg-black"
+                />
+                <a v-if="assembly.video_url" href="#assembly" class="underline" @click="tab = 'assembly'">{{
+                    pinned ? 'Посмотреть отправленную сборку' : 'Посмотреть сборку'
+                }}</a>
                 <Button v-else variant="outline" @click="router.reload()">Обновить состояние сборки</Button>
             </section>
-            <div v-show="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+            <div v-if="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
                 <div>
                     <video
                         v-if="assembly.video_url"
@@ -179,7 +209,9 @@ async function playBoundary(time: number) {
                         <p class="text-muted-foreground text-sm">Действующий производственный запуск отправит принятую сборку в выбранные каналы.</p>
                     </form>
                     <p v-if="assembly.review" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
-                    <p v-if="release_started" class="text-muted-foreground">Для этого выпуска закреплена отправленная версия файла.</p>
+                    <p v-if="release_started" class="text-muted-foreground">
+                        {{ pinned ? 'Для этого выпуска закреплена эта версия.' : 'Для этого выпуска закреплена другая версия.' }}
+                    </p>
                     <Link :href="route('projects.show', series.project_id)" class="underline">Вернуться в проект</Link>
                 </div>
             </div>

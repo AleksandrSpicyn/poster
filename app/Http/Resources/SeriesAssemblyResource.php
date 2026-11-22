@@ -19,6 +19,7 @@ class SeriesAssemblyResource extends JsonResource
 
         return ['id' => $this->id, 'series_id' => $this->series_id, 'number' => $this->number,
             'status' => $this->status->value, 'lock_version' => $this->lock_version, 'manifest' => $this->manifest,
+            'started_at' => $this->started_at?->toISOString(),
             'duration_ms' => $this->duration_ms, 'review' => $this->review, 'error_message' => $this->error_message,
             'video_url' => $media instanceof Media ? route('series_assemblies.preview', ['assembly' => $this->id, 'media' => $media->id]) : null];
     }
