@@ -197,7 +197,7 @@ const nextRunLabel = computed(() => {
 });
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
-const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation'].includes(section.value));
+const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation', 'deletion'].includes(section.value));
 const sections = computed((): Record<string, string> =>
     isSeries.value && section.value !== 'format'
         ? {
@@ -223,6 +223,11 @@ function selectFormat(event: Event) {
     }
     form.content_mode = select.value;
 }
+const sharedChannels = computed(() =>
+    props.channels.filter(
+        (channel) => props.selectedChannelIds.includes(channel.id) && channel.projects?.some((project) => project.id !== props.project?.id),
+    ),
+);
 function readSection() {
     const hash = window.location.hash.slice(1);
     section.value =
@@ -571,10 +576,10 @@ function submit() {
                             <span>Активное производство</span><span>{{ project.blocking_runs_count || 'Нет' }}</span>
                         </div>
                         <div class="studio-row">
-                            <span>Общий канал</span><span>{{ selectedChannelNames.join(', ') || 'Нет' }}</span>
+                            <span>Общий канал</span><span>{{ sharedChannels.map((channel) => channel.name).join(', ') || 'Нет' }}</span>
                         </div>
                         <ConfirmationDialog
-                            heading="Подтверждение удаления проекта"
+                            heading="Подтверждение удаления"
                             :title="'Удалить «' + project.name + '»?'"
                             description="После удаления восстановить проект нельзя."
                             action="Удалить проект"
@@ -597,7 +602,7 @@ function submit() {
                             </div>
                             <div class="studio-row">
                                 <dt>Активные задания</dt>
-                                <dd>{{ project.blocking_runs_count }}</dd>
+                                <dd>{{ project.blocking_runs_count || 'Нет' }}</dd>
                             </div>
                         </ConfirmationDialog>
                     </div>
