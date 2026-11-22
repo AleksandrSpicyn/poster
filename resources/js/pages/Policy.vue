@@ -1,63 +1,67 @@
 <script setup lang="ts">
+import PublicHeader from '@/components/PublicHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <main class="mx-auto max-w-3xl px-6 py-12 text-slate-900 dark:text-slate-100">
-        <Head title="Privacy Policy" />
-        <Link :href="route('home')" class="font-semibold underline underline-offset-4">Poster</Link>
-        <h1 class="mt-8 text-4xl font-semibold tracking-tight">Privacy Policy</h1>
-        <p class="mt-2 text-sm">Updated November 22, 2026</p>
-        <p class="mt-6 leading-relaxed">
-            This policy explains how Aleksandr Olegovich Spitsyn, the operator of Poster, handles information when you visit the site, work on videos,
-            or connect a social account to the creator workspace.
-        </p>
-        <section class="mt-8">
-            <h2 class="text-xl font-semibold">Using the site and workspace</h2>
-            <p class="mt-3 leading-relaxed">
-                Poster uses a session cookie to keep track of your visit, sign-in and account connection. If you have a workspace account, Poster
-                processes your name, email address and the project materials you provide, including scripts, reference images, video files and
-                captions. These records let you return to a project, assemble an episode and track releases.
+    <div class="public-frame">
+        <PublicHeader workspace-link />
+        <main class="legal-copy" lang="en">
+            <Head title="Privacy Policy" />
+            <h1 class="mt-8 text-4xl font-semibold tracking-tight">Privacy Policy</h1>
+            <p class="mt-2 text-sm">Updated November 22, 2026</p>
+            <p class="mt-6 leading-relaxed">
+                This policy explains how Aleksandr Olegovich Spitsyn, the operator of Poster, handles information when you visit the site, work on
+                videos, or connect a social account to the creator workspace.
             </p>
-        </section>
-        <section class="mt-8">
-            <h2 class="text-xl font-semibold">Connecting TikTok</h2>
-            <p class="mt-3 leading-relaxed">
-                You sign in on TikTok and choose whether to grant Poster access. TikTok gives Poster an authorization token to act within those
-                permissions. Poster stores your encrypted connection credentials, token expiry and TikTok display name with your channel. Your TikTok password stays with TikTok.
-            </p>
-            <p class="mt-3 leading-relaxed">
-                Poster reads your creator settings to show your account, available audiences and interaction options. It can also retrieve your public
-                video list and the available view, like, comment and share counts for your workspace.
-            </p>
-        </section>
-        <section class="mt-8">
-            <h2 class="text-xl font-semibold">What Poster sends</h2>
-            <p class="mt-3 leading-relaxed">
-                When you confirm a Direct Post, Poster sends the selected video, caption, audience, interaction choices and applicable disclosures to
-                TikTok. Poster uses the publication identifier returned by TikTok to check processing and show the result. If the inbox upload feature
-                is enabled and you choose it, TikTok receives a draft that you can finish in its app.
-            </p>
-            <p class="mt-3 leading-relaxed">
-                In the production workspace, the services involved depend on the project. Generation providers receive the prompts and reference media
-                needed for the selected generation. Connected publishing platforms receive the material selected for release.
-            </p>
-        </section>
-        <section class="mt-8">
-            <h2 class="text-xl font-semibold">Retention and your choices</h2>
-            <p class="mt-3 leading-relaxed">
-                Poster stores publication receipts with your project history so you can check the result across sessions. Disconnecting a workspace
-                channel clears its saved credentials.
-            </p>
-            <p class="mt-3 leading-relaxed">
-                You can revoke Poster’s access in your social account settings. To remove a video already delivered to TikTok, use TikTok’s own video
-                controls. To request access, correction or deletion of information held by Poster, email the operator below and identify the account
-                or project involved. Please omit passwords and access tokens.
-            </p>
-        </section>
-        <footer class="mt-10 flex flex-wrap gap-5 border-t pt-6 text-sm">
-            <a href="mailto:fenixxxar85@gmail.com" class="underline">fenixxxar85@gmail.com</a>
-            <Link :href="route('terms')" class="underline">Terms of Service</Link>
-        </footer>
-    </main>
+            <section class="mt-8">
+                <h2 class="text-xl font-semibold">Using the site and workspace</h2>
+                <p class="mt-3 leading-relaxed">
+                    Poster uses a session cookie to keep track of your visit, sign-in and account connection. If you have a workspace account, Poster
+                    processes your name, email address and the project materials you provide, including scripts, reference images, video files and
+                    captions. These records let you return to a project, assemble an episode and track releases.
+                </p>
+            </section>
+            <section class="mt-8">
+                <h2 class="text-xl font-semibold">Connecting TikTok</h2>
+                <p class="mt-3 leading-relaxed">
+                    You sign in on TikTok and choose whether to grant Poster access. TikTok gives Poster an authorization token to act within those
+                    permissions. Poster stores your encrypted connection credentials, token expiry and TikTok display name with your channel. Your
+                    TikTok password stays with TikTok.
+                </p>
+                <p class="mt-3 leading-relaxed">
+                    Poster reads your creator settings to show your account, available audiences and interaction options. It can also retrieve your
+                    public video list and the available view, like, comment and share counts for your workspace.
+                </p>
+            </section>
+            <section class="mt-8">
+                <h2 class="text-xl font-semibold">What Poster sends</h2>
+                <p class="mt-3 leading-relaxed">
+                    When you confirm a Direct Post, Poster sends the selected video, caption, audience, interaction choices and applicable disclosures
+                    to TikTok. Poster uses the publication identifier returned by TikTok to check processing and show the result. If the inbox upload
+                    feature is enabled and you choose it, TikTok receives a draft that you can finish in its app.
+                </p>
+                <p class="mt-3 leading-relaxed">
+                    In the production workspace, the services involved depend on the project. Generation providers receive the prompts and reference
+                    media needed for the selected generation. Connected publishing platforms receive the material selected for release.
+                </p>
+            </section>
+            <section class="mt-8">
+                <h2 class="text-xl font-semibold">Retention and your choices</h2>
+                <p class="mt-3 leading-relaxed">
+                    Poster stores publication receipts with your project history so you can check the result across sessions. Disconnecting a
+                    workspace channel clears its saved credentials.
+                </p>
+                <p class="mt-3 leading-relaxed">
+                    You can revoke Poster’s access in your social account settings. To remove a video already delivered to TikTok, use TikTok’s own
+                    video controls. To request access, correction or deletion of information held by Poster, email the operator below and identify the
+                    account or project involved. Please omit passwords and access tokens.
+                </p>
+            </section>
+            <footer class="mt-10 flex flex-wrap gap-5 border-t pt-6 text-sm">
+                <a href="mailto:fenixxxar85@gmail.com" class="underline">fenixxxar85@gmail.com</a>
+                <Link :href="route('terms')" class="underline">Terms of Service</Link>
+            </footer>
+        </main>
+    </div>
 </template>

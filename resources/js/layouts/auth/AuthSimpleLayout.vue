@@ -1,20 +1,14 @@
 <script setup lang="ts">
 import AppFeedback from '@/components/AppFeedback.vue';
 import lunarLandscape from '../../../assets/studio/lunar-landscape.webp';
-import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import PublicHeader from '@/components/PublicHeader.vue';
 
-const route = useRoute();
 defineProps<{ title?: string; description?: string }>();
 </script>
 
 <template>
     <div class="access">
-        <header class="access-header">
-            <Link :href="route('home')" aria-label="Poster — на главную" class="brand">
-                <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Poster
-            </Link>
-        </header>
+        <PublicHeader />
         <main class="access-main">
             <section class="access-form" aria-labelledby="access-title">
                 <p class="access-section">Учётная запись</p>
@@ -33,31 +27,6 @@ defineProps<{ title?: string; description?: string }>();
     width: min(calc(100% - 32px), 1280px);
     margin: 0 auto;
     min-height: 100svh;
-}
-.access-header {
-    height: 71px;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-}
-.brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 23px;
-    font-weight: 700;
-}
-.brand-mark {
-    display: flex;
-    gap: 2px;
-    padding-inline: 5px;
-}
-.brand-mark i {
-    display: block;
-    width: 5px;
-    height: 20px;
-    background: var(--ring);
-    transform: skew(-24deg);
 }
 .access-main {
     padding-block: 22px 40px;
