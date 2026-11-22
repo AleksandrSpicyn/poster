@@ -92,6 +92,8 @@ class ListController
      * @responseField props.sortDirections.desc string Сначала новые.
      * @responseField props.defaultSort string Порядок сортировки по умолчанию.
      * @responseField props.filters object Переданные фильтры; без параметров возвращается пустой объект.
+     * @responseField props.projects object[] Личные проекты для выбора.
+     * @responseField props.filters.project integer|null Выбранный проект.
      * @responseField props.filters.sort string Порядок сортировки, если был передан.
      * @responseField url string url.
      * @responseField version string version.
@@ -106,9 +108,10 @@ class ListController
 
         return inertia('Prompts', [
             'prompts' => PromptResource::collection($prompts),
+            'projects' => fn(): array => $getPromptsList->projects($owner),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,
-            'filters' => (object) $data->only('sort')->toArray(),
+            'filters' => (object) $data->only('sort', 'project')->toArray(),
         ]);
     }
 }

@@ -43,6 +43,7 @@ export interface ListFilters {
     page: number;
     type?: string;
     search?: string;
+    project?: number | null;
     days?: number;
     active?: number | null;
     updated?: number;
@@ -51,7 +52,7 @@ export interface ListFilters {
 export interface ListPageProps extends SharedData {
     sortDirections: Record<string, string>;
     defaultSort: string;
-    filters: { sort?: string | null; type?: string | null };
+    filters: { sort?: string | null; type?: string | null; project?: number | null };
 }
 
 export interface PostsPageProps extends ListPageProps {
@@ -84,6 +85,7 @@ export interface PostsPageProps extends ListPageProps {
 }
 
 export interface PromptsPageProps extends ListPageProps {
+    projects: { id: number; name: string }[];
     prompts: PaginatedResource<PromptSummary>;
 }
 

@@ -2,6 +2,7 @@
 import SeriesAssemblyParameters from '@/components/SeriesAssemblyParameters.vue';
 import type { AssemblyParameters } from '@/types/series';
 import SeriesBoundaryReview from '@/components/SeriesBoundaryReview.vue';
+import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,8 @@ const props = defineProps<{
         video_url: string | null;
         duration_ms: number | null;
         error_message: string | null;
-        manifest: { parts?: { number: number; duration_ms: number }[] };
+        manifest: { parts?: { number: number; assembly_id: number; duration_ms: number }[] };
+        source_versions: Record<number, number>;
         review: { notes?: string; boundaries?: Record<string, { notes: string; reviewed: boolean }> } | null;
     };
     series: { id: number; name: string; project_id: number; final_assembly_id: number | null; release_started_at: string | null };
@@ -57,6 +59,16 @@ const statusLabels: Record<string, string> = {
     accepted: 'Сборка принята',
     failed: 'Не удалось собрать версию',
 };
+const assemblyPreview = ref<InstanceType<typeof EpisodePreview> | null>(null);
+const parts = computed(() => {
+    let offset = 0;
+    return (props.assembly.manifest.parts ?? []).map((part) => {
+        const start = offset;
+        offset += part.duration_ms;
+        return { ...part, start, version: props.assembly.source_versions?.[part.assembly_id] };
+    });
+});
+const timecode = (ms: number) => [Math.floor(ms / 60000), Math.floor(ms / 1000) % 60].map((value) => String(value).padStart(2, '0')).join(':');
 const video = ref<HTMLVideoElement | null>(null);
 const form = useForm({ lock_version: props.assembly.lock_version, boundaries_reviewed: false, review_notes: '' });
 const pinned = computed(() => props.release_started && props.assembly.id === props.series.final_assembly_id);
@@ -101,18 +113,14 @@ async function playBoundary(time: number) {
 </script>
 
 <template>
-    <AppLayout
-        :breadcrumbs="[
-            { title: 'Проект', href: route('projects.show', series.project_id) },
-            { title: 'Сборка сериала', href: route('series_assemblies.show', assembly.id) },
-        ]"
-    >
+    <AppLayout :breadcrumbs="[{ title: 'Сериалы', href: route('series.index') }]">
         <Head :title="series.name + ' · Сборка сериала'" />
         <div class="workspace-page">
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <Heading title="Сборка сериала" :description="series.name + ' / Полная версия · ' + assembly.number" />
+                <Heading title="Сборка сериала" :description="series.name + ' / Полная версия'" />
                 <Button
                     v-if="tab === 'assembly' && assembly.status === 'ready' && !release_started"
+                    class="h-11"
                     form="assembly-review"
                     type="submit"
                     :disabled="form.processing || !boundariesComplete"
@@ -198,77 +206,152 @@ async function playBoundary(time: number) {
                 }}</a>
                 <Button v-else variant="outline" @click="router.reload()">Обновить состояние сборки</Button>
             </section>
-            <div v-if="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(32%,380px)_minmax(0,1fr)]">
+            <div v-if="tab === 'assembly'" class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
                 <div>
-                    <video
+                    <EpisodePreview
                         v-if="assembly.video_url"
-                        ref="video"
+                        ref="assemblyPreview"
                         :src="assembly.video_url"
-                        controls
-                        preload="metadata"
-                        aria-label="Предпросмотр сборки сериала"
-                        class="aspect-[3/4] w-full rounded-xl bg-black object-contain"
+                        label="Предпросмотр сборки сериала"
+                        player-label="Проигрыватель сборки сериала"
+                        play-label="Воспроизвести сборку"
+                        pause-label="Приостановить сборку"
                     />
                     <Button v-else variant="outline" @click="router.reload()">Обновить состояние сборки</Button>
                     <p v-if="playbackError" role="alert">Не удалось запустить воспроизведение. Откройте видео через элементы управления плеера.</p>
                 </div>
-                <div class="studio-panel grid gap-4">
-                    <p>{{ statusLabels[assembly.status] }} · {{ (assembly.duration_ms ?? 0) / 1000 }} с</p>
-                    <ol class="divide-y">
-                        <li v-for="part in assembly.manifest.parts ?? []" :key="part.number" class="flex justify-between gap-4 py-3">
-                            <span>Эпизод {{ part.number }}</span
-                            ><span>{{ (part.duration_ms / 1000).toLocaleString('ru') }} с</span>
+                <div class="assembly-main">
+                    <h2>Сборка</h2>
+                    <ol>
+                        <li v-for="part in parts" :key="part.number" class="assembly-row">
+                            <strong>Эпизод {{ String(part.number).padStart(2, '0') }}</strong>
+                            <span
+                                ><template v-if="part.version">Версия {{ String(part.version).padStart(2, '0') }} · </template>готов</span
+                            >
                         </li>
                     </ol>
-                    <section v-if="boundaries.length" class="space-y-3">
-                        <h2 class="text-lg font-semibold">Проверка переходов</h2>
-                        <p class="text-muted-foreground text-sm">
-                            Перед приёмкой просмотрите стыки эпизодов со звуком. Проверьте движение, речь и последовательность событий.
-                        </p>
-                        <div class="flex flex-wrap gap-2">
-                            <Button
-                                v-for="boundary in boundaries"
-                                :key="boundary.number"
+                    <div v-if="parts.length" class="assembly-times">
+                        <p>Длительность фрагментов</p>
+                        <div>
+                            <button
+                                v-for="part in parts"
+                                :key="part.number"
                                 type="button"
-                                variant="outline"
-                                @click="showJoint(boundary.number)"
-                                >Эпизоды {{ boundary.number }} → {{ boundary.number + 1 }}</Button
+                                :aria-label="'Перейти к эпизоду ' + part.number"
+                                :disabled="!assembly.video_url"
+                                :style="{ flexGrow: part.duration_ms }"
+                                @click="assemblyPreview?.seek(part.start / 1000)"
                             >
+                                {{ timecode(part.start) }}
+                            </button>
                         </div>
-                    </section>
-                    <form
-                        id="assembly-review"
-                        v-if="assembly.status === 'ready' && !release_started"
-                        class="space-y-4 rounded-lg border p-5"
-                        @submit.prevent="form.post(route('series_assemblies.accept', assembly.id), { preserveScroll: true })"
-                    >
-                        <p v-if="!boundariesComplete" class="text-muted-foreground text-sm">
-                            Сохраните проверку каждого стыка перед приёмкой сборки.
-                        </p>
-                        <label class="flex items-center gap-3 text-sm"
-                            ><input v-model="form.boundaries_reviewed" type="checkbox" required class="size-4" />Я проверил видео и переходы между
-                            эпизодами со звуком</label
-                        >
-                        <InputError :message="form.errors.boundaries_reviewed" />
-                        <Label for="review-notes">Заметки о проверке</Label>
-                        <textarea
-                            id="review-notes"
-                            v-model="form.review_notes"
-                            required
-                            maxlength="2000"
-                            class="border-input bg-background min-h-24 w-full rounded-md border p-3"
-                        />
-                        <InputError :message="form.errors.review_notes" /><InputError :message="errors.assembly" />
-
-                        <p class="text-muted-foreground text-sm">Действующий производственный запуск отправит принятую сборку в выбранные каналы.</p>
-                    </form>
-                    <p v-if="assembly.review?.notes" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
-                    <p v-if="release_started" class="text-muted-foreground">
-                        {{ pinned ? 'Для этого выпуска закреплена эта версия.' : 'Для этого выпуска закреплена другая версия.' }}
-                    </p>
-                    <Link :href="route('projects.show', series.project_id)" class="underline">Вернуться в проект</Link>
+                    </div>
                 </div>
+            </div>
+            <div v-if="tab === 'assembly'" class="assembly-review grid gap-4">
+                <section v-if="boundaries.length" class="space-y-3">
+                    <h2 class="text-lg font-semibold">Проверка переходов</h2>
+                    <p class="text-muted-foreground text-sm">
+                        Перед приёмкой просмотрите стыки эпизодов со звуком. Проверьте движение, речь и последовательность событий.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            v-for="boundary in boundaries"
+                            :key="boundary.number"
+                            type="button"
+                            variant="outline"
+                            @click="showJoint(boundary.number)"
+                            >Эпизоды {{ boundary.number }} → {{ boundary.number + 1 }}</Button
+                        >
+                    </div>
+                </section>
+                <form
+                    id="assembly-review"
+                    v-if="assembly.status === 'ready' && !release_started"
+                    class="space-y-4 rounded-lg border p-5"
+                    @submit.prevent="form.post(route('series_assemblies.accept', assembly.id), { preserveScroll: true })"
+                >
+                    <p v-if="!boundariesComplete" class="text-muted-foreground text-sm">Сохраните проверку каждого стыка перед приёмкой сборки.</p>
+                    <label class="flex items-center gap-3 text-sm"
+                        ><input v-model="form.boundaries_reviewed" type="checkbox" required class="size-4" />Я проверил видео и переходы между
+                        эпизодами со звуком</label
+                    >
+                    <InputError :message="form.errors.boundaries_reviewed" />
+                    <Label for="review-notes">Заметки о проверке</Label>
+                    <textarea
+                        id="review-notes"
+                        v-model="form.review_notes"
+                        required
+                        maxlength="2000"
+                        class="border-input bg-background min-h-24 w-full rounded-md border p-3"
+                    />
+                    <InputError :message="form.errors.review_notes" /><InputError :message="errors.assembly" />
+
+                    <p class="text-muted-foreground text-sm">Действующий производственный запуск отправит принятую сборку в выбранные каналы.</p>
+                </form>
+                <p v-if="assembly.review?.notes" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
+                <p v-if="release_started" class="text-muted-foreground">
+                    {{ pinned ? 'Для этого выпуска закреплена эта версия.' : 'Для этого выпуска закреплена другая версия.' }}
+                </p>
+                <Link :href="route('projects.show', series.project_id)" class="underline">Вернуться в проект</Link>
             </div>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.assembly-main h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+.assembly-row {
+    display: grid;
+    grid-template-columns: 45% 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border);
+}
+.assembly-row span {
+    font-size: 14px;
+    color: var(--sidebar-accent-foreground);
+}
+.assembly-times {
+    margin-top: 24px;
+}
+.assembly-times p {
+    color: var(--muted-foreground);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.assembly-times div {
+    display: flex;
+    gap: 4px;
+}
+.assembly-times button {
+    flex-basis: 0;
+    min-width: 0;
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    border-radius: 6px;
+    padding: 9px 6px;
+    font: 12px monospace;
+    text-align: left;
+}
+.assembly-review {
+    margin-top: 2rem;
+}
+@media (max-width: 639px) {
+    .assembly-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        padding: 10px 0;
+    }
+}
+@media (max-width: 767px) {
+    .workspace-page {
+        padding-block-start: 16px;
+    }
+}
+</style>

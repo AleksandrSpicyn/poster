@@ -16,10 +16,12 @@ test('оператор видит финальный монтаж и точны�
     $context = singleVideoFixture();
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
 
+    $first = $assembly->episodeAssemblies()->firstOrFail();
+
     actingAs($context['user'])->get(route('series_assemblies.show', $assembly))
         ->assertOk()->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->component('SeriesAssemblies/Show')
         ->where('parameters.can_build', true)->where('parameters.parts.0.ready', true)->where('parameters.parts.2.number', 3)
-        ->where('assembly.id', $assembly->id)->has('assembly.manifest.parts', 3)->where('release_started', false));
+        ->where('assembly.id', $assembly->id)->where('assembly.source_versions.' . $first->id, $first->number)->has('assembly.source_versions', 3)->has('assembly.manifest.parts', 3)->where('release_started', false));
 });
 
 test('история показывает закреплённую версию при просмотре другой сборки', function (): void {

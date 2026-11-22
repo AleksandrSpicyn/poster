@@ -88,7 +88,7 @@ function save() {
             <label class="flex items-center gap-2"><input v-model="form.reviewed" type="checkbox" :disabled="!editable" />Стык проверен</label>
             <p class="text-muted-foreground text-sm">Граница {{ time.toLocaleString('ru') }} с</p>
             <InputError :message="errors.review || form.errors.lock_version" />
-            <p v-if="form.recentlySuccessful" role="status">Проверка сохранена.</p>
+            <p v-if="saved && saved.notes === form.notes && saved.reviewed === form.reviewed" role="status">Проверка сохранена.</p>
             <Button v-if="editable" type="submit" class="justify-self-start" :disabled="form.processing">Сохранить проверку</Button>
         </form>
     </section>

@@ -71,9 +71,17 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
         return true;
     }
 
-    public function withContext(int $id): SeriesAssembly
+    public function withContext(int $id, bool $includeParts = false): SeriesAssembly
     {
-        return SeriesAssembly::query()->with('series.project', 'media')->findOrFail($id);
+        $assembly = SeriesAssembly::query()->with('series.project', 'media')->findOrFail($id);
+
+        if ($includeParts) {
+            $assembly->load(['episodeAssemblies' => fn($query) => $query
+                ->whereRelation('episodeRevision.episode', 'series_id', $assembly->series_id)
+                ->select('episode_assemblies.id', 'episode_assemblies.number')]);
+        }
+
+        return $assembly;
     }
 
     /** @param array<string, mixed> $manifest */

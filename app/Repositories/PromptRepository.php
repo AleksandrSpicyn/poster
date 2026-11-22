@@ -37,6 +37,8 @@ readonly class PromptRepository extends EloquentRepository
 
         if ($project instanceof Project) {
             $query->whereBelongsTo($project);
+        } elseif (is_int($dto->project)) {
+            $query->where('project_id', $dto->project);
         }
 
         return $query

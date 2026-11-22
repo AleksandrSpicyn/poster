@@ -24,5 +24,8 @@ class GetPromptsListData extends Data
         public ?int $perPage = 10,
         #[IntegerType, Min(1)]
         public ?int $page = 1,
+        #[IntegerType, Min(1)]
+        public int|null|Optional $project = new Optional(),
+        public bool $updated = false,
     ) {}
 }

@@ -1,77 +1,155 @@
 <script setup lang="ts">
-import GenerationItem from '@/components/GenerationItem.vue';
-import GenerationStage from '@/components/GenerationStage.vue';
 import Heading from '@/components/Heading.vue';
 import ListControls from '@/components/ListControls.vue';
-import ListPanel from '@/components/ListPanel.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import VideoPreview from '@/components/VideoPreview.vue';
+import { Button } from '@/components/ui/button';
 import { useListFilters } from '@/composables/useListFilters';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
 import type { PromptsPageProps } from '@/types/content';
 import { Head, usePage } from '@inertiajs/vue3';
+import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<PromptsPageProps>();
-const { filters, loading, error, changeSort, changePerPage, changePage, refresh } = useListFilters('prompts', () => ({
+const { filters, loading, error, applyFilters, changeSort, changePerPage, changePage, refresh } = useListFilters('prompts', () => ({
     sort: page.props.filters.sort ?? page.props.defaultSort,
     perPage: page.props.prompts.meta.per_page,
     page: page.props.prompts.meta.current_page,
+    project: page.props.filters.project ?? null,
 }));
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Генерации', href: route('prompts') }];
+const filterOpen = ref(false);
+const projectSelect = ref<HTMLSelectElement | null>(null);
+const projectName = computed(() => page.props.projects.find((p) => p.id === page.props.filters.project)?.name ?? 'Все проекты');
+async function chooseProject() {
+    filterOpen.value = true;
+    await nextTick();
+    projectSelect.value?.focus();
+}
+function allProjects() {
+    filterOpen.value = false;
+    if (filters.project) {
+        filters.project = null;
+        applyFilters();
+    }
+}
 </script>
-
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AppLayout :breadcrumbs="[{ title: 'Генерации', href: route('prompts') }]">
         <Head title="Генерации" />
         <div class="workspace-page">
-            <Heading title="Генерации" description="Все проекты / Последние операции" />
-            <ListPanel
-                :meta="page.props.prompts.meta"
-                :count="page.props.prompts.data.length"
-                :loading="loading"
-                :error="error"
-                empty-title="Пока нет генераций"
-                empty-description="Когда в проекте начнётся генерация, здесь появятся её этапы и результат."
-                @page="changePage"
-                @refresh="refresh"
-            >
-                <template #filters
-                    ><ListControls
-                        :sort="filters.sort"
-                        :per-page="filters.perPage"
-                        :directions="page.props.sortDirections"
+            <header class="generation-heading">
+                <Heading title="Генерации" :description="projectName + ' / Последние операции'" /><Button class="h-11" @click="chooseProject"
+                    >Выбрать проект</Button
+                >
+            </header>
+            <nav aria-label="Разделы генераций" class="flex gap-2">
+                <Button variant="secondary" :aria-pressed="!filterOpen" @click="allProjects">Все</Button
+                ><Button variant="secondary" :aria-pressed="filterOpen" @click="filterOpen = !filterOpen">Фильтры</Button>
+            </nav>
+            <div v-if="filterOpen" class="studio-panel flex flex-wrap items-end gap-4">
+                <label class="grid gap-1 text-sm"
+                    >Проект<select
+                        ref="projectSelect"
+                        v-model="filters.project"
+                        class="list-select max-w-full"
                         :disabled="loading"
-                        @sort="changeSort"
-                        @per-page="changePerPage"
-                /></template>
-                <div class="divide-y md:hidden"><GenerationItem v-for="prompt in page.props.prompts.data" :key="prompt.id" :prompt="prompt" /></div>
-                <Table class="hidden md:table">
-                    <TableHeader
-                        ><TableRow
-                            ><TableHead class="min-w-64">Идея</TableHead><TableHead>Проект</TableHead><TableHead class="min-w-44">Этап</TableHead
-                            ><TableHead>Создано</TableHead><TableHead class="text-right">Видео</TableHead></TableRow
-                        ></TableHeader
+                        @change="applyFilters"
                     >
-                    <TableBody>
-                        <TableRow v-for="prompt in page.props.prompts.data" :key="prompt.id">
-                            <TableCell class="max-w-sm whitespace-normal"
-                                ><p class="line-clamp-2 leading-relaxed font-medium" :title="prompt.title">{{ prompt.title }}</p>
-                                <span class="text-muted-foreground mt-1 block text-xs">#{{ prompt.id }}</span></TableCell
-                            >
-                            <TableCell>{{ prompt.project ?? 'Проект удалён' }}</TableCell>
-                            <TableCell><GenerationStage :prompt="prompt" /></TableCell>
-                            <TableCell class="text-muted-foreground">{{ prompt.created_at ?? '—' }}</TableCell>
-                            <TableCell class="text-right"><VideoPreview :prompt="prompt" /></TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </ListPanel>
-            <p class="text-muted-foreground text-xs leading-relaxed">
-                Этапы обновляются по мере готовности материалов. Отправку готового ролика можно проверить в разделе «Публикации».
-            </p>
+                        <option :value="null">Все проекты</option>
+                        <option v-for="project in page.props.projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+                    </select></label
+                >
+                <ListControls
+                    :sort="filters.sort"
+                    :per-page="filters.perPage"
+                    :directions="page.props.sortDirections"
+                    :disabled="loading"
+                    @sort="changeSort"
+                    @per-page="changePerPage"
+                />
+                <Button variant="outline" :disabled="loading" @click="refresh">Обновить</Button>
+            </div>
+            <section :aria-busy="loading" class="generation-list">
+                <h2>Проект и операция</h2>
+                <p v-if="error" role="alert">{{ error }} <Button variant="outline" @click="refresh">Повторить</Button></p>
+                <p v-if="!page.props.prompts.data.length" class="text-muted-foreground">Пока нет генераций</p>
+                <div v-for="prompt in page.props.prompts.data" :key="prompt.id">
+                    <VideoPreview v-if="prompt.url" :prompt="prompt"
+                        ><template #trigger
+                            ><button class="generation-row" type="button">
+                                <strong>{{ prompt.title }}</strong><span>{{ prompt.stage_label }}</span>
+                            </button></template
+                        ></VideoPreview
+                    >
+                    <details v-else>
+                        <summary class="generation-row">
+                            <strong>{{ prompt.title }}</strong><span>{{ prompt.stage_label }}</span>
+                        </summary>
+                        <p>{{ prompt.project }} · {{ prompt.created_at }}</p>
+                    </details>
+                </div>
+                <nav v-if="page.props.prompts.meta.last_page > 1" class="flex items-center gap-3 py-4" aria-label="Страницы генераций">
+                    <Button variant="outline" :disabled="loading || filters.page <= 1" @click="changePage(filters.page - 1)">Назад</Button
+                    ><span>{{ filters.page }} из {{ page.props.prompts.meta.last_page }}</span
+                    ><Button
+                        variant="outline"
+                        :disabled="loading || filters.page >= page.props.prompts.meta.last_page"
+                        @click="changePage(filters.page + 1)"
+                        >Далее</Button
+                    >
+                </nav>
+            </section>
         </div>
     </AppLayout>
 </template>
+<style scoped>
+.generation-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+nav button[aria-pressed='true'] {
+    color: var(--sidebar-accent-foreground);
+    background: var(--sidebar-accent);
+}
+.generation-list h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+.generation-row {
+    display: grid;
+    grid-template-columns: 45% minmax(0, 1fr);
+    gap: 12px;
+    text-align: left;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    padding: 15px 0;
+}
+.generation-row span,
+details p {
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+@media (max-width: 1099px) {
+    .generation-heading {
+        flex-direction: column;
+    }
+}
+@media (max-width: 639px) {
+    .generation-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        padding: 10px 0;
+    }
+}
+@media (max-width: 767px) {
+    .workspace-page {
+        padding-block-start: 16px;
+    }
+}
+</style>

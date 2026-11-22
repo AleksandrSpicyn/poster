@@ -6,10 +6,13 @@ namespace App\Models;
 
 use App\Enums\AssemblyStatus;
 use Database\Factories\SeriesAssemblyFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -27,6 +30,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property array<string, mixed>|null $review
  * @property Carbon|null $started_at
  * @property Carbon|null $accepted_at
+ * @property-read Collection<int, EpisodeAssembly> $episodeAssemblies
  * @property-read Series $series
  */
 class SeriesAssembly extends Model implements HasMedia
@@ -49,6 +53,12 @@ class SeriesAssembly extends Model implements HasMedia
     public function series(): BelongsTo
     {
         return $this->belongsTo(Series::class);
+    }
+
+    /** @return BelongsToMany<EpisodeAssembly, $this, Pivot, 'pivot'> */
+    public function episodeAssemblies(): BelongsToMany
+    {
+        return $this->belongsToMany(EpisodeAssembly::class, 'series_assembly_items')->orderByPivot('position');
     }
 
     /** @return HasMany<PublicationRequest, $this> */

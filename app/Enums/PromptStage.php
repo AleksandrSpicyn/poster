@@ -22,13 +22,13 @@ enum PromptStage: string
     public function label(): string
     {
         return match ($this) {
-            self::IMAGE => 'Awaiting image',
-            self::STARTING_MEDIA => 'Starting media',
-            self::MEDIA => 'Awaiting video & audio',
-            self::VIDEO => 'Awaiting video',
-            self::AUDIO => 'Awaiting audio',
-            self::ASSEMBLY => 'Awaiting assembly',
-            self::READY => 'Video ready',
+            self::IMAGE => 'Ожидание кадра',
+            self::STARTING_MEDIA => 'Подготовка видео и звука',
+            self::MEDIA => 'Ожидание видео и звука',
+            self::VIDEO => 'Ожидание видео',
+            self::AUDIO => 'Ожидание звука',
+            self::ASSEMBLY => 'Сборка',
+            self::READY => 'Видео готово',
         };
     }
 }

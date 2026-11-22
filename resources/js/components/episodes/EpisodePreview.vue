@@ -37,6 +37,10 @@ async function fullscreen() {
         /* Native media controls remain available through the browser menu. */
     }
 }
+function seek(seconds: number) {
+    if (video.value && Number.isFinite(seconds)) video.value.currentTime = Math.max(0, Math.min(seconds, video.value.duration || 0));
+}
+defineExpose({ seek });
 async function play() {
     if (!video.value) return;
     if (playing.value) video.value.pause();

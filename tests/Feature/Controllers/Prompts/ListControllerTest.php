@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\Shot;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -141,14 +143,36 @@ test('список показывает этап по сохранённым р�
             ->where('prompts.data.0.stage', $stage)
             ->where('prompts.data.0.stage_label', $label));
 })->with([
-    'ожидается изображение' => [[], 'image', 'Awaiting image'],
-    'изображение готово' => [['image_url' => 'https://example.test/image.png'], 'starting_media', 'Starting media'],
-    'видео запущено' => [['video_id' => 'video-task'], 'media', 'Awaiting video & audio'],
-    'аудио запущено' => [['audio_id' => 'audio-task'], 'media', 'Awaiting video & audio'],
-    'ожидается видео' => [['audio_url' => 'https://example.test/audio.mp3'], 'video', 'Awaiting video'],
-    'ожидается аудио' => [['video_url' => 'https://example.test/video.mp4'], 'audio', 'Awaiting audio'],
-    'генерируется Seedance' => [['video_provider' => 'seedance', 'video_id' => 'seedance-task'], 'media', 'Awaiting video & audio'],
-    'Seedance готов к сборке без Suno' => [['video_provider' => 'seedance', 'video_url' => 'https://example.test/native.mp4', 'audio_url' => 'https://example.test/native.mp4'], 'assembly', 'Awaiting assembly'],
-    'ожидается сборка' => [['video_url' => 'https://example.test/video.mp4', 'audio_url' => 'https://example.test/audio.mp3'], 'assembly', 'Awaiting assembly'],
-    'сборка завершена' => [['generated' => true], 'ready', 'Video ready'],
+    'ожидается изображение' => [[], 'image', 'Ожидание кадра'],
+    'изображение готово' => [['image_url' => 'https://example.test/image.png'], 'starting_media', 'Подготовка видео и звука'],
+    'видео запущено' => [['video_id' => 'video-task'], 'media', 'Ожидание видео и звука'],
+    'аудио запущено' => [['audio_id' => 'audio-task'], 'media', 'Ожидание видео и звука'],
+    'ожидается видео' => [['audio_url' => 'https://example.test/audio.mp3'], 'video', 'Ожидание видео'],
+    'ожидается аудио' => [['video_url' => 'https://example.test/video.mp4'], 'audio', 'Ожидание звука'],
+    'генерируется Seedance' => [['video_provider' => 'seedance', 'video_id' => 'seedance-task'], 'media', 'Ожидание видео и звука'],
+    'Seedance готов к сборке без Suno' => [['video_provider' => 'seedance', 'video_url' => 'https://example.test/native.mp4', 'audio_url' => 'https://example.test/native.mp4'], 'assembly', 'Сборка'],
+    'ожидается сборка' => [['video_url' => 'https://example.test/video.mp4', 'audio_url' => 'https://example.test/audio.mp3'], 'assembly', 'Сборка'],
+    'сборка завершена' => [['generated' => true], 'ready', 'Видео готово'],
 ]);
+
+test('фильтр генераций использует только проекты владельца', function (): void {
+    $owner = workspaceOwner();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $other = Project::factory()->create();
+    $take = Prompt::factory()->for($project)->create();
+    Prompt::factory()->for($other)->create();
+    Prompt::factory()->recycle($owner)->create();
+
+    actingAs($owner)
+        ->get(route('prompts', ['project' => $project->id]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.meta.total', 1)
+            ->where('prompts.data.0.id', $take->id)
+            ->where('filters.project', $project->id)
+            ->where('projects', fn(mixed $projects): bool => $projects instanceof Collection && $projects->contains('id', $project->id) && ! $projects->contains('id', $other->id)));
+
+    get(route('prompts', ['project' => $other->id]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('prompts.meta.total', 0));
+});

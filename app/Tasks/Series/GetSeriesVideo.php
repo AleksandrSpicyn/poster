@@ -14,7 +14,7 @@ readonly class GetSeriesVideo
 
     public function run(int $id, bool $checkSources = true): SeriesAssembly
     {
-        $assembly = $this->assemblies->withContext($id);
+        $assembly = $this->assemblies->withContext($id, includeParts: ! $checkSources);
 
         if (! $checkSources) {
             return $assembly;
