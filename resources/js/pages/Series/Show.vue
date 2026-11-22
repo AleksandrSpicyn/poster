@@ -2,13 +2,14 @@
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import Heading from '@/components/Heading.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { ProjectSummary } from '@/types/projects';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 import { Head, Link } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
-    project: { id: number; name: string; is_active: boolean };
+    project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover'>;
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];

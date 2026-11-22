@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import forest from '../../assets/studio/forest-courier.webp';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import ProductionPanel from '@/components/ProductionPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { ProjectSummary } from '@/types/projects';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 import { Link, router, useForm } from '@inertiajs/vue3';
@@ -15,7 +16,7 @@ import { computed } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
-    project: { id: number; name: string; is_active: boolean };
+    project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover'>;
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];
@@ -48,7 +49,7 @@ function changePage(page: number) {
             Сериал в архиве. История доступна для просмотра.
         </p>
         <div class="grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
-            <img :src="forest" alt="" class="h-[210px] w-full rounded-xl object-cover md:h-[393px]" />
+            <ProjectArtwork :name="project.name" :cover="project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
             <section class="space-y-4" aria-labelledby="series-episodes">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h2 id="series-episodes" class="text-lg font-semibold">Эпизоды</h2>

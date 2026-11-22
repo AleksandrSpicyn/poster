@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import drive from '../../../assets/studio/night-drive.webp';
-import lunar from '../../../assets/studio/lunar-landscape.webp';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import GenerationItem from '@/components/GenerationItem.vue';
@@ -170,7 +170,7 @@ function destroyProject() {
                 class="grid min-w-0 items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]"
                 aria-labelledby="project-history-heading"
             >
-                <img :src="lunar" alt="" class="h-[210px] w-full rounded-xl object-cover md:h-[393px]" />
+                <ProjectArtwork :name="page.props.project.name" :cover="page.props.project.cover" class="h-[210px] w-full rounded-xl md:h-[393px]" />
                 <div class="min-w-0 space-y-4">
                     <div>
                         <h2 id="project-history-heading" class="text-lg font-semibold">История роликов</h2>

@@ -32,7 +32,7 @@ export interface SeriesSummary {
     archived_at: string | null;
     characters_count?: number;
     episodes_count?: number;
-    project?: Pick<ProjectSummary, 'id' | 'name' | 'prompt'>;
+    project?: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'cover'>;
 }
 
 export interface CharacterReference {

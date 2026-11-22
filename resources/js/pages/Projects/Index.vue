@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import Heading from '@/components/Heading.vue';
 import ListControls from '@/components/ListControls.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -99,27 +100,7 @@ function clearSearch() {
                 <div class="project-grid">
                     <article v-for="project in page.props.projects.data" :key="project.id" class="project-card">
                         <Link :href="route('projects.show', project.id)" class="focus-visible:ring-ring block focus-visible:ring-2">
-                            <img
-                                v-if="project.cover"
-                                :src="project.cover.url"
-                                :style="{ objectPosition: project.cover.x + '% ' + project.cover.y + '%' }"
-                                alt=""
-                                loading="lazy"
-                            />
-                            <span
-                                v-else
-                                class="bg-muted text-muted-foreground grid aspect-video place-items-center text-xl font-bold"
-                                aria-hidden="true"
-                                >{{
-                                    project.name
-                                        .trim()
-                                        .split(/\s+/)
-                                        .slice(0, 2)
-                                        .map((word) => word[0])
-                                        .join('')
-                                        .toLocaleUpperCase('ru')
-                                }}</span
-                            >
+                            <ProjectArtwork :name="project.name" :cover="project.cover" class="aspect-video max-h-[245px] w-full" />
                             <h3>{{ project.name }}</h3>
                         </Link>
                         <div class="flex min-w-0 items-center justify-between gap-2 px-4 pb-2">
@@ -162,13 +143,6 @@ function clearSearch() {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
-}
-.project-card img {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    max-height: 245px;
-    object-fit: cover;
-    object-position: center 45%;
 }
 .project-card h3 {
     padding: 14px 15px 0;

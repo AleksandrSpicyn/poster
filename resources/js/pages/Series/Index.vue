@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import forest from '../../../assets/studio/forest-courier.webp';
+import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import Heading from '@/components/Heading.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ function changePage(page: number) {
                         class="bg-card flex min-w-0 flex-col gap-3 overflow-hidden rounded-xl border pb-4"
                     >
                         <Link :href="route('series.show', { project: item.project_id, series: item.id })" tabindex="-1" aria-hidden="true"
-                            ><img :src="forest" alt="" class="aspect-[1.85] w-full object-cover"
+                            ><ProjectArtwork :name="item.project?.name ?? item.name" :cover="item.project?.cover" class="aspect-[1.85] w-full"
                         /></Link>
                         <div class="min-w-0 space-y-1 px-4">
                             <h2 class="font-semibold break-words">
