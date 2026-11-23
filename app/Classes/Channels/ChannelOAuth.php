@@ -60,7 +60,7 @@ readonly class ChannelOAuth
                 ...$params, 'scope' => implode(',', $this->scopes($channel)),
             ]),
             ChannelType::INSTAGRAM => 'https://www.instagram.com/oauth/authorize?' . http_build_query([
-                ...$params, 'scope' => implode(',', $this->scopes($channel)), 'enable_fb_login' => 'false',
+                ...$params, 'scope' => implode(',', array_unique([...$this->scopes($channel), 'instagram_business_manage_insights'])), 'enable_fb_login' => 'false',
             ]),
             default => throw new RuntimeException('OAuth is not available for this platform.'),
         };
