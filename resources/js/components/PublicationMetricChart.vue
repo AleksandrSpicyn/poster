@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { amount, dateLabel } from '@/types/analytics';
 import { computed } from 'vue';
-const props = defineProps<{ values: Record<string, number | null>; label: string; snapshots?: boolean }>();
+const props = defineProps<{ values: Record<string, number | null>; label: string; snapshots?: boolean; overview?: boolean }>();
 const chart = computed(() => {
     const entries = Object.entries(props.values);
     const numbers = entries.flatMap(([, v]) => (v == null ? [] : [v]));
@@ -13,12 +13,13 @@ const chart = computed(() => {
     const range = Math.max(1, Math.max(0, maximum) - Math.min(0, minimum));
     const unit = 10 ** Math.floor(Math.log10(range / 3));
     const dailyStep = Math.max(1, ([1, 2, 5, 10].find((n) => n * unit >= range / 3) ?? 10) * unit);
-    const low = props.snapshots ? Math.floor(minimum / magnitude) * magnitude : Math.floor(Math.min(0, minimum) / dailyStep) * dailyStep;
-    const high = props.snapshots
+    const zoom = props.snapshots && !props.overview;
+    const low = zoom ? Math.floor(minimum / magnitude) * magnitude : Math.floor(Math.min(0, minimum) / dailyStep) * dailyStep;
+    const high = zoom
         ? low + step * Math.ceil(Math.max(1, maximum - low) / step)
         : Math.max(low + dailyStep, Math.ceil(Math.max(0, maximum) / dailyStep) * dailyStep);
     const y = (v: number) => (100 * (high - v)) / (high - low);
-    const tickCount = Math.round((high - low) / (props.snapshots ? step : dailyStep)) + 1;
+    const tickCount = Math.round((high - low) / (zoom ? step : dailyStep)) + 1;
     const ticks = Array.from({ length: tickCount }, (_, i) => ({
         y: (100 * i) / (tickCount - 1),
         value: high - ((high - low) * i) / (tickCount - 1),
@@ -31,50 +32,54 @@ const chart = computed(() => {
         x: first === last ? 50 : (100 * (Date.parse(date) - first)) / (last - first),
         y: value === null ? null : y(value),
     }));
-    const segments: { x: number; y: number }[][] = [];
-    let segment: { x: number; y: number }[] = [];
+    const segments: { x: number; y: number; date: string; value: number | null }[][] = [];
+    let segment: (typeof segments)[number] = [];
     for (const point of points) {
         if (point.y === null) {
             if (segment.length) segments.push(segment);
             segment = [];
-        } else segment.push({ x: point.x, y: point.y });
+        } else segment.push({ ...point, y: point.y });
     }
     if (segment.length) segments.push(segment);
-    const labels = points.filter((_, i) => i === points.length - 1 || i % Math.ceil(points.length / 7) === 0);
-    return { ticks, points, segments, labels, empty: numbers.length === 0 };
+    const labelCount = Math.min(points.length, points.length <= 7 ? 7 : 5);
+    const labels = Array.from({ length: labelCount }, (_, i) => points[Math.round((i * (points.length - 1)) / Math.max(1, labelCount - 1))]);
+    const markers = props.overview ? segments.filter((part) => part.length === 1).map((part) => part[0]) : points.filter((p) => p.y !== null);
+    return { ticks, points, segments, markers, labels, baseline: y(0), empty: numbers.length === 0 };
 });
 function shortNumber(v: number) {
     return new Intl.NumberFormat('ru', { notation: Math.abs(v) >= 1000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(v);
 }
 </script>
 <template>
-    <figure class="metric-chart" :class="{ snapshots }" :aria-label="label">
+    <figure class="metric-chart" :class="{ snapshots, overview }" :aria-label="label">
         <p v-if="chart.empty" class="chart-empty">Нет наблюдений за выбранный период</p>
         <template v-else>
             <div class="chart-plot">
                 <div v-for="tick in chart.ticks" :key="tick.y" class="chart-rule" :style="{ top: tick.y + '%' }">
-                    <span>{{ snapshots ? Math.round(tick.value) : shortNumber(tick.value) }}</span>
+                    <span>{{ snapshots && !overview ? Math.round(tick.value) : shortNumber(tick.value) }}</span>
                 </div>
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <g v-for="(segment, index) in chart.segments" :key="index">
                         <polygon
-                            v-if="!snapshots"
+                            v-if="overview || !snapshots"
                             :points="
-                                segment[0].x + ',100 ' + segment.map((p) => p.x + ',' + p.y).join(' ') + ' ' + segment[segment.length - 1].x + ',100'
+                                [[segment[0].x, chart.baseline], ...segment.map((p) => [p.x, p.y]), [segment[segment.length - 1].x, chart.baseline]]
+                                    .map((point) => point.join(','))
+                                    .join(' ')
                             "
-                            fill="currentColor"
-                            opacity=".12"
+                            fill="var(--accent)"
                         />
                         <polyline
                             :points="segment.map((p) => p.x + ',' + p.y).join(' ')"
                             fill="none"
                             stroke="currentColor"
-                            stroke-width="2"
+                            stroke-linejoin="round"
+                            :stroke-width="overview ? 3 : 2"
                             vector-effect="non-scaling-stroke"
                         />
                     </g>
                 </svg>
-                <template v-if="snapshots">
+                <template v-if="snapshots && !overview">
                     <span
                         v-for="p in chart.points.filter((p) => p.y === null)"
                         :key="p.date"
@@ -85,7 +90,7 @@ function shortNumber(v: number) {
                     >
                 </template>
                 <span
-                    v-for="p in chart.points.filter((p) => p.y !== null)"
+                    v-for="p in chart.markers"
                     :key="p.date"
                     class="chart-dot"
                     :title="dateLabel(p.date) + ' · ' + amount(p.value)"
@@ -96,7 +101,7 @@ function shortNumber(v: number) {
                 <span v-for="p in chart.labels" :key="p.date" :style="{ left: p.x + '%' }">{{
                     dateLabel(
                         p.date,
-                        snapshots
+                        snapshots && !overview
                             ? { day: '2-digit', month: '2-digit' }
                             : chart.points.length <= 7
                               ? { weekday: 'short' }
@@ -104,19 +109,28 @@ function shortNumber(v: number) {
                     )
                 }}</span>
             </div>
-            <table class="sr-only">
-                <caption>
-                    {{
-                        label
-                    }}
-                </caption>
-                <tbody>
-                    <tr v-for="p in chart.points" :key="p.date">
-                        <th>{{ dateLabel(p.date) }}</th>
-                        <td>{{ p.value === null ? 'Нет наблюдения' : amount(p.value) }}</td>
-                    </tr>
-                </tbody>
-            </table>
+            <component :is="overview ? 'details' : 'div'" :class="overview ? 'chart-data' : 'sr-only'">
+                <summary v-if="overview">Значения по дням</summary>
+                <table>
+                    <caption class="sr-only">
+                        {{
+                            label
+                        }}
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Дата</th>
+                            <th scope="col">{{ label }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in chart.points" :key="p.date">
+                            <th scope="row">{{ dateLabel(p.date) }}</th>
+                            <td>{{ p.value === null ? 'Нет наблюдения' : amount(p.value) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </component>
         </template>
     </figure>
 </template>
@@ -198,5 +212,47 @@ function shortNumber(v: number) {
     .metric-chart {
         padding-left: 40px;
     }
+}
+.overview {
+    margin-top: 16px;
+    padding: 0;
+}
+.overview .chart-plot {
+    margin: 10px 16px 0 42px;
+    height: auto;
+    aspect-ratio: 388 / 108;
+}
+.overview .chart-labels {
+    margin: 10px 16px 0 42px;
+}
+.overview .chart-labels,
+.overview .chart-rule span {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+.chart-data {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--foreground);
+}
+.chart-data summary {
+    cursor: pointer;
+    min-height: 44px;
+    align-content: center;
+    color: var(--ring);
+}
+.chart-data table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+.chart-data th,
+.chart-data td {
+    padding: 8px 0;
+    text-align: start;
+    border-bottom: 1px solid var(--border);
+}
+.chart-data :is(th, td):last-child {
+    text-align: end;
 }
 </style>
