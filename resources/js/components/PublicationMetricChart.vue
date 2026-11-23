@@ -182,6 +182,13 @@ function shortNumber(v: number) {
     padding-left: 40px;
     padding-right: 14px;
 }
+.chart-labels {
+    position: relative;
+    margin: 10px 0 0;
+    height: 18px;
+    color: var(--muted-foreground);
+    font-size: 11px;
+}
 .snapshots .chart-labels {
     margin-top: 4px;
 }
@@ -189,13 +196,6 @@ function shortNumber(v: number) {
     .snapshots .chart-plot {
         height: 94px;
     }
-}
-.chart-labels {
-    position: relative;
-    margin: 10px 0 0;
-    height: 18px;
-    color: var(--muted-foreground);
-    font-size: 11px;
 }
 .chart-labels span {
     position: absolute;

@@ -1,7 +1,8 @@
+import { useRoute } from '@/composables/useRoute';
+import { listRequestErrors } from '@/lib/api/listRequestErrors';
 import type { ListFilters } from '@/types/content';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 /** Keeps filters in sync with server props, including browser back/forward navigation. */
 export function useListFilters(
@@ -36,18 +37,7 @@ export function useListFilters(
                 onError: (errors) => {
                     error.value = Object.values(errors).join(' ');
                 },
-                onHttpException: (response) => {
-                    if (response.status === 419) return;
-                    error.value =
-                        response.status === 403
-                            ? 'Доступ к списку ограничен.'
-                            : 'Не удалось обновить список. На экране остались последние загруженные данные.';
-                    return false;
-                },
-                onNetworkError: () => {
-                    error.value = 'Нет связи. Проверьте подключение и повторите попытку.';
-                    return false;
-                },
+                ...listRequestErrors(error),
             },
         );
     }

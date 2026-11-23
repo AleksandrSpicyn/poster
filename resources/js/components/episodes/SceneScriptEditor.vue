@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/formatCount';
 import ShotScriptFields from '@/components/episodes/ShotScriptFields.vue';
 import { createScreenplayScene, createScreenplayShot, sourcePrecedes } from '@/lib/screenplay';
 import InputError from '@/components/InputError.vue';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { workspaceSubscription } from '@/composables/useWorkspaceRealtime';
 import { Link, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 import type { ContinuationSource, EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
 import type { SharedData } from '@/types';
 import type { CharacterRevision } from '@/types/series';
@@ -49,11 +50,6 @@ const shotCount = computed(() => model.value.scenes.reduce((count, scene) => cou
 const durationSeconds = computed(
     () => model.value.scenes.reduce((duration, scene) => duration + scene.shots.reduce((sum, shot) => sum + shot.duration_ms, 0), 0) / 1000,
 );
-const shotPlural = new Intl.PluralRules('ru');
-function shotCountLabel(count: number) {
-    const form = shotPlural.select(count);
-    return count + ' ' + (form === 'one' ? 'кадр' : form === 'few' ? 'кадра' : 'кадров');
-}
 const speakers = computed(() => props.characters.filter((character) => model.value.character_revision_ids.includes(character.id)));
 
 function addScene() {
@@ -142,16 +138,16 @@ function error(path: string): string | undefined {
             Сцен: {{ model.scenes.length }} · кадров: {{ shotCount }} · {{ durationSeconds }} из 300 с
         </p>
         <section
-            v-for="(scene, sceneIndex) in model.scenes"
-            :key="sceneIndex"
-            v-show="props.sceneIndex == null || props.sceneIndex === sceneIndex"
+            v-for="(scene, index) in model.scenes"
+            v-show="props.sceneIndex == null || props.sceneIndex === index"
+            :key="index"
             class="script-scene space-y-5 rounded-xl border p-4 sm:p-5"
         >
             <div class="scene-settings space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h3 class="font-semibold">
-                        Сцена {{ String(sceneIndex + 1).padStart(2, '0') }}
-                        <small class="text-muted-foreground font-normal">{{ shotCountLabel(scene.shots.length) }}</small>
+                        Сцена {{ String(index + 1).padStart(2, '0') }}
+                        <small class="text-muted-foreground font-normal">{{ formatCount(scene.shots.length, 'кадр', 'кадра', 'кадров') }}</small>
                     </h3>
                     <div class="flex items-center gap-2">
                         <Button
@@ -159,83 +155,78 @@ function error(path: string): string | undefined {
                             variant="outline"
                             size="icon"
                             class="size-11"
-                            :disabled="sceneIndex === 0"
-                            :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вверх'"
-                            @click="move(model.scenes, sceneIndex, -1)"
+                            :disabled="index === 0"
+                            :aria-label="'Переместить сцену ' + (index + 1) + ' вверх'"
+                            @click="move(model.scenes, index, -1)"
                             ><ArrowUp class="size-4" aria-hidden="true" /></Button
                         ><Button
                             type="button"
                             variant="outline"
                             size="icon"
                             class="size-11"
-                            :disabled="sceneIndex === model.scenes.length - 1"
-                            :aria-label="'Переместить сцену ' + (sceneIndex + 1) + ' вниз'"
-                            @click="move(model.scenes, sceneIndex, 1)"
+                            :disabled="index === model.scenes.length - 1"
+                            :aria-label="'Переместить сцену ' + (index + 1) + ' вниз'"
+                            @click="move(model.scenes, index, 1)"
                             ><ArrowDown class="size-4" aria-hidden="true" /></Button
-                        ><Button
-                            v-if="model.scenes.length > 1"
-                            type="button"
-                            variant="outline"
-                            class="h-11"
-                            @click="model.scenes.splice(sceneIndex, 1)"
+                        ><Button v-if="model.scenes.length > 1" type="button" variant="outline" class="h-11" @click="model.scenes.splice(index, 1)"
                             ><Trash2 class="size-4" aria-hidden="true" />Удалить сцену</Button
                         >
                     </div>
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label :for="'scene-title-' + sceneIndex">Название сцены</Label
-                        ><Input :id="'scene-title-' + sceneIndex" v-model="scene.title" required maxlength="255" /><InputError
-                            :message="error('scenes.' + sceneIndex + '.title')"
+                        <Label :for="'scene-title-' + index">Название сцены</Label
+                        ><Input :id="'scene-title-' + index" v-model="scene.title" required maxlength="255" /><InputError
+                            :message="error('scenes.' + index + '.title')"
                         />
                     </div>
                     <div class="grid gap-2">
-                        <Label :for="'scene-goal-' + sceneIndex">Цель сцены</Label
-                        ><Input :id="'scene-goal-' + sceneIndex" v-model="scene.objective" required maxlength="2000" /><InputError
-                            :message="error('scenes.' + sceneIndex + '.objective')"
+                        <Label :for="'scene-goal-' + index">Цель сцены</Label
+                        ><Input :id="'scene-goal-' + index" v-model="scene.objective" required maxlength="2000" /><InputError
+                            :message="error('scenes.' + index + '.objective')"
                         />
                     </div>
                     <div class="grid gap-2">
-                        <Label :for="'scene-place-' + sceneIndex">Место</Label
+                        <Label :for="'scene-place-' + index">Место</Label
                         ><Input
-                            :id="'scene-place-' + sceneIndex"
+                            :id="'scene-place-' + index"
                             v-model="scene.location"
                             required
                             maxlength="1000"
                             placeholder="Например, в кафе"
-                        /><InputError :message="error('scenes.' + sceneIndex + '.location')" />
+                        /><InputError :message="error('scenes.' + index + '.location')" />
                     </div>
                     <div class="grid gap-2">
-                        <Label :for="'scene-time-' + sceneIndex">Время</Label
+                        <Label :for="'scene-time-' + index">Время</Label
                         ><Input
-                            :id="'scene-time-' + sceneIndex"
+                            :id="'scene-time-' + index"
                             v-model="scene.time"
                             required
                             maxlength="255"
                             placeholder="Например, на следующее утро"
-                        /><InputError :message="error('scenes.' + sceneIndex + '.time')" />
+                        /><InputError :message="error('scenes.' + index + '.time')" />
                     </div>
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label :for="'scene-initial-' + sceneIndex">В начале сцены</Label
+                        <Label :for="'scene-initial-' + index">В начале сцены</Label
                         ><textarea
-                            :id="'scene-initial-' + sceneIndex"
+                            :id="'scene-initial-' + index"
                             v-model="scene.initial_state"
                             rows="1"
                             maxlength="4000"
                             class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
-                        /><InputError :message="error('scenes.' + sceneIndex + '.initial_state')" />
+                        /><InputError :message="error('scenes.' + index + '.initial_state')" />
                     </div>
                     <div class="grid gap-2">
-                        <Label :for="'scene-final-' + sceneIndex">Ожидаемый финал</Label
+                        <Label :for="'scene-final-' + index">Ожидаемый финал</Label
                         ><textarea
-                            :id="'scene-final-' + sceneIndex"
+                            :id="'scene-final-' + index"
                             v-model="scene.expected_final_state"
                             rows="1"
                             maxlength="4000"
                             class="border-input bg-background focus-visible:ring-ring/50 resize-y rounded-md border p-3 text-sm outline-none focus-visible:ring-2"
-                        /><InputError :message="error('scenes.' + sceneIndex + '.expected_final_state')" />
+                        /><InputError :message="error('scenes.' + index + '.expected_final_state')" />
                     </div>
                 </div>
                 <label class="flex min-h-11 items-center gap-3 text-sm"
@@ -276,41 +267,36 @@ function error(path: string): string | undefined {
                         </div>
                     </div>
                     <div class="shot-identity">
-                        <img
-                            v-if="thumbnails?.[sceneIndex]?.[shotIndex]"
-                            class="rounded-md object-cover"
-                            :src="thumbnails[sceneIndex][shotIndex]"
-                            alt=""
-                        />
+                        <img v-if="thumbnails?.[index]?.[shotIndex]" class="rounded-md object-cover" :src="thumbnails[index][shotIndex]" alt="" />
                         <div>
-                            <label class="sr-only" :for="`shot-title-${sceneIndex}-${shotIndex}`">Название кадра</label>
+                            <label class="sr-only" :for="`shot-title-${index}-${shotIndex}`">Название кадра</label>
                             <input
-                                :id="`shot-title-${sceneIndex}-${shotIndex}`"
+                                :id="`shot-title-${index}-${shotIndex}`"
                                 v-model="shot.title"
                                 maxlength="255"
                                 placeholder="Название кадра"
                                 class="shot-title"
                             />
-                            <label class="sr-only" :for="`shot-plan-${sceneIndex}-${shotIndex}`">Тип плана</label>
-                            <input :id="`shot-plan-${sceneIndex}-${shotIndex}`" v-model="shot.plan_type" maxlength="255" placeholder="Тип плана" />
+                            <label class="sr-only" :for="`shot-plan-${index}-${shotIndex}`">Тип плана</label>
+                            <input :id="`shot-plan-${index}-${shotIndex}`" v-model="shot.plan_type" maxlength="255" placeholder="Тип плана" />
                         </div>
                     </div>
                     <ShotScriptFields
                         v-model="scene.shots[shotIndex]"
-                        :scene-index="sceneIndex"
+                        :scene-index="index"
                         :recovering-line="recoveringLine"
                         :connected="dialogueConnected"
                         :subscribed="!!subscription"
                         :draft-stored="draftStored"
                         :shot-index="shotIndex"
                         :transitions="transitions"
-                        :sources="sourcesFor(sceneIndex, shotIndex)"
+                        :sources="sourcesFor(index, shotIndex)"
                         :speakers="speakers"
                         :errors="errors"
                     />
                 </section>
             </div>
-            <Button type="button" variant="outline" class="h-11" :disabled="scene.shots.length >= 30 || shotCount >= 100" @click="addShot(sceneIndex)"
+            <Button type="button" variant="outline" class="h-11" :disabled="scene.shots.length >= 30 || shotCount >= 100" @click="addShot(index)"
                 ><Plus class="size-4" aria-hidden="true" />Добавить кадр в сцену</Button
             >
         </section>
@@ -368,6 +354,9 @@ function error(path: string): string | undefined {
     border: 0;
     padding: 0;
 }
+.scene-focused > section {
+    order: -1;
+}
 .scene-focused .scene-settings,
 .scene-focused .shot-forms > section {
     background: var(--card);
@@ -377,8 +366,5 @@ function error(path: string): string | undefined {
 }
 .scene-settings small {
     margin-inline-start: 5px;
-}
-.scene-focused > section {
-    order: -1;
 }
 </style>

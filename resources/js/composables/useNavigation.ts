@@ -1,8 +1,8 @@
+import { useRoute } from '@/composables/useRoute';
 import type { NavItem, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { Clapperboard, createLucideIcon, Film, GlobeLock, Handshake, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const StudioOverviewIcon = createLucideIcon({
     name: 'studio-overview',

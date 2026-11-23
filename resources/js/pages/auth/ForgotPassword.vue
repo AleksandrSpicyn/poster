@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { CircleCheck, LoaderCircle } from '@lucide/vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -20,7 +23,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('password.email'));
+    submitForm(form, 'password.email');
 };
 </script>
 
@@ -38,11 +41,11 @@ const submit = () => {
                     <Label for="email">{{ status ? 'Почта' : 'Email' }}</Label>
                     <Input
                         id="email"
+                        v-model="form.email"
                         type="email"
                         name="email"
                         autocomplete="email"
                         required
-                        v-model="form.email"
                         :readonly="!!status"
                         autofocus
                         placeholder="studio@example.test"

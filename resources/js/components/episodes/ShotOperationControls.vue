@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +7,9 @@ import { Label } from '@/components/ui/label';
 import type { EpisodeRouteParams, ShotTake } from '@/types/episodes';
 import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{ take: ShotTake; params: EpisodeRouteParams & { revision: number; scene: number; shot: number } }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const resolveForm = useForm({ external_id: '', note: '' });
 const retryForm = useForm({});
 const abandonForm = useForm({ note: '', accept_unknown_outcome: false });
@@ -23,17 +23,17 @@ const retryErrors = computed(() => Object.values(retryForm.errors).join(' '));
 const abandonErrors = computed(() => Object.values(abandonForm.errors).join(' '));
 function resolve() {
     if (unknown.value)
-        resolveForm.post(route('shots.resolve', { ...props.params, prompt: props.take.id, operation: unknown.value.id }), {
+        submitForm(resolveForm, ['shots.resolve', { ...props.params, prompt: props.take.id, operation: unknown.value.id }], {
             preserveScroll: true,
             preserveState: 'errors',
         });
 }
 function retry() {
-    retryForm.post(route('shots.download.retry', { ...props.params, prompt: props.take.id }), { preserveScroll: true, preserveState: 'errors' });
+    submitForm(retryForm, ['shots.download.retry', { ...props.params, prompt: props.take.id }], { preserveScroll: true, preserveState: 'errors' });
 }
 function abandon() {
     if (!unresolved.value) return;
-    abandonForm.post(route('shots.abandon', { ...props.params, prompt: props.take.id, operation: unresolved.value.id }), {
+    submitForm(abandonForm, ['shots.abandon', { ...props.params, prompt: props.take.id, operation: unresolved.value.id }], {
         preserveScroll: true,
         preserveState: 'errors',
     });

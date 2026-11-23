@@ -1,13 +1,13 @@
 import type { ProjectSummary } from '@/types/projects';
 import type { CharacterRevision, SeriesSummary } from '@/types/series';
 
-export interface EpisodeMedia {
+interface EpisodeMedia {
     id: number;
     collection: string;
     mime_type: string;
     url: string;
 }
-export interface GenerationOperation {
+interface GenerationOperation {
     stage_label: string;
     can_retry_download: boolean;
     retrying_download: boolean;
@@ -41,7 +41,7 @@ export interface ShotSummary {
     source_assembly_id: number | null;
     takes: ShotTake[];
 }
-export interface SceneSummary {
+interface SceneSummary {
     id: number;
     position: number;
     title: string;
@@ -92,7 +92,7 @@ export interface PublicationSummary {
     scheduled_at: string | null;
     published_at: string | null;
 }
-export interface EpisodeSummary {
+interface EpisodeSummary {
     id: number;
     series_id: number;
     number: number;

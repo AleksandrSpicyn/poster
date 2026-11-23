@@ -45,7 +45,7 @@ export interface SeriesSummary {
     project?: Pick<ProjectSummary, 'id' | 'name' | 'prompt' | 'cover'>;
 }
 
-export interface CharacterReference {
+interface CharacterReference {
     file_name: string | null;
     id: number;
     label: string;

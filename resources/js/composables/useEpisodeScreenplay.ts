@@ -1,13 +1,14 @@
+import { useFormApi } from '@/lib/api/useFormApi';
 import { createScreenplayScene, createScreenplayShot } from '@/lib/screenplay';
 import type { SharedData } from '@/types';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { useOnline } from '@vueuse/core';
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
-    const route = useRoute();
+    const submitForm = useFormApi();
+
     const online = useOnline();
     const draftStored = ref(false);
     const params = { series: props.series.id, episode: props.episode.id };
@@ -172,17 +173,22 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             : 'Не удалось сохранить изменения. Оставьте вкладку открытой и повторите отправку.';
         return false as const;
     }
+    function postScript(script: Screenplay) {
+        scriptForm.transform((data) => ({ ...data, script }));
+        submitForm(scriptForm, ['episodes.scripts.store', params], {
+            preserveState: 'errors',
+            onSuccess: clearDraft,
+            onNetworkError: failed,
+            onHttpException: (response) => (response.status === 419 ? undefined : failed()),
+            onFinish: () => {
+                scriptForm.transform((data) => data);
+            },
+        });
+    }
     function saveScript() {
         if (!online.value || scriptForm.processing || editorStale.value) return;
         saveError.value = '';
-        scriptForm
-            .transform((data) => data)
-            .post(route('episodes.scripts.store', params), {
-                preserveState: 'errors',
-                onSuccess: clearDraft,
-                onNetworkError: failed,
-                onHttpException: (response) => (response.status === 419 ? undefined : failed()),
-            });
+        postScript(scriptForm.script);
     }
     function checkJson(): Screenplay | null {
         jsonError.value = '';
@@ -211,25 +217,14 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         if (!online.value || scriptForm.processing || editorStale.value) return;
         saveError.value = '';
         const parsed = checkJson();
-        if (!parsed) return;
-        scriptForm
-            .transform((data) => ({ ...data, script: parsed }))
-            .post(route('episodes.scripts.store', params), {
-                preserveState: 'errors',
-                onSuccess: clearDraft,
-                onNetworkError: failed,
-                onHttpException: (response) => (response.status === 419 ? undefined : failed()),
-                onFinish: () => {
-                    scriptForm.transform((data) => data);
-                },
-            });
+        if (parsed) postScript(parsed);
     }
     function generateScript() {
-        generateForm.post(route('episodes.scripts.generate', params), { preserveState: 'errors', onSuccess: clearDraft });
+        submitForm(generateForm, ['episodes.scripts.generate', params], { preserveState: 'errors', onSuccess: clearDraft });
     }
     function approveScript() {
         if (revision.value)
-            approveForm.post(route('episodes.scripts.approve', { ...params, revision: revision.value.id }), {
+            submitForm(approveForm, ['episodes.scripts.approve', { ...params, revision: revision.value.id }], {
                 preserveScroll: true,
                 preserveState: 'errors',
             });

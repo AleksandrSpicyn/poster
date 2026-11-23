@@ -1,19 +1,15 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/formatCount';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import { Button } from '@/components/ui/button';
 import type { PaginatedResource } from '@/types/content';
 import type { ProjectSummary } from '@/types/projects';
 import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{ projects: PaginatedResource<ProjectSummary>; loading: boolean }>();
 const emit = defineEmits<{ page: [value: number] }>();
 const route = useRoute();
-const plurals = new Intl.PluralRules('ru');
-function countLabel(total: number) {
-    const ending = plurals.select(total);
-    return total + (ending === 'one' ? ' проект' : ending === 'few' ? ' проекта' : ' проектов');
-}
 </script>
 
 <template>
@@ -45,7 +41,8 @@ function countLabel(total: number) {
         </div>
         <p v-else class="text-muted-foreground">Пока нет проектов клиппинга.</p>
         <div class="gallery-total">
-            <span>Тип проектов</span><strong>Клиппинг · {{ countLabel(props.projects.meta.total) }} владельца</strong>
+            <span>Тип проектов</span
+            ><strong>Клиппинг · {{ formatCount(props.projects.meta.total, 'проект', 'проекта', 'проектов') }} владельца</strong>
         </div>
         <nav v-if="projects.meta.last_page > 1" class="mt-4 flex flex-wrap items-center gap-3" aria-label="Страницы проектов клиппинга">
             <Button variant="outline" :disabled="loading || projects.meta.current_page === 1" @click="emit('page', projects.meta.current_page - 1)"

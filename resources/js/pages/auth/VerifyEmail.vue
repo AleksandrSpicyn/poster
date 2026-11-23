@@ -5,7 +5,10 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import type { SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { CircleCheck, LoaderCircle } from '@lucide/vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 const page = usePage<SharedData>();
@@ -17,7 +20,7 @@ defineProps<{
 const form = useForm({});
 
 const submit = () => {
-    form.post(route('verification.send'));
+    submitForm(form, 'verification.send');
 };
 </script>
 
@@ -39,7 +42,7 @@ const submit = () => {
             <p class="border-input flex min-h-12 items-center rounded-lg border px-3.5 break-all">{{ page.props.auth.user.email }}</p>
         </div>
 
-        <form @submit.prevent="submit" :class="status === 'verification-link-sent' ? 'space-y-3 text-left' : 'space-y-6 text-center'">
+        <form :class="status === 'verification-link-sent' ? 'space-y-3 text-left' : 'space-y-6 text-center'" @submit.prevent="submit">
             <Button :variant="status === 'verification-link-sent' ? 'outline' : 'default'" :disabled="form.processing">
                 <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                 {{ status === 'verification-link-sent' ? 'Отправить ещё раз' : 'Отправить повторно' }}

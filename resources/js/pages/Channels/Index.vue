@@ -12,7 +12,7 @@ import type { ManagedChannel } from '@/types/channels';
 import type { PaginatedResource } from '@/types/content';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const page = usePage<
     SharedData & { channels: PaginatedResource<ManagedChannel>; filters: { search: string | null; active: boolean | null; sort: string | null } }

@@ -4,7 +4,7 @@ import { useNavigation } from '@/composables/useNavigation';
 import { Link } from '@inertiajs/vue3';
 import { Activity, ChartNoAxesColumn, Film, Rows2, SlidersHorizontal } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const { main } = useNavigation();
 const route = useRoute();

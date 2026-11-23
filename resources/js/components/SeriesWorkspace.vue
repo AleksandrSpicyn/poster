@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -11,7 +12,7 @@ import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/se
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover'>;
@@ -20,6 +21,7 @@ const props = defineProps<{
     episodes: EpisodeSummary[];
     actionsTarget: string;
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const params = { project: props.project.id, series: props.series.id };
 const characterForm = useForm({ name: '', story_role: '' });
@@ -58,10 +60,10 @@ function episodeLabel(episode: EpisodeSummary) {
 }
 
 function createCharacter() {
-    characterForm.post(route('characters.store', params), { preserveState: 'errors' });
+    submitForm(characterForm, ['characters.store', params], { preserveState: 'errors' });
 }
 function createEpisode() {
-    episodeForm.post(route('episodes.store', { series: props.series.id }), { preserveState: 'errors' });
+    submitForm(episodeForm, ['episodes.store', { series: props.series.id }], { preserveState: 'errors' });
 }
 
 function changePage(page: number) {

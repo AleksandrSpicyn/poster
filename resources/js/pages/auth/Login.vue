@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { CircleX, LoaderCircle } from '@lucide/vue';
+import { LoaderCircle } from '@lucide/vue';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -28,52 +31,59 @@ const form = useForm({
 const invalidCredentials = computed(() => form.errors.email === props.credentialsError);
 
 const submit = () => {
-    form.post(route('login.store'), {
+    submitForm(form, 'login.store', {
+        preserveScroll: 'errors',
         onSuccess: () => form.reset('password'),
     });
 };
 </script>
 
 <template>
-    <AuthBase :feedback="invalidCredentials" title="Вход" description="Для пользователей с доступом в Poster">
+    <AuthBase title="Вход" description="Для пользователей с доступом в Poster">
         <Head title="Войти" />
 
         <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
             {{ status }}
         </div>
 
-        <form @submit.prevent="submit" class="flex flex-col gap-6">
+        <form class="flex flex-col gap-6" @submit.prevent="submit">
             <div class="grid gap-[19px]">
                 <div class="grid gap-2">
-                    <Label for="email">{{ invalidCredentials ? 'Почта' : 'Email' }}</Label>
-                    <Input id="email" type="email" required autofocus autocomplete="email" v-model="form.email" placeholder="studio@example.test" />
-                    <InputError v-if="!invalidCredentials" :message="form.errors.email" />
+                    <Label for="email">Email</Label>
+                    <Input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        required
+                        autofocus
+                        autocomplete="email"
+                        placeholder="studio@example.test"
+                        :aria-invalid="!!form.errors.email"
+                        :aria-describedby="invalidCredentials ? 'password-error' : form.errors.email ? 'email-error' : undefined"
+                        @input="form.clearErrors('email')"
+                    />
+                    <InputError id="email-error" :message="invalidCredentials ? undefined : form.errors.email" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password">Пароль</Label>
                     <Input
-                        :aria-invalid="invalidCredentials || !!form.errors.password"
-                        :aria-describedby="invalidCredentials ? 'credential-error' : undefined"
                         id="password"
+                        v-model="form.password"
+                        :aria-invalid="invalidCredentials || !!form.errors.password"
+                        :aria-describedby="invalidCredentials || form.errors.password ? 'password-error' : undefined"
                         type="password"
                         required
                         autocomplete="current-password"
-                        v-model="form.password"
+                        @input="invalidCredentials ? form.clearErrors('email', 'password') : form.clearErrors('password')"
                     />
-                    <InputError :message="form.errors.password" />
+                    <InputError id="password-error" :message="invalidCredentials ? 'Неверный email или пароль.' : form.errors.password" />
                 </div>
 
-                <div v-if="invalidCredentials" id="credential-error" role="alert" class="account-message">
-                    <CircleX aria-hidden="true" /><strong>Не удалось войти</strong>
-                    <p>Проверьте введённые данные и повторите попытку.</p>
-                </div>
                 <div class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
                         <Checkbox id="remember" v-model="form.remember" />
-                        <span
-                            >Запомнить меня<small v-if="invalidCredentials" class="text-muted-foreground mt-1 block">На этом устройстве</small></span
-                        >
+                        <span>Запомнить меня</span>
                     </Label>
                 </div>
 
@@ -84,6 +94,5 @@ const submit = () => {
             </div>
         </form>
         <TextLink v-if="canResetPassword" :href="route('password.request')" class="mt-4 inline-flex items-center text-sm">Забыли пароль?</TextLink>
-        <p v-if="invalidCredentials && canResetPassword" class="text-muted-foreground text-sm">Восстановить доступ по почте</p>
     </AuthBase>
 </template>

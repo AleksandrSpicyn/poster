@@ -5,10 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { type BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -30,7 +33,7 @@ const form = useForm({
 });
 
 const updatePassword = () => {
-    form.put(route('password.update'), {
+    submitForm(form, 'password.update', {
         preserveScroll: true,
         onSuccess: () => form.reset(),
         onError: (errors) => {
@@ -95,9 +98,9 @@ const updatePassword = () => {
                     <Label for="password_confirmation">Подтверждение</Label>
                     <Input
                         id="password_confirmation"
+                        v-model="form.password_confirmation"
                         :aria-invalid="!!form.errors.password_confirmation"
                         :aria-describedby="form.errors.password_confirmation ? 'confirmation-error' : undefined"
-                        v-model="form.password_confirmation"
                         type="password"
                         autocomplete="new-password"
                         placeholder="Подтверждение"

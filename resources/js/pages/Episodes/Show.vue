@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import { useEpisodeScreenplay } from '@/composables/useEpisodeScreenplay';
 import { useEpisodeMontage } from '@/composables/useEpisodeMontage';
 import { useEpisodeSources } from '@/composables/useEpisodeSources';
@@ -21,8 +22,8 @@ import type { EpisodeWorkspaceProps, ScreenplayShot } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
 import { useObjectUrl } from '@vueuse/core';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref, watch } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<EpisodeWorkspaceProps>();
 const route = useRoute();
@@ -200,11 +201,7 @@ function restorePanel() {
     leaveDialogueFocus();
     panel.value = panels.some((item) => item.key === key) ? key : 'screenplay';
 }
-onMounted(() => {
-    restorePanel();
-    window.addEventListener('hashchange', restorePanel);
-});
-onUnmounted(() => window.removeEventListener('hashchange', restorePanel));
+useHashNavigation(restorePanel);
 const preview = computed(() => allAssemblies.value.flatMap((item) => item.media).find((item) => item.collection === 'episode-video'));
 function refresh() {
     router.get(
@@ -526,9 +523,9 @@ function refresh() {
                                 <form class="grid gap-5" @submit.prevent="saveScript" @invalid.capture="leaveDialogueFocus">
                                     <SceneScriptEditor
                                         v-model="scriptForm.script"
+                                        v-model:recovering-line="recoveringLine"
                                         :scene-index="detail"
                                         :thumbnails="shotThumbnails"
-                                        v-model:recovering-line="recoveringLine"
                                         :characters="characters"
                                         :transitions="transitionModes"
                                         :sources="continuationSources"
@@ -558,7 +555,9 @@ function refresh() {
                                 </form>
                                 <Dialog v-model:open="importOpen">
                                     <DialogTrigger as-child>
-                                        <Button variant="outline" class="h-auto max-w-full whitespace-normal">Импорт и экспорт сценария в JSON</Button>
+                                        <Button variant="outline" class="h-auto max-w-full whitespace-normal"
+                                            >Импорт и экспорт сценария в JSON</Button
+                                        >
                                     </DialogTrigger>
                                     <DialogContent class="studio-confirm screenplay-json-dialog" :show-close="false">
                                         <DialogTitle>Импорт и экспорт сценария</DialogTitle>
@@ -614,8 +613,8 @@ function refresh() {
                             </p>
                             <section
                                 v-for="scene in revision.scenes"
-                                :key="scene.id"
                                 v-show="detail === null || scene.shots.some((item) => item.id === shots[detail ?? 0]?.id)"
+                                :key="scene.id"
                                 class="space-y-4"
                             >
                                 <div>
@@ -626,8 +625,8 @@ function refresh() {
                                 </div>
                                 <ShotCard
                                     v-for="shot in scene.shots"
-                                    :key="shot.id"
                                     v-show="detail === null || shot.id === shots[detail]?.id"
+                                    :key="shot.id"
                                     :shot="shot"
                                     :selected-take-ids="acceptedTakeIds"
                                     :scene-title="scene.title"
@@ -673,8 +672,8 @@ function refresh() {
                             <form class="space-y-4" @submit.prevent="buildAssembly">
                                 <div
                                     v-for="(shot, index) in shots"
-                                    :key="shot.id"
                                     v-show="detail === null || detail === index"
+                                    :key="shot.id"
                                     class="trim-selection grid items-end gap-3 sm:grid-cols-3"
                                 >
                                     <label class="trim-source-select text-muted-foreground text-sm"
@@ -700,9 +699,9 @@ function refresh() {
                                                 :class="{ selected: assemblyForm.shots[index].prompt_id === take.id }"
                                             >
                                                 <input
+                                                    v-model="assemblyForm.shots[index].prompt_id"
                                                     type="radio"
                                                     :name="'source-take-' + shot.id"
-                                                    v-model="assemblyForm.shots[index].prompt_id"
                                                     :value="take.id"
                                                     class="sr-only"
                                                 />
@@ -725,6 +724,8 @@ function refresh() {
                                         </div>
                                     </fieldset>
                                     <TrimInterval
+                                        v-model:start="assemblyForm.shots[index].trim_start_ms"
+                                        v-model:end="assemblyForm.shots[index].trim_end_ms"
                                         :shot-id="shot.id"
                                         :duration="shot.duration_ms"
                                         :thumbnail="
@@ -732,8 +733,6 @@ function refresh() {
                                                 .find((take) => take.id === assemblyForm.shots[index].prompt_id)
                                                 ?.media.find((media) => media.collection === 'shot-image')?.url
                                         "
-                                        v-model:start="assemblyForm.shots[index].trim_start_ms"
-                                        v-model:end="assemblyForm.shots[index].trim_end_ms"
                                     />
                                 </div>
                                 <InputError :message="assemblyErrors" /><Button
@@ -790,14 +789,14 @@ function refresh() {
 }
 @media (min-width: 1100px) {
     .screenplay-page {
-    container: screenplay / inline-size;
-}
-@container screenplay (max-width: 36rem) {
-    .episode-columns {
-        grid-template-columns: minmax(0, 1fr);
+        container: screenplay / inline-size;
     }
-}
-.episode-overview-page > div:first-of-type > button {
+    @container screenplay (max-width: 36rem) {
+        .episode-columns {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+    .episode-overview-page > div:first-of-type > button {
         margin-top: 6px;
     }
 }
@@ -820,6 +819,15 @@ function refresh() {
 }
 .trim-detail-page .trim-selection {
     min-width: 0;
+}
+.take-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
 }
 .trim-detail-page .take-option {
     min-height: 64px;
@@ -857,15 +865,6 @@ function refresh() {
     margin: 16px 0;
     background: #111;
 }
-.take-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-}
 .take-option.selected {
     background: var(--sidebar-accent);
     border-color: var(--primary);
@@ -887,6 +886,10 @@ function refresh() {
     display: grid;
     grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr);
 }
+.take-project > div {
+    aspect-ratio: 2.1;
+    border-radius: 8px;
+}
 .takes-detail-page #episode-shots-title,
 .takes-detail-page section[aria-labelledby='episode-shots-title'] > section > div:first-child {
     position: absolute;
@@ -899,10 +902,6 @@ function refresh() {
     grid-column: 2;
     grid-row: 1;
     min-width: 0;
-}
-.take-project > div {
-    aspect-ratio: 2.1;
-    border-radius: 8px;
 }
 .take-project h2 {
     margin-top: 12px;
@@ -944,12 +943,10 @@ function refresh() {
     border: none;
     background: transparent;
     padding: 0;
+    order: 0;
 }
 .scene-detail-page .script-workspace > details {
     order: 1;
-}
-.scene-detail-page .script-workspace > section:has(#script-editor-title) {
-    order: 0;
 }
 @media (max-width: 767px) {
     .trim-player {

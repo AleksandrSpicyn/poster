@@ -7,7 +7,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { ProjectSummary } from '@/types/projects';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     id: number;
@@ -18,13 +19,14 @@ const props = defineProps<{
     assemblyNumber: number | null;
     submittedAt: string | null;
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const requestError = ref('');
 const form = useForm({ external_id: '' });
 function verify() {
     requestError.value = '';
 
-    form.post(route('posts.requests.resolve', props.id), {
+    submitForm(form, ['posts.requests.resolve', props.id], {
         preserveScroll: true,
 
         onNetworkError: () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue';
@@ -357,6 +357,15 @@ const tabs: { name: string; view: View }[] = [
     min-height: 44px;
     font-weight: 700;
 }
+.secondary,
+.publication-link small,
+.report-card small,
+.drill-row small,
+.coverage-row small {
+    display: block;
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
 .counter-section .secondary {
     margin: 4px 0 10px;
 }
@@ -404,15 +413,6 @@ const tabs: { name: string; view: View }[] = [
 .chart-panel > .secondary {
     font: 400 14px/1.5 var(--font-sans);
 }
-.secondary,
-.publication-link small,
-.report-card small,
-.drill-row small,
-.coverage-row small {
-    display: block;
-    color: var(--muted-foreground);
-    font-size: 14px;
-}
 .platforms-panel,
 .chart-panel {
     padding: 16px 24px;
@@ -452,6 +452,10 @@ const tabs: { name: string; view: View }[] = [
     align-items: center;
     gap: 12px;
     margin: 8px 0;
+}
+.report-card > div {
+    height: 112px;
+    border-radius: 8px;
 }
 .publication-link > div:first-child {
     height: 54px;
@@ -498,10 +502,6 @@ const tabs: { name: string; view: View }[] = [
 }
 .report-card {
     padding: 16px;
-}
-.report-card > div {
-    height: 112px;
-    border-radius: 8px;
 }
 .report-card h2 {
     margin: 12px 0 4px;
@@ -558,12 +558,15 @@ const tabs: { name: string; view: View }[] = [
     text-align: center;
     color: var(--warning);
 }
+.observation-gap span:first-child {
+    font-weight: 700;
+}
 .analytics-screen .observation-gap > span:first-child {
     color: var(--warning);
 }
 @media (min-width: 768px) {
-    .analytics-screen[data-view='data'] .report-row:not(.observation-gap),
-    .analytics-screen[data-view='publication'] .report-row {
+    .analytics-screen[data-view='publication'] .report-row,
+    .analytics-screen[data-view='data'] .report-row:not(.observation-gap) {
         min-height: 47px;
     }
 
@@ -575,9 +578,6 @@ const tabs: { name: string; view: View }[] = [
     .analytics-panels {
         grid-template-columns: minmax(0, 1.835fr) minmax(0, 1fr);
     }
-}
-.observation-gap span:first-child {
-    font-weight: 700;
 }
 
 .coverage-row[data-state='collected'] {

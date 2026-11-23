@@ -10,7 +10,7 @@ import type { PaginatedResource } from '@/types/content';
 import type { CharacterSummary, EpisodeSummary, SeriesSummary } from '@/types/series';
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover' | 'archived_at'> & { channels: ProjectChannel[] };
@@ -70,6 +70,7 @@ const breadcrumbs = computed(() => [
             <template v-if="production">
                 <div class="run-grid">
                     <SeriesProduction
+                        :key="displayedRun?.id ?? episodeNumber + '-next'"
                         :project-id="project.id"
                         :channels="project.channels"
                         :series-id="series.id"
@@ -83,7 +84,6 @@ const breadcrumbs = computed(() => [
                         :enabled="
                             project.is_active && !series.archived_at && (!displayedRun || series.automation_enabled || displayedRun.manual_start)
                         "
-                        :key="displayedRun?.id ?? episodeNumber + '-next'"
                         :run="displayedRun"
                     />
                     <aside class="studio-panel run-aside">
@@ -147,6 +147,7 @@ const breadcrumbs = computed(() => [
 .run-aside {
     display: none;
     padding: 15px;
+    padding-bottom: 5px;
 }
 .run-aside h2 {
     margin: 12px 0;
@@ -170,9 +171,6 @@ const breadcrumbs = computed(() => [
 .production-view {
     gap: 16px;
     padding-top: 21px;
-}
-.run-aside {
-    padding-bottom: 5px;
 }
 @media (min-width: 1920px) {
     .run-grid {

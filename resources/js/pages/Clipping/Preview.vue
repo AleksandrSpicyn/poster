@@ -7,7 +7,8 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import type { SharedData } from '@/types';
 import type { ProjectSummary } from '@/types/projects';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
 const props = defineProps<{
     connection: { id: number; name: string };
     preview: {
@@ -30,16 +31,17 @@ const props = defineProps<{
         publications: { platform: string; status: string | null; url: string | null }[];
     }[];
 }>();
-const route = useRoute(),
-    form = useForm({}),
-    page = usePage<SharedData>();
+const submitForm = useFormApi();
+const route = useRoute();
+const form = useForm({});
+const page = usePage<SharedData>();
 const empty = computed(() => props.preview.external_id !== null && !props.clips.length);
 const confirmed = computed(() => props.preview.imported_at !== null);
 const title = computed(() => (confirmed.value ? 'Результат импорта' : 'Предпросмотр импорта'));
 const name = computed(() => props.projectName || props.preview.source_name || 'Проект без названия');
 const existing = computed(() => new Set(props.existingClipIds));
 function confirm() {
-    form.post(route('clipping.import', [props.connection.id, props.preview.id]));
+    submitForm(form, ['clipping.import', [props.connection.id, props.preview.id]]);
 }
 </script>
 <template>
@@ -123,6 +125,10 @@ function confirm() {
     align-items: start;
     justify-content: space-between;
     gap: 1rem;
+}
+.state-panel [data-slot='button'] {
+    min-height: 44px;
+    font-weight: 700;
 }
 .import-review header [data-slot='button'] {
     min-height: 44px;
@@ -218,10 +224,6 @@ function confirm() {
 }
 .project-link {
     color: var(--ring);
-    font-weight: 700;
-}
-.state-panel [data-slot='button'] {
-    min-height: 44px;
     font-weight: 700;
 }
 @media (max-width: 1099px) {

@@ -1,30 +1,14 @@
-import prettier from 'eslint-config-prettier';
-import vue from 'eslint-plugin-vue';
+import withNuxt from './.nuxt/eslint.config.mjs';
+import prettier from 'eslint-config-prettier/flat';
 
-import { configureVueProject, defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
-
-configureVueProject({ rootDir: import.meta.dirname + '/resources/js' });
-
-export default defineConfigWithVueTs(
-    vue.configs['flat/essential'],
-    vueTsConfigs.recommended,
+export default withNuxt(
     {
-        ignores: [
-            'vendor',
-            'node_modules',
-            'public',
-            'storage',
-            'bootstrap/ssr',
-            '.playwright-mcp/**',
-            '.agents/skills/{frontend-design,ui-ux-pro-max,design-taste-frontend,vue-*,create-adaptable-composable}/**',
-            'tailwind.config.js',
-            'resources/js/components/ui/*',
-        ],
-    },
-    {
+        files: ['resources/js/**/*.vue'],
         rules: {
             'vue/multi-word-component-names': 'off',
-            '@typescript-eslint/no-explicit-any': 'off',
+            // Optional TypeScript props use undefined when omitted.
+            'vue/require-default-prop': 'off',
+            'vue/prop-name-casing': ['warn', 'camelCase', { ignoreProps: ['release_started'] }],
         },
     },
     prettier,

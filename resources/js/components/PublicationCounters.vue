@@ -8,8 +8,8 @@ defineProps<{ items: { id?: string; label: string; value: number | null; unit?: 
         <component
             :is="item.href ? Link : 'div'"
             v-for="item in items"
-            :key="item.label"
             :id="item.id"
+            :key="item.label"
             :href="item.href"
             class="metric-tile"
             :title="item.description"

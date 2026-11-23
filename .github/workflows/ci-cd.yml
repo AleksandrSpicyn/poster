@@ -86,7 +86,7 @@ jobs:
           php vendor/bin/pest --configuration=phpunit.mysql.xml --compact
       - name: Verify frontend and documentation
         run: |
-          npm run typecheck
+          npm run check:frontend
           npm run build:ssr
           php artisan scribe:generate --no-interaction
           bash -n deploy/*.sh

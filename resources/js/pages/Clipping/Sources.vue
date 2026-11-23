@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 defineProps<{
     connection: { id: number; name: string };
     sources: { id: string; title: string | null }[];
@@ -23,8 +23,9 @@ const route = useRoute();
             <p v-if="!sources.length">Проекты не найдены.</p>
             <ul class="divide-y">
                 <li v-for="source in sources" :key="source.id" class="flex flex-wrap items-center justify-between gap-2 py-3">
-                    <span>{{ source.title || source.id }}</span
-                    ><template v-for="binding in sourceBindings.filter((item) => item.external_id === source.id)" :key="binding.project_id"
+                    <span>{{ source.title || source.id }}</span><template
+                        v-for="binding in sourceBindings.filter((item) => item.external_id === source.id)"
+                        :key="binding.project_id"
                         ><Link class="underline" :href="route('projects.show', binding.project_id)">Открыть проект</Link></template
                     >
                 </li>

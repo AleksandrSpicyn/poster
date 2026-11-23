@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/formatCount';
+import { useHashNavigation } from '@/composables/useHashNavigation';
+import { fetchProjectSearchPreview, type ProjectSearchPreview } from '@/lib/api/projects';
+import ProjectOwnerPanel from '@/components/projects/ProjectOwnerPanel.vue';
 import ProjectCoverGallery from '@/components/projects/ProjectCoverGallery.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import Heading from '@/components/Heading.vue';
@@ -13,8 +17,8 @@ import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, ref, useTemplateRef, watch } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const page = usePage<ProjectsPageProps>();
@@ -35,11 +39,6 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     ...(page.props.filters.clipping ? [{ title: 'Клиппинг', href: route('projects.index', { clipping: 1 }) }] : []),
 ]);
 
-const plurals = new Intl.PluralRules('ru');
-function counted(value: number, one: string, few: string, many: string) {
-    const ending = plurals.select(value);
-    return value + ' ' + (ending === 'one' ? one : ending === 'few' ? few : many);
-}
 const information = computed(() => page.props.information);
 const searching = ref(false);
 const searchInput = useTemplateRef<InstanceType<typeof Input>>('searchInput');
@@ -50,7 +49,7 @@ watch(
     },
     { flush: 'post' },
 );
-const preview = ref<{ total: number; name?: string }>();
+const preview = ref<ProjectSearchPreview>();
 watch(
     () => [searching.value, filters.search, filters.active, filters.clipping, page.props.projects] as const,
     ([open, search, active, clipping, projects], _, onCleanup) => {
@@ -70,20 +69,8 @@ watch(
         const timer = window.setTimeout(async () => {
             try {
                 const url = route('projects.index', { search, active, clipping, perPage: 1 });
-                const response = await fetch(url, {
-                    signal: controller.signal,
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Inertia': 'true',
-                        'X-Inertia-Partial-Component': page.component,
-                        'X-Inertia-Partial-Data': 'projects',
-                        ...(page.version ? { 'X-Inertia-Version': page.version } : {}),
-                    },
-                });
-                if (!response.ok || !response.headers.has('X-Inertia')) return;
-                const result: { props: Pick<ProjectsPageProps, 'projects'> } = await response.json();
-                const matches = result.props.projects;
-                if (!controller.signal.aborted && matches) preview.value = { total: matches.meta.total, name: matches.data[0]?.name };
+                const result = await fetchProjectSearchPreview(url, page, controller.signal);
+                if (!controller.signal.aborted) preview.value = result;
             } catch {
                 // The full search remains available when its background preview is interrupted.
             }
@@ -97,11 +84,7 @@ watch(
 function restoreSearch() {
     searching.value = location.hash === '#search';
 }
-onMounted(() => {
-    restoreSearch();
-    window.addEventListener('hashchange', restoreSearch);
-});
-onUnmounted(() => window.removeEventListener('hashchange', restoreSearch));
+useHashNavigation(restoreSearch);
 function runSearch() {
     filters.archived = 0;
     searching.value = false;
@@ -132,7 +115,7 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
                                 ? 'Результаты поиска · ' + page.props.filters.search
                                 : page.props.filters.clipping
                                   ? 'Клиппинг'
-                                  : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' / Все форматы'
+                                  : formatCount(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' / Все форматы'
                     "
                 />
                 <a
@@ -170,10 +153,10 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
                     <p class="studio-row">
                         <strong>Производство</strong
                         ><span v-if="information.project.content_mode === 'series'"
-                            >{{ counted(information.accepted, 'принятый эпизод', 'принятых эпизода', 'принятых эпизодов') }} из
+                            >{{ formatCount(information.accepted, 'принятый эпизод', 'принятых эпизода', 'принятых эпизодов') }} из
                             {{ information.episodes }}</span
                         ><span v-else
-                            >{{ counted(information.project.ready_prompts_count, 'готовый ролик', 'готовых ролика', 'готовых роликов') }} из
+                            >{{ formatCount(information.project.ready_prompts_count, 'готовый ролик', 'готовых ролика', 'готовых роликов') }} из
                             {{ information.project.prompts_count }}</span
                         >
                     </p>
@@ -193,19 +176,14 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
                         ><Link :href="route('projects.index')">К проектам</Link>
                     </div>
                 </section>
-                <aside class="studio-panel hidden min-[1100px]:block">
-                    <h2 class="font-bold">Мои проекты</h2>
-                    <p class="mt-4">Студия</p>
-                    <strong>{{ information.owner }}</strong>
-                    <p class="mt-4">Рабочая область</p>
-                    <span>Моя студия</span>
-                </aside>
+                <ProjectOwnerPanel :owner="information.owner" />
             </div>
             <div v-else-if="searching" class="project-information">
                 <form class="studio-panel search-panel grid items-start gap-3" role="search" @submit.prevent="runSearch">
                     <h2 class="text-xl font-bold">{{ page.props.filters.archived ? 'Поиск вне архива' : 'Поиск проектов' }}</h2>
                     <label class="grid gap-1.5" for="project-search"
-                        >Поиск по названию <Input ref="searchInput" id="project-search" v-model="filters.search" type="search" :maxlength="200" :disabled="loading"
+                        >Поиск по названию
+                        <Input id="project-search" ref="searchInput" v-model="filters.search" type="search" :maxlength="200" :disabled="loading"
                     /></label>
                     <label class="grid gap-1"
                         >Дата добавления
@@ -217,19 +195,13 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
                     <p class="studio-row" aria-live="polite">
                         <strong>Найдено</strong
                         ><span v-if="preview"
-                            >{{ counted(preview.total, 'проект', 'проекта', 'проектов')
+                            >{{ formatCount(preview.total, 'проект', 'проекта', 'проектов')
                             }}<template v-if="preview.total === 1"> · {{ preview.name }}</template></span
                         ><span v-else>—</span>
                     </p>
                     <Button type="submit" class="justify-self-start" :disabled="loading">Применить</Button>
                 </form>
-                <aside class="studio-panel hidden min-[1100px]:block">
-                    <h2 class="font-bold">Мои проекты</h2>
-                    <p class="mt-4">Студия</p>
-                    <strong>{{ page.props.auth.user.name }}</strong>
-                    <p class="mt-4">Рабочая область</p>
-                    <span>Моя студия</span>
-                </aside>
+                <ProjectOwnerPanel :owner="page.props.auth.user.name" />
             </div>
             <ProjectCoverGallery v-else-if="page.props.filters.clipping" :projects="page.props.projects" :loading="loading" @page="changePage" />
             <template v-else>
@@ -369,6 +341,12 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
 }
 .project-card {
     position: relative;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding-bottom: 15px;
 }
 .project-info-link {
     position: absolute;
@@ -395,9 +373,9 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
 }
 .project-information {
     max-width: 1234px;
-}
-.project-information aside > p {
-    margin-top: 7px;
+    display: grid;
+    align-items: start;
+    gap: 16px;
 }
 .info-panel .studio-row {
     padding-block: 12px;
@@ -410,17 +388,6 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
     .workspace-page:has(.project-information) {
         row-gap: 9px;
     }
-}
-@media (min-width: 1100px) {
-    .project-information {
-        grid-template-columns: minmax(0, 2.38fr) minmax(0, 1fr);
-        gap: 22px;
-    }
-}
-.project-information {
-    display: grid;
-    align-items: start;
-    gap: 16px;
 }
 @media (min-width: 1100px) {
     .project-information {
@@ -438,21 +405,11 @@ function selectGroup(group: 'all' | 'active' | 'archived') {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
-.project-card {
-    min-width: 0;
-    overflow: hidden;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-}
 .project-list-cover {
     width: calc(100% + 2px);
     aspect-ratio: 1.85;
     max-height: 246px;
     margin-inline: -1px;
-}
-.project-card {
-    padding-bottom: 15px;
 }
 .project-card h3 {
     padding: 14px 15px 0;

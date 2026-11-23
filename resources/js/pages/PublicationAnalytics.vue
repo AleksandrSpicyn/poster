@@ -4,7 +4,7 @@ import PublicationMetrics from '@/components/PublicationMetrics.vue';
 import type { MetricsReport } from '@/types/analytics';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 defineProps<{ analytics: MetricsReport }>();
 const route = useRoute();

@@ -5,7 +5,7 @@ import { useNavigation } from '@/composables/useNavigation';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Menu } from '@lucide/vue';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const { main } = useNavigation();

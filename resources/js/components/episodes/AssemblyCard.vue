@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
 import { platformNames } from '@/types/analytics';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import type { EpisodeAssemblySummary, EpisodeRouteParams, PublicationSummary } from '@/types/episodes';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     assembly: EpisodeAssemblySummary;
@@ -36,6 +37,7 @@ const assemblyStates: Record<string, string> = {
     accepted: 'Принята',
     failed: 'Ошибка сборки',
 };
+const submitForm = useFormApi();
 const route = useRoute();
 const params = { ...props.params, revision: props.assembly.episode_revision_id, assembly: props.assembly.id };
 const acceptForm = useForm({
@@ -59,7 +61,7 @@ const acceptErrors = computed(() => Object.values(acceptForm.errors).join(' '));
 const publishErrors = computed(() => Object.values(publishForm.errors).join(' '));
 function accept() {
     if (!reviewedVersion.value) return;
-    acceptForm.post(route('episodes.assemblies.accept', params), {
+    submitForm(acceptForm, ['episodes.assemblies.accept', params], {
         preserveScroll: true,
         preserveState: 'errors',
         onSuccess: () => window.location.replace('#release'),
@@ -69,7 +71,7 @@ const available = computed(() => props.canPublish !== false && props.currentAcce
 const selected = computed(() => props.channels.filter((channel) => publishForm.channel_ids.includes(channel.id)));
 function publish() {
     if (selected.value.length && confirmed.value && available.value && !publishForm.processing)
-        publishForm.post(route('episodes.assemblies.publish', params), {
+        submitForm(publishForm, ['episodes.assemblies.publish', params], {
             preserveScroll: true,
             preserveState: 'errors',
             onSuccess: () => window.location.replace('#release'),
@@ -323,6 +325,12 @@ function publish() {
 .assembly-card h3 {
     font-size: 20px;
 }
+dd {
+    padding: 12px 14px;
+    border: 1px solid var(--input);
+    border-radius: 8px;
+    background: var(--background);
+}
 .assembly-card dd {
     min-height: 48px;
 }
@@ -331,11 +339,5 @@ dt {
     margin-bottom: 4px;
     color: var(--muted-foreground);
     font-size: 14px;
-}
-dd {
-    padding: 12px 14px;
-    border: 1px solid var(--input);
-    border-radius: 8px;
-    background: var(--background);
 }
 </style>

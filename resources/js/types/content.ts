@@ -1,7 +1,7 @@
 import type { ChannelType, SharedData } from '@/types';
 
 /** Wire contracts of PostResource and PromptResource (including nullable deleted relations). */
-export interface PostSummary {
+interface PostSummary {
     title: string;
     channel_name: string | null;
     id: number;
@@ -21,7 +21,7 @@ export interface PromptSummary {
     created_at: string | null;
 }
 
-export interface ResourceCollection<T> {
+interface ResourceCollection<T> {
     data: T[];
 }
 
@@ -50,7 +50,7 @@ export interface ListFilters {
     clipping?: number;
 }
 
-export interface ListPageProps extends SharedData {
+interface ListPageProps extends SharedData {
     sortDirections: Record<string, string>;
     defaultSort: string;
     filters: { sort?: string | null; type?: string | null; project?: number | null };

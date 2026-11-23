@@ -1,9 +1,9 @@
+import { useRoute } from '@/composables/useRoute';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/vue3';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import { type InjectionKey, type Ref, onMounted, onUnmounted, provide, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 export const workspaceSubscription: InjectionKey<Readonly<Ref<boolean>>> = Symbol('workspaceSubscription');
 

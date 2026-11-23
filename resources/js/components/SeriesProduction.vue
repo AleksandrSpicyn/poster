@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import { useProductionRunActions } from '@/composables/useProductionRunActions';
+import StopProductionDialog from '@/components/StopProductionDialog.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import type { ProjectChannel } from '@/types/projects';
@@ -7,7 +8,7 @@ import type { ProductionRun } from '@/types/production';
 import { Link, useForm } from '@inertiajs/vue3';
 import { CheckCircle, Circle, CircleAlert, Clock, CirclePause } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     projectId: number;
@@ -29,7 +30,7 @@ const starting = useForm({
         props.pinnedChannelIds ??
         props.channels.filter((channel) => props.autoPublish && channel.can_receive_production).map((channel) => channel.id),
 });
-const transition = useForm({});
+const { start, changeStatus, transition } = useProductionRunActions();
 const checking = ref(false);
 watch(
     () => props.run?.id,
@@ -97,15 +98,6 @@ const reviewHref = computed(() => {
     }
     return null;
 });
-function start() {
-    starting.post(route('production_runs.store', props.projectId), {
-        preserveScroll: true,
-        onSuccess: () => (starting.request_key = crypto.randomUUID()),
-    });
-}
-function change(action: 'stop' | 'resume') {
-    if (props.run) transition.post(route('production_runs.' + action, props.run.id), { preserveScroll: true });
-}
 </script>
 
 <template>
@@ -212,36 +204,26 @@ function change(action: 'stop' | 'resume') {
             </dl>
         </template>
         <div class="run-actions">
-            <Button v-if="resume && enabled" :disabled="transition.processing" @click="change('resume')">Возобновить производство</Button>
+            <Button v-if="resume && enabled" :disabled="transition.processing" @click="run && changeStatus(run.id, 'resume')"
+                >Возобновить производство</Button
+            >
             <template v-else-if="stopped || attention">
                 <Button v-if="reviewHref" as-child
                     ><Link :href="reviewHref">{{ stopped ? 'Проверить результат' : 'Открыть ручную проверку' }}</Link></Button
                 >
                 <Button v-if="enabled && !run?.has_unresolved_effects" variant="outline" @click="checking = true">Продолжить после проверки</Button>
             </template>
-            <ConfirmationDialog
+            <StopProductionDialog
                 v-else-if="run?.is_active"
-                heading="Остановка производства"
-                title="Остановить производство?"
-                description="Новые этапы не начнутся. Уже отправленный дубль может завершиться у провайдера."
-                action="Остановить этапы"
-                cancel="Продолжить производство"
-                destructive
+                :stage="run.stage_label"
+                :recipients="recipientLabel"
                 :processing="transition.processing"
                 :error="Object.values(transition.errors).join(' ')"
-                @confirm="change('stop')"
+                @confirm="changeStatus(run.id, 'stop')"
+            />
+            <Button v-else-if="!run && !planComplete && enabled" :disabled="starting.processing" @click="start(projectId, starting)"
+                >Запустить производство</Button
             >
-                <template #trigger><Button variant="outline">Остановить следующие этапы</Button></template>
-                <div class="studio-row">
-                    <dt>Текущий этап</dt>
-                    <dd>{{ run.stage_label }}</dd>
-                </div>
-                <div class="studio-row">
-                    <dt>Каналы выпуска</dt>
-                    <dd>{{ recipientLabel }}</dd>
-                </div>
-            </ConfirmationDialog>
-            <Button v-else-if="!run && !planComplete && enabled" :disabled="starting.processing" @click="start">Запустить производство</Button>
             <p v-else-if="!planComplete && run?.status !== 'completed'" class="text-muted-foreground text-sm">
                 Проверьте настройки проекта и автоматизации сериала.
             </p>
@@ -267,6 +249,10 @@ function change(action: 'stop' | 'resume') {
     display: block;
     font-size: 14px;
     color: var(--muted-foreground);
+}
+.run-notice strong,
+.run-steps strong {
+    font-size: 16px;
 }
 
 .run-steps [aria-current='step'] strong {
@@ -305,6 +291,16 @@ function change(action: 'stop' | 'resume') {
 .run-notice.stopped::before {
     display: none;
 }
+.run-notice svg,
+.run-steps svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+.run-steps svg {
+    color: var(--muted-foreground);
+}
 .run-notice.stopped > svg {
     box-sizing: content-box;
     padding: 9px;
@@ -315,6 +311,12 @@ function change(action: 'stop' | 'resume') {
     background: var(--muted);
     color: var(--muted-foreground);
 }
+.run-notice p,
+.run-steps p,
+.run-facts dt {
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
 .run-notice.stopped p {
     margin-top: 4px;
 }
@@ -324,31 +326,11 @@ function change(action: 'stop' | 'resume') {
 .run-notice.success::before {
     background: var(--primary);
 }
-.run-notice svg,
-.run-steps svg {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    margin-top: 3px;
-}
-.run-notice strong,
-.run-steps strong {
-    font-size: 16px;
-}
-.run-notice p,
-.run-steps p,
-.run-facts dt {
-    color: var(--muted-foreground);
-    font-size: 14px;
-}
 .run-steps li {
     display: flex;
     gap: 10px;
     padding: 8px 0 10px;
     border-bottom: 1px solid var(--border);
-}
-.run-steps svg {
-    color: var(--muted-foreground);
 }
 .run-steps svg.complete {
     color: var(--ring);

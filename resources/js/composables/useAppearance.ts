@@ -2,7 +2,7 @@ import type { Appearance, AppearanceValues, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 
-export function updateTheme(value: Appearance, values: AppearanceValues) {
+function updateTheme(value: Appearance, values: AppearanceValues) {
     if (typeof window === 'undefined') {
         return;
     }

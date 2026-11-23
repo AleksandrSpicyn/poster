@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Head, Link, useForm, usePoll } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     connection: { id: number; name: string; driver: string; catalog_checked_at: string | null; catalog_error: string | null };
@@ -17,6 +18,7 @@ const props = defineProps<{
     access?: { projects: string; clips: string; source: string | null };
     supportsAccounts: boolean;
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const key = useForm({ api_key: '' });
 const sync = useForm({});
@@ -24,7 +26,7 @@ const scope = useForm({ ...props.scope, import_projects: true, import_accounts: 
 const editing = ref(false);
 usePoll(15000, { only: ['connection', 'projects'] });
 function updateKey() {
-    key.patch(route('clipping.key.update', props.connection.id), {
+    submitForm(key, ['clipping.key.update', props.connection.id], {
         onSuccess: () => {
             key.reset();
             editing.value = false;
@@ -53,10 +55,10 @@ function updateKey() {
                     <Button
                         v-if="props.scope.import_projects"
                         :disabled="sync.processing"
-                        @click="sync.post(route('clipping.sync', connection.id), { preserveScroll: true })"
+                        @click="submitForm(sync, ['clipping.sync', connection.id], { preserveScroll: true })"
                         >Обновить сейчас</Button
                     >
-                    <Button v-else :disabled="scope.processing" @click="scope.patch(route('clipping.scope.update', connection.id))"
+                    <Button v-else :disabled="scope.processing" @click="submitForm(scope, ['clipping.scope.update', connection.id])"
                         >Включить автоимпорт</Button
                     >
                 </div>

@@ -7,7 +7,7 @@ import { counterNames, dateLabel, observedCountersByDate, platformNames, rangeLa
 import { router } from '@inertiajs/vue3';
 import { CircleX } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{ report: MetricsReport; observed: NonNullable<MetricsReport['channelReport']> }>();
 const route = useRoute();
@@ -81,7 +81,7 @@ function changeChannel(event: Event) {
         <section class="studio-panel channel-panel">
             <h2>Наблюдения по каналу</h2>
             <label for="report-channel">Канал отчёта</label>
-            <select ref="picker" id="report-channel" :value="channel" @change="changeChannel">
+            <select id="report-channel" ref="picker" :value="channel" @change="changeChannel">
                 <option v-for="item in channels" :key="item.id" :value="item.id">
                     {{ item.name }} · {{ platformNames[item.platform] ?? item.platform }}
                 </option>
@@ -138,7 +138,6 @@ function changeChannel(event: Event) {
     gap: 16px;
     padding-block-start: 16px;
 }
-.theme-caption,
 .channel-panel > p,
 .channel-panel > label,
 .report-error p {
@@ -196,15 +195,15 @@ function changeChannel(event: Event) {
 .report-error strong {
     color: var(--destructive);
 }
-.channel-panel > button:disabled {
-    opacity: 1;
-    color: var(--muted-foreground);
-    background: var(--muted);
-}
 .channel-panel > button {
     width: fit-content;
     min-height: 44px;
     margin-top: 6px;
+}
+.channel-panel > button:disabled {
+    opacity: 1;
+    color: var(--muted-foreground);
+    background: var(--muted);
 }
 .reason {
     display: grid;

@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import { Button } from '@/components/ui/button';
 import { platformNames } from '@/types/analytics';
 import type { ProjectPageProps } from '@/types/projects';
 import { ChartColumn, Clock, Film, Globe } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 type Clips = NonNullable<ProjectPageProps['opusClips']>;
 const props = defineProps<{
     clips: Clips;
@@ -21,11 +22,7 @@ function readHash() {
     const value = location.hash.match(/^#clip-(\d+)$/);
     selectedId.value = value ? Number(value[1]) : null;
 }
-onMounted(() => {
-    readHash();
-    window.addEventListener('hashchange', readHash);
-});
-onUnmounted(() => window.removeEventListener('hashchange', readHash));
+useHashNavigation(readHash);
 function duration(ms: number | null) {
     if (ms === null) return null;
     const s = Math.round(ms / 1000);
@@ -187,6 +184,11 @@ const metricLabels: Record<string, string> = {
     font-weight: 700;
     margin-block: 12px;
 }
+.clip-detail h2 {
+    font-size: 20px;
+    line-height: 28px;
+    margin: 0 0 12px;
+}
 .clip-library > nav + h2 {
     margin-block: 16px 20px;
 }
@@ -276,11 +278,6 @@ const metricLabels: Record<string, string> = {
     display: flex;
     flex-direction: column;
     min-width: 0;
-}
-.clip-detail h2 {
-    font-size: 20px;
-    line-height: 28px;
-    margin: 0 0 12px;
 }
 .clip-detail h3 {
     font-size: 18px;

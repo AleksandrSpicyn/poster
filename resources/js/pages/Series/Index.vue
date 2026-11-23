@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/formatCount';
 import EmptyState from '@/components/EmptyState.vue';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -7,20 +8,17 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { PaginatedResource } from '@/types/content';
 import type { SeriesSummary } from '@/types/series';
 import { Head, Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{ series: PaginatedResource<SeriesSummary>; filters: { active: boolean } }>();
 const route = useRoute();
 const breadcrumbs = [{ title: 'Сериалы', href: route('series.index') }];
-const plurals = new Intl.PluralRules('ru');
 function progress(series: SeriesSummary) {
     if (series.archived_at) return 'В архиве';
     const count = series.accepted_episodes_count ?? 0;
     if (count === 0) return 'Черновик';
-    if (series.episode_limit)
-        return count + ' из ' + series.episode_limit + (plurals.select(series.episode_limit) === 'one' ? ' эпизода' : ' эпизодов');
-    const form = plurals.select(count);
-    return count + ' ' + (form === 'one' ? 'эпизод' : form === 'few' ? 'эпизода' : 'эпизодов');
+    if (series.episode_limit) return count + ' из ' + formatCount(series.episode_limit, 'эпизода', 'эпизодов', 'эпизодов');
+    return formatCount(count, 'эпизод', 'эпизода', 'эпизодов');
 }
 </script>
 

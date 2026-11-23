@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { DashboardPageProps } from '@/types/content';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const page = usePage<DashboardPageProps & { analytics: MetricsReport }>();

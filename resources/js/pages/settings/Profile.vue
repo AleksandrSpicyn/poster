@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
@@ -7,10 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { type BreadcrumbItem, type SharedData, type User } from '@/types';
+import type { BreadcrumbItem, SharedData, User } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref } from 'vue';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -43,16 +47,12 @@ function readSection() {
         void nextTick(() => document.getElementById('email')?.focus());
     }
 }
-onMounted(() => {
-    readSection();
-    window.addEventListener('hashchange', readSection);
-});
-onUnmounted(() => window.removeEventListener('hashchange', readSection));
+useHashNavigation(readSection);
 const emailNotice = computed(
     () => !user.value.email_verified_at && (section.value === 'change-email' || (!section.value && props.status === 'verification-link-sent')),
 );
 const submit = () => {
-    form.patch(route('profile.update'), {
+    submitForm(form, 'profile.update', {
         preserveScroll: true,
     });
 };

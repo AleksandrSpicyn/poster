@@ -18,8 +18,8 @@ export type AnalyticsFilters = {
     exclude_channels: number[];
     channel?: number | null;
 };
-export type AnalyticsProject = Pick<ProjectSummary, 'id' | 'name' | 'cover' | 'is_clipping' | 'content_mode'>;
-export type AnalyticsChannel = { id: number; name: string; platform: string; projects: number[] };
+type AnalyticsProject = Pick<ProjectSummary, 'id' | 'name' | 'cover' | 'is_clipping' | 'content_mode'>;
+type AnalyticsChannel = { id: number; name: string; platform: string; projects: number[] };
 export type PublicationTimeline = {
     key: string;
     platform: string;

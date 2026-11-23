@@ -1,0 +1,7 @@
+{
+    "$schema": "./node_modules/knip/schema.json",
+    "entry": ["resources/js/types/*.d.ts", "nuxt.config.ts"],
+    "project": ["resources/js/**/*.{vue,ts}", "*.config.{js,mjs,ts}", "resources/css/**/*.css"],
+    "nuxt": false,
+    "ignoreDependencies": ["concurrently", "eslint-plugin-vue"]
+}

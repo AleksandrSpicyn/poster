@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
     assembly: number;
@@ -20,7 +20,7 @@ const props = defineProps<{
     saved?: { notes: string; reviewed: boolean };
 }>();
 const emit = defineEmits<{ saved: [] }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const form = useForm({ lock_version: props.version, notes: props.saved?.notes ?? '', reviewed: props.saved?.reviewed ?? false });
 const errors = computed<Record<string, string | undefined>>(() => form.errors);
 function seekFrame(event: Event, seconds: number) {
@@ -37,7 +37,7 @@ watch(
     },
 );
 function save() {
-    form.put(route('series_assemblies.boundaries.update', { assembly: props.assembly, boundary: props.number }), {
+    submitForm(form, ['series_assemblies.boundaries.update', { assembly: props.assembly, boundary: props.number }], {
         preserveScroll: true,
         onSuccess: () => {
             form.lock_version = props.version;

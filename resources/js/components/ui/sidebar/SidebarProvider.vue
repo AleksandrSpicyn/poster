@@ -1,92 +1,102 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
-import { useEventListener, useMediaQuery, useVModel } from '@vueuse/core'
-import { TooltipProvider } from 'reka-ui'
-import { computed, type HTMLAttributes, type Ref, ref, watch } from 'vue'
-import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from './utils'
+import { cn } from '@/lib/utils';
+import { useEventListener, useMediaQuery, useVModel } from '@vueuse/core';
+import { TooltipProvider } from 'reka-ui';
+import { computed, type HTMLAttributes, type Ref, ref, watch } from 'vue';
+import {
+    provideSidebarContext,
+    SIDEBAR_COOKIE_MAX_AGE,
+    SIDEBAR_COOKIE_NAME,
+    SIDEBAR_KEYBOARD_SHORTCUT,
+    SIDEBAR_WIDTH,
+    SIDEBAR_WIDTH_ICON,
+} from './utils';
 
-const props = withDefaults(defineProps<{
-  defaultOpen?: boolean
-  open?: boolean
-  class?: HTMLAttributes['class']
-}>(), {
-  defaultOpen: true,
-  open: undefined,
-})
+const props = withDefaults(
+    defineProps<{
+        defaultOpen?: boolean;
+        open?: boolean;
+        class?: HTMLAttributes['class'];
+    }>(),
+    {
+        defaultOpen: true,
+        open: undefined,
+    },
+);
 
 const emits = defineEmits<{
-  'update:open': [open: boolean]
-}>()
+    'update:open': [open: boolean];
+}>();
 
-const isMobile = useMediaQuery('(max-width: 699px)')
-const openMobile = ref(false)
+const isMobile = useMediaQuery('(max-width: 699px)');
+const openMobile = ref(false);
 watch(isMobile, (mobile) => {
-  if (!mobile) openMobile.value = false
-})
+    if (!mobile) openMobile.value = false;
+});
 
-const tablet = useMediaQuery('(min-width: 700px) and (max-width: 1099px)')
-const tabletOpen = ref(false)
+const tablet = useMediaQuery('(min-width: 700px) and (max-width: 1099px)');
+const tabletOpen = ref(false);
 const desktopOpen = useVModel(props, 'open', emits, {
-  defaultValue: props.defaultOpen ?? false,
-  passive: (props.open === undefined) as false,
-}) as Ref<boolean>
+    defaultValue: props.defaultOpen ?? false,
+    passive: (props.open === undefined) as false,
+}) as Ref<boolean>;
 
-const open = computed(() => tablet.value ? tabletOpen.value : desktopOpen.value)
+const sidebarOpen = computed(() => (tablet.value ? tabletOpen.value : desktopOpen.value));
 
 function setOpen(value: boolean) {
-  if (tablet.value) {
-    tabletOpen.value = value
-    return
-  }
-  desktopOpen.value = value // emits('update:open', value)
+    if (tablet.value) {
+        tabletOpen.value = value;
+        return;
+    }
+    desktopOpen.value = value; // emits('update:open', value)
 
-  // This sets the cookie to keep the sidebar state.
-  document.cookie = `${SIDEBAR_COOKIE_NAME}=${open.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+    // This sets the cookie to keep the sidebar state.
+    document.cookie = `${SIDEBAR_COOKIE_NAME}=${sidebarOpen.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 }
 
 function setOpenMobile(value: boolean) {
-  openMobile.value = value
+    openMobile.value = value;
 }
 
 // Helper to toggle the sidebar.
 function toggleSidebar() {
-  return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!open.value)
+    return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!sidebarOpen.value);
 }
 
 useEventListener('keydown', (event: KeyboardEvent) => {
-  if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
-    event.preventDefault()
-    toggleSidebar()
-  }
-})
+    if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        toggleSidebar();
+    }
+});
 
 // We add a state so that we can do data-state="expanded" or "collapsed".
 // This makes it easier to style the sidebar with Tailwind classes.
-const state = computed(() => open.value ? 'expanded' : 'collapsed')
+const state = computed(() => (sidebarOpen.value ? 'expanded' : 'collapsed'));
 
 provideSidebarContext({
-  state,
-  open,
-  setOpen,
-  isMobile,
-  openMobile,
-  setOpenMobile,
-  toggleSidebar,
-})
+    state,
+    open: sidebarOpen,
+    setOpen,
+    isMobile,
+    openMobile,
+    setOpenMobile,
+    toggleSidebar,
+});
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="0">
-    <div
-      data-slot="sidebar-wrapper"
-      :style="{
-        '--sidebar-width': SIDEBAR_WIDTH,
-        '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
-      }"
-      :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full', props.class)"
-      v-bind="$attrs"
-    >
-      <slot />
-    </div>
-  </TooltipProvider>
+    <TooltipProvider :delay-duration="0">
+        <div
+            data-slot="sidebar-wrapper"
+            :style="{
+                '--sidebar-width': SIDEBAR_WIDTH,
+                '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
+            }"
+            :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full', props.class)"
+            v-bind="$attrs"
+        >
+            <slot />
+        </div>
+    </TooltipProvider>
 </template>

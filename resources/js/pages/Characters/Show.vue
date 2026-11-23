@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
+import { formatCount } from '@/lib/formatCount';
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import CharacterRevisionCard from '@/components/characters/CharacterRevisionCard.vue';
@@ -11,8 +14,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { PaginatedResource } from '@/types/content';
 import type { CharacterRevision, CharacterSummary, SeriesSummary } from '@/types/series';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     project: { id: number; name: string };
@@ -23,6 +26,7 @@ const props = defineProps<{
     revisions: PaginatedResource<CharacterRevision>;
     referenceViews: Record<string, string>;
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const archived = computed(() => !!props.character.archived_at || !!props.series.archived_at);
 const sectionHash = ref('');
@@ -31,11 +35,7 @@ const selectedRevision = computed(() => props.revisions.data.find((revision) => 
 const editableVersions = computed(() => (archived.value ? [] : props.revisions.data.filter((revision) => revision.status === 'draft')));
 const uploadRevision = computed(() => editableVersions.value.find((revision) => sectionHash.value === '#references-' + revision.id));
 const referenceCount = computed(() => props.revisions.data.reduce((total, version) => total + (version.references?.length ?? 0), 0));
-const referenceCountLabel = computed(() => {
-    const count = referenceCount.value;
-    const ending = new Intl.PluralRules('ru').select(count);
-    return count + ' ' + (ending === 'one' ? 'изображение' : ending === 'few' ? 'изображения' : 'изображений');
-});
+const referenceCountLabel = computed(() => formatCount(referenceCount.value, 'изображение', 'изображения', 'изображений'));
 function readHash() {
     sectionHash.value = window.location.hash;
     if (uploadRevision.value || newVersion.value || selectedRevision.value) nextTick(() => window.scrollTo(0, 0));
@@ -43,11 +43,7 @@ function readHash() {
 function showUpload(id: number) {
     window.location.hash = 'references-' + id;
 }
-onMounted(() => {
-    readHash();
-    window.addEventListener('hashchange', readHash);
-});
-onUnmounted(() => window.removeEventListener('hashchange', readHash));
+useHashNavigation(readHash);
 const titleField = ref<HTMLInputElement | null>(null);
 const portrait = computed(
     () => props.character.current_revision?.references?.[0] ?? props.revisions.data.flatMap((version) => version.references ?? [])[0],
@@ -81,10 +77,10 @@ const breadcrumbs = computed(() => [
         : []),
 ]);
 function saveName() {
-    nameForm.patch(route('characters.update', params), { preserveState: 'errors' });
+    submitForm(nameForm, ['characters.update', params], { preserveState: 'errors' });
 }
 function createRevision() {
-    revisionForm.post(route('characters.revisions.store', params), {
+    submitForm(revisionForm, ['characters.revisions.store', params], {
         preserveState: 'errors',
         onError: () => {
             window.location.hash = 'new-version';
@@ -95,7 +91,7 @@ function createRevision() {
     });
 }
 function archive() {
-    archiveForm.post(route('characters.archive', params), { preserveState: 'errors' });
+    submitForm(archiveForm, ['characters.archive', params], { preserveState: 'errors' });
 }
 function changePage(page: number) {
     router.get(characterUrl.value, { page }, { preserveScroll: true });
@@ -264,15 +260,15 @@ function changePage(page: number) {
                     <div v-if="revisions.data.length" class="space-y-6">
                         <CharacterRevisionCard
                             v-for="revision in selectedRevision ? [selectedRevision] : revisions.data"
-                            :key="revision.id + ':' + revision.lock_version"
                             :id="selectedRevision ? undefined : 'revision-' + revision.id"
+                            :key="revision.id + ':' + revision.lock_version"
                             :focused="!!selectedRevision"
-                            @open-upload="showUpload(revision.id)"
                             :revision="revision"
                             :approved-revision="character.current_revision"
                             :params="params"
                             :reference-views="referenceViews"
                             :archived="archived"
+                            @open-upload="showUpload(revision.id)"
                         />
                     </div>
                     <nav

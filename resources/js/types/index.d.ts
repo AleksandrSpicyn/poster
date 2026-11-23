@@ -52,14 +52,4 @@ export interface User {
     updated_at: string;
 }
 
-export interface Channel {
-    id: number;
-    name: string;
-    type: ChannelType;
-}
-
-export type { PostSummary as Post } from './content';
-export type LaravelPagination<T> = import('./content').PaginatedResource<T>;
-
-export type BreadcrumbItemType = BreadcrumbItem;
 export type ChannelType = 'youtube' | 'instagram' | 'tiktok' | 'vk';

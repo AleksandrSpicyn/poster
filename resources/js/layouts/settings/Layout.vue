@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 defineProps<{ title: string; description: string }>();
 const route = useRoute();

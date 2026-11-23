@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { listRequestErrors } from '@/lib/api/listRequestErrors';
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
@@ -6,8 +8,8 @@ import { CircleAlert, CircleCheck, CircleDashed, Clock3 } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Form, Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 type Source = {
     project_id: number;
@@ -61,11 +63,7 @@ const refreshError = ref('');
 const updateHash = () => {
     hash.value = location.hash;
 };
-onMounted(() => {
-    updateHash();
-    window.addEventListener('hashchange', updateHash);
-});
-onUnmounted(() => window.removeEventListener('hashchange', updateHash));
+useHashNavigation(updateHash);
 const date = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 function time(value: string) {
     return date.format(new Date(value)) + ' UTC';
@@ -111,18 +109,7 @@ function refresh() {
                 document.getElementById('history-refresh')?.focus();
             }
         },
-        onHttpException: (response) => {
-            if (response.status === 419) return;
-            refreshError.value =
-                response.status === 403
-                    ? 'Доступ к списку ограничен.'
-                    : 'Не удалось обновить список. На экране остались последние загруженные данные.';
-            return false;
-        },
-        onNetworkError: () => {
-            refreshError.value = 'Нет связи. Проверьте подключение и повторите попытку.';
-            return false;
-        },
+        ...listRequestErrors(refreshError),
         onFinish: () => {
             refreshPending.value = false;
         },
@@ -287,10 +274,10 @@ function refresh() {
                         </dl>
                         <Form
                             v-if="paused"
+                            v-slot="{ processing }"
                             :action="route('clipping.sources.resume', [source.clipping_connection_id, source.id])"
                             method="post"
                             preserve-scroll
-                            v-slot="{ processing }"
                         >
                             <Button type="submit" :disabled="processing">Возобновить</Button>
                         </Form>
@@ -317,26 +304,10 @@ function refresh() {
 .history-heading button {
     min-height: 44px;
 }
-.history-chip {
-    min-height: 40px;
-    padding: 0 12px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-    border-radius: 8px;
-    font-size: 14px;
-}
-.history-chip[aria-pressed='true'],
-.history-chip[aria-expanded='true'] {
-    color: var(--ring);
-    background: var(--sidebar-accent);
-}
 .import-history h2 {
     font-size: 20px;
     font-weight: 700;
     line-height: 1.4;
-}
-.history-resource {
-    border-bottom: 1px solid var(--border);
 }
 .history-row {
     display: grid;
@@ -351,9 +322,6 @@ function refresh() {
     color: var(--muted-foreground);
     font-size: 14px;
 }
-.history-resource:first-of-type {
-    margin-top: 14px;
-}
 .history-row [data-status='success'] {
     color: var(--sidebar-accent-foreground);
 }
@@ -366,7 +334,8 @@ function refresh() {
     font-size: 14px;
 }
 .history-detail {
-    max-width: 780px;
+    width: 100%;
+    max-width: none;
 }
 .history-state {
     padding: 14px 16px;
@@ -383,10 +352,6 @@ function refresh() {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.45fr);
     gap: 16px;
     align-items: start;
-}
-.history-detail {
-    width: 100%;
-    max-width: none;
 }
 .history-preview {
     padding: 16px;

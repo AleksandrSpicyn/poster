@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 </script>

@@ -60,7 +60,6 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                 :episode-number="workspace.episode.number"
                 :caption="workspace.screenplay?.public_caption"
                 :section="section"
-                @navigate="section = $event"
                 :params="{ series: workspace.series.id, episode: workspace.episode.id }"
                 :channels="workspace.channels.filter((c) => ['youtube', 'instagram', 'tiktok'].includes(c.type))"
                 :publications="workspace.publications.filter((p) => p.episode_assembly_id === assembly.id)"
@@ -68,6 +67,7 @@ const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== ass
                 :current-accepted="workspace.episode.accepted_assembly_id === assembly.id && workspace.episode.validity === 'current'"
                 :archived="!!workspace.series.archived_at"
                 :project-enabled="workspace.project.is_active"
+                @navigate="section = $event"
             />
             <details v-if="otherVersions.length" class="mt-3">
                 <summary>Другие версии сборки</summary>

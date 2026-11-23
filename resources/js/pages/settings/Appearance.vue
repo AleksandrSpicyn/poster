@@ -4,7 +4,7 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const { appearance, updateAppearance } = useAppearance();

@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { PromptsPageProps } from '@/types/content';
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const page = usePage<PromptsPageProps>();

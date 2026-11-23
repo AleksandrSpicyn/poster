@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from '@lucide/vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -16,7 +19,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('password.confirm.store'), {
+    submitForm(form, 'password.confirm.store', {
         onFinish: () => {
             form.reset();
         },
@@ -34,9 +37,9 @@ const submit = () => {
                     <Label for="password">Текущий пароль</Label>
                     <Input
                         id="password"
+                        v-model="form.password"
                         type="password"
                         class="mt-1 block w-full"
-                        v-model="form.password"
                         required
                         autocomplete="current-password"
                         autofocus

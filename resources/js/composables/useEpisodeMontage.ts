@@ -1,14 +1,15 @@
+import { useFormApi } from '@/lib/api/useFormApi';
 import type { SharedData } from '@/types';
 import type { EpisodeWorkspaceProps } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 type Fragment = { prompt_id: number; trim_start_ms: number; trim_end_ms: number };
 const copy = (items: Fragment[]) => items.map((item) => ({ ...item }));
 
 export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
-    const route = useRoute();
+    const submitForm = useFormApi();
+
     const params = { series: props.series.id, episode: props.episode.id };
     const revision = computed(() => props.episode.current_revision);
     const shots = computed(() => revision.value?.scenes.flatMap((scene) => scene.shots) ?? []);
@@ -155,15 +156,14 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
                 : 'Не удалось сохранить монтаж. Оставьте вкладку открытой и повторите отправку.';
             return false as const;
         };
-        assemblyForm
-            .transform((data) => ({ ...data, base_assembly_id: latestAssemblyId.value }))
-            .post(route('episodes.assemblies.store', { ...params, revision: revision.value.id }), {
-                preserveScroll: true,
-                preserveState: 'errors',
-                onSuccess: clearMontageDraft,
-                onNetworkError: failed,
-                onHttpException: (response) => (response.status === 419 ? undefined : failed()),
-            });
+        assemblyForm.transform((data) => ({ ...data, base_assembly_id: latestAssemblyId.value }));
+        submitForm(assemblyForm, ['episodes.assemblies.store', { ...params, revision: revision.value.id }], {
+            preserveScroll: true,
+            preserveState: 'errors',
+            onSuccess: clearMontageDraft,
+            onNetworkError: failed,
+            onHttpException: (response) => (response.status === 419 ? undefined : failed()),
+        });
     }
     return {
         readyTakes,

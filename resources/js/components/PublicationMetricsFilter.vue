@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 import { Button } from '@/components/ui/button';
 import { counterNames, metricPeriods, platformNames } from '@/types/analytics';
 import type { AnalyticsFilters, MetricsReport } from '@/types/analytics';

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
+import { formatCount } from '@/lib/formatCount';
 import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
@@ -8,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import type { CharacterRevision, CharacterRouteParams } from '@/types/series';
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
     revision: CharacterRevision;
@@ -20,7 +21,7 @@ const props = defineProps<{
     approvedRevision?: CharacterRevision | null;
 }>();
 const emit = defineEmits<{ openUpload: [] }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const params = { ...props.params, revision: props.revision.id };
 const editable = computed(() => props.revision.status === 'draft' && !props.archived);
 const editForm = useForm({
@@ -54,11 +55,11 @@ const uploadFailure = ref('');
 const removeFailure = ref('');
 
 function update() {
-    editForm.patch(route('characters.revisions.update', params), { preserveScroll: true, preserveState: 'errors' });
+    submitForm(editForm, ['characters.revisions.update', params], { preserveScroll: true, preserveState: 'errors' });
 }
 function upload() {
     uploadFailure.value = '';
-    uploadForm.post(route('characters.references.store', params), {
+    submitForm(uploadForm, ['characters.references.store', params], {
         preserveScroll: true,
         preserveState: 'errors',
         onNetworkError: () => {
@@ -73,11 +74,11 @@ function upload() {
     });
 }
 function approve() {
-    approvalForm.post(route('characters.revisions.approve', params), { preserveScroll: true, preserveState: 'errors' });
+    submitForm(approvalForm, ['characters.revisions.approve', params], { preserveScroll: true, preserveState: 'errors' });
 }
 function remove(media: number) {
     removeFailure.value = '';
-    removeForm.delete(route('characters.references.destroy', { ...params, media }), {
+    submitForm(removeForm, ['characters.references.destroy', { ...params, media }], {
         preserveScroll: true,
         preserveState: 'errors',
         onNetworkError: () => {
@@ -95,10 +96,6 @@ function selectFile(file: File) {
     uploadFailure.value = '';
     uploadForm.file = file;
     uploadForm.clearErrors('file');
-}
-function imageCountLabel(count: number) {
-    const form = new Intl.PluralRules('ru').select(count);
-    return form === 'one' ? 'изображение' : form === 'few' ? 'изображения' : 'изображений';
 }
 </script>
 
@@ -231,7 +228,7 @@ function imageCountLabel(count: number) {
                             <div class="studio-row">
                                 <dt>Сейчас</dt>
                                 <dd>
-                                    {{ revision.references?.length }} {{ imageCountLabel(revision.references?.length ?? 0) }} · после удаления
+                                    {{ formatCount(revision.references?.length ?? 0, 'изображение', 'изображения', 'изображений') }} · после удаления
                                     останется {{ (revision.references?.length ?? 1) - 1 }}
                                 </dd>
                             </div>

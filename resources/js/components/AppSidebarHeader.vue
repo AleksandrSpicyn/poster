@@ -2,12 +2,12 @@
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import type { BreadcrumbItemType } from '@/types';
+import type { BreadcrumbItem } from '@/types';
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
-const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>(), { breadcrumbs: () => [] });
+const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), { breadcrumbs: () => [] });
 const route = useRoute();
 const studio = { title: 'Обзор', href: route('dashboard') };
 const parentTrail = computed(() => props.breadcrumbs.at(-1)?.href.startsWith('#'));

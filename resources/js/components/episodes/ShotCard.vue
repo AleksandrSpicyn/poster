@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import InputError from '@/components/InputError.vue';
 import ShotOperationControls from '@/components/episodes/ShotOperationControls.vue';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import type { EpisodeRouteParams, ShotSummary } from '@/types/episodes';
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
     shot: ShotSummary;
@@ -22,7 +22,7 @@ const props = defineProps<{
     number?: number;
     sourceOptions: { id: number; label: string }[];
 }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const params = { ...props.params, revision: props.revisionId, scene: props.shot.scene_id, shot: props.shot.id };
 const form = useForm({ source_prompt_id: props.shot.source_prompt_id ?? '', request_key: props.requestKey + '-' + props.shot.id, new_take: false });
 const cancelForm = useForm({});
@@ -49,14 +49,12 @@ function pauseHiddenMedia(event: Event) {
 }
 function generate(newTake: boolean) {
     form.new_take = newTake;
-    form.transform((data) => ({ ...data, source_prompt_id: data.source_prompt_id === '' ? null : Number(data.source_prompt_id) })).post(
-        route('shots.generate', params),
-        { preserveScroll: true, preserveState: 'errors' },
-    );
+    form.transform((data) => ({ ...data, source_prompt_id: data.source_prompt_id === '' ? null : Number(data.source_prompt_id) }));
+    submitForm(form, ['shots.generate', params], { preserveScroll: true, preserveState: 'errors' });
 }
 function stop(prompt: number) {
     if (cancelForm.processing || stopping.value !== prompt) return;
-    cancelForm.post(route('shots.cancel', { ...params, prompt }), {
+    submitForm(cancelForm, ['shots.cancel', { ...params, prompt }], {
         preserveScroll: true,
         preserveState: 'errors',
         onSuccess: () => {

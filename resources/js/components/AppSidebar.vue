@@ -7,7 +7,7 @@ import { useNavigation } from '@/composables/useNavigation';
 import { computed } from 'vue';
 import { Settings } from '@lucide/vue';
 import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 

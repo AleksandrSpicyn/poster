@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { seriesSettingsSections as sections } from '@/lib/seriesSettingsSections';
 import { Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{ projectId: number; section: string }>();
 const route = useRoute();

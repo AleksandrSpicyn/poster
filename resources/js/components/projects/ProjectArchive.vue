@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import { Button } from '@/components/ui/button';
 import { useForm } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
 const props = defineProps<{ projectId: number; archived: boolean }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const archiveForm = useForm({ archived: false });
 function toggleArchive() {
     archiveForm.archived = !props.archived;
-    archiveForm.patch(route('projects.archive', props.projectId));
+    submitForm(archiveForm, ['projects.archive', props.projectId]);
 }
 </script>
 <template>

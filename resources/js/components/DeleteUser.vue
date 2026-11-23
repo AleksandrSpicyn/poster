@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -6,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
 import { CircleAlert } from '@lucide/vue';
 import { ref } from 'vue';
-import { useRoute } from 'ziggy-js';
-const route = useRoute();
+const submitForm = useFormApi();
 const passwordInput = ref<InstanceType<typeof Input> | null>(null);
 const form = useForm({ password: '' });
 function reset(open: boolean) {
@@ -17,7 +17,7 @@ function reset(open: boolean) {
     }
 }
 function remove() {
-    form.delete(route('profile.destroy'), { preserveScroll: true, onError: () => passwordInput.value?.focus(), onSuccess: () => reset(false) });
+    submitForm(form, 'profile.destroy', { preserveScroll: true, onError: () => passwordInput.value?.focus(), onSuccess: () => reset(false) });
 }
 </script>
 <template>

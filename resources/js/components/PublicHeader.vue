@@ -3,7 +3,7 @@ import AppLogo from '@/components/AppLogo.vue';
 import type { SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 defineProps<{ workspaceLink?: boolean }>();
 const route = useRoute();

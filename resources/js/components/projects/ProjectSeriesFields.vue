@@ -61,10 +61,10 @@ const labels: Record<string, string> = {
             <Input
                 id="passport-voice"
                 :model-value="cast.voice_description ?? ''"
-                @update:model-value="cast.voice_description = String($event)"
                 :disabled="processing"
                 maxlength="2000"
                 :required="cast.use_series_voice"
+                @update:model-value="cast.voice_description = String($event)"
             />
             <InputError :message="errors['cast_settings.voice_description']" />
             <label class="flex min-h-12 items-start gap-3">

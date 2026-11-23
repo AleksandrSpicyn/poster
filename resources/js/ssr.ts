@@ -1,21 +1,19 @@
-import type { Page } from '@inertiajs/core';
 import type { SharedData } from '@/types';
+import type { Page } from '@inertiajs/core';
 import { createInertiaApp } from '@inertiajs/vue3';
 import createServer from '@inertiajs/vue3/server';
-import { renderToString } from '@vue/server-renderer';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { createSSRApp, h, type DefineComponent } from 'vue';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { ZiggyVue } from 'ziggy-js';
-
-const appName = import.meta.env.VITE_APP_NAME || 'Poster';
+import { pageTitle, resolvePage } from './inertiaPages';
 
 // Отдельная точка SSR использует те же страницы и props, без браузерной инициализации темы.
 createServer((page) =>
     createInertiaApp<SharedData>({
         page: page as Page<SharedData>,
         render: renderToString,
-        title: (title) => `${title} - ${appName}`,
-        resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
+        title: pageTitle,
+        resolve: resolvePage,
         setup({ App, props, plugin }) {
             return createSSRApp({ render: () => h(App, props) })
                 .use(plugin)

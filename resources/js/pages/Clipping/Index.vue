@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 defineProps<{
     connections: {

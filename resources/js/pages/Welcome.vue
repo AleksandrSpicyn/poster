@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import type { SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-import { onMounted, onUnmounted, useTemplateRef } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useTemplateRef } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 import lunarLandscape from '../../assets/studio/lunar-landscape.webp';
 import projectTray from '../../assets/studio/project-tray.webp';
 
@@ -18,11 +19,7 @@ function revealSection() {
     if (window.location.hash === '#workflow' || window.location.hash === '#workspace') openWorkflow();
 }
 
-onMounted(() => {
-    revealSection();
-    window.addEventListener('hashchange', revealSection);
-});
-onUnmounted(() => window.removeEventListener('hashchange', revealSection));
+useHashNavigation(revealSection);
 </script>
 
 <template>
@@ -37,7 +34,9 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
                     <nav aria-label="Навигация">
                         <a href="#features">Возможности</a><a href="#workflow" class="flow-link" @click="openWorkflow">Рабочий процесс</a>
                     </nav>
-                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">{{ page.props.auth.user ? 'Моя студия' : 'Войти в студию' }}</a>
+                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">{{
+                        page.props.auth.user ? 'Моя студия' : 'Войти в студию'
+                    }}</a>
                 </div>
             </header>
             <main id="main" tabindex="-1">
@@ -73,7 +72,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
                             </svg>
                         </figure>
                     </section>
-                    <section class="features" id="features" aria-labelledby="cap" tabindex="-1">
+                    <section id="features" class="features" aria-labelledby="cap" tabindex="-1">
                         <h2 id="cap">Возможности студии</h2>
                         <div class="items">
                             <article class="feature" style="--i: 0">
@@ -110,7 +109,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
             </main>
         </div>
         <div class="outer">
-            <details ref="workflow" id="workflow" class="flow" open>
+            <details id="workflow" ref="workflow" class="flow" open>
                 <summary>
                     <h2>Рабочий процесс</h2>
                     <span class="flow-chevron" aria-hidden="true"></span>
@@ -149,6 +148,14 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
     --edge: #514c62;
     --lime: #c9fa48;
     --pad: clamp(20px, 3.4vw, 66px);
+    margin: 0;
+    color: var(--ink);
+    font:
+        16px/1.45 'Poster Sans',
+        system-ui,
+        sans-serif;
+    background: var(--bg) url('../../assets/studio/landing-glow-desktop.webp') center top / 100% 100svh no-repeat;
+    min-height: 100vh;
 }
 * {
     box-sizing: border-box;
@@ -156,15 +163,6 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
 :global(html:has(.landing)) {
     scroll-behavior: smooth;
     scroll-padding-top: 20px;
-}
-.landing {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font:
-        16px/1.45 'Poster Sans',
-        system-ui,
-        sans-serif;
 }
 a {
     color: inherit;
@@ -184,9 +182,6 @@ figure {
 }
 .top {
     overflow: hidden;
-}
-.landing {
-    background: var(--bg) url('../../assets/studio/landing-glow-desktop.webp') center top / 100% 100svh no-repeat;
 }
 .outer {
     max-width: 1780px;
@@ -227,6 +222,9 @@ figure {
     display: flex;
     gap: clamp(18px, 3.2vw, 54px);
 }
+.copy a {
+    pointer-events: auto;
+}
 .nav nav a,
 .login,
 .cta {
@@ -238,6 +236,9 @@ figure {
 }
 .nav nav a {
     font-size: clamp(14px, 1.4vw, 22px);
+}
+.foot a:hover {
+    text-decoration: underline;
 }
 .nav nav a:hover {
     color: #d8c5ff;
@@ -265,9 +266,6 @@ figure {
     padding: clamp(32px, 4vw, 72px) 0;
     pointer-events: none;
 }
-.copy a {
-    pointer-events: auto;
-}
 h1 {
     font-size: clamp(64px, 7.15vw, 128px);
     position: relative;
@@ -278,6 +276,9 @@ h1 {
 h1 span {
     display: block;
     white-space: nowrap;
+}
+.cta span {
+    transition: transform 0.2s ease;
 }
 h1 span:last-child {
     width: fit-content;
@@ -300,11 +301,13 @@ h1 span:last-child {
     color: #19200d;
     font-size: clamp(16px, 1.45vw, 24px);
 }
-.cta span {
-    transition: transform 0.2s ease;
-}
 .cta:hover {
     background: #dafb78;
+}
+.flow-cover figcaption span {
+    display: block;
+    font-size: 14px;
+    color: #e6dae7;
 }
 .cta:hover span,
 .cta:focus-visible span {
@@ -334,6 +337,11 @@ h1 span:last-child {
     --features-inset: calc(25px + clamp(16px, 3vw, 48px));
     border-top: 1px solid #797286;
     padding-block: var(--features-inset);
+}
+h1,
+h2,
+h3 {
+    font-weight: 700;
 }
 .features h2 {
     margin-bottom: clamp(24px, 2vw, 34px);
@@ -473,11 +481,6 @@ h1 span:last-child {
     z-index: 1;
     inset: auto clamp(20px, 2vw, 34px) clamp(18px, 2vw, 32px);
 }
-.flow-cover figcaption span {
-    display: block;
-    font-size: 14px;
-    color: #e6dae7;
-}
 .flow-cover strong {
     font-size: clamp(26px, 2.6vw, 42px);
     letter-spacing: -0.05em;
@@ -528,9 +531,6 @@ h1 span:last-child {
     color: var(--muted);
     font-size: 13px;
 }
-.foot a:hover {
-    text-decoration: underline;
-}
 .skip {
     position: absolute;
     top: -8em;
@@ -541,6 +541,7 @@ h1 span:last-child {
     z-index: 5;
     background: var(--bg);
     padding: 12px;
+    position: absolute;
 }
 @keyframes place-sheet {
     from {
@@ -709,16 +710,5 @@ h1 span:last-child {
     .cta:focus-visible span {
         transform: none;
     }
-}
-.landing {
-    min-height: 100vh;
-}
-h1,
-h2,
-h3 {
-    font-weight: 700;
-}
-.skip:focus {
-    position: absolute;
 }
 </style>

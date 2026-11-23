@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import SeriesSettingsTabs from '@/components/projects/SeriesSettingsTabs.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -8,9 +9,10 @@ import type { ProjectSummary } from '@/types/projects';
 import { Head, useForm } from '@inertiajs/vue3';
 import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import { computed, onUnmounted, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 const { project } = defineProps<{ project: ProjectSummary }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const form = useForm({ file: null as File | null, base_id: project.cover?.id ?? null, x: project.cover?.x ?? 50, y: project.cover?.y ?? 50 });
 const localImage = ref('');
@@ -50,7 +52,7 @@ function move(event: PointerEvent) {
         form.y = clamp(((((event.clientY - area.top) / area.height) * 100 - cropHeight.value / 2) / (100 - cropHeight.value)) * 100);
 }
 function save() {
-    form.post(route('projects.cover.store', project.id), { preserveState: 'errors', forceFormData: true });
+    submitForm(form, ['projects.cover.store', project.id], { preserveState: 'errors', forceFormData: true });
 }
 </script>
 <template>

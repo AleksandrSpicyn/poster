@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import Heading from '@/components/Heading.vue';
 import TiktokPublicationReceipt from '@/components/TiktokPublicationReceipt.vue';
@@ -7,8 +8,9 @@ import type { ProjectSummary } from '@/types/projects';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref, watch } from 'vue';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     channelId: number;
@@ -36,6 +38,7 @@ const props = defineProps<{
         prev_page_url: string | null;
     };
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const page = usePage();
 const form = useForm({
@@ -120,11 +123,7 @@ function restoreReceipt() {
         void nextTick(() => document.getElementById('publication-status')?.focus());
     }
 }
-onMounted(() => {
-    restoreReceipt();
-    window.addEventListener('hashchange', restoreReceipt);
-});
-onUnmounted(() => window.removeEventListener('hashchange', restoreReceipt));
+useHashNavigation(restoreReceipt);
 
 const refreshingReceipt = ref(false);
 const receiptError = ref('');
@@ -218,7 +217,7 @@ function readDuration(event: Event) {
 }
 function submit() {
     if (canSubmit.value)
-        form.post(route('posts.tiktok.store', props.channelId), {
+        submitForm(form, ['posts.tiktok.store', props.channelId], {
             onError: () => {
                 tab.value = 'Параметры';
             },
@@ -312,10 +311,10 @@ watch(
                 <nav v-if="video && !directDetails" aria-label="Разделы публикации" class="delivery-tabs flex flex-wrap gap-2">
                     <Button
                         v-for="item in tabs"
+                        :id="item === 'Статус' ? 'publication-status' : undefined"
                         :key="item"
                         :variant="tab === item ? 'secondary' : 'outline'"
                         :aria-current="tab === item ? 'page' : undefined"
-                        :id="item === 'Статус' ? 'publication-status' : undefined"
                         @click="selectTab(item)"
                         >{{ item }}</Button
                     >
@@ -441,23 +440,23 @@ watch(
                                     <span v-if="directDetails">{{ availableInteractions || 'Недоступны для этого аккаунта' }}</span>
                                 </summary>
                                 <div class="grid gap-2 py-2">
-                                    <label><input type="checkbox" v-model="form.comment" :disabled="!creator.comment" /> Разрешить комментарии</label>
-                                    <label><input type="checkbox" v-model="form.duet" :disabled="!creator.duet" /> Разрешить дуэты</label>
-                                    <label><input type="checkbox" v-model="form.stitch" :disabled="!creator.stitch" /> Разрешить Stitch</label>
+                                    <label><input v-model="form.comment" type="checkbox" :disabled="!creator.comment" /> Разрешить комментарии</label>
+                                    <label><input v-model="form.duet" type="checkbox" :disabled="!creator.duet" /> Разрешить дуэты</label>
+                                    <label><input v-model="form.stitch" type="checkbox" :disabled="!creator.stitch" /> Разрешить Stitch</label>
                                 </div>
                             </details>
-                            <label><input type="checkbox" v-model="form.disclose" /> Указать коммерческий характер публикации</label>
+                            <label><input v-model="form.disclose" type="checkbox" /> Указать коммерческий характер публикации</label>
                             <template v-if="form.disclose"
-                                ><label><input type="checkbox" v-model="form.own_brand" /> Собственный бренд</label
-                                ><label><input type="checkbox" v-model="form.partner" /> Платное партнёрство</label></template
+                                ><label><input v-model="form.own_brand" type="checkbox" /> Собственный бренд</label
+                                ><label><input v-model="form.partner" type="checkbox" /> Платное партнёрство</label></template
                             >
-                            <label><input type="checkbox" v-model="form.ai" /> Создано с помощью ИИ</label>
+                            <label><input v-model="form.ai" type="checkbox" /> Создано с помощью ИИ</label>
                         </template>
                         <p v-if="video && consentChanged && !form.consent" role="status">
                             Подтвердите изменения. Предыдущее согласие относилось к другим настройкам.
                         </p>
                         <label v-if="video && !tooLong"
-                            ><input type="checkbox" v-model="form.consent" required /> Подтверждаю отправку этого видео в {{ account }} с выбранными
+                            ><input v-model="form.consent" type="checkbox" required /> Подтверждаю отправку этого видео в {{ account }} с выбранными
                             настройками.</label
                         >
                         <p v-if="video && !tooLong && form.mode === 'direct'">
@@ -519,12 +518,6 @@ form > label textarea {
 form > button {
     justify-self: start;
 }
-form > button:disabled,
-header > button:disabled {
-    color: var(--muted-foreground);
-    background: var(--muted);
-    opacity: 1;
-}
 .delivery-tabs button {
     height: 40px;
     padding-inline: 12px;
@@ -533,6 +526,12 @@ header > button:disabled {
     color: var(--muted-foreground);
     box-shadow: none;
 }
+form > button:disabled,
+header > button:disabled {
+    color: var(--muted-foreground);
+    background: var(--muted);
+    opacity: 1;
+}
 .delivery-tabs button[aria-current] {
     color: var(--ring);
     background: var(--sidebar-accent);
@@ -540,6 +539,10 @@ header > button:disabled {
 .preview-action,
 .direct-action {
     min-height: 44px;
+    font-weight: 700;
+}
+h2 {
+    font-size: 20px;
     font-weight: 700;
 }
 .preview-grid section h2 {
@@ -648,17 +651,6 @@ header > button:disabled {
     display: grid;
     align-items: start;
     gap: 16px;
-}
-.preview-video {
-    width: 100%;
-    height: 420px;
-    object-fit: contain;
-    background: black;
-    border-radius: 10px;
-}
-h2 {
-    font-size: 20px;
-    font-weight: 700;
 }
 @media (min-width: 768px) {
     .preview-grid {

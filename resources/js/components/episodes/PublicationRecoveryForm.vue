@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,18 +7,17 @@ import { Label } from '@/components/ui/label';
 import type { EpisodeRouteParams, PublicationSummary } from '@/types/episodes';
 import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
     publication: PublicationSummary;
     expanded?: boolean;
     params: EpisodeRouteParams & { revision: number; assembly: number };
 }>();
-const route = useRoute();
+const submitForm = useFormApi();
 const form = useForm({ external_id: '' });
 const errors = computed(() => Object.values(form.errors).join(' '));
 function resolve() {
-    form.post(route('episodes.publications.resolve', { ...props.params, publication: props.publication.id }), {
+    submitForm(form, ['episodes.publications.resolve', { ...props.params, publication: props.publication.id }], {
         preserveScroll: true,
         preserveState: 'errors',
         onSuccess: () => window.location.replace('#release'),

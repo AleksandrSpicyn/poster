@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import SeriesAssemblyParameters from '@/components/SeriesAssemblyParameters.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
@@ -12,8 +14,8 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { CircleCheck, Info, Circle } from '@lucide/vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, ref, watch } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<{
     assembly: {
@@ -41,6 +43,7 @@ const props = defineProps<{
     release_started: boolean;
     parameters: AssemblyParameters;
 }>();
+const submitForm = useFormApi();
 const route = useRoute();
 const tabs = { assembly: 'Сборка', parameters: 'Параметры', status: 'Статус' } as const;
 type Tab = keyof typeof tabs;
@@ -57,11 +60,7 @@ function restoreTab() {
     }
     tab.value = hash === 'parameters' || hash === 'status' ? hash : 'assembly';
 }
-onMounted(() => {
-    restoreTab();
-    window.addEventListener('hashchange', restoreTab);
-});
-onUnmounted(() => window.removeEventListener('hashchange', restoreTab));
+useHashNavigation(restoreTab);
 const statusLabels: Record<string, string> = {
     draft: 'Черновик',
     queued: 'В очереди',
@@ -373,10 +372,10 @@ async function playBoundary(time: number) {
                     </div>
                 </section>
                 <form
-                    id="assembly-review"
                     v-if="assembly.status === 'ready' && !release_started"
+                    id="assembly-review"
                     class="space-y-4 rounded-lg border p-5"
-                    @submit.prevent="form.post(route('series_assemblies.accept', assembly.id), { preserveScroll: true })"
+                    @submit.prevent="submitForm(form, ['series_assemblies.accept', assembly.id], { preserveScroll: true })"
                 >
                     <p v-if="!boundariesComplete" class="text-muted-foreground text-sm">Сохраните проверку каждого стыка перед приёмкой сборки.</p>
                     <label class="flex items-center gap-3 text-sm"

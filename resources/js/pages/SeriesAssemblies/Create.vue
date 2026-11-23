@@ -4,7 +4,7 @@ import Heading from '@/components/Heading.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { AssemblyParameters } from '@/types/series';
 import { Head } from '@inertiajs/vue3';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 defineProps<{ series: { id: number; name: string; project_id: number }; parameters: AssemblyParameters }>();
 const route = useRoute();
 </script>

@@ -48,3 +48,5 @@ _ide_helper_models.php
 /docs/images/poster-platform-*
 /docs/qa/
 /generated_images/
+
+/.nuxt/

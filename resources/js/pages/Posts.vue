@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import Heading from '@/components/Heading.vue';
 import ChannelIcon from '@/components/ChannelIcon.vue';
 import ListControls from '@/components/ListControls.vue';
@@ -10,8 +11,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { publicationStates } from '@/lib/publicationStatus';
 import type { PostsPageProps } from '@/types/content';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, ref } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const route = useRoute();
 const eventTime = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Moscow' });
@@ -28,11 +29,7 @@ const section = ref('');
 function readSection() {
     section.value = window.location.hash.slice(1);
 }
-onMounted(() => {
-    readSection();
-    window.addEventListener('hashchange', readSection);
-});
-onUnmounted(() => window.removeEventListener('hashchange', readSection));
+useHashNavigation(readSection);
 const channelLabel = computed(() => page.props.types[page.props.filters.type ?? ''] ?? 'Все площадки');
 const periodLabel = computed(() => (page.props.periodDays ? 'За ' + page.props.periodDays + ' дней' : 'За всё время'));
 function resetFilters() {

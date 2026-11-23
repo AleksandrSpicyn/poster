@@ -5,7 +5,7 @@ import type { User } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import { UserRound, LockKeyhole, Palette, LogOut } from '@lucide/vue';
 import { ref } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useRoute } from '@/composables/useRoute';
 
 defineProps<{ user: User }>();
 const emit = defineEmits<{ navigate: [] }>();

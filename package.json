@@ -5,30 +5,40 @@
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
-        "format": "prettier --write resources/",
-        "format:check": "prettier --check resources/",
-        "lint": "eslint . --fix",
+        "format": "prettier --write resources/js resources/css tests/Feature/ssr-routes.test.mjs",
+        "format:check": "prettier --check resources/js resources/css tests/Feature/ssr-routes.test.mjs",
+        "lint": "npm run lint:check -- --fix",
         "typecheck": "vue-tsc --noEmit",
-        "lint:check": "eslint ."
+        "lint:check": "nuxt prepare --dotenv .env.example && eslint --max-warnings 0 resources/js eslint.config.js stylelint.config.mjs vite.config.ts nuxt.config.ts tests/Feature/ssr-routes.test.mjs",
+        "typecheck:nuxt": "nuxt typecheck --dotenv .env.example",
+        "knip": "knip",
+        "lint:styles": "stylelint \"resources/**/*.{css,vue}\"",
+        "check:frontend": "npm run typecheck && npm run typecheck:nuxt && npm run lint:check && npm run format:check && npm run lint:styles && npm run knip && npm run test:ssr",
+        "test:ssr": "node --test tests/Feature/ssr-routes.test.mjs"
     },
     "devDependencies": {
-        "@eslint/js": "^10.0.1",
+        "@nuxt/eslint": "^1.17.0",
         "@types/node": "^26.6.6",
-        "@vue/eslint-config-typescript": "^14.9.0",
         "eslint": "^10.15.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-vue": "^10.12.1",
+        "knip": "^6.48.0",
+        "nuxt": "^4.6.4",
+        "postcss-html": "^2.0.1",
         "prettier": "^3.10.1",
         "prettier-plugin-organize-imports": "^4.3.0",
         "prettier-plugin-tailwindcss": "^0.8.1",
-        "typescript-eslint": "^8.72.2",
+        "stylelint": "^18.1.0",
+        "stylelint-config-html": "^2.0.0",
+        "stylelint-config-recommended": "^19.1.0",
+        "stylelint-config-recommended-vue": "^2.0.0",
         "vue-tsc": "^3.3.14"
     },
     "dependencies": {
+        "@inertiajs/core": "^3.11.0",
         "@inertiajs/vue3": "^3.11.0",
         "@lucide/vue": "^1.73.0",
         "@tailwindcss/vite": "^4.3.5",
-        "@tanstack/vue-table": "^9.3.1",
         "@vitejs/plugin-vue": "^6.0.11",
         "@vueuse/core": "^15.0.0",
         "class-variance-authority": "^0.7.1",
@@ -45,5 +55,8 @@
         "vite": "^8.3.8",
         "vue": "^3.5.45",
         "ziggy-js": "^2.6.5"
+    },
+    "engines": {
+        "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
     }
 }

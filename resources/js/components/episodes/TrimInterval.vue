@@ -108,8 +108,8 @@ function release(event: PointerEvent) {
             <label
                 >Начало, мс<input
                     :id="'trim-start-' + shotId"
-                    class="studio-field w-full"
                     v-model.number="start"
+                    class="studio-field w-full"
                     type="number"
                     min="0"
                     :max="duration"
@@ -118,8 +118,8 @@ function release(event: PointerEvent) {
             <label
                 >Конец, мс<input
                     :id="'trim-end-' + shotId"
-                    class="studio-field w-full"
                     v-model.number="end"
+                    class="studio-field w-full"
                     type="number"
                     min="1"
                     :max="duration"

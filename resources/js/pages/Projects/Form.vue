@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useHashNavigation } from '@/composables/useHashNavigation';
 import SeriesSettingsTabs from '@/components/projects/SeriesSettingsTabs.vue';
 import { seriesSettingsSections } from '@/lib/seriesSettingsSections';
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue';
+import ProjectChannelFields from '@/components/projects/ProjectChannelFields.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
@@ -14,31 +17,14 @@ import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<ProjectFormProps>();
+const submitForm = useFormApi();
 const route = useRoute();
 const formElement = ref<HTMLFormElement | null>(null);
 const requestError = ref('');
-const deletion = useForm({});
-const deleteError = ref('');
-function deleteProject() {
-    if (!props.project?.can_delete || props.project.blocking_runs_count || deletion.processing) return;
-    deleteError.value = '';
-    deletion.delete(route('projects.destroy', props.project.id), {
-        onSuccess: clearDraft,
-        onNetworkError: () => {
-            deleteError.value = 'Связь прервана. Повторите удаление после подключения.';
-            return false;
-        },
-        onHttpException: (response) => {
-            if (response.status === 419) return;
-            deleteError.value = 'Не удалось удалить проект. Обновите страницу и попробуйте ещё раз.';
-            return false;
-        },
-    });
-}
 const dedicatedSeries = !props.project && new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series';
 const initialMode = dedicatedSeries && 'series' in props.contentModes ? 'series' : Object.keys(props.contentModes)[0];
 const form = useForm({
@@ -229,11 +215,7 @@ function readSection() {
     }
     section.value = ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) ? hash : 'main';
 }
-onMounted(() => {
-    readSection();
-    window.addEventListener('hashchange', readSection);
-});
-onUnmounted(() => window.removeEventListener('hashchange', readSection));
+useHashNavigation(readSection);
 function revealRequiredField(event: Event) {
     const input = event.target;
     if (!(input instanceof HTMLElement) || !['project-name', 'project-prompt'].includes(input.id) || section.value === 'main') return;
@@ -270,7 +252,7 @@ function submit() {
         cast_settings: isSeries.value ? data.cast_settings : null,
         series_specification: isSeries.value ? { ...data.series_specification, premise: data.prompt } : null,
     }));
-    form.submit(props.project ? 'patch' : 'post', props.project ? route('projects.update', props.project.id) : route('projects.store'), {
+    submitForm(form, props.project ? ['projects.update', props.project.id] : 'projects.store', {
         preserveScroll: 'errors',
         onSuccess: clearDraft,
         onError: (errors) => {
@@ -363,8 +345,8 @@ function submit() {
                     <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
                 </nav>
                 <form
-                    ref="formElement"
                     id="project-form"
+                    ref="formElement"
                     class="bg-card grid min-w-0 gap-6 rounded-xl border p-5 sm:p-7"
                     :aria-busy="form.processing"
                     @invalid.capture="revealRequiredField"
@@ -433,8 +415,8 @@ function submit() {
                                 class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3"
                             >
                                 <input
-                                    type="radio"
                                     v-model="form.content_mode"
+                                    type="radio"
                                     :value="value"
                                     :disabled="form.processing || conflict || (!!series && value !== 'series')"
                                     name="format-choice"
@@ -452,9 +434,9 @@ function submit() {
                     <div v-show="section === 'main'" class="grid gap-2">
                         <Label for="project-prompt">{{ isSeries ? 'Завязка' : project ? 'Базовый промпт' : 'Описание' }}</Label>
                         <textarea
-                            rows="5"
                             id="project-prompt"
                             v-model="form.prompt"
+                            rows="5"
                             name="prompt"
                             required
                             :maxlength="limits.prompt"
@@ -517,45 +499,19 @@ function submit() {
                         <div class="studio-row">
                             <span>Общий канал</span><span>{{ sharedChannels.map((channel) => channel.name).join(', ') || 'Нет' }}</span>
                         </div>
-                        <ConfirmationDialog
-                            heading="Подтверждение удаления"
-                            :title="'Удалить «' + project.name + '»?'"
-                            description="После удаления восстановить проект нельзя."
-                            action="Удалить проект"
-                            destructive
-                            :processing="deletion.processing"
-                            :error="deleteError"
-                            @confirm="deleteProject"
-                        >
-                            <template #trigger
-                                ><Button
-                                    variant="destructive"
-                                    type="button"
-                                    :disabled="!project.can_delete || !!project.blocking_runs_count || deletion.processing"
-                                    >Удалить проект</Button
-                                ></template
-                            >
-                            <div class="studio-row">
-                                <dt>Проект</dt>
-                                <dd>{{ project.name }} · {{ project.content_mode === 'series' ? 'сериал' : 'короткие ролики' }}</dd>
-                            </div>
-                            <div class="studio-row">
-                                <dt>Активные задания</dt>
-                                <dd>{{ project.blocking_runs_count || 'Нет' }}</dd>
-                            </div>
-                        </ConfirmationDialog>
+                        <DeleteProjectDialog :project="project" @deleted="clearDraft" />
                     </div>
 
                     <ProjectSeriesFields
                         v-if="isSeries && ['main', 'cast', 'plan'].includes(section)"
-                        :characters="castCharacters ?? []"
                         v-model:cast="form.cast_settings"
-                        :section="section"
                         v-model:specification="form.series_specification"
                         v-model:automation-enabled="form.automation_enabled"
                         v-model:auto-publish="form.auto_publish"
                         v-model:episode-limit="form.episode_limit"
                         v-model:output-mode="form.output_mode"
+                        :characters="castCharacters ?? []"
+                        :section="section"
                         :output-modes="outputModes"
                         :cycle-structures="cycleStructures"
                         :scene-modes="sceneModes"
@@ -608,63 +564,13 @@ function submit() {
                             <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
                         </p>
                     </fieldset>
-                    <fieldset
-                        id="publishing-channels"
-                        tabindex="-1"
+                    <ProjectChannelFields
                         v-if="auth.can_manage_channels && section === 'channels'"
-                        class="min-w-0 space-y-3 rounded-lg border p-4 sm:p-5"
-                    >
-                        <legend class="sr-only">Каналы публикации</legend>
-
-                        <div v-if="channels.length" class="grid grid-cols-1 gap-2 divide-y">
-                            <label
-                                v-for="channel in channels"
-                                :key="channel.id"
-                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-start gap-3 py-3"
-                            >
-                                <input
-                                    v-model="form.channel_ids"
-                                    type="checkbox"
-                                    :value="channel.id"
-                                    :disabled="form.processing || conflict"
-                                    class="accent-primary mt-1 size-5 shrink-0"
-                                />
-                                <span class="min-w-0 flex-1 text-sm"
-                                    ><span class="block font-medium">{{ channel.name }} · {{ channel.type_label }}</span
-                                    ><span class="text-muted-foreground block text-xs"
-                                        >{{
-                                            channel.projects?.length
-                                                ? 'Выбран в проектах ' + channel.projects.map((project) => '«' + project.name + '»').join(', ')
-                                                : 'Доступен для подключения'
-                                        }}
-                                        ·
-                                        {{
-                                            !channel.is_active
-                                                ? 'Приостановлен'
-                                                : channel.connected
-                                                  ? (channel.account_name ?? 'Подключён')
-                                                  : 'Нужно подключение'
-                                        }}</span
-                                    ></span
-                                >
-                            </label>
-                        </div>
-                        <p v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                            Подключите канал, чтобы выбрать его для проекта.
-                        </p>
-                        <InputError :message="form.errors.channel_ids" />
-                        <InputError
-                            v-for="(error, key) in formErrors"
-                            :key="key"
-                            :message="String(key).startsWith('channel_ids.') ? error : undefined"
-                        />
-                        <Link
-                            v-if="!channels.length"
-                            :href="route('channels.index')"
-                            class="text-primary inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
-                            >Управление каналами</Link
-                        >
-                    </fieldset>
+                        v-model="form.channel_ids"
+                        :channels="channels"
+                        :disabled="form.processing || conflict"
+                        :errors="formErrors"
+                    />
                     <div
                         v-if="!['main', 'deletion'].includes(section)"
                         :class="section === 'channels' ? 'justify-start' : 'justify-end border-t pt-5'"
@@ -787,6 +693,12 @@ function submit() {
     outline: 2px solid var(--ring);
     outline-offset: 1px;
 }
+.schedule-editor #project-form fieldset > label {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0 0 14px;
+}
 .project-editor #project-form > .grid > label {
     font-weight: 400;
     color: var(--muted-foreground);
@@ -866,12 +778,6 @@ function submit() {
     .project-detail #project-form {
         grid-column: 1;
     }
-}
-.schedule-editor #project-form fieldset > label {
-    border: 0;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-    padding: 0 0 14px;
 }
 .schedule-editor fieldset input[type='checkbox'] {
     width: 20px;
@@ -963,16 +869,10 @@ function submit() {
     border-radius: 0;
     min-height: 64px;
 }
-.format-editor fieldset input,
-.format-circle {
+.format-editor fieldset input {
     width: 18px;
     height: 18px;
     accent-color: var(--primary);
-}
-.format-circle {
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    flex-shrink: 0;
 }
 .format-editor #project-form > div:last-child {
     margin-top: 12px;

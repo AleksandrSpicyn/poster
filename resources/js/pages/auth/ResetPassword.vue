@@ -8,7 +8,10 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { CircleX, LoaderCircle } from '@lucide/vue';
 import { nextTick, ref, useTemplateRef } from 'vue';
-import { useRoute } from 'ziggy-js';
+import { useFormApi } from '@/lib/api/useFormApi';
+import { useRoute } from '@/composables/useRoute';
+
+const submitForm = useFormApi();
 
 const route = useRoute();
 
@@ -34,7 +37,7 @@ const submit = () => {
         void nextTick(() => confirmation.value?.focus());
         return;
     }
-    form.post(route('password.store'), {
+    submitForm(form, 'password.store', {
         onFinish: () => {
             form.reset('password', 'password_confirmation');
         },
@@ -70,16 +73,16 @@ const submit = () => {
                     <Label for="password">Новый пароль</Label>
                     <Input
                         id="password"
+                        v-model="form.password"
                         type="password"
                         name="password"
                         autocomplete="new-password"
-                        v-model="form.password"
-                        @input="mismatch = false"
                         class="mt-1 block w-full"
                         :autofocus="!!props.email"
                         :aria-invalid="!!form.errors.password"
                         :aria-describedby="form.errors.password ? 'password-error' : undefined"
                         required
+                        @input="mismatch = false"
                     />
                     <InputError id="password-error" :message="form.errors.password" />
                 </div>
@@ -87,17 +90,17 @@ const submit = () => {
                 <div class="grid gap-2">
                     <Label for="password_confirmation">Повторите пароль</Label>
                     <Input
-                        ref="confirmation"
                         id="password_confirmation"
+                        ref="confirmation"
+                        v-model="form.password_confirmation"
                         type="password"
                         name="password_confirmation"
                         autocomplete="new-password"
-                        v-model="form.password_confirmation"
-                        @input="mismatch = false"
                         :aria-invalid="mismatch || !!form.errors.password_confirmation"
                         :aria-describedby="mismatch ? 'password-mismatch' : form.errors.password_confirmation ? 'confirmation-error' : undefined"
                         class="mt-1 block w-full"
                         required
+                        @input="mismatch = false"
                     />
                     <InputError id="confirmation-error" :message="form.errors.password_confirmation" />
                 </div>
