@@ -39,7 +39,9 @@ const emit = defineEmits<{ page: [value: number]; refresh: [] }>();
             </div>
             <div :class="{ 'opacity-50': loading }" class="transition-opacity motion-reduce:transition-none">
                 <slot v-if="count" />
-                <EmptyState v-else :title="emptyTitle" :description="emptyDescription" />
+                <EmptyState v-else :title="emptyTitle" :description="emptyDescription"
+                    ><template v-if="$slots['empty-action']" #default><slot name="empty-action" /></template
+                ></EmptyState>
             </div>
         </div>
         <footer class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm sm:px-5" :class="{ 'border-t': !compactFooter }">

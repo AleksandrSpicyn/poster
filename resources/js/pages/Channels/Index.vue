@@ -11,7 +11,7 @@ import type { SharedData } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import type { PaginatedResource } from '@/types/content';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const page = usePage<
@@ -26,6 +26,7 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
     active: page.props.filters.active === null ? null : Number(page.props.filters.active),
 }));
 const opened = ref(!!filters.search || filters.active !== null || !!filters.sort);
+const filtered = computed(() => !!page.props.filters.search || page.props.filters.active != null);
 function reset() {
     Object.assign(filters, { search: '', active: null, sort: '', perPage: 20 });
     applyFilters();
@@ -42,7 +43,7 @@ function reset() {
             </header>
             <nav aria-label="Каналы" class="tabs flex gap-2">
                 <button
-                    :aria-pressed="!opened"
+                    :aria-pressed="!opened && !filtered"
                     @click="
                         opened = false;
                         reset();
@@ -83,11 +84,14 @@ function reset() {
                 :count="page.props.channels.data.length"
                 :loading="loading"
                 :error="error"
-                :empty-title="opened ? 'Совпадений нет' : 'Подключите первый канал'"
-                :empty-description="opened ? 'Попробуйте другое название или снимите фильтр.' : 'Выберите площадку и привяжите аккаунт к проекту.'"
+                :empty-title="filtered ? 'Каналы не найдены' : 'Подключите первый канал'"
+                :empty-description="filtered ? 'Попробуйте другое название или снимите фильтр.' : 'Выберите площадку и привяжите аккаунт к проекту.'"
                 @page="changePage"
                 @refresh="refresh"
             >
+                <template v-if="filtered" #empty-action
+                    ><Button variant="outline" :disabled="loading" @click="reset">Сбросить фильтры</Button></template
+                >
                 <h2>Название канала</h2>
                 <Link v-for="channel in page.props.channels.data" :key="channel.id" :href="route('channels.edit', channel.id)" class="channel-row">
                     <strong>{{ channel.name }}</strong><span :class="{ connected: channel.connected && channel.is_active }"

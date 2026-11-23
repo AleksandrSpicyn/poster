@@ -15,7 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Series */
 class SeriesAssemblyParametersResource extends JsonResource
 {
-    /** @return array{parts: list<array{number: int, title: string|null, version: int|null, ready: bool}>, can_build: bool} */
+    /** @return array{parts: list<array{id: int|null, number: int, title: string|null, version: int|null, ready: bool}>, can_build: bool} */
     public function toArray(Request $request): array
     {
         $episodes = $this->episodes->keyBy('number');
@@ -31,7 +31,7 @@ class SeriesAssemblyParametersResource extends JsonResource
             $media = $accepted?->getFirstMedia(EpisodeAssembly::VIDEO);
             $ready = $episode?->validity === EpisodeValidity::CURRENT && $accepted?->status === AssemblyStatus::ACCEPTED
                 && $accepted->duration_ms !== null && $media !== null && is_file($media->getPath());
-            $parts[] = ['number' => $number, 'title' => $episode?->title, 'version' => $accepted?->number, 'ready' => $ready];
+            $parts[] = ['id' => $episode?->id, 'number' => $number, 'title' => $episode?->title, 'version' => $accepted?->number, 'ready' => $ready];
             $canBuild = $canBuild && $ready;
         }
 

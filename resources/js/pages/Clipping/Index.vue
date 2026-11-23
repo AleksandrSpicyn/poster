@@ -65,7 +65,10 @@ function rows(connection: Connection) {
         <div class="workspace-page providers">
             <header>
                 <Heading title="Провайдеры клиппинга" description="Подключения этого пользователя" />
-                <Button as-child><Link :href="route('clipping.create')">Добавить подключение</Link></Button>
+                <div class="flex flex-wrap gap-2">
+                    <Button as-child variant="outline"><Link :href="route('clipping.history')">История импорта</Link></Button
+                    ><Button as-child><Link :href="route('clipping.create')">Добавить подключение</Link></Button>
+                </div>
             </header>
             <p v-if="page.props.errors.connection" role="alert" class="text-destructive">{{ page.props.errors.connection }}</p>
             <nav aria-label="Источники">
@@ -90,7 +93,6 @@ function rows(connection: Connection) {
                 <label for="provider-project-name">Название внешнего проекта</label>
                 <Input id="provider-project-name" v-model="sourceTitle" type="search" maxlength="200" />
                 <Button type="submit" :disabled="!selectedConnection" class="justify-self-start">Применить</Button>
-                <Link :href="route('clipping.history')" class="justify-self-start underline">История импорта</Link>
             </form>
             <section>
                 <h2>Подключение и возможности</h2>

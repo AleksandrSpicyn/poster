@@ -34,7 +34,7 @@ readonly class SeriesRepository extends EloquentRepository
             ->with('project.media', 'project.coverFrame')
             ->withCount(['characters', 'episodes', 'episodes as accepted_episodes_count' => static fn(Builder $query) => $query->whereNotNull('accepted_assembly_id')])
             ->when($data->active, static fn(Builder $query) => $query->whereNull('archived_at')->whereRelation('project', 'is_active', true))
-            ->when($data->updated, static fn(Builder $query) => $query->latest('updated_at'))
+            ->latest('created_at')
             ->latest('id')
             ->paginate(20, page: $data->page)
             ->withQueryString();

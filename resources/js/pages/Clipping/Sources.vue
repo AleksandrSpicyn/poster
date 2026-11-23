@@ -37,10 +37,10 @@ const props = defineProps<{
 const route = useRoute();
 const allowed = ['source', 'project', 'channels', 'map-project', 'map-channel'] as const;
 const requestedStep = String(route().params.step) as Step;
-const step = ref<Step>(allowed.includes(requestedStep) ? requestedStep : props.importProjects ? 'source' : 'channels');
+const step = ref<Step>(allowed.includes(requestedStep) ? requestedStep : props.importProjects ? 'source' : 'project');
 function syncStep() {
     const s = (location.hash.slice(1) || new URLSearchParams(location.search).get('step')) as Step;
-    if (allowed.includes(s)) step.value = s;
+    step.value = allowed.includes(s) ? s : props.importProjects ? 'source' : 'project';
 }
 function show(s: Step) {
     location.hash = s;
@@ -67,7 +67,7 @@ const source = computed(() => props.sources.find((s) => s.id === form.external_i
 const binding = computed(() => props.sourceBindings.find((s) => s.external_id === form.external_id));
 const count = computed(() => (previous && previous.external_id === form.external_id ? previous.clip_count : binding.value?.clips_count));
 const accountsUnavailable = computed(() => !!props.accountError || !props.readsAccounts);
-const summarySource = computed(() => accountsUnavailable.value && !!source.value);
+
 const query = ref('');
 const found = computed(() => props.projects.filter((p) => p.name.toLocaleLowerCase('ru').includes(query.value.trim().toLocaleLowerCase('ru'))));
 const target = computed(() => step.value.startsWith('map-'));
@@ -83,29 +83,31 @@ const tabs = computed(() =>
         : [
               ...(props.importProjects ? [{ name: 'Источник', id: 'source' }] : []),
               { name: 'Проект Poster', id: 'project' },
-              { name: 'Каналы', id: 'channels' },
+              ...((props.importAccounts && props.accounts.length) || !props.importProjects ? [{ name: 'Каналы', id: 'channels' }] : []),
           ],
 );
 watch(
-    () => form.external_id,
-    () => {
-        if (binding.value) form.project_id = binding.value.project_id;
+    binding,
+    (current, previousBinding) => {
+        if (current) form.project_id = current.project_id;
+        else if (previousBinding) form.project_id = null;
     },
+    { immediate: true },
 );
 function submit() {
+    if (step.value === 'source') return show('project');
+    if (step.value === 'project' && props.importAccounts && props.accounts.length) return show('channels');
     form.accounts = props.accounts
         .filter((a) => !!choices[a.id])
         .map((a) => ({ id: a.id, channel_id: choices[a.id] === 'new' ? null : Number(choices[a.id]) }));
     form.post(route('clipping.preview', props.connection.id));
-}
-function selectMode(mode: 'existing' | 'new') {
-    form.project_id = mode === 'existing' ? (form.project_id ?? props.projects[0]?.id ?? null) : null;
 }
 </script>
 <template>
     <AppLayout
         :breadcrumbs="[
             { title: 'Источники', href: route('clipping.index') },
+            { title: connection.name, href: route('clipping.edit', connection.id) },
             ...(target ? [{ title: 'Выбор источника', href: route('clipping.sources', connection.id) }] : []),
             { title: target ? 'Сопоставление' : 'Выбор источника', href: route('clipping.sources', connection.id) },
         ]"
@@ -128,31 +130,23 @@ function selectMode(mode: 'existing' | 'new') {
                 <form class="studio-panel pick-panel" @submit.prevent="submit">
                     <template v-if="step === 'source'"
                         ><h2>{{ accountError || !readsAccounts ? 'Проект и клипы' : 'Проект провайдера' }}</h2>
-                        <div v-if="!summarySource" class="stage-message">
+                        <div class="stage-message">
                             <strong>Подключение</strong><small>{{ connection.name }}</small>
                         </div>
-                        <div :class="{ 'pick-row': summarySource, 'selector-block': !summarySource }">
+                        <div class="selector-block">
                             <label for="external-project">Проект провайдера</label
-                            ><select id="external-project" v-model="form.external_id" required>
+                            ><select class="list-select w-full" id="external-project" v-model="form.external_id" required>
                                 <option :value="null" disabled>Выберите проект</option>
                                 <option v-for="s in sources" :key="s.id" :value="s.id">{{ s.title || 'Проект без названия' }}</option>
                             </select>
                         </div>
-                        <div v-if="summarySource" class="pick-row">
+                        <div v-if="source" class="pick-row">
                             <span>Получено</span><span>{{ count == null ? 'После предпросмотра' : 'Клипов: ' + count }}</span>
                         </div>
                         <p v-if="search">
                             Поиск: {{ search }} <Link :href="route('clipping.sources', connection.id)" class="underline">Сбросить фильтр</Link>
                         </p>
                         <p v-if="!sources.length">{{ search ? 'Проекты не найдены.' : 'Доступных проектов нет.' }}</p>
-                        <template v-if="!summarySource"
-                            ><label v-for="s in sources" :key="s.id" class="pick-option"
-                                ><input type="radio" :value="s.id" v-model="form.external_id" /><span
-                                    ><strong>{{ s.title || 'Проект без названия' }}</strong
-                                    ><small v-if="sourceBindings.some((x) => x.external_id === s.id)">Связан с проектом Poster</small></span
-                                ></label
-                            >
-                        </template>
                         <div v-if="accountsUnavailable" class="stage-message warning">
                             <strong>Аккаунты недоступны</strong>
                             <p>
@@ -165,14 +159,7 @@ function selectMode(mode: 'existing' | 'new') {
                                 Клипы можно импортировать.
                             </p>
                         </div>
-                        <label for="local-project">Проект Poster</label
-                        ><select id="local-project" v-model="form.project_id" :disabled="!!binding">
-                            <option :value="null">Создать новый проект</option>
-                            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
-                        <div v-if="summarySource" class="pick-row">
-                            <span>Сопоставление каналов</span><span>Пропущено · можно подключить канал позднее</span>
-                        </div></template
+                        <p v-if="binding && local">Связан с проектом {{ local.name }}</p></template
                     >
                     <template v-else-if="step === 'project' || step === 'map-project'"
                         ><h2>{{ target ? 'Выберите проект Poster' : 'Проект назначения' }}</h2>
@@ -180,38 +167,31 @@ function selectMode(mode: 'existing' | 'new') {
                             <span>Источник</span
                             ><span>{{ source?.title || 'Источник не выбран' }}{{ count != null ? ' · Клипов: ' + count : '' }}</span>
                         </div>
-                        <template v-if="target"
+                        <p v-if="binding && local" class="studio-row">
+                            <span>Связанный проект</span><strong>{{ local.name }}</strong>
+                        </p>
+                        <template v-else-if="target"
                             ><label for="project-search">Найти проект Poster</label><Input id="project-search" v-model="query" type="search" />
                             <label v-for="p in found" :key="p.id" class="pick-option"
-                                ><input
-                                    type="radio"
-                                    v-model="form.project_id"
-                                    :value="p.id"
-                                    :disabled="!!binding && binding.project_id !== p.id"
-                                /><span
+                                ><input type="radio" v-model="form.project_id" :value="p.id" /><span
                                     ><strong>{{ p.name }}</strong
                                     ><small>Мои проекты</small></span
                                 ></label
                             ></template
                         >
-                        <template v-else
-                            ><label class="pick-option"
-                                ><input
-                                    type="radio"
-                                    :checked="form.project_id !== null"
-                                    :disabled="!projects.length"
-                                    @change="selectMode('existing')"
-                                /><span><strong>Использовать существующий проект</strong><small>Выберите проект своей студии</small></span></label
-                            ><select v-if="form.project_id !== null" aria-label="Проект Poster" v-model="form.project_id" :disabled="!!binding">
+                        <div v-else class="grid gap-2">
+                            <label for="destination">Проект Poster</label>
+                            <select id="destination" v-model="form.project_id" class="list-select w-full">
+                                <option :value="null" :disabled="!importProjects">
+                                    {{ importProjects ? 'Создать новый проект' : 'Выберите проект' }}
+                                </option>
                                 <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-                            </select></template
+                            </select>
+                        </div>
+                        <label v-if="target && importProjects && !binding" class="pick-option"
+                            ><input v-model="form.project_id" type="radio" :value="null" />Создать новый проект</label
                         >
-                        <label v-if="importProjects" class="pick-option"
-                            ><input type="radio" :checked="form.project_id === null" :disabled="!!binding" @change="selectMode('new')" /><span
-                                ><strong>Создать новый проект</strong><small>{{ source?.title || 'Название из источника' }}</small></span
-                            ></label
-                        >
-                        <div v-if="!form.project_id" class="stage-message">
+                        <div v-if="importProjects && !form.project_id" class="stage-message">
                             <strong>Новая связь</strong><small>Проект будет создан при подтверждении импорта.</small>
                         </div></template
                     >
@@ -219,7 +199,7 @@ function selectMode(mode: 'existing' | 'new') {
                         ><h2>Сопоставление аккаунта</h2>
                         <template v-if="account"
                             ><label v-if="!target && accounts.length > 1" for="choose-account">Аккаунт провайдера</label
-                            ><select v-if="!target && accounts.length > 1" id="choose-account" v-model="accountId">
+                            ><select class="list-select w-full" v-if="!target && accounts.length > 1" id="choose-account" v-model="accountId">
                                 <option v-for="a in accounts" :value="a.id" :key="a.id">{{ a.name || 'Аккаунт без названия' }}</option>
                             </select>
                             <div v-else class="pick-row">
@@ -227,33 +207,14 @@ function selectMode(mode: 'existing' | 'new') {
                                 ><span>{{ account.name || 'Аккаунт без названия' }} · {{ platforms[account.platform] || account.platform }}</span>
                             </div>
                             <label for="channel-target">Канал Poster</label
-                            ><select id="channel-target" v-model="choices[account.id]" :disabled="!!mappings[account.id]">
+                            ><select class="list-select w-full" id="channel-target" v-model="choices[account.id]" :disabled="!!mappings[account.id]">
                                 <option :value="undefined">Пропустить</option>
                                 <option v-for="c in eligible" :value="String(c.id)" :key="c.id">
                                     {{ c.name }} · {{ platforms[c.type] || c.type }}
                                 </option>
                                 <option v-if="platforms[account.platform]" value="new">Создать канал</option>
                             </select>
-                            <label v-for="c in eligible" :key="c.id" class="pick-option"
-                                ><input type="radio" :value="String(c.id)" v-model="choices[account.id]" :disabled="!!mappings[account.id]" /><span
-                                    ><strong>{{ c.name }}</strong
-                                    ><small>{{ platforms[c.type] || c.type }} · Подключён</small></span
-                                ></label
-                            >
-                            <label v-if="platforms[account.platform]" class="pick-option"
-                                ><input type="radio" value="new" v-model="choices[account.id]" :disabled="!!mappings[account.id]" /><span
-                                    ><strong>Создать канал</strong><small>Канал без права отправки</small></span
-                                ></label
-                            >
-                            <label class="pick-option"
-                                ><input
-                                    type="radio"
-                                    :checked="!choices[account.id]"
-                                    :disabled="!!mappings[account.id]"
-                                    @change="delete choices[account.id]"
-                                /><span><strong>Пропустить</strong><small>Оставить аккаунт без связи</small></span></label
-                            ></template
-                        >
+                        </template>
                         <div v-else class="stage-message warning">
                             <strong>Аккаунты недоступны</strong>
                             <p>
@@ -269,9 +230,20 @@ function selectMode(mode: 'existing' | 'new') {
                             <Link v-if="!importAccounts" class="underline" :href="route('clipping.edit', connection.id)">Параметры подключения</Link>
                         </div></template
                     >
-                    <InputError v-for="(msg, field) in form.errors" :key="field" :message="msg" /><Button :disabled="form.processing || !canSubmit">{{
-                        step === 'map-project' ? 'Применить выбор' : step === 'map-channel' ? 'Сохранить сопоставление' : 'Предпросмотр импорта'
-                    }}</Button>
+                    <InputError v-for="(msg, field) in form.errors" :key="field" :message="msg" /><Button
+                        :disabled="form.processing || (step === 'project' && !importProjects ? !form.project_id : !canSubmit)"
+                        >{{
+                            step === 'source'
+                                ? 'Далее к проекту'
+                                : step === 'project' && importAccounts && accounts.length
+                                  ? 'Далее к каналам'
+                                  : step === 'map-project'
+                                    ? 'Применить выбор'
+                                    : step === 'map-channel'
+                                      ? 'Сохранить сопоставление'
+                                      : 'Предпросмотр импорта'
+                        }}</Button
+                    >
                 </form>
                 <ImportProjectCard
                     :name="local?.name || source?.title || connection.name"
@@ -317,14 +289,7 @@ function selectMode(mode: 'existing' | 'new') {
     font-weight: 700;
     margin-bottom: 8px;
 }
-.pick-panel select {
-    width: 100%;
-    height: 46px;
-    padding: 0 12px;
-    background: var(--background);
-    border: 1px solid var(--input);
-    border-radius: 8px;
-}
+
 .pick-panel > label:not(.pick-option),
 .pick-panel small,
 .pick-row > span:first-child {
@@ -339,12 +304,7 @@ function selectMode(mode: 'existing' | 'new') {
     color: var(--muted-foreground);
     font-size: 14px;
 }
-.pick-row select {
-    height: auto;
-    padding: 0;
-    border: none;
-    background: transparent;
-}
+
 .pick-option {
     display: flex;
     gap: 12px;

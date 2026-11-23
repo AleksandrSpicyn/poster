@@ -69,7 +69,8 @@ test('непринятый эпизод занимает своё место и 
     Storage::fake('local');
     $context = singleVideoFixture();
     $assembly = app(SaveSeriesAssembly::class)->run($context['series']);
-    $context['series']->episodes()->where('number', 2)->update(['accepted_assembly_id' => null]);
+    $episode = $context['series']->episodes()->where('number', 2)->firstOrFail();
+    $episode->update(['accepted_assembly_id' => null]);
 
     actingAs($context['user'])
         ->get(route('series_assemblies.show', $assembly))
@@ -78,6 +79,7 @@ test('непринятый эпизод занимает своё место и 
             ->where('parameters.can_build', false)
             ->where('parameters.parts.0.ready', true)
             ->where('parameters.parts.1.number', 2)
+            ->where('parameters.parts.1.id', $episode->id)
             ->where('parameters.parts.1.ready', false)
             ->where('parameters.parts.2.ready', true));
 });

@@ -22,6 +22,6 @@ class UpdateScopeController
     {
         $action->run($connection, $data);
 
-        return to_route('clipping.sources', ['connection' => $connection, 'project_id' => $data->project_id]);
+        return to_route('clipping.edit', $connection);
     }
 }

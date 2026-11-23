@@ -49,6 +49,7 @@ function confirm() {
     <AppLayout
         :breadcrumbs="[
             { title: 'Источники', href: route('clipping.index') },
+            { title: connection.name, href: route('clipping.edit', connection.id) },
             confirmed
                 ? { title: 'История импорта', href: route('clipping.history') }
                 : { title: 'Выбор источника', href: route('clipping.sources', connection.id) },

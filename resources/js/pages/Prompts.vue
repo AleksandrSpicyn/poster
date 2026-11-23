@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
+import { formatProjectDate } from '@/lib/formatProjectDate';
 import ListControls from '@/components/ListControls.vue';
 import VideoPreview from '@/components/VideoPreview.vue';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { useListFilters } from '@/composables/useListFilters';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { PromptsPageProps } from '@/types/content';
 import { Head, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -19,20 +20,8 @@ const { filters, loading, error, applyFilters, changeSort, changePerPage, change
     project: page.props.filters.project ?? null,
 }));
 const filterOpen = ref(false);
-const projectSelect = ref<HTMLSelectElement | null>(null);
+
 const projectName = computed(() => page.props.projects.find((p) => p.id === page.props.filters.project)?.name ?? 'Все проекты');
-async function chooseProject() {
-    filterOpen.value = true;
-    await nextTick();
-    projectSelect.value?.focus();
-}
-function allProjects() {
-    filterOpen.value = false;
-    if (filters.project) {
-        filters.project = null;
-        applyFilters();
-    }
-}
 </script>
 <template>
     <AppLayout
@@ -48,23 +37,16 @@ function allProjects() {
         <Head title="Генерации" />
         <div class="workspace-page">
             <header class="generation-heading">
-                <Heading title="Генерации" :description="projectName + ' / Последние операции'" /><Button class="h-11" @click="chooseProject"
-                    >Выбрать проект</Button
+                <Heading title="Генерации" :description="projectName + ' / Последние операции'" /><Button
+                    variant="outline"
+                    :aria-expanded="filterOpen"
+                    @click="filterOpen = !filterOpen"
+                    >Фильтры</Button
                 >
             </header>
-            <nav aria-label="Разделы генераций" class="flex gap-2">
-                <Button variant="secondary" :aria-pressed="!filterOpen" @click="allProjects">Все</Button
-                ><Button variant="secondary" :aria-pressed="filterOpen" @click="filterOpen = !filterOpen">Фильтры</Button>
-            </nav>
             <div v-if="filterOpen" class="studio-panel flex flex-wrap items-end gap-4">
                 <label class="grid gap-1 text-sm"
-                    >Проект<select
-                        ref="projectSelect"
-                        v-model="filters.project"
-                        class="list-select max-w-full"
-                        :disabled="loading"
-                        @change="applyFilters"
-                    >
+                    >Проект<select v-model="filters.project" class="list-select max-w-full" :disabled="loading" @change="applyFilters">
                         <option :value="null">Все проекты</option>
                         <option v-for="project in page.props.projects" :key="project.id" :value="project.id">{{ project.name }}</option>
                     </select></label
@@ -83,20 +65,13 @@ function allProjects() {
                 <h2>Проект и операция</h2>
                 <p v-if="error" role="alert">{{ error }} <Button variant="outline" @click="refresh">Повторить</Button></p>
                 <p v-if="!page.props.prompts.data.length" class="text-muted-foreground">Пока нет генераций</p>
-                <div v-for="prompt in page.props.prompts.data" :key="prompt.id">
-                    <VideoPreview v-if="prompt.url" :prompt="prompt"
-                        ><template #trigger
-                            ><button class="generation-row" type="button">
-                                <strong>{{ prompt.title }}</strong><span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
-                            </button></template
-                        ></VideoPreview
-                    >
-                    <details v-else>
-                        <summary class="generation-row">
-                            <strong>{{ prompt.title }}</strong><span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
-                        </summary>
-                        <p>{{ prompt.project }} · {{ prompt.created_at }}</p>
-                    </details>
+                <div v-for="prompt in page.props.prompts.data" :key="prompt.id" class="generation-row">
+                    <div>
+                        <strong>{{ prompt.title }}</strong>
+                        <p>{{ prompt.project ?? 'Проект удалён' }} · {{ formatProjectDate(prompt.created_at) }}</p>
+                    </div>
+                    <span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
+                    <VideoPreview v-if="prompt.url" :prompt="prompt" />
                 </div>
                 <nav v-if="page.props.prompts.meta.last_page > 1" class="flex items-center gap-3 py-4" aria-label="Страницы генераций">
                     <Button variant="outline" :disabled="loading || filters.page <= 1" @click="changePage(filters.page - 1)">Назад</Button
@@ -119,10 +94,6 @@ function allProjects() {
     justify-content: space-between;
     gap: 12px;
 }
-nav button[aria-pressed='true'] {
-    color: var(--sidebar-accent-foreground);
-    background: var(--sidebar-accent);
-}
 .generation-list h2 {
     font-size: 20px;
     font-weight: 700;
@@ -130,17 +101,17 @@ nav button[aria-pressed='true'] {
 }
 .generation-row {
     display: grid;
-    grid-template-columns: 45% minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
     gap: 12px;
     text-align: left;
     align-items: center;
     width: 100%;
-    cursor: pointer;
+
     border-bottom: 1px solid var(--border);
     padding: 15px 0;
 }
 .generation-row span,
-details p {
+.generation-row p {
     font-size: 14px;
     color: var(--muted-foreground);
 }
