@@ -70,3 +70,13 @@ export function rangeLabel(from: string, to: string) {
         new Date(to + 'T00:00:00Z'),
     );
 }
+
+export function observedCountersByDate(report: MetricsReport): Record<string, number | null> {
+    const values: Record<string, number | null> = Object.fromEntries(Object.keys(report.daily).map((date) => [date, null]));
+    for (const publication of report.publications) {
+        for (const [date, value] of Object.entries(publication.snapshots)) {
+            if (date in values) values[date] = (values[date] ?? 0) + value;
+        }
+    }
+    return values;
+}

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
+import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
 import { Button } from '@/components/ui/button';
-import { counterNames, dateLabel, platformNames, rangeLabel, signed, type MetricsReport } from '@/types/analytics';
+import { counterNames, dateLabel, observedCountersByDate, platformNames, rangeLabel, signed, type MetricsReport } from '@/types/analytics';
 import { router } from '@inertiajs/vue3';
 import { CircleX } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
@@ -24,8 +25,9 @@ const unavailable = computed(() => {
     if (props.observed.previousChange === null) return 'Недостаточно наблюдений за предыдущий период';
     return 'Недостаточно наблюдений за выбранный период';
 });
-const dates = computed(() => Object.keys(props.observed.observations));
-const gaps = computed(() => dates.value.filter((date) => props.observed.observations[date] === null));
+const snapshots = computed(() => observedCountersByDate(props.report));
+const dates = computed(() => Object.keys(snapshots.value));
+const gaps = computed(() => dates.value.filter((date) => snapshots.value[date] === null));
 const title = computed(() => counterNames[props.report.filters.metric] + ' на дату');
 const lastSuccess = computed(() =>
     coverage.value?.last_success_at
@@ -73,9 +75,11 @@ function changeChannel(event: Event) {
 <template>
     <div class="workspace-page channel-report">
         <Heading title="Аналитика публикаций" />
-        <p class="theme-caption"><span class="dark:hidden">Светлая тема</span><span class="hidden dark:inline">Тёмная тема</span></p>
+        <PublicationCounters
+            :items="Object.entries(counterNames).map(([key, label]) => ({ label, value: report.totals[key as keyof typeof counterNames] }))"
+        />
         <section class="studio-panel channel-panel">
-            <h2><span class="dark:hidden">Светлая тема</span><span class="hidden dark:inline">Тёмная тема</span></h2>
+            <h2>Наблюдения по каналу</h2>
             <label for="report-channel">Канал отчёта</label>
             <select ref="picker" id="report-channel" :value="channel" @change="changeChannel">
                 <option v-for="item in channels" :key="item.id" :value="item.id">
@@ -84,10 +88,11 @@ function changeChannel(event: Event) {
             </select>
             <h3>{{ title }}</h3>
             <p>
-                {{ rangeLabel(dates[0], report.to) }}<template v-if="gaps.length === 1"> · {{ dateLabel(gaps[0]) }} наблюдение пропущено</template
+                {{ rangeLabel(dates[0], report.to) }} · Сумма счётчиков измеренных роликов<template v-if="gaps.length === 1">
+                    · {{ dateLabel(gaps[0]) }} наблюдение пропущено</template
                 ><template v-else-if="gaps.length"> · Пропущено дней: {{ gaps.length }}</template>
             </p>
-            <PublicationMetricChart :values="observed.observations" :label="title" snapshots />
+            <PublicationMetricChart :values="snapshots" :label="title" snapshots />
             <div v-if="failed" role="status" class="report-error">
                 <CircleX aria-hidden="true" />
                 <div>
