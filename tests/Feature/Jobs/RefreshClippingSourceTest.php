@@ -16,12 +16,12 @@ test('планировщик обновляет привязанный исто�
     $connection = ClippingConnection::factory()->create(['api_key' => 'sync-fixture']);
     $project = Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id]);
     $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'game']);
-    Http::fake(['*/exportable-clips*' => Http::response([['id' => 'clip']]), '*/post-tasks*' => Http::response(['data' => ['data' => []]])]);
+    Http::fake(['*/clip-projects*' => Http::response([]), '*/exportable-clips*' => Http::response([['id' => 'clip']]), '*/post-tasks*' => Http::response(['data' => ['data' => []]])]);
 
     consoleCommand('clipping:refresh')->assertSuccessful();
 
     expect($source->refresh()->last_synced_at)->not->toBeNull();
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
 
     foreach (Http::recorded() as [$request]) {
         expect($request->hasHeader('Authorization', 'Bearer sync-fixture'))->toBeTrue();
@@ -45,12 +45,12 @@ test('пауза при отзыве доступа сохраняет исто�
     $connection = ClippingConnection::factory()->create();
     $project = Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id]);
     $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'game']);
-    Http::fake(['*/exportable-clips*' => Http::response([], 403)]);
+    Http::fake(['*/clip-projects*' => Http::response([]), '*/exportable-clips*' => Http::response([], 403)]);
 
     consoleCommand('clipping:refresh')->assertSuccessful();
     consoleCommand('clipping:refresh')->assertSuccessful();
 
-    Http::assertSentCount(1);
+    Http::assertSentCount(3);
     expect($source->refresh()->sync_paused_at)->not->toBeNull()
         ->and($source->sync_error)->toBe('HTTP 403');
 });
@@ -61,6 +61,7 @@ test('после лимита продолжает с публикаций и с
     $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'game']);
     $existing = OpusClip::factory()->for($source, 'source')->create(['clip_id' => 'clip', 'publications' => [['platform' => 'youtube', 'url' => null, 'status' => 'PROCESSING', 'publish_at' => null]]]);
     Http::fake([
+        '*/clip-projects*' => Http::response([]),
         '*/exportable-clips*' => Http::response([['id' => 'game.clip', 'title' => 'Ночная поездка']]),
         '*/post-tasks*' => Http::sequence()->push([], 429, ['Retry-After' => '60'])
             ->push(['data' => ['data' => [['projectId' => 'game', 'clipId' => 'game.clip', 'platform' => 'YOUTUBE', 'status' => 'PUBLISHED', 'extVideoLink' => 'https://youtu.be/abcdefghijk']]]]),
@@ -88,7 +89,7 @@ test('после лимита продолжает с публикаций и с
         ->and($partial->clips_received)->toBe(1)
         ->and($partial->publications_added)->toBe(1)
         ->and(ClippingSyncRun::query()->count())->toBe(1);
-    Http::assertSentCount(3);
+    Http::assertSentCount(4);
     expect($source->refresh()->publication_sync_checkpoint)->toBeNull()
         ->and($source->last_synced_at)->not->toBeNull()
         ->and(OpusClip::query()->where('opus_source_id', $source->id)->count())->toBe(1)

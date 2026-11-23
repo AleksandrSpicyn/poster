@@ -10,10 +10,11 @@ use App\Repositories\ClippingConnectionRepository;
 
 final readonly class UpdateClippingKeyAction
 {
-    public function __construct(private ClippingConnectionRepository $connections) {}
+    public function __construct(private ClippingConnectionRepository $connections, private SyncClippingConnectionAction $sync) {}
 
     public function run(ClippingConnection $connection, ClippingKeyData $data): void
     {
         $this->connections->updateKey($connection, $data->api_key);
+        $this->sync->run($connection->refresh());
     }
 }

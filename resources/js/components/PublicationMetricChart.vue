@@ -47,6 +47,7 @@ const chart = computed(() => {
     return { ticks, points, segments, markers, labels, baseline: y(0), empty: numbers.length === 0 };
 });
 function shortNumber(v: number) {
+    if (props.overview && Math.abs(v) >= 1000 && Math.abs(v) < 1000000) return amount(v / 1000) + 'к';
     return new Intl.NumberFormat('ru', { notation: Math.abs(v) >= 1000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(v);
 }
 </script>
@@ -230,6 +231,13 @@ function shortNumber(v: number) {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
 }
+.overview .chart-rule span {
+    left: -42px;
+    right: auto;
+}
+.overview .chart-labels span::first-letter {
+    text-transform: uppercase;
+}
 .chart-data {
     margin-top: 12px;
     font-size: 14px;
@@ -239,7 +247,8 @@ function shortNumber(v: number) {
     cursor: pointer;
     min-height: 44px;
     align-content: center;
-    color: var(--ring);
+    color: var(--muted-foreground);
+    font: 400 16px/1.5 var(--font-sans);
 }
 .chart-data table {
     width: 100%;

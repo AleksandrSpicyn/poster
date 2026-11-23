@@ -37,6 +37,7 @@ type Run = {
     publications_added: number;
     metrics_added: number;
     clips_completed_at: string | null;
+    failed_at: string | null;
     resumed_at: string | null;
     completed_at: string | null;
     created_at: string;
@@ -53,12 +54,7 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const page = usePage();
-const areas = { clips: 'Проекты и клипы', accounts: 'Аккаунты', publications: 'Публикации', metrics: 'Метрики' };
-type Area = keyof typeof areas;
-const filterOpen = ref(false);
-const connectionId = ref(0);
-const selectedArea = ref<Area | ''>('');
-const openArea = ref<Area | null>(null);
+const connectionId = ref(Number(new URL(page.url, 'http://poster.local').searchParams.get('connection')) || 0);
 const hash = ref('');
 const refreshPending = ref(false);
 const refreshError = ref('');
@@ -83,7 +79,7 @@ const source = computed(() =>
 const run = computed(() => selectedRun.value ?? props.runs.find((item) => item.opus_source_id === source.value?.id));
 const project = computed(() => props.projects.find((item) => item.id === source.value?.project_id));
 const connection = computed(() => props.connections.find((item) => item.id === source.value?.clipping_connection_id));
-const latest = computed(() => sources.value.flatMap((source) => props.runs.find((run) => run.opus_source_id === source.id) ?? []));
+const visibleRuns = computed(() => props.runs.filter((run) => sources.value.some((source) => source.id === run.opus_source_id)));
 const partial = computed(() => !!source.value?.publications_pending && !selectedRun.value?.completed_at);
 const paused = computed(() => !!source.value?.sync_paused_at && !selectedRun.value?.completed_at);
 const checkedAccess = computed(
@@ -103,40 +99,6 @@ const summaryTitle = computed(() =>
             ? 'Успешное продолжение импорта'
             : 'Синхронизация источника',
 );
-const statuses = computed(() => props.metricStatuses.filter((status) => !connectionId.value || status.connection_id === connectionId.value));
-const filteredAreas = computed(() =>
-    (Object.keys(areas) as Area[]).filter((area) => !selectedArea.value || area === selectedArea.value).map((area) => ({ area, ...status(area) })),
-);
-function status(area: Area) {
-    if (area === 'accounts') {
-        if (previews.value.some((preview) => !preview.imported_at && preview.account_count > 0))
-            return { label: 'Нужно сопоставление', tone: 'warning' };
-        const n = previews.value.filter((run) => run.imported_at).reduce((sum, run) => sum + run.account_count, 0);
-        return n ? { label: 'Подтверждено в импортах · ' + n, tone: 'success' } : { label: 'Нет сопоставлений' };
-    }
-    if (area === 'metrics') {
-        if (statuses.value.some((item) => item.status === 'rate_limited')) return { label: 'Пауза по лимиту API', tone: 'warning' };
-        if (statuses.value.some((item) => item.status === 'no_permission')) return { label: 'Требуется доступ к статистике', tone: 'warning' };
-        if (statuses.value.some((item) => item.status === 'temporary_error')) return { label: 'Временная ошибка сбора', tone: 'warning' };
-        const n = latest.value.reduce((sum, run) => sum + Number(run.metrics_added), 0);
-        return n ? { label: 'Получено наблюдений · ' + n, tone: 'success' } : { label: 'Нет новых наблюдений' };
-    }
-    const pending = sources.value.filter((source) => (area === 'publications' ? source.publications_pending : !source.publications_pending));
-    if (pending.some((source) => source.sync_paused_at)) return { label: 'Синхронизация приостановлена', tone: 'warning' };
-    if (pending.some((source) => source.sync_error === 'HTTP 429')) return { label: 'Пауза по лимиту API', tone: 'warning' };
-    if (pending.some((source) => source.sync_error)) return { label: 'Ожидает повторной загрузки', tone: 'warning' };
-    if (area === 'publications' && pending.length) return { label: 'Частичное обновление', tone: 'warning' };
-    if (!latest.value.length) return { label: 'Нет результатов запуска' };
-    const n = latest.value.reduce((sum, run) => sum + (area === 'clips' ? run.clips_received : run.publications_added), 0);
-    const complete = latest.value.every((run) => (area === 'clips' ? run.clips_completed_at || run.completed_at : run.completed_at));
-    return { label: area === 'clips' ? 'Получено клипов · ' + n : 'Добавлено публикаций · ' + n, tone: complete ? 'success' : undefined };
-}
-function clearFilters() {
-    connectionId.value = 0;
-    selectedArea.value = '';
-    filterOpen.value = false;
-    openArea.value = null;
-}
 function refresh() {
     if (refreshPending.value) return;
     refreshPending.value = true;
@@ -180,9 +142,7 @@ function refresh() {
             <div class="history-heading">
                 <Heading
                     title="История импорта"
-                    :description="
-                        source ? (paused ? 'Синхронизация' : partial ? 'Ход выполнения' : 'Результат') : 'Основной импорт / Последние запуски'
-                    "
+                    :description="source ? (paused ? 'Синхронизация' : partial ? 'Ход выполнения' : 'Результат') : undefined"
                 />
                 <Button v-if="!source" id="history-refresh" :aria-disabled="refreshPending" @click="refresh">{{
                     refreshPending ? 'Обновление…' : 'Обновить'
@@ -199,83 +159,37 @@ function refresh() {
                         >Повторить</Button
                     >
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" class="history-chip" :aria-pressed="!selectedArea && !connectionId" @click="clearFilters">Все</button>
-                    <button
-                        type="button"
-                        class="history-chip"
-                        :aria-expanded="filterOpen"
-                        aria-controls="history-filters"
-                        @click="filterOpen = !filterOpen"
-                    >
-                        Фильтры
-                    </button>
-                </div>
-                <div v-if="filterOpen" id="history-filters" class="flex flex-wrap gap-4">
-                    <label class="grid gap-2 text-sm"
-                        >Подключение<select v-model="connectionId" class="list-select">
-                            <option :value="0">Все подключения</option>
-                            <option v-for="item in connections" :key="item.id" :value="item.id">{{ item.name }}</option>
-                        </select></label
-                    >
-                    <label class="grid gap-2 text-sm"
-                        >Область данных<select v-model="selectedArea" class="list-select">
-                            <option value="">Все области</option>
-                            <option v-for="(label, key) in areas" :key="key" :value="key">{{ label }}</option>
-                        </select></label
-                    >
-                </div>
+                <label v-if="connections.length > 1" class="grid max-w-sm gap-2 text-sm"
+                    >Площадка<select v-model="connectionId" class="list-select">
+                        <option :value="0">Все площадки</option>
+                        <option v-for="item in connections" :key="item.id" :value="item.id">{{ item.name }}</option>
+                    </select></label
+                >
                 <section id="history">
-                    <h2>Область данных</h2>
-                    <div v-for="{ area, label, tone } in filteredAreas" :key="area" class="history-resource">
-                        <button
-                            class="history-row"
-                            type="button"
-                            :aria-expanded="openArea === area"
-                            @click="openArea = openArea === area ? null : area"
+                    <p v-if="!visibleRuns.length && !previews.length && !sources.length" class="text-muted-foreground">Импортов пока нет.</p>
+                    <a v-for="item in visibleRuns" :key="item.id" :href="'#run-' + item.id" class="history-row">
+                        <strong>{{ sources.find((s) => s.id === item.opus_source_id)?.title || 'Проект' }}</strong>
+                        <span
+                            >{{ time(item.created_at) }} ·
+                            {{ item.completed_at ? 'Новых клипов: ' + item.clips_added : item.failed_at ? 'Ошибка обновления' : 'Обновляется' }}</span
                         >
-                            <strong>{{ areas[area] }}</strong><span :data-status="tone">{{ label }}</span>
-                        </button>
-                        <div v-if="openArea === area" class="grid gap-2 py-3">
-                            <template v-if="area === 'accounts' || area === 'clips'">
-                                <Link
-                                    v-for="item in previews.filter((item) => area === 'clips' || item.account_count > 0)"
-                                    :key="item.id"
-                                    :href="route('clipping.preview.show', [item.clipping_connection_id, item.id])"
-                                    class="history-link"
-                                    >{{ item.source_name || 'Предпросмотр импорта' }} · {{ item.imported_at ? 'Подтверждено' : 'Предпросмотр' }}</Link
-                                >
-                            </template>
-                            <template v-if="area !== 'accounts'">
-                                <a v-for="item in sources" :key="item.id" :href="'#source-' + item.id" class="history-link">{{
-                                    item.title || 'Источник без названия'
-                                }}</a>
-                                <a
-                                    v-for="item in runs.filter((item) => sources.some((source) => source.id === item.opus_source_id))"
-                                    :key="item.id"
-                                    :href="'#run-' + item.id"
-                                    class="history-link"
-                                    >{{ sources.find((source) => source.id === item.opus_source_id)?.title }} · {{ time(item.created_at) }}</a
-                                >
-                            </template>
-                            <template v-if="area === 'metrics'"
-                                ><p v-for="item in statuses" :key="item.connection_id + ':' + item.name" class="text-muted-foreground text-sm">
-                                    {{ item.name }} ·
-                                    {{
-                                        {
-                                            rate_limited: 'Пауза по лимиту API',
-                                            no_permission: 'Требуется доступ',
-                                            temporary_error: 'Временная ошибка',
-                                            collected: 'Данные получены',
-                                            unsupported: 'Сбор недоступен',
-                                            no_data: 'Нет наблюдений',
-                                        }[item.status]
-                                    }}
-                                </p>
-                            </template>
-                            <p v-if="!sources.length && !previews.length" class="text-muted-foreground text-sm">Импортов пока нет.</p>
-                        </div>
-                    </div>
+                    </a>
+                    <a
+                        v-for="item in sources.filter((s) => !visibleRuns.some((r) => r.opus_source_id === s.id))"
+                        :key="item.id"
+                        :href="'#source-' + item.id"
+                        class="history-row"
+                        ><strong>{{ item.title || 'Проект' }}</strong
+                        ><span>{{ item.sync_error ? 'Ошибка обновления' : 'Ожидает обновления' }}</span></a
+                    >
+                    <Link
+                        v-for="item in previews"
+                        :key="item.id"
+                        :href="route('clipping.preview.show', [item.clipping_connection_id, item.id])"
+                        class="history-row"
+                        ><strong>{{ item.source_name || 'Импорт' }}</strong
+                        ><span>{{ item.imported_at ? time(item.imported_at) : 'Предпросмотр' }}</span></Link
+                    >
                 </section>
             </template>
             <template v-else>

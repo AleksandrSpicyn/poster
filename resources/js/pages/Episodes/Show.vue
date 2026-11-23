@@ -303,24 +303,25 @@ function refresh() {
                         ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
                     >
                 </div>
-                <nav v-show="!dialogueFocus" aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
-                    <a
-                        v-for="item in panels"
-                        :key="item.key"
-                        :href="'#' + item.key"
-                        :aria-current="panel === item.key ? 'page' : undefined"
-                        class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
-                        @click="panel = item.key"
-                        >{{ item.label }}</a
-                    >
-                    <a
-                        v-if="panel === 'screenplay' && (revision?.source_assembly_id || sourceAssembly)"
-                        href="#history"
-                        class="bg-muted inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
-                        >История</a
-                    >
-                </nav>
             </template>
+            <nav v-show="!dialogueFocus" aria-label="Этапы эпизода" class="flex flex-wrap gap-2">
+                <a
+                    v-for="item in panels"
+                    :key="item.key"
+                    :href="'#' + item.key"
+                    :aria-current="!memoryOpen && panel === item.key ? 'page' : undefined"
+                    class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
+                    @click="panel = item.key"
+                    >{{ item.label }}</a
+                >
+                <a
+                    v-if="revision?.source_assembly_id || sourceAssembly"
+                    :aria-current="memoryOpen ? 'page' : undefined"
+                    href="#history"
+                    class="bg-muted aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground inline-flex min-h-10 items-center rounded-lg px-4 text-sm"
+                    >История</a
+                >
+            </nav>
             <EpisodeRelease v-if="panel === 'release'" :workspace="props" :assemblies="allAssemblies" />
             <EpisodeMemory v-else-if="memoryOpen" :workspace="props" :assembly="revision ? memoryAssembly : sourceAssembly" />
             <template v-else>
@@ -406,16 +407,18 @@ function refresh() {
                                 <p>На сервере<br />{{ scriptConflict.server }}</p>
                                 <p>{{ scriptConflict.label }}</p>
                             </div>
-                            <Button v-if="editorStale" variant="outline" @click="keepLocalVersion">Оставить локальную копию</Button>
-                            <Button v-else :disabled="!online || archived || scriptForm.processing" @click="saveScript">{{
-                                scriptSaveError ? 'Повторить сохранение' : 'Сохранить изменения'
-                            }}</Button>
-                            <Button variant="outline" @click="loadServerVersion">{{
-                                editorStale ? 'Загрузить версию ' + revision?.number : 'Сбросить'
-                            }}</Button>
+                            <div class="flex flex-wrap gap-3">
+                                <Button v-if="editorStale" variant="outline" @click="keepLocalVersion">Оставить локальную копию</Button>
+                                <Button v-else :disabled="!online || archived || scriptForm.processing" @click="saveScript">{{
+                                    scriptSaveError ? 'Повторить сохранение' : 'Сохранить изменения'
+                                }}</Button>
+                                <Button variant="outline" @click="loadServerVersion">{{
+                                    editorStale ? 'Загрузить версию ' + revision?.number : 'Сбросить'
+                                }}</Button>
+                            </div>
                         </section>
                         <div v-show="!overview && panel === 'screenplay'" class="script-workspace space-y-5">
-                            <details class="bg-card space-y-4 rounded-xl border p-5 sm:p-7">
+                            <details class="bg-card rounded-xl border p-5 open:space-y-4 sm:p-6">
                                 <summary class="cursor-pointer font-semibold">
                                     {{ revision ? 'Память истории на момент сохранения' : 'Память истории для следующего эпизода' }}
                                 </summary>
@@ -549,18 +552,20 @@ function refresh() {
                                 </form>
                                 <Dialog v-model:open="importOpen">
                                     <DialogTrigger as-child><Button variant="outline">Импорт и экспорт сценария в JSON</Button></DialogTrigger>
-                                    <DialogContent class="studio-confirm" :show-close="false">
+                                    <DialogContent class="studio-confirm screenplay-json-dialog" :show-close="false">
                                         <DialogTitle>Импорт сценария</DialogTitle>
                                         <DialogDescription class="sr-only">Проверка и импорт сценария в формате JSON</DialogDescription>
-                                        <Label for="screenplay-json">Фрагмент JSON</Label>
-                                        <textarea
-                                            id="screenplay-json"
-                                            v-model="scriptText"
-                                            rows="5"
-                                            spellcheck="false"
-                                            :disabled="archived || scriptForm.processing"
-                                            class="rounded-lg border p-3 font-mono text-sm"
-                                        />
+                                        <div class="grid gap-2">
+                                            <Label for="screenplay-json">Фрагмент JSON</Label>
+                                            <textarea
+                                                id="screenplay-json"
+                                                v-model="scriptText"
+                                                rows="5"
+                                                spellcheck="false"
+                                                :disabled="archived || scriptForm.processing"
+                                                class="w-full rounded-lg border p-3 font-mono text-sm"
+                                            />
+                                        </div>
                                         <div v-if="jsonError" role="alert" class="studio-confirm-notice">
                                             <strong>Неверный формат</strong>
                                             <p>{{ jsonError }}</p>
@@ -571,8 +576,11 @@ function refresh() {
                                         </div>
                                         <p v-if="checkedJson" role="status">Структура сценария проверена.</p>
                                         <InputError :message="scriptErrors" />
-                                        <div class="flex flex-wrap gap-2">
+                                        <div class="json-actions">
                                             <Button variant="outline" @click="checkedJson = !!checkJson()">Проверить JSON</Button>
+                                            <Button variant="outline" @click="scriptText = JSON.stringify(scriptForm.script, null, 2)"
+                                                >Экспортировать черновик в JSON</Button
+                                            >
                                             <Button
                                                 v-if="checkedJson"
                                                 :disabled="archived || scriptForm.processing || editorStale || !online"
@@ -581,9 +589,6 @@ function refresh() {
                                             >
                                             <DialogClose as-child><Button variant="outline">Закрыть</Button></DialogClose>
                                         </div>
-                                        <Button variant="ghost" @click="scriptText = JSON.stringify(scriptForm.script, null, 2)"
-                                            >Экспортировать черновик в JSON</Button
-                                        >
                                     </DialogContent>
                                 </Dialog>
                             </section>
@@ -737,6 +742,25 @@ function refresh() {
 </template>
 
 <style scoped>
+:global(.screenplay-json-dialog[data-slot='dialog-content']) {
+    gap: 16px;
+}
+:global(.screenplay-json-dialog > [data-slot='dialog-title']) {
+    margin: 0;
+}
+.json-actions {
+    grid-auto-rows: 1fr;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
+.json-actions :deep(button) {
+    width: 100%;
+    min-height: 48px;
+    height: auto;
+    white-space: normal;
+}
+
 .episode-overview-page > div:first-of-type > button {
     font-weight: 700;
 }

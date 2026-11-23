@@ -8,12 +8,9 @@ use App\Classes\Clipping\ClippingReader;
 use App\Classes\Clipping\ClippingReaders;
 use App\Data\ClippingSourceSelectionData;
 use App\Data\OpusClip\OpusSourceData;
-use App\Http\Resources\ProjectResource;
 use App\Models\ClippingConnection;
-use App\Models\Project;
 use App\Repositories\ClippingAccountRepository;
 use App\Repositories\ClippingConnectionRepository;
-use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -53,7 +50,7 @@ final readonly class GetClippingSourcesAction
 
         return [
             'search' => $search,
-            'connection' => $connection->only(['id', 'name', 'driver']), 'sources' => $sources, 'projects' => $this->connections->projects($connection)->map(static fn(Project $project): array => Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover'])),
+            'connection' => $connection->only(['id', 'name', 'driver']), 'sources' => $sources,
             'sourceBindings' => $this->connections->mappedSources($connection),
             'previous' => $preview?->only(['id', 'external_id', 'project_id', 'accounts', 'clip_count', 'imported_at']),
             'channels' => $readsAccounts ? $this->accounts->channels($connection) : [], 'mappings' => (object) ($readsAccounts ? $this->accounts->mappings($connection) : []),

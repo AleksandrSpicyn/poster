@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class SaveClippingConnectionAction
 {
-    public function __construct(private ClippingConnectionRepository $connections, private ClippingReaders $readers) {}
+    public function __construct(private ClippingConnectionRepository $connections, private ClippingReaders $readers, private SyncClippingConnectionAction $sync) {}
 
     public function run(User $owner, ClippingConnectionData $data): ClippingConnection
     {
@@ -21,6 +21,9 @@ final readonly class SaveClippingConnectionAction
             throw ValidationException::withMessages(['driver' => 'Выберите доступный драйвер.']);
         }
 
-        return $this->connections->save($owner, $data);
+        $connection = $this->connections->save($owner, $data)->refresh();
+        $this->sync->run($connection);
+
+        return $connection;
     }
 }

@@ -471,10 +471,15 @@
 .workspace-page :is(input[data-slot='input']:not([type='file']), select:not([multiple]), textarea),
 [data-slot='dialog-content'] :is(input[data-slot='input'], select:not([multiple]), textarea) {
     min-width: 0;
-    min-height: 48px;
+    min-height: var(--studio-field-min-height, 48px);
     max-width: 100%;
     border-radius: 10px;
     font-size: 16px;
+}
+/* Give multiline fields room for a paragraph while preserving taller editors. */
+.workspace-page textarea, [data-slot='dialog-content'] textarea {
+    --studio-field-min-height: 8rem;
+    resize: vertical;
 }
 .workspace-page select:not([multiple]),
 [data-slot='dialog-content'] select:not([multiple]) {

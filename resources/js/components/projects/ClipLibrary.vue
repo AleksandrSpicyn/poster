@@ -3,6 +3,7 @@ import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import { Button } from '@/components/ui/button';
 import { platformNames } from '@/types/analytics';
 import type { ProjectPageProps } from '@/types/projects';
+import { ChartColumn, Clock, Film, Globe } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 type Clips = NonNullable<ProjectPageProps['opusClips']>;
 const props = defineProps<{
@@ -93,55 +94,83 @@ const metricLabels: Record<string, string> = {
                 </div>
             </footer>
         </template>
-        <div v-else class="clip-detail clip-publications">
-            <section class="studio-panel clip-sheet">
-                <h2>{{ project.name }}</h2>
-                <div class="clip-summary">
-                    <ProjectArtwork :name="project.name" :cover="project.cover" class="h-14 w-20 rounded-lg" />
-                    <strong>{{ [selected.title || 'Клип без названия', duration(selected.duration_ms)].filter(Boolean).join(' · ') }}</strong>
-                </div>
-                <p v-if="selected.score !== null" class="clip-score">
-                    <span>Оценка источника</span><span>OpusClip · {{ selected.score }} / 100</span>
+        <article v-else class="clip-detail">
+            <header class="clip-intro">
+                <h1>{{ selected.title || 'Клип без названия' }}</h1>
+                <p class="clip-meta">
+                    <span><Film aria-hidden="true" />Импортированный клип</span
+                    ><span v-if="selected.duration_ms !== null"><Clock aria-hidden="true" />{{ duration(selected.duration_ms) }}</span>
                 </p>
-                <div v-for="(post, index) in selected.publications" :key="index" class="clip-publication">
-                    <a v-if="post.url" :href="post.url" class="text-primary font-bold" target="_blank" rel="noopener noreferrer"
-                        >Открыть на {{ platformNames[post.platform.toLowerCase()] ?? post.platform }} ↗</a
-                    >
-                    <strong v-else>{{ platformNames[post.platform.toLowerCase()] ?? post.platform }}</strong>
-                    <p v-if="publicationViews(post.platform, post.media_id) !== undefined">
-                        {{ publicationViews(post.platform, post.media_id)?.toLocaleString('ru') }} просмотров
-                    </p>
-                    <p v-else-if="post.status">{{ postStatus[post.status.toLowerCase()] ?? 'Площадка уточняет статус' }}</p>
+            </header>
+            <div class="clip-columns">
+                <section>
+                    <h2>Публикации</h2>
+                    <div class="clip-posts clip-panel">
+                        <p v-if="!selected.publications.length" class="text-muted-foreground py-5">Источник пока не вернул публикации.</p>
+                        <div v-for="(post, index) in selected.publications" :key="index" class="clip-post">
+                            <span class="tile-icon" aria-hidden="true"
+                                ><img
+                                    v-if="platformNames[post.platform.toLowerCase()]"
+                                    :src="'/icons/' + post.platform.toLowerCase() + '.svg'"
+                                    alt="" /><Globe v-else
+                            /></span>
+                            <div>
+                                <h3>{{ platformNames[post.platform.toLowerCase()] ?? post.platform }}</h3>
+                                <p class="clip-status">{{ postStatus[post.status?.toLowerCase() ?? ''] ?? 'Площадка уточняет статус' }}</p>
+                                <small v-if="post.publish_at">{{ new Date(post.publish_at).toLocaleDateString('ru') }}</small>
+                                <small v-if="publicationViews(post.platform, post.media_id) != null"
+                                    >{{ publicationViews(post.platform, post.media_id)?.toLocaleString('ru') }} просмотров</small
+                                >
+                            </div>
+                            <a
+                                v-if="post.url"
+                                class="clip-action"
+                                :href="post.url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                :aria-label="'Открыть публикацию · ' + (platformNames[post.platform.toLowerCase()] ?? post.platform)"
+                                >Открыть ↗</a
+                            >
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h2>Источник</h2>
+                    <div class="clip-provider clip-panel">
+                        <h3>OpusClip</h3>
+                        <template v-if="selected.score !== null"
+                            ><p>Оценка источника</p>
+                            <div class="clip-meter" aria-hidden="true">
+                                <i :style="{ width: Math.min(100, Math.max(0, selected.score)) + '%' }" />
+                            </div>
+                            <strong>{{ selected.score }} / 100</strong></template
+                        >
+                        <a class="clip-action" :href="selected.source_url" target="_blank" rel="noopener noreferrer">Открыть источник ↗</a>
+                    </div>
+                </section>
+            </div>
+            <section class="clip-observations">
+                <h2>Наблюдения площадок</h2>
+                <div v-if="!selected.observations.length" class="clip-empty clip-panel">
+                    <span class="tile-icon" aria-hidden="true"><ChartColumn /></span>
+                    <div>
+                        <strong>Пока нет наблюдений</strong>
+                        <p>Метрики появятся после первого ответа площадки.</p>
+                    </div>
                 </div>
-                <p v-if="!selected.publications.length">Источник пока не вернул публикации.</p>
-                <div v-if="selected.publications.length && !selected.observations.length" class="clip-empty">
-                    <span aria-hidden="true">∅</span>
-                    <strong>Пока нет наблюдений</strong>
-                    <p>Сбор метрик по этому ролику ещё не получил ответ площадки.</p>
+                <div v-else class="clip-panel px-5">
+                    <section v-for="row in selected.observations" :key="row.platform + row.media_id" class="py-4">
+                        <h3>{{ platformNames[row.platform.toLowerCase()] ?? row.platform }} · {{ row.date }}</h3>
+                        <dl>
+                            <div v-for="(value, key) in row.metrics" :key="key" class="studio-row">
+                                <dt>{{ metricLabels[key] ?? 'Дополнительный показатель' }}</dt>
+                                <dd>{{ value.toLocaleString('ru') }}</dd>
+                            </div>
+                        </dl>
+                    </section>
                 </div>
             </section>
-            <aside class="studio-panel clip-project hidden min-[1100px]:block">
-                <ProjectArtwork :name="project.name" :cover="project.cover" class="rounded-lg" />
-                <strong>{{ project.name }}</strong>
-                <p>Клиппинг</p>
-            </aside>
-            <nav class="clip-links" aria-label="Переходы клипа">
-                <a href="#clips">К библиотеке клипов</a>
-                <a :href="selected.source_url" target="_blank" rel="noopener">Открыть источник</a>
-                <details v-if="selected.observations.length || selected.publications.some((post) => post.publish_at)">
-                    <summary>Наблюдения площадок</summary>
-                    <p v-for="post in selected.publications.filter((post) => post.publish_at)" :key="post.url ?? post.platform">
-                        {{ platformNames[post.platform.toLowerCase()] ?? post.platform }} · {{ new Date(post.publish_at!).toLocaleDateString('ru') }}
-                    </p>
-                    <div v-for="row in selected.observations" :key="row.platform + row.media_id">
-                        <strong>{{ platformNames[row.platform.toLowerCase()] ?? row.platform }} · {{ row.date }}</strong>
-                        <p v-for="(value, key) in row.metrics" :key="key" class="studio-row">
-                            <span>{{ metricLabels[key] ?? 'Дополнительный показатель' }}</span>{{ value }}
-                        </p>
-                    </div>
-                </details>
-            </nav>
-        </div>
+        </article>
     </section>
 </template>
 <style scoped>
@@ -201,105 +230,168 @@ const metricLabels: Record<string, string> = {
     color: var(--muted-foreground);
     font-size: 13px;
 }
+
 .clip-detail {
-    display: grid;
-    align-items: start;
-    gap: 16px;
-    grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+    line-height: 1.45;
 }
-.clip-publications {
-    gap: 16px 18px;
-    grid-template-columns: minmax(0, 2.22fr) minmax(0, 1fr);
+.clip-intro {
+    padding-bottom: 32px;
 }
-.clip-sheet {
-    padding: 16px 23px 28px;
+.clip-intro h1 {
+    max-width: 36ch;
+    font-size: 40px;
+    line-height: 1.4;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    overflow-wrap: anywhere;
 }
-.clip-sheet:has(.clip-empty) {
-    padding-bottom: 39px;
-}
-.clip-sheet h2 {
-    margin: 0 0 17px;
-    font-size: 22px;
-    line-height: 30px;
-}
-.clip-summary {
+.clip-meta {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
-}
-.clip-summary strong {
-    margin-top: 4px;
-}
-.clip-summary > :first-child {
-    flex: 0 0 84px;
-    height: 56px;
-}
-.clip-score {
-    display: grid;
-    grid-template-columns: 39% 1fr;
+    gap: 16px;
     align-items: center;
-    min-height: 52px;
-    font-size: 15px;
-    border-bottom: 1px solid var(--border);
-}
-.clip-score span:first-child,
-.clip-publication p,
-.clip-empty p,
-.clip-project p {
+    margin-top: 12px;
     color: var(--muted-foreground);
+    font-size: 14px;
 }
-.clip-publication {
-    padding-top: 5px;
-    min-height: 54px;
+.clip-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
-.clip-publication p {
-    margin-top: 3px;
-    font-size: 13px;
+.clip-meta svg {
+    width: 19px;
+    height: 19px;
 }
-.clip-empty {
-    margin-top: 7px;
+.clip-meta span + span {
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+    font-family: var(--font-mono);
 }
-.clip-empty > span {
+.clip-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.58fr) minmax(0, 1fr);
+    gap: 24px;
+}
+.clip-columns > section {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.clip-detail h2 {
+    font-size: 20px;
+    line-height: 28px;
+    margin: 0 0 12px;
+}
+.clip-detail h3 {
+    font-size: 18px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+.clip-panel {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 12px;
+}
+.clip-columns .clip-panel {
+    flex: 1;
+}
+.clip-posts {
+    display: grid;
+    padding-inline: 20px;
+}
+.clip-post {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-block: 18px;
+    min-width: 0;
+}
+.clip-post + .clip-post {
+    border-top: 1px solid var(--border);
+}
+.tile-icon {
     display: grid;
     place-items: center;
-    width: 35px;
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    flex: none;
     background: var(--muted);
+    border-radius: 10px;
 }
-.clip-empty strong,
-.clip-project strong {
-    display: block;
-    font-size: 20px;
-    margin-block: 7px 4px;
+.tile-icon :is(svg, img) {
+    width: 23px;
+    height: 23px;
 }
+.clip-post small,
+.clip-status,
+.clip-provider p,
 .clip-empty p {
-    font-size: 15px;
-}
-.clip-project {
-    padding: 13px 13px 14px;
-}
-.clip-project > :first-child {
-    height: 133px;
-}
-.clip-project p {
-    font-size: 14px;
-}
-.clip-links {
-    grid-column: 1;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 8px 16px;
-    font-size: 14px;
+    display: block;
     color: var(--muted-foreground);
+    font-size: 14px;
+    margin-top: 4px;
 }
-.clip-links a {
+.clip-status::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+}
+.clip-action {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    color: var(--ring);
+    font-size: 14px;
+    font-weight: 700;
+}
+.clip-action:hover {
     text-decoration: underline;
 }
-.clip-links summary {
-    cursor: pointer;
+.clip-post .clip-action {
+    margin-left: auto;
+}
+.clip-provider {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.clip-provider p {
+    margin-top: 10px;
+}
+.clip-meter {
+    width: 100%;
+    height: 8px;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+.clip-meter i {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+}
+.clip-provider strong {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+}
+.clip-provider .clip-action {
+    margin-top: auto;
+}
+.clip-observations {
+    margin-top: 28px;
+}
+.clip-empty {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 20px;
 }
 @media (max-width: 1099px) {
     .clip-library > nav + h2 {
@@ -308,23 +400,59 @@ const metricLabels: Record<string, string> = {
     .clip-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .clip-detail {
-        grid-template-columns: 1fr;
+    .clip-columns {
+        gap: 16px;
+        grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    }
+    .clip-post {
+        gap: 9px;
+        flex-wrap: wrap;
     }
 }
 @media (max-width: 699px) {
     .clip-library > nav + h2 {
         margin-bottom: 24px;
     }
-    .clip-sheet:has(.clip-empty) {
-        padding-bottom: 32px;
-    }
-    .clip-sheet {
-        padding-bottom: 25px;
-        padding-inline: 15px;
-    }
-    .clip-grid {
+    .clip-grid,
+    .clip-columns {
         grid-template-columns: 1fr;
+    }
+    .clip-columns {
+        gap: 20px;
+    }
+    .clip-intro {
+        padding-bottom: 24px;
+    }
+    .clip-intro h1 {
+        font-size: 30px;
+    }
+    .clip-posts {
+        padding-inline: 14px;
+    }
+    .clip-post {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) auto;
+        gap: 10px;
+    }
+    .tile-icon {
+        width: 38px;
+        height: 38px;
+    }
+    .clip-post h3 {
+        font-size: 16px;
+    }
+    .clip-action {
+        font-size: 13px;
+    }
+    .clip-status {
+        font-size: 12px;
+    }
+    .clip-provider,
+    .clip-empty {
+        padding: 16px;
+    }
+    .clip-observations {
+        margin-top: 20px;
     }
 }
 </style>

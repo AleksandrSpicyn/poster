@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { ProjectChannel } from '@/types/projects';
 import type { ProductionRun } from '@/types/production';
 import { Link, useForm } from '@inertiajs/vue3';
-import { CheckCircle, Circle, CircleAlert, Clock } from '@lucide/vue';
+import { CheckCircle, Circle, CircleAlert, Clock, CirclePause } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -43,7 +43,7 @@ const title = computed(() =>
     resume.value
         ? 'Продолжить производство'
         : stopped.value
-          ? 'Производство остановлено'
+          ? 'Ход производства'
           : attention.value
             ? 'Проверка производства'
             : !props.run && props.planComplete
@@ -111,8 +111,15 @@ function change(action: 'stop' | 'resume') {
 <template>
     <section class="studio-panel run-panel">
         <h2>{{ title }}</h2>
-        <div class="run-notice" role="status" :class="{ caution: (attention || stopped) && !resume, success: resume && reviewedTake }">
-            <component :is="resume && reviewedTake ? CheckCircle : attention || stopped ? CircleAlert : Clock" aria-hidden="true" />
+        <div
+            class="run-notice"
+            role="status"
+            :class="{ stopped: stopped && !resume, caution: attention && !resume, success: resume && reviewedTake }"
+        >
+            <component
+                :is="resume && reviewedTake ? CheckCircle : stopped && !resume ? CirclePause : attention ? CircleAlert : Clock"
+                aria-hidden="true"
+            />
             <div>
                 <strong>{{
                     resume
@@ -136,7 +143,7 @@ function change(action: 'stop' | 'resume') {
                         resume && reviewedTake
                             ? 'Найден существующий дубль, файл готов.'
                             : stopped
-                              ? 'Планировщик больше не запускает следующие этапы.'
+                              ? 'Следующие этапы не запустятся автоматически.'
                               : attention
                                 ? 'Проверьте результат текущего этапа.'
                                 : run
@@ -286,6 +293,30 @@ function change(action: 'stop' | 'resume') {
     inset: 7px auto 7px 0;
     width: 3px;
     background: var(--muted-foreground);
+}
+.run-notice.stopped {
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    align-items: center;
+}
+.run-notice.stopped::before {
+    display: none;
+}
+.run-notice.stopped > svg {
+    box-sizing: content-box;
+    padding: 9px;
+    margin: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: var(--muted);
+    color: var(--muted-foreground);
+}
+.run-notice.stopped p {
+    margin-top: 4px;
 }
 .run-notice.caution::before {
     background: var(--warning);

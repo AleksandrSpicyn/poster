@@ -11,6 +11,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\patch;
 
 test('меняет ключ только у выбранного подключения и сохраняет его связи', function (): void {
+    Http::fake(['*/clip-projects*' => Http::response([])]);
     $owner = User::factory()->create();
     $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id, 'uses_server_key' => true]);
     $connection->forceFill(['access_result' => ['projects' => 'available'], 'access_checked_at' => now()])->save();
@@ -30,7 +31,7 @@ test('меняет ключ только у выбранного подключ�
         ->and($connection->access_checked_at)->toBeNull()
         ->and($other->refresh()->api_key)->toBe('first-key')
         ->and($project->refresh()->clipping_connection_id)->toBe($connection->id);
-    Http::assertNothingSent();
+    Http::assertSentCount(1);
 });
 
 test('отклоняет пустой ключ и попытку изменить чужое подключение', function (): void {

@@ -5,19 +5,21 @@ declare(strict_types=1);
 use App\Models\ClippingConnection;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
 use function Pest\Laravel\postJson;
 
 test('сохраняет зашифрованный ключ владельца', function (): void {
+    Http::fake(['*/clip-projects*' => Http::response([])]);
     $owner = User::factory()->create();
     actingAs($owner);
 
-    post(route('clipping.store'), ['name' => 'Студия', 'driver' => 'opusclip', 'api_key' => 'fixture-only'])
-        ->assertRedirect(route('clipping.index'));
+    $response = post(route('clipping.store'), ['name' => 'Студия', 'driver' => 'opusclip', 'api_key' => 'fixture-only']);
 
     $connection = ClippingConnection::query()->sole();
+    $response->assertRedirect(route('clipping.edit', $connection));
     expect($connection->api_key)->toBe('fixture-only')
         ->and($connection->owner_id)->toBe($owner->id)
         ->and(DB::table('clipping_connections')->value('api_key'))->not->toContain('fixture-only');

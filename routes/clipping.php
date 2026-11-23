@@ -13,6 +13,7 @@ use App\Http\Controllers\Clipping\ResumeController;
 use App\Http\Controllers\Clipping\ShowPreviewController;
 use App\Http\Controllers\Clipping\SourcesController;
 use App\Http\Controllers\Clipping\StoreController;
+use App\Http\Controllers\Clipping\SyncController;
 use App\Http\Controllers\Clipping\UpdateKeyController;
 use App\Http\Controllers\Clipping\UpdateScopeController;
 use App\Http\Middleware\VerifyWorkspaceOwner;
@@ -24,6 +25,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->prefix('cl
     Route::get('create', CreateController::class)->name('create');
     Route::post('', StoreController::class)->name('store');
     Route::prefix('{connection}')->whereNumber('connection')->group(function (): void {
+        Route::post('sync', SyncController::class)->name('sync');
         Route::get('edit', EditController::class)->name('edit');
         Route::get('access', AccessController::class)->name('access');
         Route::patch('scope', UpdateScopeController::class)->name('scope.update');

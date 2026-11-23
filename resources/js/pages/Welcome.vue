@@ -3,6 +3,7 @@ import type { SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, useTemplateRef } from 'vue';
 import { useRoute } from 'ziggy-js';
+import lunarLandscape from '../../assets/studio/lunar-landscape.webp';
 import projectTray from '../../assets/studio/project-tray.webp';
 
 const route = useRoute();
@@ -109,13 +110,31 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
             </main>
         </div>
         <div class="outer">
-            <details ref="workflow" id="workflow" class="flow">
-                <summary>Рабочий процесс</summary>
-                <ol>
-                    <li>Создайте проект, задайте формат и добавьте материалы.</li>
-                    <li>Подготовьте эпизод или выберите клипы для выпуска.</li>
-                    <li>Выберите канал, подтвердите публикацию и следите за результатом.</li>
-                </ol>
+            <details ref="workflow" id="workflow" class="flow" open>
+                <summary>
+                    <h2>Рабочий процесс</h2>
+                    <span class="flow-chevron" aria-hidden="true"></span>
+                </summary>
+                <div class="flow-body">
+                    <figure class="flow-cover">
+                        <img :src="lunarLandscape" alt="" width="724" height="724" loading="lazy" />
+                        <figcaption><span>Пример проекта</span><strong>Лунный атлас</strong></figcaption>
+                    </figure>
+                    <ol class="flow-steps" aria-label="Этапы работы">
+                        <li>
+                            <h3>Соберите проект</h3>
+                            <p>Выберите формат и добавьте исходные материалы.</p>
+                        </li>
+                        <li>
+                            <h3>Подготовьте выпуск</h3>
+                            <p>Соберите эпизод сериала или выберите готовый клип.</p>
+                        </li>
+                        <li>
+                            <h3>Опубликуйте и проверьте результат</h3>
+                            <p>Выберите каналы и подтвердите отправку. Просмотры и реакции появятся в аналитике.</p>
+                        </li>
+                    </ol>
+                </div>
             </details>
             <footer class="foot"><a :href="route('policy')">Privacy Policy</a><a :href="route('terms')">Terms of Service</a></footer>
         </div>
@@ -376,42 +395,129 @@ h1 span:last-child {
     font-size: clamp(14px, 1.16vw, 19px);
 }
 .flow {
-    padding-block: 0;
+    margin-block: clamp(16px, 3vw, 48px) clamp(28px, 4vw, 64px);
     border-top: 1px solid var(--edge);
 }
 .flow summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 16px;
     cursor: pointer;
     list-style: none;
-    font-size: 25px;
-    min-height: 75px;
-    font-weight: 700;
-    letter-spacing: -0.05em;
+    padding-block: clamp(18px, 2.3vw, 34px);
 }
 .flow summary::-webkit-details-marker {
     display: none;
 }
-.flow summary::after {
-    content: '+';
-    color: #cfb2ff;
+.flow summary h2 {
+    font-size: clamp(28px, 3vw, 48px);
+    line-height: 1.12;
+    letter-spacing: -0.05em;
 }
-.flow[open] summary::after {
-    content: '−';
-}
-.flow ol {
+.flow-chevron {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(20px, 4vw, 64px);
-    padding-left: 22px;
-    margin: 25px 0 0;
-    color: var(--muted);
+    flex: 0 0 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--edge);
+    border-radius: 50%;
+    color: var(--ink);
 }
-.flow li {
-    padding-left: 4px;
-    max-width: 32ch;
+.flow-chevron::before {
+    width: 10px;
+    height: 10px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    content: '';
+    transform: translateY(-2px) rotate(45deg);
+}
+.flow[open] .flow-chevron::before {
+    transform: translateY(2px) rotate(225deg);
+}
+.flow summary:hover .flow-chevron {
+    border-color: var(--lime);
+    color: var(--lime);
+}
+.flow-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+    align-items: stretch;
+    gap: clamp(24px, 5vw, 84px);
+}
+.flow-cover {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 290px;
+    border-radius: 16px;
+    background: #30293a;
+}
+.flow-cover img,
+.flow-cover::after {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.flow-cover img {
+    object-fit: cover;
+    object-position: center 28%;
+}
+.flow-cover::after {
+    content: '';
+    background: linear-gradient(0deg, #170f20e8, transparent 72%);
+}
+.flow-cover figcaption {
+    position: absolute;
+    z-index: 1;
+    inset: auto clamp(20px, 2vw, 34px) clamp(18px, 2vw, 32px);
+}
+.flow-cover figcaption span {
+    display: block;
+    font-size: 14px;
+    color: #e6dae7;
+}
+.flow-cover strong {
+    font-size: clamp(26px, 2.6vw, 42px);
+    letter-spacing: -0.05em;
+}
+.flow-steps {
+    display: grid;
+    align-content: center;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    counter-reset: stage;
+}
+.flow-steps li {
+    display: grid;
+    grid-template-columns: 2.3em 1fr;
+    gap: 6px 12px;
+    padding-block: clamp(15px, 1.5vw, 26px);
+    counter-increment: stage;
+}
+.flow-steps li + li {
+    border-top: 1px solid var(--edge);
+}
+.flow-steps li::before {
+    content: counter(stage, decimal-leading-zero);
+    grid-row: span 2;
+    padding-top: 3px;
+    font:
+        14px/1.5 'Poster Mono',
+        monospace;
+    color: #d5b8ef;
+}
+.flow-steps h3 {
+    font-size: clamp(19px, 1.6vw, 27px);
+    line-height: 1.22;
+    letter-spacing: -0.035em;
+}
+.flow-steps p {
+    color: var(--muted);
+    max-width: 49ch;
+    line-height: 1.45;
 }
 .foot {
     border-top: 1px solid var(--edge);
@@ -586,9 +692,13 @@ h1 span:last-child {
     .feature h3 {
         font-size: 20px;
     }
-    .flow ol {
+    .flow-body {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 6px;
+    }
+    .flow-cover {
+        min-height: 0;
+        aspect-ratio: 2 / 1;
     }
     .landing {
         background-image: url('../../assets/studio/landing-glow-phone.webp');
@@ -613,9 +723,6 @@ h1,
 h2,
 h3 {
     font-weight: 700;
-}
-.flow ol {
-    list-style: decimal;
 }
 .skip:focus {
     position: absolute;

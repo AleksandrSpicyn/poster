@@ -21,8 +21,8 @@ class StoreController
      */
     public function __invoke(ClippingConnectionData $data, #[CurrentUser] User $owner, SaveClippingConnectionAction $action): RedirectResponse
     {
-        $action->run($owner, $data);
+        $connection = $action->run($owner, $data);
 
-        return to_route('clipping.index');
+        return to_route('clipping.edit', $connection);
     }
 }

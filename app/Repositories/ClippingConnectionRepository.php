@@ -30,7 +30,7 @@ final readonly class ClippingConnectionRepository
     /** @return Collection<int, ClippingConnection> */
     public function owned(User $owner): Collection
     {
-        return ClippingConnection::query()->where('owner_id', $owner->id)->orderBy('name')->get(['id', 'name', 'driver', 'access_result']);
+        return ClippingConnection::query()->where('owner_id', $owner->id)->orderBy('name')->get(['id', 'name', 'driver', 'access_result', 'catalog_checked_at', 'catalog_error', 'import_projects']);
     }
 
     /** @return LazyCollection<int, OpusSource> */
@@ -38,6 +38,49 @@ final readonly class ClippingConnectionRepository
     {
         return OpusSource::query()->whereNull('sync_paused_at')
             ->whereIn('clipping_connection_id', ClippingConnection::query()->where('uses_server_key', false)->where('import_projects', true)->select('id'))->lazyById();
+    }
+
+    /** @return LazyCollection<int, ClippingConnection> */
+    public function scheduledConnections(): LazyCollection
+    {
+        return ClippingConnection::query()->where('uses_server_key', false)->where('import_projects', true)->lazyById();
+    }
+
+    public function recordDiscovery(ClippingConnection $connection, ?string $error): void
+    {
+        ClippingConnection::query()->whereKey($connection->id)->where('scope_version', $connection->scope_version)
+            ->update(['catalog_checked_at' => now(), 'catalog_error' => $error]);
+    }
+
+    /** @return Collection<string, OpusSource> */
+    public function catalogSources(ClippingConnection $connection): Collection
+    {
+        return OpusSource::query()->where('clipping_connection_id', $connection->id)
+            ->get(['id', 'external_id', 'sync_paused_at'])->keyBy('external_id');
+    }
+
+    public function discover(ClippingConnection $connection, OpusSourceData $candidate): ?OpusSource
+    {
+        return DB::transaction(function () use ($connection, $candidate): ?OpusSource {
+            $current = ClippingConnection::query()->where('scope_version', $connection->scope_version)->where('import_projects', true)->lockForUpdate()->find($connection->id);
+
+            if ($current === null) {
+                return null;
+            }
+
+            $source = OpusSource::query()->where('clipping_connection_id', $current->id)->where('external_id', $candidate->id)->first();
+
+            if ($source !== null) {
+                return $source;
+            }
+
+            $project = new Project(['name' => filled($candidate->title) ? $candidate->title : $candidate->id, 'prompt' => '', 'is_active' => false]);
+            $project->owner_id = $current->owner_id;
+            $project->clipping_connection_id = $current->id;
+            $project->save();
+
+            return $project->opusSources()->create(['clipping_connection_id' => $current->id, 'external_id' => $candidate->id, 'title' => $candidate->title, 'game' => $candidate->game]);
+        }, attempts: 3);
     }
 
     public function find(int $id): ?ClippingConnection
@@ -154,6 +197,9 @@ final readonly class ClippingConnectionRepository
     {
         DB::transaction(function () use ($connection, $key): void {
             $locked = ClippingConnection::query()->where('owner_id', $connection->owner_id)->lockForUpdate()->findOrFail($connection->id);
+            OpusSource::query()->where('clipping_connection_id', $locked->id)->whereIn('sync_error', ['HTTP 401', 'HTTP 403'])
+                ->update(['sync_paused_at' => null, 'sync_error' => null]);
+            $locked->forceFill(['catalog_checked_at' => null, 'catalog_error' => null]);
             $locked->api_key = $key;
             $locked->uses_server_key = false;
             $locked->forceFill(['access_result' => null, 'access_checked_at' => null]);
@@ -169,12 +215,6 @@ final readonly class ClippingConnectionRepository
         $connection->save();
 
         return $connection;
-    }
-
-    /** @return Collection<int, Project> */
-    public function projects(ClippingConnection $connection): Collection
-    {
-        return $this->availableProjects($connection)->with('media', 'coverFrame')->orderBy('name')->get();
     }
 
     public function availableProject(ClippingConnection $connection, int $id): ?Project

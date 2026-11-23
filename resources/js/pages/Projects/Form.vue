@@ -452,7 +452,7 @@ function submit() {
                     <div v-show="section === 'main'" class="grid gap-2">
                         <Label for="project-prompt">{{ isSeries ? 'Завязка' : project ? 'Базовый промпт' : 'Описание' }}</Label>
                         <textarea
-                            rows="1"
+                            rows="5"
                             id="project-prompt"
                             v-model="form.prompt"
                             name="prompt"
@@ -461,7 +461,7 @@ function submit() {
                             :disabled="form.processing || conflict"
                             :aria-invalid="!!form.errors.prompt"
                             :aria-describedby="form.errors.prompt ? 'project-prompt-error' : undefined"
-                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 min-h-12 w-full resize-y rounded-md border px-3 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 w-full resize-y rounded-md border px-3 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
                             :class="{ 'border-destructive': !!form.errors.prompt }"
                             placeholder="Опишите тему, аудиторию и настроение будущих роликов."
                         />

@@ -44,6 +44,9 @@ const chartTitles: Record<Counter, string> = {
     shares: 'Динамика репостов',
     comments: 'Динамика комментариев',
 };
+const chartPeriod = computed(() =>
+    filters.value.from || filters.value.to ? interval.value : filters.value.days === 7 ? 'за неделю' : 'за ' + period.value,
+);
 const chartTotal = computed(() => {
     const growth = props.report.summaries[metric.value];
     return showGrowth.value && growth !== null ? signed(growth) : amount(showGrowth.value ? null : props.report.totals[metric.value]);
@@ -134,6 +137,14 @@ const tabs: { name: string; view: View }[] = [
             <div class="analytics-panels">
                 <section class="studio-panel chart-panel">
                     <h2>{{ chartTitles[metric] }}</h2>
+                    <p class="secondary">{{ showGrowth ? 'Прирост' : names[metric] }} {{ chartPeriod }}</p>
+                    <strong class="chart-total">{{ chartTotal }}</strong>
+                    <PublicationMetricChart
+                        overview
+                        :values="showGrowth ? report.daily : dailySnapshots"
+                        :snapshots="!showGrowth"
+                        :label="showGrowth ? 'Прирост · ' + names[metric] : names[metric]"
+                    />
                     <div class="analytics-tabs chart-modes" role="group" aria-label="Режим графика">
                         <Button size="sm" :variant="showGrowth ? 'outline' : 'default'" :aria-pressed="!showGrowth" @click="showGrowth = false"
                             >Наблюдения</Button
@@ -142,17 +153,6 @@ const tabs: { name: string; view: View }[] = [
                             >Прирост</Button
                         >
                     </div>
-                    <p class="secondary">
-                        {{ interval }} ·
-                        {{ showGrowth ? 'Разница между замерами за соседние дни' : 'Сумма счётчиков роликов, измеренных в этот день' }}
-                    </p>
-                    <strong class="chart-total">{{ chartTotal }}</strong>
-                    <PublicationMetricChart
-                        overview
-                        :values="showGrowth ? report.daily : dailySnapshots"
-                        :snapshots="!showGrowth"
-                        :label="names[metric] + (showGrowth ? ' · прирост' : ' · наблюдения')"
-                    />
                 </section>
                 <section class="studio-panel platforms-panel">
                     <h2>
@@ -379,7 +379,7 @@ const tabs: { name: string; view: View }[] = [
 .chart-total {
     display: block;
     margin-top: 5px;
-    font: 700 28px/1.4 var(--font-mono);
+    font: 700 28px/1.5 var(--font-mono);
     font-variant-numeric: tabular-nums;
 }
 .analytics-panels {
@@ -397,6 +397,20 @@ const tabs: { name: string; view: View }[] = [
     margin: 0 0 10px;
     font-size: 20px;
     font-weight: 700;
+}
+.chart-panel > h2,
+.counter-section > h2 {
+    font-family: var(--font-sans);
+    line-height: 1.4;
+}
+.chart-panel > h2 {
+    margin-bottom: 12px;
+}
+.counter-section > h2 {
+    margin-bottom: 0;
+}
+.chart-panel > .secondary {
+    font: 400 14px/1.5 var(--font-sans);
 }
 .secondary,
 .publication-link small,

@@ -35,12 +35,9 @@ const route = useRoute(),
     page = usePage<SharedData>();
 const empty = computed(() => props.preview.external_id !== null && !props.clips.length);
 const confirmed = computed(() => props.preview.imported_at !== null);
-const title = computed(() => (confirmed.value ? 'Предпросмотр импорта' : empty.value ? 'Выбор источника' : 'Сопоставление импорта'));
+const title = computed(() => (confirmed.value ? 'Результат импорта' : 'Предпросмотр импорта'));
 const name = computed(() => props.projectName || props.preview.source_name || 'Проект без названия');
 const existing = computed(() => new Set(props.existingClipIds));
-function change(step: string, account?: string) {
-    return route('clipping.sources', { connection: props.connection.id, preview: props.preview.id, step, ...(account ? { account } : {}) });
-}
 function confirm() {
     form.post(route('clipping.import', [props.connection.id, props.preview.id]));
 }
@@ -89,8 +86,7 @@ function confirm() {
                             <span>Результат</span
                             ><span>Клипов: {{ clips.length }} · Сопоставлений аккаунтов: {{ preview.accounts?.length ?? 0 }}</span>
                         </div>
-                        <Button disabled>Подтвердить импорт</Button
-                        ><Link v-if="project" :href="route('projects.show', project.id)" class="project-link">Открыть клипы проекта ↗</Link
+                        <Link v-if="project" :href="route('projects.show', project.id)" class="project-link">Открыть клипы проекта ↗</Link
                         ><small>{{ name }}</small></template
                     >
                     <template v-else
@@ -98,28 +94,13 @@ function confirm() {
                         <span class="secondary">Проект провайдера</span>
                         <div class="source-name">{{ preview.source_name || 'Проект без названия' }}</div>
                         <span class="empty-symbol" aria-hidden="true">○</span><strong>В источнике нет клипов</strong>
-                        <p>Подтвердите привязку. Новые клипы появятся после обновления.</p>
-                        <Button variant="outline" as-child><Link :href="change('source')">Выбрать другой источник</Link></Button
-                        ><Button :disabled="form.processing" @click="confirm">Подтвердить импорт</Button></template
+                        <Button :disabled="form.processing" @click="confirm">Подтвердить импорт</Button></template
                     >
                 </section>
                 <ImportProjectCard :name="name" :cover="project?.cover" />
             </div>
             <section v-else class="mappings">
-                <h2>Источник → Poster</h2>
-                <Link v-if="preview.external_id" class="map-row" :href="change('map-project')"
-                    ><small>Источник</small><strong>{{ preview.source_name || 'Проект без названия' }}</strong
-                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small><span>{{ projectName || 'Новый проект' }}</span></Link
-                >
-                <Link class="map-row" v-for="a in preview.accounts" :key="a.id" :href="change('map-channel', a.id)"
-                    ><small>Источник</small><strong>{{ a.name || 'Аккаунт без названия' }}</strong
-                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small
-                    ><span>{{ accountNames[a.id] || 'Создать канал без права отправки' }}</span></Link
-                >
-                <Link v-for="account in preview.unmapped_accounts" :key="account.id" class="map-row" :href="change('map-channel', account.id)"
-                    ><small>Источник</small><strong>{{ account.name || 'Аккаунт без названия' }}</strong
-                    ><i aria-hidden="true">→</i><small class="target-label">В Poster</small><span class="unmapped">Выберите канал</span></Link
-                >
+                <h2>Клипы</h2>
                 <details v-for="clip in clips" :key="clip.id">
                     <summary class="map-row">
                         <small>Источник</small><strong>{{ clip.title || 'Клип без названия' }}</strong

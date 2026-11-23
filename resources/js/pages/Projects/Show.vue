@@ -37,7 +37,8 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Проекты', href: route('projects.index') },
     { title: page.props.project.name, href: route('projects.show', page.props.project.id) },
-    ...(managing.value || viewingClip.value ? [{ title: managing.value ? 'Управление проектом' : 'Клип', href: page.url }] : []),
+    ...(viewingClip.value ? [{ title: 'Библиотека клипов', href: '#clips' }] : []),
+    ...(managing.value ? [{ title: 'Управление проектом', href: page.url }] : []),
 ]);
 const viewingClip = ref(false);
 
@@ -75,6 +76,7 @@ function destroyProject() {
         >
             <ProjectNotice />
             <div
+                v-if="!viewingClip"
                 class="project-header flex flex-col items-start justify-between"
                 :class="page.props.series ? 'gap-4 sm:flex-row' : 'gap-3 min-[1100px]:flex-row'"
             >
@@ -336,7 +338,20 @@ function destroyProject() {
 .project-header > [data-slot='button'] {
     font-weight: 700;
 }
+@media (min-width: 1100px) {
+    :global([data-slot='sidebar-inset']:has(.selected-clip)) {
+        --clip-gutter: clamp(28px, 4vw, 64px);
+        --studio-content-width: calc(100% - 2 * var(--clip-gutter));
+        --studio-content-max: calc(1360px - 2 * var(--clip-gutter));
+    }
+}
+@media (min-width: 1920px) {
+    :global([data-slot='sidebar-inset']:has(.selected-clip)) {
+        --studio-content-max: calc(1568px - 2 * var(--clip-gutter));
+    }
+}
 .selected-clip {
+    padding-block-start: 32px;
     gap: 14px;
 }
 .short-project {
@@ -352,6 +367,7 @@ function destroyProject() {
         padding-top: 16px;
     }
     .selected-clip {
+        padding-block-start: 20px;
         gap: 13px;
     }
     .short-project {

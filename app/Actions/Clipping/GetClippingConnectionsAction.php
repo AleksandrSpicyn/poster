@@ -31,7 +31,7 @@ final readonly class GetClippingConnectionsAction
                 $access = $connection->getAttribute('access_result');
 
                 return [
-                    ...$connection->only(['id', 'name', 'driver']),
+                    ...$connection->only(['id', 'name', 'driver', 'catalog_checked_at', 'catalog_error', 'import_projects']),
                     'access' => is_array($access) ? Arr::only($access, ['projects', 'clips', 'accounts', 'metrics']) : null,
                 ];
             }),
@@ -43,7 +43,7 @@ final readonly class GetClippingConnectionsAction
     {
         return [
             ...$this->run($owner),
-            'connection' => $connection->only(['id', 'name', 'driver']),
+            'connection' => $connection->only(['id', 'name', 'driver', 'catalog_checked_at', 'catalog_error', 'import_projects']),
             'drivers' => $this->readers->labels(),
             'lastAccess' => $connection->getAttribute('access_result'),
             'scope' => $connection->only(['import_projects', 'import_accounts', 'import_archives']),

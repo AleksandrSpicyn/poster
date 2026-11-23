@@ -108,7 +108,7 @@ function resetFilters() {
                             >{{ row.title }}</Link
                         >
                         <strong v-else>{{ row.title }}</strong>
-                        <div class="grid">
+                        <div class="grid gap-1.5">
                             <span class="flex flex-wrap items-center gap-2"
                                 ><ChannelIcon :channel="row.platform" /><span v-if="row.platform" class="sr-only">{{
                                     page.props.types[row.platform]
@@ -144,8 +144,8 @@ function resetFilters() {
     display: grid;
     grid-template-columns: minmax(0, 0.87fr) minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    min-height: 54px;
+    gap: 12px 24px;
+    padding-block: 16px;
     border-bottom: 1px solid var(--border);
     overflow-wrap: anywhere;
 }
@@ -178,8 +178,7 @@ form label {
     .feed-row {
         grid-template-columns: 1fr;
         align-content: center;
-        gap: 2px;
-        min-height: 66px;
+        gap: 8px;
     }
 }
 </style>

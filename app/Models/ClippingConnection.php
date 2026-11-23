@@ -29,5 +29,5 @@ class ClippingConnection extends Model
 
     protected $hidden = ['api_key'];
 
-    protected $casts = ['access_checked_at' => 'datetime', 'access_result' => 'array', 'api_key' => 'encrypted', 'uses_server_key' => 'boolean', 'import_projects' => 'boolean', 'import_accounts' => 'boolean', 'import_archives' => 'boolean', 'scope_version' => 'integer'];
+    protected $casts = ['catalog_checked_at' => 'datetime', 'access_checked_at' => 'datetime', 'access_result' => 'array', 'api_key' => 'encrypted', 'uses_server_key' => 'boolean', 'import_projects' => 'boolean', 'import_accounts' => 'boolean', 'import_archives' => 'boolean', 'scope_version' => 'integer'];
 }

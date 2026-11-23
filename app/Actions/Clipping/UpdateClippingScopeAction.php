@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class UpdateClippingScopeAction
 {
-    public function __construct(private ClippingConnectionRepository $connections, private ClippingReaders $readers) {}
+    public function __construct(private ClippingConnectionRepository $connections, private ClippingReaders $readers, private SyncClippingConnectionAction $sync) {}
 
     public function run(ClippingConnection $connection, ClippingScopeData $data): void
     {
@@ -30,5 +30,9 @@ final readonly class UpdateClippingScopeAction
         }
 
         $this->connections->updateScope($connection, $data);
+
+        if (! $connection->import_projects && $data->import_projects) {
+            $this->sync->run($connection->refresh());
+        }
     }
 }
