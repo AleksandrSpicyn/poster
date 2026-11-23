@@ -23,12 +23,12 @@ withDefaults(defineProps<Props>(), {
 <template>
     <AppShell variant="sidebar">
         <AppSidebar><WorkspaceLiveStatus :connected="connected" :enabled="enabled" @refresh="refresh" /></AppSidebar>
-        <AppContent variant="sidebar" class="min-w-0 pb-[calc(66px+env(safe-area-inset-bottom))] md:pb-0">
+        <AppContent variant="sidebar" class="min-w-0 pb-[calc(66px+env(safe-area-inset-bottom))] min-[700px]:pb-0">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <AppFeedback />
             <p
                 v-if="enabled && !connected"
-                class="text-muted-foreground mx-4 flex items-center justify-between gap-2 text-xs md:hidden"
+                class="text-muted-foreground mx-4 flex items-center justify-between gap-2 text-xs min-[700px]:hidden"
                 role="status"
             >
                 Восстанавливаем связь<button class="min-h-11 underline" @click="refresh">Обновить</button>
@@ -40,7 +40,7 @@ withDefaults(defineProps<Props>(), {
 </template>
 
 <style>
-@media (max-width: 767px) {
+@media (max-width: 699px) {
     html:has(.mobile-nav) {
         scroll-padding-block-end: calc(66px + env(safe-area-inset-bottom));
     }

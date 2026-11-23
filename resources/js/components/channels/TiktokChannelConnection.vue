@@ -69,7 +69,7 @@ const canAuthorize = computed(() => !props.processing && !props.unsaved && props
                 </div>
                 <Button :disabled="!canAuthorize" @click="$emit('authorize')">{{ error ? 'Подключить повторно' : 'Перейти к авторизации' }}</Button>
                 <a v-if="unsaved" class="block underline" href="#channel-name">Сохраните изменения в настройках перед подключением.</a>
-                <a v-else-if="!channel.oauth_configured" class="block underline" href="#channel-name">Указать данные приложения</a>
+                <p v-else-if="!channel.oauth_configured">Подключение пока недоступно. Обратитесь к администратору студии.</p>
             </section>
             <section v-else class="studio-panel space-y-3">
                 <h2>Предоставленные права</h2>

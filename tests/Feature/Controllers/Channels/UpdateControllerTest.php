@@ -27,22 +27,22 @@ test('пустой секрет сохраняет подключение и и�
     Http::assertNothingSent();
 });
 
-test('смена приложения сбрасывает OAuth и прежний секрет', function (): void {
+test('устаревшее поле приложения не разрывает подключение', function (): void {
     $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'credentials' => ['access_token' => 'old-token']]);
 
     actingAs(serialOperator())->patch(route('channels.update', $channel), [...channelPayload(), 'client_id' => 'new-app', 'client_secret' => ''])->assertSessionHasNoErrors();
 
-    expect($channel->refresh()->credentials)->toBeNull();
-    expect($channel->client_secret)->toBeNull();
+    expect($channel->refresh()->credentials)->toBe(['access_token' => 'old-token']);
+    expect($channel->client_id)->not->toBe('new-app');
 });
 
-test('замена секрета требует нового подключения', function (): void {
+test('форма канала не перезаписывает секрет приложения', function (): void {
     $channel = Channel::factory()->recycle(workspaceOwner())->create(['type' => ChannelType::YOUTUBE, 'client_id' => 'app-id', 'credentials' => ['access_token' => 'old-token']]);
 
     actingAs(serialOperator())->patch(route('channels.update', $channel), channelPayload())->assertSessionHasNoErrors();
 
-    expect($channel->refresh()->credentials)->toBeNull();
-    expect($channel->client_secret)->toBe('app-secret');
+    expect($channel->refresh()->credentials)->toBe(['access_token' => 'old-token']);
+    expect($channel->client_secret)->not->toBe('app-secret');
 });
 
 test('платформа существующего канала неизменяема', function (): void {

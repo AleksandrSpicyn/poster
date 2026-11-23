@@ -150,7 +150,7 @@ const metricLabels: Record<string, string> = {
     font-size: 14px;
 }
 .clip-library nav [aria-pressed='true'] {
-    color: var(--primary);
+    color: var(--ring);
     background: color-mix(in srgb, var(--primary) 12%, var(--card));
 }
 .clip-library h2 {

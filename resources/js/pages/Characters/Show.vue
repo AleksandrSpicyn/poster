@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import CharacterRevisionCard from '@/components/characters/CharacterRevisionCard.vue';
 import Heading from '@/components/Heading.vue';
@@ -185,19 +186,15 @@ function changePage(page: number) {
                         />
                         <InputError :message="revisionForm.errors.description" />
                     </label>
-                    <label class="relative grid gap-2 text-sm"
-                        >Референс новой версии
-                        <span class="bg-muted flex min-h-11 items-center justify-between rounded-md border px-3 focus-within:ring-2"
-                            >{{ revisionForm.file?.name || 'Выбрать изображение' }} <span aria-hidden="true">↑</span></span
-                        >
-                        <input
-                            type="file"
-                            class="absolute inset-x-0 bottom-0 h-11 w-full cursor-pointer opacity-0"
-                            accept="image/jpeg,image/png,image/webp"
-                            :disabled="revisionForm.processing"
-                            @change="revisionForm.file = ($event.target as HTMLInputElement).files?.[0] ?? null"
-                        />
-                    </label>
+                    <ImageFilePicker
+                        label="Референс новой версии"
+                        :file="revisionForm.file"
+                        :disabled="revisionForm.processing"
+                        @select="
+                            revisionForm.file = $event;
+                            revisionForm.clearErrors('file');
+                        "
+                    />
                     <InputError :message="revisionForm.errors.file || revisionErrors.character" />
                     <Button type="submit" class="h-11 justify-self-start" :disabled="revisionForm.processing">Создать версию</Button>
                 </form>

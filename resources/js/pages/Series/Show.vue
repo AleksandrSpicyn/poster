@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProjectArchive from '@/components/projects/ProjectArchive.vue';
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import SeriesProduction from '@/components/SeriesProduction.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -12,7 +13,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
-    project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover'> & { channels: ProjectChannel[] };
+    project: Pick<ProjectSummary, 'id' | 'name' | 'is_active' | 'cover' | 'archived_at'> & { channels: ProjectChannel[] };
     series: SeriesSummary;
     characters: PaginatedResource<CharacterSummary>;
     episodes: EpisodeSummary[];
@@ -20,7 +21,7 @@ const props = defineProps<{
 const route = useRoute();
 const page = usePage();
 const production = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'production');
-const params = computed(() => ({ project: props.project.id, series: props.series.id }));
+
 const episodePlanComplete = computed(() => {
     const latest = props.episodes[0];
     return (
@@ -67,11 +68,6 @@ const breadcrumbs = computed(() => [
                 </div>
             </div>
             <template v-if="production">
-                <nav class="run-tabs" aria-label="Разделы сериала">
-                    <Link :href="route('series.show', params)">Эпизоды</Link>
-                    <Link :href="route('projects.edit', project.id)">Паспорт</Link>
-                    <Link :href="route('series.show', { ...params, section: 'production' })" aria-current="page">Производство</Link>
-                </nav>
                 <div class="run-grid">
                     <SeriesProduction
                         :project-id="project.id"
@@ -110,6 +106,7 @@ const breadcrumbs = computed(() => [
                 :characters="characters"
                 :episodes="episodes"
             />
+            <ProjectArchive v-if="!production" :project-id="project.id" :archived="!!project.archived_at" />
         </div>
     </AppLayout>
 </template>
@@ -141,22 +138,6 @@ const breadcrumbs = computed(() => [
     .series-overview:not(.production-view) > div:first-child > a {
         margin-top: 6px;
     }
-}
-.run-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.run-tabs a {
-    padding: 10px 13px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    border-radius: 8px;
-    font-size: 14px;
-}
-.run-tabs a[aria-current] {
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 9%, var(--card));
 }
 .run-grid {
     display: grid;

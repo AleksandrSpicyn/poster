@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import { Button } from '@/components/ui/button';
@@ -57,7 +56,6 @@ function episodeLabel(episode: EpisodeSummary) {
     if (episode.script_generation_status === 'outcome_unknown') return 'Результат неизвестен';
     return episode.current_revision_id || episode.script_generation_status ? 'В работе' : 'Черновик';
 }
-const archiveForm = useForm({ lock_version: props.series.lock_version });
 
 function createCharacter() {
     characterForm.post(route('characters.store', params), { preserveState: 'errors' });
@@ -65,9 +63,7 @@ function createCharacter() {
 function createEpisode() {
     episodeForm.post(route('episodes.store', { series: props.series.id }), { preserveState: 'errors' });
 }
-function archive() {
-    archiveForm.post(route('series.archive', params), { preserveState: 'errors' });
-}
+
 function changePage(page: number) {
     const url = route().current('series.show') ? route('series.show', params) : route('projects.show', props.project.id);
     router.get(url, { page }, { preserveScroll: true });
@@ -224,25 +220,5 @@ function changePage(page: number) {
                 </div>
             </ListPanel>
         </section>
-        <ConfirmationDialog
-            v-if="!series.archived_at"
-            heading="Архивация сериала"
-            title="Архивировать сериал?"
-            description="Новые эпизоды не будут запускаться автоматически."
-            action="Архивировать сериал"
-            :processing="archiveForm.processing"
-            :error="archiveForm.errors.lock_version"
-            @confirm="archive"
-        >
-            <template #trigger><Button variant="outline">Архивировать сериал</Button></template>
-            <div class="studio-row">
-                <dt>Эпизоды</dt>
-                <dd>{{ series.episodes_count ?? episodes.length }}</dd>
-            </div>
-            <div class="studio-row">
-                <dt>Производство</dt>
-                <dd>{{ series.latest_production?.is_active ? series.latest_production.stage_label : 'Активных запусков нет' }}</dd>
-            </div>
-        </ConfirmationDialog>
     </div>
 </template>

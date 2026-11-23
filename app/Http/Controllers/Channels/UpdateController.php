@@ -28,8 +28,6 @@ class UpdateController
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
      * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,tiktok,vk Example: youtube
-     * @bodyParam client_id string OAuth client ID, до 255 символов. Example: app-client
-     * @bodyParam client_secret string OAuth client secret, до 2048 символов. Пустое значение сохраняет прежний секрет. No-example
      * @bodyParam is_active boolean Разрешить публикацию; отсутствие сохраняет текущий флаг. Example: true
      * @response 302
      * @response 401 {"message":"Unauthenticated."}

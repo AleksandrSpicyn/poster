@@ -162,11 +162,13 @@ test('лента объединяет запросы и результаты, с
         ->assertInertia(fn(Assert $page): Assert => $page->where('activity.meta.total', 2));
 
     $sent->update(['publication_request_id' => $request->id]);
-    $request->update(['status' => PublicationStatus::PUBLISHED]);
+    $publishedAt = now()->subHour()->startOfSecond();
+    $request->update(['status' => PublicationStatus::PUBLISHED, 'published_at' => $publishedAt]);
 
     get(route('posts'))
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('activity.meta.total', 1)
             ->where('activity.data.0.kind', 'post')
+            ->where('activity.data.0.event_at', $publishedAt->toISOString())
             ->where('activity.data.0.title', 'Вечерний поезд'));
 });

@@ -123,7 +123,7 @@ function shortNumber(v: number) {
 <style scoped>
 .metric-chart {
     padding: 14px 9px 0 42px;
-    color: var(--primary);
+    color: var(--ring);
 }
 .chart-plot {
     position: relative;
@@ -161,7 +161,7 @@ function shortNumber(v: number) {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    color: #e8ac7d;
+    color: var(--warning);
 }
 .snapshots {
     padding-left: 40px;

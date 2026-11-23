@@ -453,7 +453,7 @@ async function playBoundary(time: number) {
 }
 .assembly-notice svg,
 .assembly-check svg {
-    color: var(--primary);
+    color: var(--ring);
     width: 19px;
     height: 19px;
     flex: none;
@@ -461,7 +461,7 @@ async function playBoundary(time: number) {
 }
 .assembly-notice h3,
 .assembly-pinned-link {
-    color: var(--primary);
+    color: var(--ring);
 }
 .assembly-notice.history {
     margin-top: 10px;

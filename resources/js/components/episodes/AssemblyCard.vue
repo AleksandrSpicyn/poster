@@ -201,7 +201,7 @@ function publish() {
                     <p v-if="selected.some((channel) => channel.type === 'tiktok')">
                         Видео поступит во входящие TikTok. Чтобы опубликовать его, откройте уведомление в приложении.
                     </p>
-                    <label class="grid gap-2">Подпись<input v-model="publishForm.caption" maxlength="1000" class="list-select" /></label>
+                    <label class="grid gap-2">Подпись<input v-model="publishForm.caption" maxlength="1000" class="studio-field" /></label>
                     <label v-if="selected.length" class="flex items-center gap-2"
                         ><input v-model="confirmed" type="checkbox" required />Подтверждаю выпуск в выбранные аккаунты</label
                     >
@@ -310,7 +310,7 @@ function publish() {
 }
 .receipt-status.submission_unknown,
 .receipt-status.failed {
-    border-left-color: #ca8d5a;
+    border-left-color: var(--warning);
 }
 .receipt-status p {
     margin-top: 4px;

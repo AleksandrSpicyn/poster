@@ -93,6 +93,6 @@ function progress(series: SeriesSummary) {
 }
 .catalog-tabs a[aria-current] {
     background: color-mix(in srgb, var(--primary) 12%, var(--background));
-    color: var(--primary);
+    color: var(--ring);
 }
 </style>

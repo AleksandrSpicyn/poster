@@ -263,7 +263,7 @@ function change(action: 'stop' | 'resume') {
 }
 
 .run-steps [aria-current='step'] strong {
-    color: var(--primary);
+    color: var(--ring);
 }
 .run-panel {
     padding: 20px 24px 28px;
@@ -288,7 +288,7 @@ function change(action: 'stop' | 'resume') {
     background: var(--muted-foreground);
 }
 .run-notice.caution::before {
-    background: #db976e;
+    background: var(--warning);
 }
 .run-notice.success::before {
     background: var(--primary);
@@ -320,7 +320,7 @@ function change(action: 'stop' | 'resume') {
     color: var(--muted-foreground);
 }
 .run-steps svg.complete {
-    color: var(--primary);
+    color: var(--ring);
 }
 .run-facts div {
     display: grid;

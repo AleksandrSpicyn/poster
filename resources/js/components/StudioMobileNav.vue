@@ -10,7 +10,7 @@ import { useRoute } from 'ziggy-js';
 const route = useRoute();
 const { main } = useNavigation();
 const page = usePage();
-const mobile = useMediaQuery('(max-width: 767px)');
+const mobile = useMediaQuery('(max-width: 699px)');
 const primaryPaths: string[] = ['dashboard', 'projects.index', 'posts'].map((name) => route(name, undefined, false));
 const inMore = computed(() => page.url.startsWith('/settings/') || main.value.some((item) => item.isActive && !primaryPaths.includes(item.href)));
 const links = computed(() => main.value.filter((item) => primaryPaths.includes(item.href)));
@@ -67,7 +67,7 @@ const links = computed(() => main.value.filter((item) => primaryPaths.includes(i
     outline: 2px solid var(--ring);
     outline-offset: -3px;
 }
-@media (min-width: 768px) {
+@media (min-width: 700px) {
     .mobile-nav {
         display: none;
     }

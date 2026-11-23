@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CharacterRevision, CharacterRouteParams } from '@/types/series';
 import { useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -49,34 +50,8 @@ function viewLabel(view: string) {
     return viewLabels[view] ?? props.referenceViews[view] ?? view;
 }
 
-const fileInput = ref<HTMLInputElement | null>(null);
-const previewUrl = ref('');
-const dragging = ref(false);
 const uploadFailure = ref('');
 const removeFailure = ref('');
-
-watch(
-    () => uploadForm.file,
-    (file, _, cleanup) => {
-        if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            previewUrl.value = '';
-            return;
-        }
-        const url = URL.createObjectURL(file);
-        previewUrl.value = url;
-        cleanup(() => URL.revokeObjectURL(url));
-    },
-);
-
-function dropFile(event: DragEvent) {
-    dragging.value = false;
-    uploadFailure.value = '';
-    const files = event.dataTransfer?.files;
-    if (busy.value || editForm.isDirty || !fileInput.value || files?.length !== 1) return;
-    fileInput.value.files = files;
-    uploadForm.file = files[0];
-    uploadForm.clearErrors('file');
-}
 
 function update() {
     editForm.patch(route('characters.revisions.update', params), { preserveScroll: true, preserveState: 'errors' });
@@ -116,9 +91,9 @@ function remove(media: number) {
         },
     });
 }
-function selectFile(event: Event) {
+function selectFile(file: File) {
     uploadFailure.value = '';
-    uploadForm.file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    uploadForm.file = file;
     uploadForm.clearErrors('file');
 }
 function imageCountLabel(count: number) {
@@ -277,33 +252,13 @@ function imageCountLabel(count: number) {
             </div>
             <slot v-if="!uploadFailure" name="version" />
             <div class="grid min-w-0 gap-2">
-                <span class="text-muted-foreground text-sm">{{ uploadFailure ? 'Новый файл' : 'Загрузить изображение' }}</span>
-                <label
-                    class="bg-muted focus-within:ring-ring flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-2 text-sm focus-within:ring-2"
-                    :class="{ 'border-primary': dragging }"
-                    @dragover.prevent="dragging = true"
-                    @dragleave="dragging = false"
-                    @drop.prevent="dropFile"
-                >
-                    {{ uploadFailure ? uploadForm.file?.name : 'Перетащите файл или выберите его с устройства' }}
-                    <span class="text-primary" aria-hidden="true">↑</span>
-                    <input
-                        ref="fileInput"
-                        class="sr-only"
-                        type="file"
-                        aria-label="Файл изображения"
-                        accept="image/png,image/jpeg,image/webp"
-                        required
-                        :disabled="busy || editForm.isDirty"
-                        @change="selectFile"
-                    />
-                </label>
-                <div v-if="uploadForm.file && !uploadFailure" class="flex min-w-0 items-center gap-3" role="status">
-                    <img v-if="previewUrl" :src="previewUrl" alt="" class="h-14 w-20 shrink-0 rounded-md object-cover" />
-                    <strong class="text-sm break-all"
-                        >{{ uploadForm.file.name }} · {{ viewLabel(uploadForm.view).toLocaleLowerCase('ru') }} · выбран</strong
-                    >
-                </div>
+                <ImageFilePicker
+                    label="Изображение персонажа"
+                    required
+                    :file="uploadForm.file"
+                    :disabled="busy || editForm.isDirty"
+                    @select="selectFile"
+                />
                 <InputError :message="uploadForm.errors.file" />
             </div>
             <div v-show="!uploadFailure" class="grid gap-2">
@@ -335,9 +290,6 @@ function imageCountLabel(count: number) {
                 <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">{{
                     uploadFailure ? 'Повторить загрузку' : 'Добавить референс'
                 }}</Button>
-                <Button v-if="uploadFailure" type="button" variant="outline" class="h-11" :disabled="busy" @click="fileInput?.click()"
-                    >Выбрать другой файл</Button
-                >
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError
                 :message="uploadErrors.character"

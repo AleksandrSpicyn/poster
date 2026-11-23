@@ -31,22 +31,7 @@ readonly class SaveChannel
             throw ValidationException::withMessages(['type' => 'Choose YouTube, Instagram or TikTok.']);
         }
 
-        $appChanged = $channel->client_id !== $data->client_id;
-        $secretChanged = filled($data->client_secret) && $channel->client_secret !== $data->client_secret;
-
-        if ($appChanged || $secretChanged) {
-            $channel->credentials = null;
-        }
-
-        if ($appChanged) {
-            $channel->client_secret = null;
-        }
-
-        $channel->fill(['name' => $data->name, 'type' => $data->type, 'client_id' => $data->client_id, 'is_active' => $data->is_active ?? $channel->is_active]);
-
-        if (filled($data->client_secret)) {
-            $channel->client_secret = $data->client_secret;
-        }
+        $channel->fill(['name' => $data->name, 'type' => $data->type, 'is_active' => $data->is_active ?? $channel->is_active]);
 
         $this->channels->save($channel);
 

@@ -44,13 +44,13 @@ const information = computed(() => page.props.information);
 const searching = ref(false);
 const preview = ref<{ total: number; name?: string }>();
 watch(
-    () => [searching.value, filters.search, filters.archived, filters.active, filters.clipping, page.props.projects] as const,
-    ([open, search, archived, active, clipping, projects], _, onCleanup) => {
+    () => [searching.value, filters.search, filters.active, filters.clipping, page.props.projects] as const,
+    ([open, search, active, clipping, projects], _, onCleanup) => {
         preview.value = undefined;
         if (!open) return;
         if (
             search === page.props.filters.search &&
-            !!archived === !!page.props.filters.archived &&
+            !page.props.filters.archived &&
             !!active === !!page.props.filters.active &&
             !!clipping === !!page.props.filters.clipping
         ) {
@@ -61,7 +61,7 @@ watch(
         const controller = new AbortController();
         const timer = window.setTimeout(async () => {
             try {
-                const url = route('projects.index', { search, archived, active, clipping, perPage: 1 });
+                const url = route('projects.index', { search, active, clipping, perPage: 1 });
                 const response = await fetch(url, {
                     signal: controller.signal,
                     headers: {
@@ -95,6 +95,7 @@ onMounted(() => {
 });
 onUnmounted(() => window.removeEventListener('hashchange', restoreSearch));
 function runSearch() {
+    filters.archived = 0;
     searching.value = false;
     applyFilters();
 }
@@ -137,11 +138,12 @@ function selectGroup(group: 'all' | 'active') {
                 <Button
                     v-if="page.props.filters.search || searching || page.props.filters.archived || page.props.filters.active"
                     as-child
+                    class="h-11"
                     variant="outline"
                 >
                     <Link :href="route('projects.index')">Ко всем</Link>
                 </Button>
-                <Button v-if="!information && !searching && !page.props.filters.clipping" as-child class="h-11"
+                <Button v-if="!information && !page.props.filters.clipping" as-child class="h-11"
                     ><Link :href="route('projects.create')">Создать проект</Link></Button
                 >
             </div>
@@ -202,17 +204,6 @@ function selectGroup(group: 'all' | 'active') {
                             <option value="desc">Сначала новые</option>
                             <option value="asc">Сначала старые</option>
                         </select>
-                    </label>
-                    <label class="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            :checked="!!filters.archived"
-                            @change="
-                                filters.archived = Number(($event.target as HTMLInputElement).checked);
-                                filters.active = 0;
-                            "
-                        />
-                        В архиве
                     </label>
                     <p class="studio-row" aria-live="polite">
                         <strong>Найдено</strong
@@ -320,8 +311,8 @@ function selectGroup(group: 'all' | 'active') {
 .project-search-link {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     color: var(--muted-foreground);
     border-radius: 8px;
 }

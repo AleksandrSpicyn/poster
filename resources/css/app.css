@@ -8,6 +8,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    --font-mono: 'Poster Mono', 'DejaVu Sans Mono', ui-monospace, monospace;
     --font-sans:
         'Poster Sans', 'DejaVu Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
@@ -104,6 +105,10 @@
 
 :root {
     color-scheme: light;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    --warning: #80451b;
+    --progress: #65488b;
+    --dim: #505b4c;
     --background: #f7f6f0;
     --foreground: #20251e;
     --card: #ffffff;
@@ -142,6 +147,9 @@
 
 .dark {
     color-scheme: dark;
+    --warning: #f5af83;
+    --progress: #c4b6ec;
+    --dim: #959b97;
     --background: #17191a;
     --foreground: #f6f4ed;
     --card: #202427;
@@ -264,6 +272,7 @@
     }
     @media (min-width: 1920px) {
         [data-slot='sidebar-wrapper'] {
+            --studio-sidebar-width: 240px;
             --studio-content-max: 1440px;
         }
     }
@@ -277,9 +286,12 @@
     .workspace-tabs > [aria-current] {
         @apply bg-sidebar-accent text-sidebar-accent-foreground font-semibold;
     }
+    .studio-field {
+        @apply border-input bg-background text-foreground min-h-12 min-w-0 rounded-[10px] border px-3 py-2 text-base;
+    }
     .list-select {
         @apply border-input bg-card text-foreground focus-visible:ring-ring/50 h-11 min-w-28 appearance-none rounded-lg border pr-10 pl-3 text-sm transition-shadow outline-none focus-visible:ring-2 disabled:cursor-wait disabled:opacity-60;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+        background-image: var(--select-arrow);
         background-position: right 0.875rem center;
         background-repeat: no-repeat;
         background-size: 1rem;
@@ -446,3 +458,78 @@
         @apply text-sm;
     }
 }
+
+/* Shared dimensions and states from the Poster Element Book. */
+.workspace-page :is([data-slot='button'], nav > a, nav > button),
+[data-slot='dialog-content'] [data-slot='button'] {
+    min-height: 44px;
+}
+.workspace-page [data-slot='button'],
+[data-slot='dialog-content'] [data-slot='button'] {
+    border-radius: 10px;
+}
+.workspace-page :is(input[data-slot='input']:not([type='file']), select:not([multiple]), textarea),
+[data-slot='dialog-content'] :is(input[data-slot='input'], select:not([multiple]), textarea) {
+    min-width: 0;
+    min-height: 48px;
+    max-width: 100%;
+    border-radius: 10px;
+    font-size: 16px;
+}
+.workspace-page select:not([multiple]),
+[data-slot='dialog-content'] select:not([multiple]) {
+    appearance: none;
+    padding-inline: 12px 40px;
+    background-image: var(--select-arrow);
+    background-position: right 14px center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+.workspace-page :is(button, a, input, select, textarea, summary):focus-visible,
+[data-slot='dialog-content'] :is(button, a, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+}
+.studio-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 16px;
+}
+.studio-filters label:not([for]),
+.studio-filters > label {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
+.studio-filters [data-slot='button'] {height: 48px;}
+.image-dropzone {
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    margin-block: 16px;
+    padding: 24px;
+    border: 1px dashed var(--input);
+    border-radius: 12px;
+    background-color: var(--muted);
+    text-align: center;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+.image-dropzone .file-action {display:inline-flex;align-items:center;min-height:44px;border-radius:10px;padding-inline:16px;background:var(--primary);color:var(--primary-foreground);font-weight:700;}
+.image-dropzone span {font-size: 14px; color: var(--muted-foreground);}
+.image-dropzone:is(:hover,.dragging,:focus-within) {border-color: var(--ring);}
+.image-dropzone:focus-within {outline: 2px solid var(--ring); outline-offset: 3px;}
+@media (max-width: 699px) {
+    .workspace-page .studio-filters,
+    .studio-filters > [data-list-controls] {
+        display: grid;
+        grid-template-columns: minmax(0,1fr);
+        align-items: stretch;
+    }
+    .studio-filters :is(select, [data-slot='button']) {width:100%;}
+}
+
+:where(.workspace-page, .access, [data-slot='dialog-content']) .text-primary { color: var(--ring); }

@@ -83,15 +83,17 @@ function rows(connection: Connection) {
                     Фильтры
                 </button>
             </nav>
-            <form v-if="filtering" id="provider-filters" class="studio-panel grid max-w-2xl gap-3" @submit.prevent="findSources">
-                <h2>Фильтры</h2>
-                <label for="provider-connection">Подключение</label>
-                <select id="provider-connection" v-model="selectedConnection" class="list-select" required>
-                    <option v-if="!connections.length" :value="null" disabled>Нет подключений</option>
-                    <option v-for="connection in connections" :key="connection.id" :value="connection.id">{{ connection.name }}</option>
-                </select>
-                <label for="provider-project-name">Название внешнего проекта</label>
-                <Input id="provider-project-name" v-model="sourceTitle" type="search" maxlength="200" />
+            <form v-if="filtering" id="provider-filters" class="studio-panel studio-filters" role="search" @submit.prevent="findSources">
+                <label for="provider-connection"
+                    >Подключение
+                    <select id="provider-connection" v-model="selectedConnection" class="list-select" required>
+                        <option v-if="!connections.length" :value="null" disabled>Нет подключений</option>
+                        <option v-for="connection in connections" :key="connection.id" :value="connection.id">{{ connection.name }}</option>
+                    </select></label
+                >
+                <label for="provider-project-name"
+                    >Название внешнего проекта <Input id="provider-project-name" v-model="sourceTitle" type="search" maxlength="200"
+                /></label>
                 <Button type="submit" :disabled="!selectedConnection" class="justify-self-start">Применить</Button>
             </form>
             <section>
@@ -140,7 +142,7 @@ function rows(connection: Connection) {
     font-size: 14px;
 }
 .providers nav [aria-pressed='true'] {
-    color: var(--primary);
+    color: var(--ring);
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
 }
 .providers h2 {
@@ -165,7 +167,7 @@ function rows(connection: Connection) {
 .provider-row [data-status='denied'],
 .provider-row [data-status='unsupported'],
 .provider-row [data-status='unavailable'] {
-    color: #e8ac7d;
+    color: var(--warning);
 }
 @media (max-width: 1099px) {
     .providers header {

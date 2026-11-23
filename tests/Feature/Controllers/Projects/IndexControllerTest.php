@@ -201,5 +201,8 @@ test('архив отделяет собственные архивные про
     get(route('projects.index', ['archived' => 1]))
         ->assertInertia(fn(Assert $page): Assert => $page->where('projects.meta.total', 1)->where('projects.data.0.id', $archived->id));
 
+    get(route('projects.index', ['archived' => 1, 'search' => $archived->name]))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('projects.meta.total', 0)->missing('filters.archived'));
+
     get(route('projects.show', $archived))->assertOk();
 });

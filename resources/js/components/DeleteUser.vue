@@ -22,7 +22,7 @@ function remove() {
 </script>
 <template>
     <Dialog @update:open="reset">
-        <DialogTrigger as-child><button type="button" class="rounded-md px-3 py-3 text-left text-sm">Удаление учётной записи</button></DialogTrigger>
+        <DialogTrigger as-child><Button type="button" variant="destructive">Удалить учётную запись</Button></DialogTrigger>
         <DialogContent class="studio-confirm" :show-close="false">
             <DialogTitle>Удаление аккаунта</DialogTitle>
             <form @submit.prevent="remove">

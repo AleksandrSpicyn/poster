@@ -271,7 +271,7 @@ function submit() {
     font-size: 14px;
 }
 .source-picker nav [aria-current] {
-    color: var(--primary);
+    color: var(--ring);
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
 }
 .pick-columns {
@@ -327,7 +327,7 @@ function submit() {
     border-radius: 6px;
 }
 .stage-message.warning {
-    border-color: #e8ac7d;
+    border-color: var(--warning);
 }
 .pick-row {
     display: grid;

@@ -425,7 +425,7 @@ watch(
                             Откройте уведомление в TikTok, чтобы завершить редактирование и опубликовать ролик.
                         </p>
                         <template v-if="video && form.mode === 'direct' && creator && !tooLong">
-                            <label>Подпись <textarea v-model="form.title" maxlength="2200" class="list-select w-full" /></label>
+                            <label>Подпись <textarea v-model="form.title" maxlength="2200" class="studio-field w-full" /></label>
                             <label
                                 >Видимость
                                 <select v-model="form.privacy" required class="list-select">
@@ -534,7 +534,7 @@ header > button:disabled {
     box-shadow: none;
 }
 .delivery-tabs button[aria-current] {
-    color: var(--primary);
+    color: var(--ring);
     background: var(--sidebar-accent);
 }
 .preview-action,
@@ -636,7 +636,7 @@ header > button:disabled {
     cursor: pointer;
 }
 .mode-switch label:has(:checked) {
-    color: var(--primary);
+    color: var(--ring);
     background: color-mix(in srgb, var(--primary) 10%, var(--card));
 }
 .mode-switch label:focus-within {

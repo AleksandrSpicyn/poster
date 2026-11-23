@@ -775,7 +775,7 @@ function refresh() {
     min-height: 64px;
 }
 .trim-detail-page .take-option.selected strong {
-    color: var(--primary);
+    color: var(--ring);
 }
 @media (max-width: 639px) {
     .trim-detail-page [aria-labelledby='montage-builder-title'] {

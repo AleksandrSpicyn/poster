@@ -17,7 +17,8 @@ test('новый канал сохраняется без проекта и вн
 
     $channel = Channel::query()->sole();
     expect($channel->name)->toBe('Wildlife YouTube');
-    expect($channel->client_secret)->toBe('app-secret');
+    expect($channel->client_id)->toBeNull();
+    expect($channel->client_secret)->toBeNull();
     expect($channel->is_active)->toBeFalse();
     expect($channel->credentials)->toBeNull();
     expect($channel->project_id)->toBeNull();
@@ -35,9 +36,6 @@ test('невалидные настройки не создают канал', f
     'длина названия' => [['name' => str_repeat('a', 256)], 'name'],
     'платформа' => [['type' => 'unknown'], 'type'],
     'неподдерживаемая платформа' => [['type' => 'vk'], 'type'],
-    'тип идентификатора' => [['client_id' => ['invalid']], 'client_id'],
-    'секрет без идентификатора' => [['client_id' => '', 'client_secret' => 'private-value'], 'client_id'],
-    'длина секрета' => [['client_secret' => str_repeat('x', 2049)], 'client_secret'],
     'флаг активности' => [['is_active' => 'invalid'], 'is_active'],
 ]);
 

@@ -26,5 +26,9 @@ class GetProjectsListData extends Data
         public bool $clipping = false,
         public bool $archived = false,
         #[IntegerType, Min(1)] public ?int $info = null,
-    ) {}
+    ) {
+        if (filled($this->search)) {
+            $this->archived = false;
+        }
+    }
 }

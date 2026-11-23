@@ -174,7 +174,7 @@ function confirm() {
     outline-offset: 2px;
 }
 .map-row .unmapped {
-    color: #e8ac7d;
+    color: var(--warning);
 }
 .map-row i {
     color: var(--muted-foreground);
@@ -236,7 +236,7 @@ function confirm() {
     background: var(--background);
 }
 .project-link {
-    color: var(--primary);
+    color: var(--ring);
     font-weight: 700;
 }
 .state-panel [data-slot='button'] {
