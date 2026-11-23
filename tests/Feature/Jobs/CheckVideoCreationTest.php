@@ -11,6 +11,8 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 
+use function Pest\Laravel\assertDatabaseHas;
+
 test('проверка видео сохраняет результат выбранного провайдера', function (bool $alternative): void {
     Event::fake([VideoGenerated::class]);
 
@@ -109,13 +111,14 @@ test('Seedance опрашивается по сохранённому прова
     config(['services.video.provider' => 'hailuo', 'services.seedance.api_key' => 'test']);
     Http::fake(['*contents/generations/tasks/video-1' => Http::response([
         'status' => 'succeeded', 'generate_audio' => true,
-        'content' => ['video_url' => 'https://cdn.example.com/native.mp4'],
+        'content' => ['video_url' => 'https://cdn.example.com/native.mp4'], 'usage' => ['completion_tokens' => 324900], 'duration' => 15, 'resolution' => '720p',
     ])]);
     $prompt = Prompt::factory()->create(['video_id' => 'video-1', 'video_provider' => VideoProvider::SEEDANCE]);
     $job = new CheckVideoCreation($prompt, true, 61);
 
     app()->call($job->handle(...));
 
+    assertDatabaseHas('generation_provider_usage', ['prompt_id' => $prompt->id, 'provider' => 'seedance', 'completion_tokens' => 324900, 'resolution' => '720p', 'duration' => 15, 'charge_e8' => null]);
     expect($prompt->refresh()->video_url)->toBe('https://cdn.example.com/native.mp4');
     expect($prompt->audio_url)->toBe('https://cdn.example.com/native.mp4');
     expect($job->tries)->toBe(61);
@@ -165,6 +168,7 @@ test('окончательный отказ Seedance завершает job бе
     app()->call($job->handle(...));
 
     $job->assertFailedWith(VideoGeneratingException::class);
+    assertDatabaseHas('generation_provider_usage', ['external_id' => 'video-1', 'status' => 'failed', 'charge_e8' => null]);
     $job->assertNotReleased();
 
     expect($prompt->refresh()->video_url)->toBeNull();

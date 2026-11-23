@@ -40,6 +40,9 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\assertDatabaseMissing;
 use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
 use function Tests\Support\fakeCodexImages;
@@ -86,7 +89,7 @@ test('завершённый дубль хранится приватно без
     fakeSerialOpeningFrame();
     Http::fake([
         '*contents/generations/tasks' => Http::response(['id' => 'remote-1']),
-        '*contents/generations/tasks/remote-1' => Http::response(['status' => 'succeeded', 'generate_audio' => true, 'content' => ['video_url' => 'https://cdn.example.com/video.mp4']]),
+        '*contents/generations/tasks/remote-1' => Http::response(['status' => 'succeeded', 'usage' => ['completion_tokens' => 324900], 'generate_audio' => true, 'content' => ['video_url' => 'https://cdn.example.com/video.mp4']]),
         'https://cdn.example.com/video.mp4' => Http::response(File::get(base_path('tests/Fixtures/shot.mp4'))),
     ]);
 
@@ -103,6 +106,7 @@ test('завершённый дубль хранится приватно без
     app(SubmitShotGenerationAction::class)->run($download->id);
 
     expect($prompt->refresh()->generated)->toBeTrue();
+    assertDatabaseHas('generation_provider_usage', ['operation_id' => $video->id, 'external_id' => 'remote-1', 'completion_tokens' => 324900, 'charge_e8' => null]);
     expect($prompt->getFirstMedia(Prompt::SHOT_VIDEO)?->disk)->toBe('local');
     expect($prompt->getFirstMedia(Prompt::SHOT_IMAGE)?->disk)->toBe('local');
     expect($prompt->posts()->exists())->toBeFalse();
@@ -447,6 +451,8 @@ test('подтверждение неизвестной задачи читае�
     app(ResolveUnknownShotGenerationAction::class)->run($operation, $data, $actor);
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUCCEEDED);
+    assertDatabaseCount('generation_provider_usage', 1);
+    assertDatabaseHas('generation_provider_usage', ['operation_id' => $operation->id, 'prompt_id' => $prompt->id, 'external_id' => 'found-remote', 'completion_tokens' => null]);
     expect($operation->external_id)->toBe('found-remote');
     expect(data_get($operation->result_snapshot, 'resolved_by'))->toBe($actor->id);
     expect($prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->count())->toBe(1);
@@ -464,6 +470,7 @@ test('подтверждение чужой модели сохраняет не
     expect(fn() => app(ResolveUnknownShotGenerationAction::class)->run($operation, new ResolveShotGenerationData('wrong-model'), $actor))->toThrow(ValidationException::class);
 
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::SUBMISSION_UNKNOWN);
+    assertDatabaseMissing('generation_provider_usage', ['external_id' => 'wrong-model']);
     expect($operation->external_id)->toBeNull();
     expect($prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->exists())->toBeFalse();
     Http::assertSentCount(1);

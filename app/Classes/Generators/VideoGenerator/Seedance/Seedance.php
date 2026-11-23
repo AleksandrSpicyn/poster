@@ -11,8 +11,11 @@ use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
 use App\Data\VideoCapabilitiesData;
 use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
+use App\Data\VideoUsageData;
 use App\Enums\VideoAudioSource;
 use App\Enums\VideoInputMode;
+use App\Enums\VideoReceiptStatus;
+use App\Exceptions\MalformedVideoResultException;
 use App\Exceptions\VideoGeneratingException;
 use App\Support\Integrations\Payload;
 use Illuminate\Container\Attributes\Config;
@@ -118,32 +121,47 @@ readonly class Seedance extends AsyncVideoGenerator
             return null;
         }
 
+        $tokens = $response->json('usage.completion_tokens');
+        $resolution = $response->json('resolution');
+        $duration = $response->json('duration');
+        $model = $response->json('model');
+        $usage = new VideoUsageData(
+            VideoReceiptStatus::from($status->value),
+            is_int($tokens) && $tokens >= 0 ? $tokens : null,
+            is_string($resolution) ? $resolution : null,
+            is_string($model) ? $model : null,
+            is_int($duration) && $duration > 0 ? $duration : null,
+        );
+
         if ($status !== GenerationStatus::SUCCEEDED) {
-            throw new VideoGeneratingException('Seedance task ended with status: ' . $status->value);
+            throw VideoGeneratingException::withUsage('Seedance task ended with status: ' . $status->value, $usage);
         }
 
         $hasAudio = $response->json('generate_audio');
 
         if (! is_bool($hasAudio)) {
-            throw new VideoGeneratingException('Seedance returned no audio-generation metadata.');
+            throw VideoGeneratingException::withUsage('Seedance returned no audio-generation metadata.', $usage);
         }
 
-        $url = Payload::string($response->json('content.video_url'), 'content.video_url');
-        $lastFrame = $response->json('content.last_frame_url');
-        $duration = $response->json('duration');
-        $model = $response->json('model');
+        try {
+            $url = Payload::string($response->json('content.video_url'), 'content.video_url');
+            $lastFrame = $response->json('content.last_frame_url');
 
-        if ($duration !== null && (! is_int($duration) || $duration < 1)) {
-            throw new UnexpectedValueException('Seedance returned an invalid duration.');
+            if ($duration !== null && (! is_int($duration) || $duration < 1)) {
+                throw new UnexpectedValueException('Seedance returned an invalid duration.');
+            }
+
+            return new VideoResultData(
+                $url,
+                $hasAudio ? $url : null,
+                $lastFrame === null ? null : Payload::string($lastFrame, 'content.last_frame_url'),
+                $duration,
+                $model === null ? null : Payload::string($model, 'model'),
+                $usage,
+            );
+        } catch (UnexpectedValueException $exception) {
+            throw new MalformedVideoResultException($exception, $usage);
         }
-
-        return new VideoResultData(
-            $url,
-            $hasAudio ? $url : null,
-            $lastFrame === null ? null : Payload::string($lastFrame, 'content.last_frame_url'),
-            $duration,
-            $model === null ? null : Payload::string($model, 'model'),
-        );
     }
 
     public function audioSource(): VideoAudioSource

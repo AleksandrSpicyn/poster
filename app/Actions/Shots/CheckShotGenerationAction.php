@@ -12,6 +12,7 @@ use App\Exceptions\VideoGenerationPendingException;
 use App\Jobs\CheckShotGenerationJob;
 use App\Jobs\SubmitShotGenerationJob;
 use App\Models\GenerationOperation;
+use App\Tasks\ReadVideoGenerationResult;
 use App\Tasks\Shots\ClaimGenerationOperation;
 use App\Tasks\Shots\UpdateGenerationOperation;
 use Illuminate\Support\Facades\Cache;
@@ -20,7 +21,7 @@ use Throwable;
 
 readonly class CheckShotGenerationAction
 {
-    public function __construct(private ClaimGenerationOperation $claim, private VideoGeneratorFactory $generators, private UpdateGenerationOperation $update) {}
+    public function __construct(private ClaimGenerationOperation $claim, private VideoGeneratorFactory $generators, private ReadVideoGenerationResult $read, private UpdateGenerationOperation $update) {}
 
     public function run(int $operationId): void
     {
@@ -32,7 +33,8 @@ readonly class CheckShotGenerationAction
             }
 
             try {
-                $generator = $this->generators->make($operation->provider ?? throw new RuntimeException('The submitted provider is missing.'));
+                $provider = $operation->provider ?? throw new RuntimeException('The submitted provider is missing.');
+                $generator = $this->generators->make($provider);
 
                 $extendedLimit = $operation->result_snapshot['polling_limit'] ?? null;
                 $limit = is_int($extendedLimit) ? max($extendedLimit, $generator->pollingAttempts()) : $generator->pollingAttempts();
@@ -43,7 +45,7 @@ readonly class CheckShotGenerationAction
                     return;
                 }
 
-                $result = $generator->check($operation->external_id ?? throw new RuntimeException('The remote task ID is missing.'));
+                $result = $this->read->run($generator, $provider, $operation->external_id ?? throw new RuntimeException('The remote task ID is missing.'), $operation);
 
                 if (! $result instanceof VideoResultData) {
                     CheckShotGenerationJob::dispatch($operation->id)->delay(now()->addMinute())->afterCommit();

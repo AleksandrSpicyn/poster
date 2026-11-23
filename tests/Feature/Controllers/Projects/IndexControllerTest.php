@@ -192,7 +192,7 @@ test('группирует собственные проекты клиппин�
 test('архив отделяет собственные архивные проекты от приостановленных', function (): void {
     $owner = User::factory()->create();
     $paused = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
-    $archived = Project::factory()->create(['owner_id' => $owner->id, 'archived_at' => now()]);
+    $archived = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Архивная экспедиция', 'archived_at' => now()]);
     Project::factory()->create(['archived_at' => now()]);
 
     actingAs($owner)->get(route('projects.index'))

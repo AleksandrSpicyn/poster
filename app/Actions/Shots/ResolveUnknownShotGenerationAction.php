@@ -13,6 +13,7 @@ use App\Jobs\CheckShotGenerationJob;
 use App\Jobs\SubmitShotGenerationJob;
 use App\Models\GenerationOperation;
 use App\Models\User;
+use App\Tasks\ReadVideoGenerationResult;
 use App\Tasks\Shots\AssertShotGenerationContext;
 use App\Tasks\Shots\GetShotResolutionOperation;
 use App\Tasks\Shots\UpdateGenerationOperation;
@@ -27,6 +28,7 @@ readonly class ResolveUnknownShotGenerationAction
         private GetShotResolutionOperation $get,
         private AssertShotGenerationContext $context,
         private VideoGeneratorFactory $generators,
+        private ReadVideoGenerationResult $read,
         private UpdateGenerationOperation $update,
     ) {}
 
@@ -40,7 +42,8 @@ readonly class ResolveUnknownShotGenerationAction
             }
 
             $this->context->run($operation->prompt->shot ?? throw new RuntimeException('Shot missing.'));
-            $generator = $this->generators->make($operation->provider ?? throw new RuntimeException('Provider missing.'));
+            $provider = $operation->provider ?? throw new RuntimeException('Provider missing.');
+            $generator = $this->generators->make($provider);
             $generator->capabilities($operation->model);
 
             $metadata = [
@@ -49,7 +52,7 @@ readonly class ResolveUnknownShotGenerationAction
             ];
 
             try {
-                $result = $generator->check($data->external_id);
+                $result = $this->read->run($generator, $provider, $data->external_id, $operation, $operation->model);
             } catch (VideoGeneratingException $exception) {
                 $this->update->run($operation, GenerationOperationStatus::FAILED, [
                     'external_id' => $data->external_id, 'provider' => $operation->provider,
@@ -57,12 +60,10 @@ readonly class ResolveUnknownShotGenerationAction
                 ], GenerationOperationStatus::SUBMISSION_UNKNOWN);
 
                 return true;
+            } catch (ValidationException $exception) {
+                throw $exception;
             } catch (Throwable) {
                 throw ValidationException::withMessages(['external_id' => 'The remote receipt could not be verified. No new generation was sent.']);
-            }
-
-            if ($result?->model !== null && $result->model !== $operation->model) {
-                throw ValidationException::withMessages(['external_id' => 'The remote result belongs to a different video model.']);
             }
 
             $attributes = ['external_id' => $data->external_id, 'provider' => $operation->provider, 'model' => $operation->model, 'error_code' => null];

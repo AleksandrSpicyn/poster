@@ -15,5 +15,6 @@ class VideoResultData extends Data
         public ?string $lastFrameUrl = null,
         public ?int $duration = null,
         public ?string $model = null,
+        public ?VideoUsageData $usage = null,
     ) {}
 }
