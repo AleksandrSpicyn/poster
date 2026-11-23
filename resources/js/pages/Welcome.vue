@@ -331,12 +331,12 @@ h1 span:last-child {
     transform-origin: 50% 90%;
 }
 .features {
-    padding-bottom: 25px;
+    --features-inset: calc(25px + clamp(16px, 3vw, 48px));
+    border-top: 1px solid #797286;
+    padding-block: var(--features-inset);
 }
 .features h2 {
-    border-top: 1px solid #797286;
-    padding: 7px 0 0;
-    min-height: calc(44px + clamp(23px, 2vw, 34px));
+    margin-bottom: clamp(24px, 2vw, 34px);
     font-size: clamp(23px, 2vw, 34px);
     letter-spacing: -0.04em;
     line-height: 1.2;
@@ -344,7 +344,7 @@ h1 span:last-child {
 .items {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: minmax(140px, auto);
+    row-gap: 24px;
 }
 .feature {
     position: relative;
@@ -395,7 +395,7 @@ h1 span:last-child {
     font-size: clamp(14px, 1.16vw, 19px);
 }
 .flow {
-    margin-block: clamp(16px, 3vw, 48px) clamp(28px, 4vw, 64px);
+    margin-bottom: clamp(28px, 4vw, 64px);
     border-top: 1px solid var(--edge);
 }
 .flow summary {
@@ -583,7 +583,7 @@ h1 span:last-child {
         top: -0.035em;
     }
     .features {
-        padding-bottom: 7px;
+        --features-inset: 55px;
     }
     .landing {
         background-image: url('../../assets/studio/landing-glow-wide.webp');
@@ -607,7 +607,6 @@ h1 span:last-child {
     }
     .items {
         grid-template-columns: 1fr 1fr;
-        row-gap: 0;
     }
     .feature:nth-child(3)::before {
         display: none;
@@ -668,13 +667,8 @@ h1 span:last-child {
         margin: 7px auto 9px;
         align-self: center;
     }
-    .features h2 {
-        padding: 10px 0 0;
-    }
     .items {
         grid-template-columns: 1fr 1fr;
-        row-gap: 0;
-        grid-auto-rows: minmax(132px, auto);
     }
     .feature {
         padding-inline: 15px 9px;
