@@ -42,6 +42,16 @@ test('пользователь видит кабинет', function (): void {
             ->has('recentPosts.data', 0));
 });
 
+test('обзор показывает данные за выбранный период', function (int $days): void {
+    actingAs(User::factory()->create());
+
+    get(route('dashboard', ['days' => $days]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('analytics.filters.days', $days)
+            ->has('analytics.daily', $days));
+})->with([7, 30, 180, 365]);
+
 test('обзор не раскрывает приватные сериальные дубли', function (): void {
     Prompt::factory()->recycle(workspaceOwner())->forShot(Shot::factory()->create())->create(['prompt' => 'SERIAL_PRIVATE_SENTINEL']);
 

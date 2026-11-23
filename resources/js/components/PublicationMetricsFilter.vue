@@ -3,16 +3,16 @@ import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
-import { counterNames, platformNames } from '@/types/analytics';
+import { counterNames, metricPeriods, platformNames } from '@/types/analytics';
 import type { AnalyticsFilters, MetricsReport } from '@/types/analytics';
 
-const props = defineProps<{ report: MetricsReport; detail?: boolean; interval: string }>();
+const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
 const emit = defineEmits<{ selectProject: [project: number | null] }>();
 const page = usePage();
 const route = useRoute();
 const filters = computed(() => props.report.filters);
 const draft = reactive<AnalyticsFilters>({ ...filters.value, exclude_channels: [...filters.value.exclude_channels] });
-const custom = ref(!!filters.value.from);
+const custom = ref(false);
 const applying = ref(false);
 const requestError = ref('');
 watch(
@@ -20,8 +20,13 @@ watch(
     () => {
         const value = props.report.filters;
         Object.assign(draft, value, { exclude_channels: [...value.exclude_channels] });
-        custom.value = !!value.from;
+        custom.value = !!value.from || !metricPeriods.some((period) => period.days === value.days);
+        if (custom.value && !value.from) {
+            draft.from = Object.keys(props.report.daily)[0];
+            draft.to = props.report.to;
+        }
     },
+    { immediate: true },
 );
 watch(
     () => draft.project,
@@ -84,8 +89,8 @@ function toggle(id: number, event: Event) {
         <h2>Фильтры</h2>
         <label for="metric-period">Период</label
         ><select id="metric-period" :value="custom ? 'custom' : draft.days" @change="choosePeriod">
-            <option v-for="d in [7, 28, 30, 90]" :key="d" :value="d">
-                {{ filters.days === d && !filters.from ? interval : d + ' дней' }}
+            <option v-for="period in metricPeriods" :key="period.days" :value="period.days">
+                {{ period.label }}
             </option>
             <option value="custom">Произвольный интервал</option>
         </select>

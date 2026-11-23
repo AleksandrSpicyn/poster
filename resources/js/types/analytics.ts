@@ -1,6 +1,12 @@
 import type { ProjectSummary } from '@/types/projects';
 
 export type Counter = 'views' | 'likes' | 'shares' | 'comments';
+export const metricPeriods = [
+    { days: 7, label: 'Неделя', caption: 'за неделю' },
+    { days: 30, label: 'Месяц', caption: 'за месяц' },
+    { days: 180, label: 'Полгода', caption: 'за полгода' },
+    { days: 365, label: 'Год', caption: 'за год' },
+];
 export type AnalyticsFilters = {
     days: number;
     metric: Counter;

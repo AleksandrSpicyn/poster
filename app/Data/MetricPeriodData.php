@@ -19,7 +19,7 @@ final class MetricPeriodData extends Data
 {
     /** @param list<int> $exclude_channels */
     public function __construct(
-        #[In([7, 28, 30, 90])] public int $days = 7,
+        #[In([7, 28, 30, 90, 180, 365])] public int $days = 7,
         public PublicationCounter $metric = PublicationCounter::VIEWS,
         public ?ChannelType $platform = null,
         #[Min(1)] public ?int $project = null,

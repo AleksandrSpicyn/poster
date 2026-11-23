@@ -8,7 +8,7 @@ import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue'
 import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
 import { Button } from '@/components/ui/button';
-import { amount, counterNames, dateLabel, observedCountersByDate, platformNames, rangeLabel, signed } from '@/types/analytics';
+import { amount, counterNames, dateLabel, metricPeriods, observedCountersByDate, platformNames, rangeLabel, signed } from '@/types/analytics';
 import type { AnalyticsFilters, Counter, MetricsReport, PublicationTimeline } from '@/types/analytics';
 
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
@@ -30,7 +30,7 @@ const selected = computed(() => {
 const selectedProject = computed(() => props.report.projects.find((p) => p.id === selected.value?.projectId) ?? project.value);
 const start = computed(() => Object.keys(props.report.daily)[0] ?? props.report.from);
 const interval = computed(() => rangeLabel(start.value, props.report.to));
-const period = computed(() => (filters.value.from ? interval.value : filters.value.days + ' дней'));
+const period = computed(() => (filters.value.from ? undefined : metricPeriods.find((item) => item.days === filters.value.days)));
 const names = counterNames;
 const metric = computed(() => filters.value.metric);
 const list = computed(() =>
@@ -44,9 +44,7 @@ const chartTitles: Record<Counter, string> = {
     shares: 'Динамика репостов',
     comments: 'Динамика комментариев',
 };
-const chartPeriod = computed(() =>
-    filters.value.from || filters.value.to ? interval.value : filters.value.days === 7 ? 'за неделю' : 'за ' + period.value,
-);
+const chartPeriod = computed(() => period.value?.caption ?? interval.value);
 const chartTotal = computed(() => {
     const growth = props.report.summaries[metric.value];
     return showGrowth.value && growth !== null ? signed(growth) : amount(showGrowth.value ? null : props.report.totals[metric.value]);
@@ -56,7 +54,7 @@ const scope = computed(() =>
     [
         project.value?.name ?? 'Все проекты',
         filters.value.platform ? platformNames[filters.value.platform] : null,
-        props.detail ? period.value : filters.value.from ? interval.value : 'Последние ' + period.value,
+        period.value?.label ?? interval.value,
     ]
         .filter(Boolean)
         .join(' / '),
@@ -199,13 +197,7 @@ const tabs: { name: string; view: View }[] = [
                 >
             </nav>
             <div class="analytics-columns" :class="{ 'tabbed-report': ['publication', 'data', 'coverage'].includes(view) }">
-                <PublicationMetricsFilter
-                    v-if="view === 'filters'"
-                    :report="report"
-                    :detail="detail"
-                    :interval="interval"
-                    @select-project="filterProject = $event"
-                />
+                <PublicationMetricsFilter v-if="view === 'filters'" :report="report" :detail="detail" @select-project="filterProject = $event" />
                 <section v-else-if="view === 'drill'" class="studio-panel">
                     <h2>{{ names[metric] }}</h2>
                     <strong>{{ names[metric] }} · {{ amount(report.totals[metric]) }}</strong>
