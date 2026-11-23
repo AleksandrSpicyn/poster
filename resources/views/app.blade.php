@@ -1,6 +1,6 @@
 @use('App\Enums\Appearance')
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"  @class(['dark' => ($appearance ?? Appearance::SYSTEM->value) === Appearance::DARK->value])>
+<html lang="ru" @class(['dark' => ($appearance ?? Appearance::SYSTEM->value) === Appearance::DARK->value])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,15 +23,15 @@
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: #F6F6EF;
+                background-color: #F7F6F0;
             }
 
             html.dark {
-                background-color: #17191B;
+                background-color: #17191A;
             }
         </style>
 
-        <title data-inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title data-inertia>{{ config('app.name', 'Poster') }}</title>
 
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 

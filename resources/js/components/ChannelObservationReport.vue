@@ -110,7 +110,7 @@ function changeChannel(event: Event) {
                 variant="secondary"
                 :disabled="!canCompare"
                 :aria-expanded="compared"
-                aria-controls="previous-period-report"
+                :aria-controls="compared && canCompare ? 'previous-period-report' : undefined"
                 @click="compared = !compared"
                 >Сравнить с предыдущим периодом</Button
             >

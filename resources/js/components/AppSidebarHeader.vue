@@ -12,7 +12,7 @@ const route = useRoute();
 const studio = { title: 'Обзор', href: route('dashboard') };
 const parentTrail = computed(() => props.breadcrumbs.at(-1)?.href.startsWith('#'));
 const mobileReturn = computed(() => props.breadcrumbs.at(-2) ?? (props.breadcrumbs[0]?.href !== studio.href ? studio : undefined));
-const { setOpenMobile } = useSidebar();
+const { openMobile, setOpenMobile } = useSidebar();
 </script>
 <template>
     <header class="studio-top" :class="{ 'parent-trail': parentTrail }">
@@ -22,6 +22,8 @@ const { setOpenMobile } = useSidebar();
         </nav>
         <button
             class="text-muted-foreground ml-auto min-h-11 translate-x-px translate-y-px px-4 text-[13px] min-[700px]:hidden"
+            aria-haspopup="dialog"
+            :aria-expanded="openMobile"
             @click="setOpenMobile(true)"
         >
             Моя студия

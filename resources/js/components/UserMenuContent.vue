@@ -27,7 +27,7 @@ function close() {
 <template>
     <Dialog v-model:open="open">
         <DialogTrigger as-child><slot /></DialogTrigger>
-        <DialogContent class="account-panel bg-card text-card-foreground" :show-close="false">
+        <DialogContent class="account-panel bg-card text-card-foreground">
             <DialogTitle class="text-xl font-bold">Меню пользователя</DialogTitle>
             <div class="mb-2 flex items-center gap-3 border-b pb-4">
                 <UserRound class="text-muted-foreground mt-0.5 size-5 shrink-0" aria-hidden="true" />

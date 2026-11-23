@@ -13,7 +13,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
@@ -42,6 +42,14 @@ function counted(value: number, one: string, few: string, many: string) {
 }
 const information = computed(() => page.props.information);
 const searching = ref(false);
+const searchInput = useTemplateRef<InstanceType<typeof Input>>('searchInput');
+watch(
+    searching,
+    (open) => {
+        if (open) searchInput.value?.focus();
+    },
+    { flush: 'post' },
+);
 const preview = ref<{ total: number; name?: string }>();
 watch(
     () => [searching.value, filters.search, filters.active, filters.clipping, page.props.projects] as const,
@@ -99,9 +107,10 @@ function runSearch() {
     searching.value = false;
     applyFilters();
 }
-function selectGroup(group: 'all' | 'active') {
+function selectGroup(group: 'all' | 'active' | 'archived') {
     filters.active = Number(group === 'active');
-    filters.archived = 0;
+    filters.archived = Number(group === 'archived');
+    if (filters.archived) filters.search = '';
     applyFilters();
 }
 </script>
@@ -130,8 +139,8 @@ function selectGroup(group: 'all' | 'active') {
                     v-if="!information && !searching && !page.props.filters.clipping"
                     href="#search"
                     class="project-search-link"
-                    aria-label="Поиск проектов"
-                    title="Поиск проектов"
+                    :aria-label="page.props.filters.archived ? 'Поиск вне архива' : 'Поиск проектов'"
+                    :title="page.props.filters.archived ? 'Поиск вне архива' : 'Поиск проектов'"
                     @click="searching = true"
                     ><Search aria-hidden="true" class="size-4"
                 /></a>
@@ -194,9 +203,9 @@ function selectGroup(group: 'all' | 'active') {
             </div>
             <div v-else-if="searching" class="project-information">
                 <form class="studio-panel search-panel grid items-start gap-3" role="search" @submit.prevent="runSearch">
-                    <h2 class="text-xl font-bold">Поиск проектов</h2>
+                    <h2 class="text-xl font-bold">{{ page.props.filters.archived ? 'Поиск вне архива' : 'Поиск проектов' }}</h2>
                     <label class="grid gap-1.5" for="project-search"
-                        >Поиск по названию <Input id="project-search" v-model="filters.search" type="search" :maxlength="200" :disabled="loading"
+                        >Поиск по названию <Input ref="searchInput" id="project-search" v-model="filters.search" type="search" :maxlength="200" :disabled="loading"
                     /></label>
                     <label class="grid gap-1"
                         >Дата добавления
@@ -234,7 +243,9 @@ function selectGroup(group: 'all' | 'active') {
                     <Button :variant="filters.active ? 'default' : 'secondary'" :aria-pressed="!!filters.active" @click="selectGroup('active')"
                         >Активные</Button
                     >
-                    <Button v-if="page.props.filters.archived" variant="default" :aria-pressed="true" @click="selectGroup('all')">В архиве</Button>
+                    <Button :variant="filters.archived ? 'default' : 'secondary'" :aria-pressed="!!filters.archived" @click="selectGroup('archived')"
+                        >В архиве</Button
+                    >
                     <label class="ml-auto flex items-center gap-2 text-sm">
                         На странице
                         <select

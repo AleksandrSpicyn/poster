@@ -60,13 +60,13 @@ button:focus-visible {
     border-radius: 8px;
 }
 .theme-preview.light {
-    --preview-bg: #f6f6ef;
-    --preview-nav: #e7e9e4;
+    --preview-bg: #f7f6f0;
+    --preview-nav: #e6e9e4;
     --preview-row: #e6eae1;
 }
 .theme-preview.dark {
-    --preview-bg: #17191b;
-    --preview-nav: #121415;
+    --preview-bg: #17191a;
+    --preview-nav: #121416;
     --preview-row: #292d30;
 }
 .theme-preview::before {

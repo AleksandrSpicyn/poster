@@ -9,7 +9,7 @@ const props = defineProps<{
   class?: HTMLAttributes['class']
 }>()
 
-const { toggleSidebar } = useSidebar()
+const { open, toggleSidebar } = useSidebar()
 </script>
 
 <template>
@@ -19,9 +19,10 @@ const { toggleSidebar } = useSidebar()
     variant="ghost"
     size="icon"
     :class="cn('h-7 w-7', props.class)"
+    :aria-expanded="open"
     @click="toggleSidebar"
   >
     <PanelLeft />
-    <span class="sr-only">Toggle Sidebar</span>
+    <span class="sr-only">{{ open ? 'Свернуть меню' : 'Развернуть меню' }}</span>
   </Button>
 </template>

@@ -209,6 +209,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     }
     function importScript() {
         if (!online.value || scriptForm.processing || editorStale.value) return;
+        saveError.value = '';
         const parsed = checkJson();
         if (!parsed) return;
         scriptForm
@@ -216,6 +217,8 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             .post(route('episodes.scripts.store', params), {
                 preserveState: 'errors',
                 onSuccess: clearDraft,
+                onNetworkError: failed,
+                onHttpException: (response) => (response.status === 419 ? undefined : failed()),
                 onFinish: () => {
                     scriptForm.transform((data) => data);
                 },

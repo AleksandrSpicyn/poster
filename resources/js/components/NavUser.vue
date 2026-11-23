@@ -16,12 +16,12 @@ const { setOpenMobile } = useSidebar();
     <SidebarMenu>
         <SidebarMenuItem>
             <UserMenuContent :user="user" @navigate="setOpenMobile(false)">
-                <SidebarMenuButton size="lg" class="bg-card h-[54px] rounded-[10px] border" aria-label="Меню аккаунта">
+                <SidebarMenuButton size="lg" class="bg-card h-auto min-h-[54px] group-data-[collapsible=icon]:min-h-0 rounded-[10px] border" aria-label="Меню аккаунта">
                     <span
                         class="bg-sidebar-accent text-sidebar-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg font-bold"
                         >{{ getInitials(user.name) }}</span
                     >
-                    <span class="flex flex-col gap-0.5 text-left"
+                    <span class="flex flex-col gap-0.5 text-left group-data-[collapsible=icon]:hidden"
                         ><strong>Моя студия</strong><small class="text-muted-foreground">Личный кабинет</small></span
                     >
                 </SidebarMenuButton>

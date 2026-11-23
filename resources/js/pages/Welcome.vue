@@ -37,7 +37,7 @@ onUnmounted(() => window.removeEventListener('hashchange', revealSection));
                     <nav aria-label="Навигация">
                         <a href="#features">Возможности</a><a href="#workflow" class="flow-link" @click="openWorkflow">Рабочий процесс</a>
                     </nav>
-                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">Войти в студию</a>
+                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">{{ page.props.auth.user ? 'Моя студия' : 'Войти в студию' }}</a>
                 </div>
             </header>
             <main id="main" tabindex="-1">

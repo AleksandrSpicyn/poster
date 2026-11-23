@@ -50,11 +50,15 @@ function resetFilters() {
                     <Heading title="Публикации" />
                     <p class="text-muted-foreground mt-2 text-sm">{{ channelLabel }} / {{ periodLabel }}</p>
                 </div>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex max-w-full flex-wrap gap-2">
                     <Button variant="outline" :aria-expanded="section === 'filters'" @click="section = section === 'filters' ? '' : 'filters'"
                         >Фильтры</Button
                     >
-                    <Button v-for="channel in page.props.destinations" :key="channel.id" as-child
+                    <Button
+                        v-for="channel in page.props.destinations"
+                        :key="channel.id"
+                        as-child
+                        class="h-auto max-w-full text-center wrap-anywhere whitespace-normal"
                         ><Link :href="route('posts.tiktok.create', channel.id)">Отправить в TikTok · {{ channel.name }}</Link></Button
                     >
                 </div>

@@ -51,9 +51,9 @@ function reset() {
                 >
                     Все
                 </button>
-                <button :aria-pressed="opened" aria-controls="channel-filters" @click="opened = !opened">Фильтры</button>
+                <button :aria-expanded="opened" aria-controls="channel-filters" @click="opened = !opened">Фильтры</button>
             </nav>
-            <form v-if="opened" id="channel-filters" class="studio-panel studio-filters" role="search" @submit.prevent="applyFilters">
+            <form v-show="opened" id="channel-filters" class="studio-panel studio-filters" role="search" @submit.prevent="applyFilters">
                 <label>Название канала<Input v-model="filters.search" type="search" maxlength="200" /></label>
                 <label
                     >Состояние<select v-model="filters.active" class="list-select">
@@ -110,7 +110,8 @@ function reset() {
     background: var(--muted);
     font-size: 14px;
 }
-.tabs [aria-pressed='true'] {
+.tabs [aria-pressed='true'],
+.tabs [aria-expanded='true'] {
     color: var(--ring);
     background: var(--sidebar-accent);
 }

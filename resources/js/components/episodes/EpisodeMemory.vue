@@ -39,7 +39,7 @@ const episodeNumber = (n: number) => String(n).padStart(2, '0');
                     </div>
                 </dl>
                 <Button :aria-expanded="expanded" aria-controls="memory-details" @click="expanded = !expanded">Использовать контекст</Button>
-                <div v-if="expanded" id="memory-details" class="memory-details">
+                <div v-show="expanded" id="memory-details" class="memory-details">
                     <h3>Подробности сохранённой памяти</h3>
                     <dl>
                         <div v-if="assembly" class="studio-row">

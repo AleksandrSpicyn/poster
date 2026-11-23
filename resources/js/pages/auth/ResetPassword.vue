@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TextLink from '@/components/TextLink.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,29 +7,33 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { CircleX, LoaderCircle } from '@lucide/vue';
-import { ref } from 'vue';
+import { nextTick, ref, useTemplateRef } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 
 interface Props {
     token: string;
-    email: string;
+    email: string | null;
 }
 
 const props = defineProps<Props>();
 
 const form = useForm({
     token: props.token,
-    email: props.email,
+    email: props.email ?? '',
     password: '',
     password_confirmation: '',
 });
 
 const mismatch = ref(false);
+const confirmation = useTemplateRef<InstanceType<typeof Input>>('confirmation');
 const submit = () => {
     mismatch.value = form.password !== form.password_confirmation;
-    if (mismatch.value) return;
+    if (mismatch.value) {
+        void nextTick(() => confirmation.value?.focus());
+        return;
+    }
     form.post(route('password.store'), {
         onFinish: () => {
             form.reset('password', 'password_confirmation');
@@ -45,8 +50,20 @@ const submit = () => {
             <div class="grid gap-[19px]">
                 <div class="grid gap-2">
                     <Label for="email">{{ mismatch ? 'Почта' : 'Email' }}</Label>
-                    <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
-                    <InputError :message="form.errors.email" class="mt-2" />
+                    <Input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        name="email"
+                        autocomplete="email"
+                        class="mt-1 block w-full"
+                        :readonly="!!props.email"
+                        :autofocus="!props.email"
+                        :aria-invalid="!!form.errors.email"
+                        :aria-describedby="form.errors.email ? 'email-error' : undefined"
+                        required
+                    />
+                    <InputError id="email-error" :message="form.errors.email" class="mt-2" />
                 </div>
 
                 <div class="grid gap-2">
@@ -59,15 +76,18 @@ const submit = () => {
                         v-model="form.password"
                         @input="mismatch = false"
                         class="mt-1 block w-full"
-                        autofocus
+                        :autofocus="!!props.email"
+                        :aria-invalid="!!form.errors.password"
+                        :aria-describedby="form.errors.password ? 'password-error' : undefined"
                         required
                     />
-                    <InputError :message="form.errors.password" />
+                    <InputError id="password-error" :message="form.errors.password" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password_confirmation">Повторите пароль</Label>
                     <Input
+                        ref="confirmation"
                         id="password_confirmation"
                         type="password"
                         name="password_confirmation"
@@ -75,11 +95,11 @@ const submit = () => {
                         v-model="form.password_confirmation"
                         @input="mismatch = false"
                         :aria-invalid="mismatch || !!form.errors.password_confirmation"
-                        :aria-describedby="mismatch ? 'password-mismatch' : undefined"
+                        :aria-describedby="mismatch ? 'password-mismatch' : form.errors.password_confirmation ? 'confirmation-error' : undefined"
                         class="mt-1 block w-full"
                         required
                     />
-                    <InputError :message="form.errors.password_confirmation" />
+                    <InputError id="confirmation-error" :message="form.errors.password_confirmation" />
                 </div>
 
                 <div v-if="mismatch" id="password-mismatch" role="alert" class="account-message">
@@ -92,6 +112,7 @@ const submit = () => {
                 </Button>
             </div>
         </form>
-        <p v-if="!mismatch" class="text-muted-foreground mt-4 text-sm">Ссылка из письма</p>
+        <TextLink v-if="form.errors.email" :href="route('password.request')" class="mt-4 inline-flex">Запросить новую ссылку</TextLink>
+        <p v-else-if="!mismatch" class="text-muted-foreground mt-4 text-sm">Ссылка из письма</p>
     </AuthLayout>
 </template>

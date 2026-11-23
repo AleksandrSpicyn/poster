@@ -20,6 +20,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps, ScreenplayShot } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
+import { useObjectUrl } from '@vueuse/core';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -115,8 +116,12 @@ async function chooseShot() {
     episodeOverview.value?.focusFirstShot();
 }
 const importOpen = ref(false);
+const screenplayDownload = useObjectUrl(() =>
+    importOpen.value ? new Blob([JSON.stringify(scriptForm.script, null, 2)], { type: 'application/json' }) : null,
+);
 const checkedJson = ref(false);
 watch(scriptText, () => {
+    jsonError.value = '';
     checkedJson.value = false;
 });
 const overview = computed(() => panel.value !== 'release' && !!revision.value && detail.value === null);
@@ -223,6 +228,7 @@ function refresh() {
             class="workspace-page"
             :class="{
                 'dialogue-workspace': dialogueFocus,
+                'screenplay-page': panel === 'screenplay' && !dialogueFocus,
                 'episode-overview-page': overview,
                 'scene-detail-page': panel === 'screenplay' && detail !== null && !dialogueFocus,
                 'takes-detail-page': panel === 'shots' && detail !== null,
@@ -551,22 +557,26 @@ function refresh() {
                                     <InputError :message="approveErrors" />
                                 </form>
                                 <Dialog v-model:open="importOpen">
-                                    <DialogTrigger as-child><Button variant="outline">Импорт и экспорт сценария в JSON</Button></DialogTrigger>
+                                    <DialogTrigger as-child>
+                                        <Button variant="outline" class="h-auto max-w-full whitespace-normal">Импорт и экспорт сценария в JSON</Button>
+                                    </DialogTrigger>
                                     <DialogContent class="studio-confirm screenplay-json-dialog" :show-close="false">
-                                        <DialogTitle>Импорт сценария</DialogTitle>
+                                        <DialogTitle>Импорт и экспорт сценария</DialogTitle>
                                         <DialogDescription class="sr-only">Проверка и импорт сценария в формате JSON</DialogDescription>
                                         <div class="grid gap-2">
                                             <Label for="screenplay-json">Фрагмент JSON</Label>
                                             <textarea
                                                 id="screenplay-json"
                                                 v-model="scriptText"
+                                                :aria-invalid="!!jsonError"
+                                                :aria-describedby="jsonError ? 'screenplay-json-error' : undefined"
                                                 rows="5"
                                                 spellcheck="false"
                                                 :disabled="archived || scriptForm.processing"
                                                 class="w-full rounded-lg border p-3 font-mono text-sm"
                                             />
                                         </div>
-                                        <div v-if="jsonError" role="alert" class="studio-confirm-notice">
+                                        <div v-if="jsonError" id="screenplay-json-error" role="alert" class="studio-confirm-notice">
                                             <strong>Неверный формат</strong>
                                             <p>{{ jsonError }}</p>
                                         </div>
@@ -575,12 +585,12 @@ function refresh() {
                                             <p>Исправьте поле и проверьте файл повторно.</p>
                                         </div>
                                         <p v-if="checkedJson" role="status">Структура сценария проверена.</p>
-                                        <InputError :message="scriptErrors" />
+                                        <InputError :message="scriptSaveError || scriptErrors" />
                                         <div class="json-actions">
                                             <Button variant="outline" @click="checkedJson = !!checkJson()">Проверить JSON</Button>
-                                            <Button variant="outline" @click="scriptText = JSON.stringify(scriptForm.script, null, 2)"
-                                                >Экспортировать черновик в JSON</Button
-                                            >
+                                            <Button as-child variant="outline">
+                                                <a :href="screenplayDownload" :download="`episode-${episode.id}.json`">Скачать черновик в JSON</a>
+                                            </Button>
                                             <Button
                                                 v-if="checkedJson"
                                                 :disabled="archived || scriptForm.processing || editorStale || !online"
@@ -754,13 +764,21 @@ function refresh() {
     gap: 12px;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
 }
-.json-actions :deep(button) {
+.json-actions :deep([data-slot='button']) {
     width: 100%;
     min-height: 48px;
     height: auto;
     white-space: normal;
 }
 
+.screenplay-page {
+    container: screenplay / inline-size;
+}
+@container screenplay (max-width: 36rem) {
+    .episode-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
 .episode-overview-page > div:first-of-type > button {
     font-weight: 700;
 }
@@ -771,7 +789,15 @@ function refresh() {
     margin-top: -4px;
 }
 @media (min-width: 1100px) {
-    .episode-overview-page > div:first-of-type > button {
+    .screenplay-page {
+    container: screenplay / inline-size;
+}
+@container screenplay (max-width: 36rem) {
+    .episode-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.episode-overview-page > div:first-of-type > button {
         margin-top: 6px;
     }
 }

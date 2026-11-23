@@ -310,7 +310,7 @@ function submit() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="title" />
         <div
-            class="workspace-page project-editor"
+            class="workspace-page project-editor wrap-anywhere"
             :class="{
                 'project-detail': !project || detailSection || isSeries,
                 'project-main': section === 'main' && !isSeries,
@@ -612,15 +612,15 @@ function submit() {
                         id="publishing-channels"
                         tabindex="-1"
                         v-if="auth.can_manage_channels && section === 'channels'"
-                        class="space-y-3 rounded-lg border p-4 sm:p-5"
+                        class="min-w-0 space-y-3 rounded-lg border p-4 sm:p-5"
                     >
                         <legend class="sr-only">Каналы публикации</legend>
 
-                        <div v-if="channels.length" class="grid gap-2">
+                        <div v-if="channels.length" class="grid grid-cols-1 gap-2 divide-y">
                             <label
                                 v-for="channel in channels"
                                 :key="channel.id"
-                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-start gap-3 border-b py-3"
+                                class="hover:bg-muted/50 flex min-h-14 cursor-pointer items-start gap-3 py-3"
                             >
                                 <input
                                     v-model="form.channel_ids"
@@ -630,7 +630,7 @@ function submit() {
                                     class="accent-primary mt-1 size-5 shrink-0"
                                 />
                                 <span class="min-w-0 flex-1 text-sm"
-                                    ><span class="block font-medium break-words">{{ channel.name }} · {{ channel.type_label }}</span
+                                    ><span class="block font-medium">{{ channel.name }} · {{ channel.type_label }}</span
                                     ><span class="text-muted-foreground block text-xs"
                                         >{{
                                             channel.projects?.length
@@ -667,14 +667,14 @@ function submit() {
                     </fieldset>
                     <div
                         v-if="!['main', 'deletion'].includes(section)"
-                        :class="section === 'channels' ? 'justify-start' : 'justify-end'"
-                        class="flex flex-wrap items-center gap-3 border-t pt-5"
+                        :class="section === 'channels' ? 'justify-start' : 'justify-end border-t pt-5'"
+                        class="flex flex-wrap items-center gap-3"
                     >
                         <Button v-if="!['automation', 'cast', 'format', 'channels'].includes(section)" as-child variant="outline" class="h-11"
                             ><Link :href="cancelUrl" @click="clearDraft">Отмена</Link></Button
                         >
                         <Button v-if="!project && ['format', 'channels'].includes(section)" as-child class="h-11">
-                            <a href="#main">{{ section === 'channels' ? 'Сохранить каналы' : 'Сохранить формат' }}</a>
+                            <a href="#main">К основным сведениям</a>
                         </Button>
                         <Button v-else type="submit" class="h-11" :disabled="form.processing || conflict"
                             ><LoaderCircle v-if="form.processing" class="size-4 motion-safe:animate-spin" aria-hidden="true" /><Save
@@ -891,7 +891,6 @@ function submit() {
 .schedule-editor fieldset > p span {
     width: 36%;
 }
-.channel-editor #project-form > div:last-child,
 .schedule-editor #project-form > div:last-child {
     justify-content: start;
     margin-top: 14px;

@@ -47,7 +47,7 @@ const links = computed(() => {
 <template>
     <Dialog v-model:open="open">
         <DialogTrigger as-child><slot :open="open" /></DialogTrigger>
-        <DialogContent class="account-panel studio-more-panel bg-card text-card-foreground" :show-close="false" @open-auto-focus="focusTitle">
+        <DialogContent class="account-panel studio-more-panel bg-card text-card-foreground" @open-auto-focus="focusTitle">
             <DialogTitle ref="heading" tabindex="-1" class="text-xl font-bold outline-none">Ещё</DialogTitle>
             <DialogDescription class="sr-only">Дополнительные разделы студии</DialogDescription>
             <nav aria-label="Дополнительные разделы">
