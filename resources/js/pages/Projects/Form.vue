@@ -199,27 +199,24 @@ const nextRunLabel = computed(() => {
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
 const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation', 'deletion'].includes(section.value));
-const sections = computed((): Record<string, string> =>
-    isSeries.value && section.value !== 'format'
+const sections = computed((): Record<string, string> => {
+    if (!props.project) {
+        return {
+            main: 'Основные сведения',
+            format: 'Формат производства',
+            ...(props.auth.can_manage_channels ? { channels: 'Каналы проекта' } : {}),
+            ...(isSeries.value ? { cast: seriesSettingsSections.cast, plan: seriesSettingsSections.plan } : {}),
+        };
+    }
+    return isSeries.value
         ? seriesSettingsSections
-        : props.project
-          ? { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
-          : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
-);
+        : { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' };
+});
 const formatOptions = computed(() => ['series', 'short'].filter((value) => Object.hasOwn(props.contentModes, value)));
 const selectedChannelNames = computed(() =>
     props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
 );
 const clippingUrl = computed(() => route('clipping.index', { view: 'select' }));
-function selectFormat(event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    if (!props.project && select.value === 'clipping') {
-        select.value = form.content_mode;
-        router.visit(clippingUrl.value);
-        return;
-    }
-    form.content_mode = select.value;
-}
 const sharedChannels = computed(() =>
     props.channels.filter(
         (channel) => props.selectedChannelIds.includes(channel.id) && channel.projects?.some((project) => project.id !== props.project?.id),
@@ -227,6 +224,10 @@ const sharedChannels = computed(() =>
 );
 function readSection() {
     const hash = window.location.hash.slice(1);
+    if (!props.project) {
+        section.value = Object.hasOwn(sections.value, hash) ? hash : 'main';
+        return;
+    }
     section.value =
         ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) || (hash === 'access' && props.project)
             ? hash
@@ -247,11 +248,11 @@ function revealRequiredField(event: Event) {
 }
 const formErrors = computed<Record<string, string | undefined>>(() => form.errors);
 const title = computed(() =>
-    isSeries.value && section.value !== 'format' ? 'Паспорт сериала' : props.project ? 'Настройки проекта' : 'Новый проект',
+    props.project ? (isSeries.value ? 'Паспорт сериала' : 'Настройки проекта') : initialMode === 'series' ? 'Новый сериал' : 'Новый проект',
 );
 const cancelUrl = computed(() => (props.project ? route('projects.show', props.project.id) : route('projects.index')));
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    isSeries.value && section.value !== 'format'
+    (props.project ? isSeries.value : initialMode === 'series')
         ? { title: 'Сериалы', href: route('series.index') }
         : { title: 'Проекты', href: route('projects.index') },
     ...(props.project
@@ -278,6 +279,7 @@ function submit() {
         onSuccess: clearDraft,
         onError: (errors) => {
             if (errors.name || errors.prompt) window.location.hash = 'main';
+            else if (errors.content_mode && !props.project) window.location.hash = 'format';
             else if (Object.keys(errors).some((key) => key.startsWith('cast_settings.'))) window.location.hash = 'cast';
             else if (errors.channel_ids || Object.keys(errors).some((key) => key.startsWith('channel_ids.'))) window.location.hash = 'channels';
             else if (Object.keys(errors).some((key) => key.startsWith('schedule.'))) window.location.hash = 'automation';
@@ -319,7 +321,7 @@ function submit() {
         <div
             class="workspace-page project-editor"
             :class="{
-                'project-detail': detailSection || isSeries,
+                'project-detail': !project || detailSection || isSeries,
                 'project-main': section === 'main' && !isSeries,
                 'schedule-editor': section === 'automation',
                 'cast-editor': section === 'cast',
@@ -352,9 +354,9 @@ function submit() {
                 >
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
-                <SeriesSettingsTabs v-if="isSeries && (project || section !== 'format')" :project-id="project?.id" :section="section" />
+                <SeriesSettingsTabs v-if="isSeries && project" :project-id="project?.id" :section="section" />
                 <nav
-                    v-else-if="section !== 'format'"
+                    v-else-if="!project || section !== 'format'"
                     aria-label="Разделы проекта"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
@@ -431,8 +433,8 @@ function submit() {
                         />
                         <InputError id="project-name-error" :message="form.errors.name" />
                     </div>
-                    <div v-if="section === 'format' || (!project && initialMode !== 'series' && section === 'main')" class="grid gap-2">
-                        <fieldset v-if="section === 'format'" class="grid gap-2">
+                    <div v-if="section === 'format'" class="grid gap-2">
+                        <fieldset class="grid gap-2">
                             <legend class="sr-only">Формат производства</legend>
                             <label
                                 v-for="value in formatOptions"
@@ -461,20 +463,6 @@ function submit() {
                                 ></Link
                             >
                         </fieldset>
-                        <Label v-else for="project-mode">Формат</Label>
-                        <select
-                            v-if="section !== 'format'"
-                            id="project-mode"
-                            :value="form.content_mode"
-                            @change="selectFormat"
-                            :disabled="form.processing || conflict"
-                            class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
-                        >
-                            <option v-for="(label, value) in contentModes" :key="value" :value="value" :disabled="!!series && value !== 'series'">
-                                {{ value === 'series' ? 'Сериал' : value === 'short' ? 'Короткие ролики' : label }}
-                            </option>
-                            <option v-if="!project" value="clipping">Клиппинг</option>
-                        </select>
                         <InputError :message="form.errors.content_mode" />
                     </div>
                     <div v-show="section === 'main'" class="grid gap-2">
@@ -566,7 +554,7 @@ function submit() {
                         </select>
                         <InputError :message="form.errors.output_mode" />
                     </div>
-                    <div v-if="((!isSeries && section === 'main') || section === 'plan') && auth.can_manage_channels" class="grid gap-2">
+                    <div v-if="project && ((!isSeries && section === 'main') || section === 'plan') && auth.can_manage_channels" class="grid gap-2">
                         <span class="text-muted-foreground text-sm">Каналы</span>
                         <a href="#channels" class="list-select flex items-center">{{ selectedChannelNames.join(', ') || 'Выбрать каналы' }}</a>
                     </div>
@@ -741,7 +729,7 @@ function submit() {
                         >
                     </div>
                 </form>
-                <aside v-if="detailSection || isSeries" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
+                <aside v-if="!project || detailSection || isSeries" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
                     <ProjectArtwork
                         v-if="project"
                         :name="project.name"

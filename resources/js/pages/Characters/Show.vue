@@ -27,7 +27,6 @@ const archived = computed(() => !!props.character.archived_at || !!props.series.
 const sectionHash = ref('');
 const newVersion = computed(() => !archived.value && sectionHash.value === '#new-version');
 const selectedRevision = computed(() => props.revisions.data.find((revision) => sectionHash.value === '#revision-' + revision.id));
-const versionDetails = computed(() => !!selectedRevision.value || sectionHash.value === '#character-reference-list');
 const editableVersions = computed(() => (archived.value ? [] : props.revisions.data.filter((revision) => revision.status === 'draft')));
 const uploadRevision = computed(() => editableVersions.value.find((revision) => sectionHash.value === '#references-' + revision.id));
 const referenceCount = computed(() => props.revisions.data.reduce((total, version) => total + (version.references?.length ?? 0), 0));
@@ -121,9 +120,12 @@ function changePage(page: number) {
                         uploadRevision ? 'Референсы' : newVersion || selectedRevision ? 'Версии' : series.name + ' / Персонажи / ' + character.name
                     "
                 />
-                <Button v-if="!archived && !uploadRevision && !newVersion && !selectedRevision" class="h-11" @click="openVersion"
-                    >Новая версия</Button
-                >
+                <div v-if="!uploadRevision && !newVersion && !selectedRevision" class="flex flex-wrap gap-2">
+                    <Button as-child variant="outline" class="h-11">
+                        <Link :href="route('series.show', { project: project.id, series: series.id })">К сериалу</Link>
+                    </Button>
+                    <Button v-if="!archived" class="h-11" @click="openVersion">Новая версия</Button>
+                </div>
             </div>
             <div
                 v-if="uploadRevision || newVersion"
@@ -233,26 +235,21 @@ function changePage(page: number) {
                             {{ revision.status === 'approved' ? 'Утверждена' : revision.status === 'superseded' ? 'Заменена' : 'Черновик' }}
                         </span>
                     </a>
-                    <a
-                        class="character-version-row"
-                        :href="editableVersions.length ? '#references-' + editableVersions[0].id : '#character-reference-list'"
-                    >
-                        <strong>Референсы</strong
-                        ><span class="text-muted-foreground">{{ referenceCountLabel }}{{ revisions.meta.last_page > 1 ? ' на странице' : '' }}</span>
-                    </a>
-                    <a v-if="!revisions.data.length || revisions.meta.last_page > 1" href="#character-reference-list" class="text-sm underline"
-                        >Все версии</a
-                    >
+                    <p v-if="revisions.data.length" class="character-version-row">
+                        <strong>Референсы</strong>
+                        <span class="text-muted-foreground">{{ referenceCountLabel }}{{ revisions.meta.last_page > 1 ? ' на странице' : '' }}</span>
+                    </p>
+                    <p v-else class="text-muted-foreground text-sm">Пока нет версий образа.</p>
                 </section>
             </div>
-            <div v-if="versionDetails && !uploadRevision" :class="{ 'revision-layout': selectedRevision }">
+            <div v-if="!newVersion && !uploadRevision" :class="{ 'revision-layout': selectedRevision }">
                 <div id="character-reference-list" class="grid min-w-0 gap-4">
                     <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
                         Персонаж или сериал в архиве. Версии доступны для просмотра.
                     </p>
                     <form
-                        v-if="!archived"
-                        class="name-editor bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5"
+                        v-if="!archived && !selectedRevision"
+                        class="bg-card flex flex-wrap items-end gap-3 rounded-xl border p-5"
                         @submit.prevent="saveName"
                     >
                         <div class="grid min-w-48 flex-1 gap-2">
@@ -267,7 +264,7 @@ function changePage(page: number) {
                         </div>
                         <Button type="submit" variant="outline" class="h-11" :disabled="nameForm.processing">Сохранить имя</Button>
                     </form>
-                    <div class="space-y-6">
+                    <div v-if="revisions.data.length" class="space-y-6">
                         <CharacterRevisionCard
                             v-for="revision in selectedRevision ? [selectedRevision] : revisions.data"
                             :key="revision.id + ':' + revision.lock_version"
@@ -280,10 +277,9 @@ function changePage(page: number) {
                             :reference-views="referenceViews"
                             :archived="archived"
                         />
-                        <p v-if="!revisions.data.length" class="text-muted-foreground p-5 text-sm">Пока нет версий образа.</p>
                     </div>
                     <nav
-                        v-if="revisions.meta.last_page > 1"
+                        v-if="!selectedRevision && revisions.meta.last_page > 1"
                         class="flex flex-wrap items-center justify-between gap-3"
                         aria-label="Страницы версий образа"
                     >
@@ -303,7 +299,7 @@ function changePage(page: number) {
                             >Следующие версии</Button
                         >
                     </nav>
-                    <div v-if="!archived" class="flex justify-end border-t pt-5">
+                    <div v-if="!archived && !selectedRevision" class="flex justify-end border-t pt-5">
                         <ConfirmationDialog
                             heading="Архивация персонажа"
                             title="Архивировать персонажа?"
@@ -325,10 +321,13 @@ function changePage(page: number) {
                             </div>
                         </ConfirmationDialog>
                     </div>
-                    <p v-if="series.automation_enabled" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed">
+                    <p
+                        v-if="!archived && series.automation_enabled"
+                        class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm leading-relaxed"
+                    >
                         Загрузите все ракурсы. Через две минуты без изменений автоматизация утвердит последний образ и продолжит работу над эпизодом.
                     </p>
-                    <Button as-child variant="outline" class="h-11 self-start"
+                    <Button v-if="selectedRevision" as-child variant="outline" class="h-11 self-start"
                         ><Link :href="route('series.show', { project: project.id, series: series.id })">К сериалу</Link></Button
                     >
                 </div>
@@ -353,9 +352,6 @@ function changePage(page: number) {
     align-items: start;
     gap: 20px;
     max-width: 1240px;
-}
-.selected-version .name-editor {
-    order: 1;
 }
 .version-context {
     display: none;

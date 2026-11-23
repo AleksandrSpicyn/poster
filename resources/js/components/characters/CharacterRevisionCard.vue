@@ -193,13 +193,24 @@ function imageCountLabel(count: number) {
                 </div>
             </form>
             <div v-else class="space-y-2">
+                <strong v-if="revision.title">{{ revision.title }}</strong>
                 <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ revision.description }}</p>
-                <p class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
+                <dl v-if="editForm.appearance.notes || editForm.voice.description" class="grid gap-2 text-sm">
+                    <div v-if="editForm.appearance.notes">
+                        <dt class="font-medium">Детали внешности</dt>
+                        <dd>{{ editForm.appearance.notes }}</dd>
+                    </div>
+                    <div v-if="editForm.voice.description">
+                        <dt class="font-medium">Голос и манера речи</dt>
+                        <dd>{{ editForm.voice.description }}</dd>
+                    </div>
+                </dl>
+                <p v-if="!archived" class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
             </div>
             <div class="space-y-3">
                 <h3 class="text-sm font-semibold">Референсы</h3>
                 <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">
-                    Добавьте изображения анфас, в профиль и в полный рост.
+                    {{ editable ? 'Добавьте изображения анфас, в профиль и в полный рост.' : 'Изображений пока нет.' }}
                 </p>
                 <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                     <figure v-for="reference in revision.references ?? []" :key="reference.id" class="min-w-0 space-y-2">
