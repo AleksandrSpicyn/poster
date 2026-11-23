@@ -17,7 +17,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Обзор', href: route('dashb
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AppLayout :breadcrumbs="page.url.includes('view=') ? [...breadcrumbs, { title: 'Показатели публикаций', href: page.url }] : breadcrumbs">
         <Head title="Обзор студии" />
         <div v-if="!page.props.analytics.projects.length" class="workspace-page first-workspace">
             <header class="first-header">

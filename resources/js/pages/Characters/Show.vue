@@ -65,12 +65,11 @@ const revisionErrors = computed<Record<string, string | undefined>>(() => revisi
 const archiveForm = useForm({ lock_version: props.character.lock_version });
 const characterUrl = computed(() => route('characters.show', { ...params, ...(props.selectedEpisode ? { episode: props.selectedEpisode.id } : {}) }));
 const breadcrumbs = computed(() => [
-    { title: 'Проекты', href: route('projects.index') },
-    { title: props.project.name, href: route('projects.show', props.project.id) },
+    { title: 'Сериалы', href: route('series.index') },
+    { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) },
     {
         title: props.character.name,
         href: characterUrl.value + '#overview',
-        mobileReturn: !!uploadRevision.value || newVersion.value || !!selectedRevision.value,
     },
     ...(uploadRevision.value || newVersion.value || selectedRevision.value
         ? [

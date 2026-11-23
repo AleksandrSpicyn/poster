@@ -117,10 +117,10 @@ test('неподтверждённый пользователь не получ�
         ->assertRedirect(route('verification.notice'));
 });
 
-test('показывает активные проекты владельца по времени изменения', function (): void {
+test('показывает активные проекты владельца по дате добавления', function (): void {
     $owner = User::factory()->create();
-    $old = Project::factory()->create(['owner_id' => $owner->id, 'updated_at' => now()->subDay()]);
-    $new = Project::factory()->create(['owner_id' => $owner->id]);
+    $old = Project::factory()->create(['owner_id' => $owner->id, 'created_at' => now()->subDays(3), 'updated_at' => now()]);
+    $new = Project::factory()->create(['owner_id' => $owner->id, 'created_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
     Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
     Project::factory()->create();
 
@@ -131,7 +131,7 @@ test('показывает активные проекты владельца п
             ->where('projects.data.0.id', $new->id)->where('projects.data.1.id', $old->id)->where('filters.active', true));
 });
 
-test('алфавитный порядок и сведения проекта ограничены его владельцем', function (): void {
+test('показывает сведения только владельцу проекта', function (): void {
     $owner = workspaceOwner();
     $b = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Берег']);
     $a = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Атлас']);
@@ -142,7 +142,7 @@ test('алфавитный порядок и сведения проекта о�
     $a->channels()->attach($foreign);
 
     actingAs($owner)
-        ->get(route('projects.index', ['alphabetical' => 1, 'info' => $a->id]))
+        ->get(route('projects.index', ['info' => $a->id]))
         ->assertOk()
         ->assertDontSee('protected-test-secret')
         ->assertInertia(fn(Assert $page): Assert => $page

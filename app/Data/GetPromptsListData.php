@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\SortDirection;
-use Spatie\LaravelData\Attributes\Validation\BeforeOrEqual;
-use Spatie\LaravelData\Attributes\Validation\DateFormat;
 use Spatie\LaravelData\Attributes\Validation\Enum;
 use Spatie\LaravelData\Attributes\Validation\IntegerType;
 use Spatie\LaravelData\Attributes\Validation\Max;
@@ -28,8 +26,6 @@ class GetPromptsListData extends Data
         public ?int $page = 1,
         #[IntegerType, Min(1)]
         public int|null|Optional $project = new Optional(),
-        public bool $updated = false,
-        #[DateFormat('Y-m-d'), BeforeOrEqual('today')] public ?string $week = null,
         public bool $active = false,
     ) {}
 }

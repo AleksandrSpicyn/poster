@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SeriesSettingsTabs from '@/components/projects/SeriesSettingsTabs.vue';
+import { seriesSettingsSections } from '@/lib/seriesSettingsSections';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
@@ -199,12 +201,7 @@ const section = ref('main');
 const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation', 'deletion'].includes(section.value));
 const sections = computed((): Record<string, string> =>
     isSeries.value && section.value !== 'format'
-        ? {
-              main: 'Мир и сюжет',
-              cast: 'Герои и звук',
-              plan: 'Выпуски и автоматизация',
-              ...(props.project && section.value !== 'cast' ? { automation: 'Автоматизация', access: 'Доступ' } : {}),
-          }
+        ? seriesSettingsSections
         : props.project
           ? { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' }
           : { main: 'Основные сведения', format: 'Формат производства', channels: 'Каналы проекта' },
@@ -257,6 +254,14 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     isSeries.value && section.value !== 'format'
         ? { title: 'Сериалы', href: route('series.index') }
         : { title: 'Проекты', href: route('projects.index') },
+    ...(props.project
+        ? [
+              props.series
+                  ? { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) }
+                  : { title: props.project.name, href: route('projects.show', props.project.id) },
+          ]
+        : []),
+    { title: title.value, href: props.project ? route('projects.edit', props.project.id) : route('projects.create') },
 ]);
 
 function submit() {
@@ -314,7 +319,7 @@ function submit() {
         <div
             class="workspace-page project-editor"
             :class="{
-                'project-detail': detailSection,
+                'project-detail': detailSection || isSeries,
                 'project-main': section === 'main' && !isSeries,
                 'schedule-editor': section === 'automation',
                 'cast-editor': section === 'cast',
@@ -347,8 +352,9 @@ function submit() {
                 >
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
+                <SeriesSettingsTabs v-if="isSeries && (project || section !== 'format')" :project-id="project?.id" :section="section" />
                 <nav
-                    v-if="section !== 'format'"
+                    v-else-if="section !== 'format'"
                     aria-label="Разделы проекта"
                     class="min-[1100px]:bg-card flex flex-wrap gap-2 min-[1100px]:flex-col min-[1100px]:rounded-xl min-[1100px]:border min-[1100px]:p-5"
                 >
@@ -361,9 +367,7 @@ function submit() {
                         class="project-tab"
                         >{{ label }}</a
                     >
-                    <Link v-if="project && section !== 'cast'" :href="route('projects.cover.edit', project.id)" class="project-tab"
-                        >Обложка проекта</Link
-                    >
+                    <Link v-if="project" :href="route('projects.cover.edit', project.id)" class="project-tab">Обложка проекта</Link>
                 </nav>
                 <form
                     ref="formElement"
@@ -737,7 +741,7 @@ function submit() {
                         >
                     </div>
                 </form>
-                <aside v-if="detailSection" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
+                <aside v-if="detailSection || isSeries" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
                     <ProjectArtwork
                         v-if="project"
                         :name="project.name"

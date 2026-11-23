@@ -35,7 +35,16 @@ function allProjects() {
 }
 </script>
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Генерации', href: route('prompts') }]">
+    <AppLayout
+        :breadcrumbs="
+            page.props.filters.project
+                ? [
+                      { title: projectName, href: route('projects.show', page.props.filters.project) },
+                      { title: 'Генерации', href: page.url },
+                  ]
+                : [{ title: 'Генерации', href: route('prompts') }]
+        "
+    >
         <Head title="Генерации" />
         <div class="workspace-page">
             <header class="generation-heading">

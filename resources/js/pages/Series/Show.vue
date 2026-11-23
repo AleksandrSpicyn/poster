@@ -41,10 +41,11 @@ const currentEpisode = computed(() => {
     return latest && (!latest.accepted_assembly_id || episodePlanComplete.value) ? latest : null;
 });
 const episodeNumber = computed(() => displayedRun.value?.episode_number ?? currentEpisode.value?.number ?? (props.episodes[0]?.number ?? 0) + 1);
-const breadcrumbs = [
-    { title: 'Проекты', href: route('projects.index') },
-    { title: props.project.name, href: route('projects.show', props.project.id) },
-];
+const breadcrumbs = computed(() => [
+    { title: 'Сериалы', href: route('series.index') },
+    { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) },
+    ...(production.value ? [{ title: 'Производство', href: page.url }] : []),
+]);
 </script>
 
 <template>

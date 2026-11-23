@@ -47,8 +47,6 @@ export interface ListFilters {
     days?: number;
     active?: number | null;
     archived?: number;
-    updated?: number;
-    alphabetical?: number;
     clipping?: number;
 }
 

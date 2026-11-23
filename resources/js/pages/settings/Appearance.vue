@@ -14,7 +14,12 @@ function select(event: Event) {
 }
 </script>
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Оформление', href: route('appearance') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Профиль', href: route('profile.edit') },
+            { title: 'Оформление', href: route('appearance') },
+        ]"
+    >
         <Head title="Оформление" />
         <div class="workspace-page">
             <header class="flex flex-col items-start justify-between gap-4 min-[1100px]:flex-row">

@@ -58,7 +58,12 @@ function verify() {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Публикации', href: route('posts') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Публикации', href: route('posts') },
+            { title: 'Сверка операции', href: route('posts.requests.review', id) },
+        ]"
+    >
         <Head title="Сверка операции" />
         <div class="workspace-page review" :class="{ detail: tab !== tabs[0] }">
             <header class="flex flex-wrap items-start justify-between gap-3">

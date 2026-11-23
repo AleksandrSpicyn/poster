@@ -5,7 +5,7 @@ import type { ProjectSummary } from '@/types/projects';
 import { CircleAlert, CircleCheck, CircleDashed, Clock3 } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { Form, Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -52,6 +52,7 @@ const props = defineProps<{
     metricStatuses: MetricStatus[];
 }>();
 const route = useRoute();
+const page = usePage();
 const areas = { clips: 'Проекты и клипы', accounts: 'Аккаунты', publications: 'Публикации', metrics: 'Метрики' };
 type Area = keyof typeof areas;
 const filterOpen = ref(false);
@@ -167,7 +168,13 @@ function refresh() {
 }
 </script>
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Источники', href: route('clipping.index') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Источники', href: route('clipping.index') },
+            { title: 'История импорта', href: route('clipping.history') },
+            ...(source ? [{ title: source.title || 'Синхронизация', href: page.url }] : []),
+        ]"
+    >
         <Head title="История импорта" />
         <div class="workspace-page import-history" :class="{ 'history-state-page': source }">
             <div class="history-heading">

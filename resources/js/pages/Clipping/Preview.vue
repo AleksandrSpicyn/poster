@@ -49,7 +49,10 @@ function confirm() {
     <AppLayout
         :breadcrumbs="[
             { title: 'Источники', href: route('clipping.index') },
-            { title: 'Сопоставление', href: route('clipping.preview.show', [connection.id, preview.id]) },
+            confirmed
+                ? { title: 'История импорта', href: route('clipping.history') }
+                : { title: 'Выбор источника', href: route('clipping.sources', connection.id) },
+            { title: title, href: route('clipping.preview.show', [connection.id, preview.id]) },
         ]"
     >
         <Head :title="title" />

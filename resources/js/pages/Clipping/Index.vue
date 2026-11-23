@@ -55,7 +55,12 @@ function rows(connection: Connection) {
 }
 </script>
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Источники', href: route('clipping.index') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Источники', href: route('clipping.index') },
+            ...(filtering ? [{ title: 'Фильтры', href: route('clipping.index', { view: 'select' }) }] : []),
+        ]"
+    >
         <Head title="Провайдеры клиппинга" />
         <div class="workspace-page providers">
             <header>

@@ -11,7 +11,6 @@ export interface Auth {
 }
 
 export interface BreadcrumbItem {
-    mobileReturn?: boolean;
     title: string;
     href: string;
 }

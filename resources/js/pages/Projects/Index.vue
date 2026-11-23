@@ -12,25 +12,26 @@ import { formatProjectDate } from '@/lib/formatProjectDate';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectsPageProps } from '@/types/projects';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { CircleSlash, CircleX, Search } from '@lucide/vue';
+import { Search } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
 const page = usePage<ProjectsPageProps>();
-const { filters, loading, error, applyFilters, changePerPage, changePage, refresh } = useListFilters('projects.index', () => ({
+const { filters, loading, error, applyFilters, changePage, changePerPage, refresh } = useListFilters('projects.index', () => ({
     search: page.props.filters.search,
-    alphabetical: Number(!!page.props.filters.alphabetical),
     clipping: Number(!!page.props.filters.clipping),
     active: Number(!!page.props.filters.active),
     archived: Number(!!page.props.filters.archived),
-    updated: Number(!!page.props.filters.updated),
     sort: page.props.filters.sort,
     perPage: page.props.projects.meta.per_page,
     page: page.props.projects.meta.current_page,
 }));
+const pageSizes = computed(() => [...new Set([filters.perPage, 10, 25, 50, 100])].sort((a, b) => a - b));
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Проекты', href: route('projects.index'), mobileReturn: !!page.props.filters.clipping },
+    { title: 'Проекты', href: route('projects.index') },
+    ...(page.props.information ? [{ title: 'Сведения', href: page.url }] : []),
+    ...(searching.value || page.props.filters.search ? [{ title: searching.value ? 'Поиск проектов' : 'Результаты поиска', href: page.url }] : []),
     ...(page.props.filters.clipping ? [{ title: 'Клиппинг', href: route('projects.index', { clipping: 1 }) }] : []),
 ]);
 
@@ -39,19 +40,7 @@ function counted(value: number, one: string, few: string, many: string) {
     const ending = plurals.select(value);
     return value + ' ' + (ending === 'one' ? one : ending === 'few' ? few : many);
 }
-const sidebarProject = ref(page.props.projects.data.at(0));
-watch(
-    () => page.props.projects.data,
-    (projects) => {
-        if (projects[0]) sidebarProject.value = projects[0];
-    },
-);
 const information = computed(() => page.props.information);
-function order(value: string) {
-    filters.alphabetical = Number(value === 'name');
-    filters.updated = Number(value === 'updated');
-    filters.sort = value === 'oldest' ? 'asc' : 'desc';
-}
 const searching = ref(false);
 const preview = ref<{ total: number; name?: string }>();
 watch(
@@ -109,25 +98,9 @@ function runSearch() {
     searching.value = false;
     applyFilters();
 }
-const results = computed(() => !searching.value && (!!page.props.filters.search || !!error.value));
 function selectGroup(group: 'all' | 'active') {
     filters.active = Number(group === 'active');
     filters.archived = 0;
-    applyFilters();
-}
-function toggleUpdated() {
-    filters.alphabetical = 0;
-    filters.updated = Number(!filters.updated);
-    applyFilters();
-}
-function clearSearch() {
-    filters.search = '';
-    filters.active = 0;
-    filters.archived = 0;
-    filters.alphabetical = 0;
-    filters.updated = 0;
-    filters.sort = 'desc';
-    searching.value = false;
     applyFilters();
 }
 </script>
@@ -139,29 +112,36 @@ function clearSearch() {
             <ProjectNotice />
             <div class="project-heading flex flex-wrap items-start justify-between gap-4">
                 <Heading
-                    :title="information || searching || results || page.props.filters.clipping ? 'Мои проекты' : 'Проекты студии'"
+                    :title="information || searching || page.props.filters.clipping ? 'Мои проекты' : 'Проекты студии'"
                     :description="
                         information
                             ? 'Сведения'
                             : searching
-                              ? 'Поиск и порядок'
-                              : results
-                                ? 'Результаты поиска'
+                              ? 'Поиск проектов'
+                              : page.props.filters.search
+                                ? 'Результаты поиска · ' + page.props.filters.search
                                 : page.props.filters.clipping
                                   ? 'Клиппинг'
                                   : counted(page.props.projects.meta.total, 'проект', 'проекта', 'проектов') + ' / Все форматы'
                     "
                 />
                 <a
-                    v-if="!information && !searching && !results && !page.props.filters.clipping"
+                    v-if="!information && !searching && !page.props.filters.clipping"
                     href="#search"
                     class="project-search-link"
-                    aria-label="Поиск и порядок"
-                    title="Поиск и порядок"
+                    aria-label="Поиск проектов"
+                    title="Поиск проектов"
                     @click="searching = true"
                     ><Search aria-hidden="true" class="size-4"
                 /></a>
-                <Button v-if="!information && !searching && !results && !page.props.filters.clipping" as-child class="h-11"
+                <Button
+                    v-if="page.props.filters.search || searching || page.props.filters.archived || page.props.filters.active"
+                    as-child
+                    variant="outline"
+                >
+                    <Link :href="route('projects.index')">Ко всем</Link>
+                </Button>
+                <Button v-if="!information && !searching && !page.props.filters.clipping" as-child class="h-11"
                     ><Link :href="route('projects.create')">Создать проект</Link></Button
                 >
             </div>
@@ -212,39 +192,17 @@ function clearSearch() {
             </div>
             <div v-else-if="searching" class="project-information">
                 <form class="studio-panel search-panel grid items-start gap-3" role="search" @submit.prevent="runSearch">
-                    <h2 class="text-xl font-bold">Поиск и порядок</h2>
+                    <h2 class="text-xl font-bold">Поиск проектов</h2>
                     <label class="grid gap-1.5" for="project-search"
                         >Поиск по названию <Input id="project-search" v-model="filters.search" type="search" :maxlength="200" :disabled="loading"
                     /></label>
                     <label class="grid gap-1"
-                        >Порядок проектов
-                        <select
-                            class="list-select"
-                            :value="filters.alphabetical ? 'name' : filters.updated ? 'updated' : filters.sort === 'asc' ? 'oldest' : 'newest'"
-                            @change="order(($event.target as HTMLSelectElement).value)"
-                        >
-                            <option value="updated">По дате изменения</option>
-                            <option value="newest">Сначала новые</option>
-                            <option value="oldest">Сначала старые</option>
-                            <option value="name">По названию · от А до Я</option>
+                        >Дата добавления
+                        <select v-model="filters.sort" class="list-select">
+                            <option value="desc">Сначала новые</option>
+                            <option value="asc">Сначала старые</option>
                         </select>
                     </label>
-                    <fieldset class="grid">
-                        <legend class="sr-only">Порядок сортировки</legend>
-                        <label class="radio-option">
-                            <input
-                                type="radio"
-                                name="project-order"
-                                :checked="!filters.alphabetical && filters.sort !== 'asc'"
-                                @change="order('updated')"
-                            />
-                            <span><strong>Сначала новые</strong><small>Последние изменения сверху</small></span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="project-order" :checked="!!filters.alphabetical" @change="order('name')" />
-                            <span><strong>По названию</strong><small>От А до Я</small></span>
-                        </label>
-                    </fieldset>
                     <label class="flex items-center gap-2">
                         <input
                             type="checkbox"
@@ -273,98 +231,6 @@ function clearSearch() {
                     <span>Моя студия</span>
                 </aside>
             </div>
-            <div v-else-if="results" class="project-information search-results">
-                <section class="studio-panel results-panel grid gap-3">
-                    <h2 class="text-xl font-bold">Результаты поиска</h2>
-                    <p>
-                        <a href="#search" class="font-bold hover:underline" aria-label="Изменить поиск" @click="searching = true"
-                            >Поиск: {{ filters.search || page.props.filters.search }}</a
-                        >
-                    </p>
-                    <div class="result-chips flex flex-wrap gap-2">
-                        <span>{{ filters.archived ? 'В архиве' : filters.active ? 'Активные' : 'Все проекты' }}</span><span>{{
-                            filters.alphabetical ? 'По названию' : filters.sort === 'asc' ? 'Сначала старые' : 'Новые сверху'
-                        }}</span>
-                    </div>
-                    <template v-if="error"
-                        ><div role="alert" class="result-error">
-                            <CircleX class="size-4 shrink-0" aria-hidden="true" />
-                            <div>
-                                <strong>Не удалось загрузить страницу {{ filters.page }}</strong>
-                                <p>{{ error.startsWith('Не удалось обновить список') ? 'Поиск, порядок и размер страницы сохранены.' : error }}</p>
-                            </div>
-                        </div>
-                    </template>
-                    <template v-else-if="!page.props.projects.data.length"
-                        ><CircleSlash class="empty-symbol" aria-hidden="true" /><strong class="text-xl">Совпадений нет</strong>
-                        <p>
-                            {{
-                                filters.archived
-                                    ? 'Попробуйте другое название или снимите фильтр «В архиве».'
-                                    : 'Попробуйте другое название или измените фильтры.'
-                            }}
-                        </p>
-                        <Button class="justify-self-start" variant="outline" @click="clearSearch">Очистить фильтры</Button></template
-                    >
-                    <ul v-else>
-                        <li v-for="project in page.props.projects.data" :key="project.id" class="border-b py-3">
-                            <Link :href="route('projects.show', project.id)" class="font-bold">{{ project.name }}</Link>
-                            <p>
-                                Изменён {{ formatProjectDate(project.updated_at) }} ·
-                                {{ project.is_clipping ? 'Клиппинг' : project.content_mode === 'series' ? 'Сериал' : 'Короткие ролики' }}
-                            </p>
-                        </li>
-                    </ul>
-                    <label v-if="error || page.props.projects.data.length" class="studio-row"
-                        >На странице<select
-                            class="list-select"
-                            :value="filters.perPage"
-                            @change="changePerPage(Number(($event.target as HTMLSelectElement).value))"
-                        >
-                            <option
-                                v-for="size in Array.from(new Set([filters.perPage, 10, 25, 50, 100])).sort((a, b) => a - b)"
-                                :key="size"
-                                :value="size"
-                            >
-                                {{ size }} записей
-                            </option>
-                        </select></label
-                    >
-                    <Button v-if="error" class="justify-self-start" @click="refresh">Повторить загрузку</Button>
-                    <nav v-if="!error && page.props.projects.meta.last_page > 1" class="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" :disabled="loading || filters.page <= 1" @click="changePage(filters.page - 1)">Назад</Button>
-                        <span class="flex gap-1"
-                            ><Button
-                                v-for="number in Array.from(
-                                    { length: Math.min(5, page.props.projects.meta.last_page) },
-                                    (_, i) => Math.max(1, Math.min(filters.page - 2, page.props.projects.meta.last_page - 4)) + i,
-                                )"
-                                :key="number"
-                                :variant="number === filters.page ? 'default' : 'outline'"
-                                :aria-current="number === filters.page ? 'page' : undefined"
-                                @click="changePage(number)"
-                                >{{ number }}</Button
-                            ></span
-                        ><Button
-                            variant="outline"
-                            :disabled="loading || filters.page >= page.props.projects.meta.last_page"
-                            @click="changePage(filters.page + 1)"
-                            >Далее</Button
-                        >
-                    </nav>
-                    <p v-if="!error && page.props.projects.meta.total">
-                        Показано {{ page.props.projects.meta.to }} из {{ page.props.projects.meta.total }}
-                    </p>
-                </section>
-                <aside v-if="sidebarProject" class="studio-panel hidden min-[1100px]:block">
-                    <ProjectArtwork :name="sidebarProject.name" :cover="sidebarProject.cover" class="mb-3 aspect-[2.4] rounded-lg" /><strong>{{
-                        sidebarProject.name
-                    }}</strong>
-                    <p class="text-muted-foreground">
-                        {{ sidebarProject.is_clipping ? 'Клиппинг' : sidebarProject.content_mode === 'series' ? 'Сериал' : 'Короткие ролики' }}
-                    </p>
-                </aside>
-            </div>
             <ProjectCoverGallery v-else-if="page.props.filters.clipping" :projects="page.props.projects" :loading="loading" @page="changePage" />
             <template v-else>
                 <div class="project-tabs flex flex-wrap gap-2" aria-label="Фильтры проектов">
@@ -378,9 +244,17 @@ function clearSearch() {
                         >Активные</Button
                     >
                     <Button v-if="page.props.filters.archived" variant="default" :aria-pressed="true" @click="selectGroup('all')">В архиве</Button>
-                    <Button :variant="filters.updated ? 'default' : 'secondary'" :aria-pressed="!!filters.updated" @click="toggleUpdated"
-                        >По дате изменения</Button
-                    >
+                    <label class="ml-auto flex items-center gap-2 text-sm">
+                        На странице
+                        <select
+                            class="list-select"
+                            :value="filters.perPage"
+                            :disabled="loading"
+                            @change="changePerPage(Number(($event.target as HTMLSelectElement).value))"
+                        >
+                            <option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option>
+                        </select>
+                    </label>
                 </div>
                 <ListPanel
                     external-controls
@@ -404,15 +278,7 @@ function clearSearch() {
                     @refresh="refresh"
                 >
                     <h2 class="mb-[18px] text-xl font-bold min-[700px]:mb-[15px] min-[1100px]:mb-[18px]">
-                        {{
-                            filters.alphabetical
-                                ? 'По названию'
-                                : filters.updated
-                                  ? 'По дате изменения'
-                                  : filters.sort === 'asc'
-                                    ? 'Сначала старые'
-                                    : 'Сначала новые'
-                        }}
+                        {{ filters.sort === 'asc' ? 'Сначала старые' : 'Сначала новые' }}
                     </h2>
                     <div class="project-grid">
                         <article v-for="project in page.props.projects.data" :key="project.id" class="project-card">
@@ -486,8 +352,7 @@ function clearSearch() {
 }
 
 .info-panel .studio-row,
-.search-panel .studio-row,
-.results-panel .studio-row {
+.search-panel .studio-row {
     display: grid;
     grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
     gap: 8px;
@@ -499,79 +364,6 @@ function clearSearch() {
 }
 .info-panel > :last-child {
     margin-top: 16px;
-}
-.radio-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-}
-.radio-option input {
-    margin-top: 4px;
-    accent-color: var(--primary);
-}
-.radio-option small {
-    display: block;
-    color: var(--muted-foreground);
-}
-.results-panel h2 {
-    margin-bottom: 0;
-}
-.results-panel .studio-row {
-    padding-block: 6px;
-    border-top: 0;
-    border-bottom: 1px solid var(--border);
-    color: var(--muted-foreground);
-}
-.results-panel select {
-    border: 0;
-    padding: 0;
-    height: 32px;
-    min-height: 32px;
-    background: transparent;
-    color: var(--foreground);
-}
-.results-panel [data-slot='button'] {
-    min-height: 42px;
-}
-.result-chips span,
-.empty-symbol {
-    background: var(--muted);
-    padding: 9px 12px;
-    border-radius: 8px;
-    color: var(--muted-foreground);
-    font-size: 13px;
-}
-.result-chips span:first-child {
-    background: var(--sidebar-accent);
-    color: var(--sidebar-accent-foreground);
-}
-.empty-symbol {
-    width: 35px;
-    height: 32px;
-    padding: 8px;
-}
-.result-error {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    border-radius: 6px;
-    background: var(--muted);
-    border-inline-start: 3px solid var(--destructive);
-    padding: 10px 14px;
-}
-.result-error svg {
-    align-self: flex-start;
-    margin-top: 3px;
-    color: var(--destructive);
-}
-.result-error p {
-    color: var(--muted-foreground);
-    font-size: 14px;
-}
-.result-error strong {
-    color: var(--destructive);
 }
 .project-card {
     position: relative;
@@ -599,10 +391,10 @@ function clearSearch() {
 .workspace-page:has(.project-information) {
     row-gap: 13px;
 }
-.project-information:not(.search-results) {
+.project-information {
     max-width: 1234px;
 }
-.project-information:not(.search-results) aside > p {
+.project-information aside > p {
     margin-top: 7px;
 }
 .info-panel .studio-row {
@@ -618,13 +410,9 @@ function clearSearch() {
     }
 }
 @media (min-width: 1100px) {
-    .project-information:not(.search-results) {
+    .project-information {
         grid-template-columns: minmax(0, 2.38fr) minmax(0, 1fr);
         gap: 22px;
-    }
-    .project-information.search-results {
-        grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
-        gap: 20px;
     }
 }
 .project-information {

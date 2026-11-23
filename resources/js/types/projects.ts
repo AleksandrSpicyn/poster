@@ -36,12 +36,11 @@ export interface ProjectChannel {
 export interface ProjectsPageProps extends SharedData {
     projects: PaginatedResource<ProjectSummary>;
     information: { project: ProjectSummary & { channels: ProjectChannel[] }; owner: string; episodes: number; accepted: number } | null;
-    filters: { search: string; sort: string; active?: boolean; archived?: boolean; updated?: boolean; clipping?: boolean; alphabetical?: boolean };
+    filters: { search: string; sort: string; active?: boolean; archived?: boolean; clipping?: boolean };
     sortDirections: Record<string, string>;
 }
 
 export interface ProjectPageProps extends SharedData {
-    clipWeek: { from: string; to: string; observedOn: string | null; clips: { title: string; views: number }[] } | null;
     gamingTrends: {
         game: string;
         entries: { title: string; channel: string; views: string; views_per_day?: number | null; url: string }[];
@@ -61,7 +60,7 @@ export interface ProjectPageProps extends SharedData {
     }> | null;
     project: ProjectSummary & { channels: ProjectChannel[]; blocking_runs_count: number };
     prompts: PaginatedResource<PromptSummary>;
-    filters: { sort: string; updated?: boolean; active?: boolean };
+    filters: { sort: string; active?: boolean };
     sortDirections: Record<string, string>;
     series: SeriesSummary | null;
     characters: PaginatedResource<CharacterSummary> | null;

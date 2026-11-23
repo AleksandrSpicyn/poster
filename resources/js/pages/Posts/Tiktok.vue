@@ -6,7 +6,7 @@ import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -37,6 +37,7 @@ const props = defineProps<{
     };
 }>();
 const route = useRoute();
+const page = usePage();
 const form = useForm({
     media_id: null as number | null,
     account_id: props.accountId,
@@ -255,14 +256,11 @@ watch(
 
 <template>
     <AppLayout
-        :breadcrumbs="
-            finalReceipt
-                ? [{ title: 'Публикации', href: route('posts') }]
-                : [
-                      { title: 'Публикации', href: route('posts') },
-                      { title: 'TikTok', href: route('posts.tiktok.create', channelId) },
-                  ]
-        "
+        :breadcrumbs="[
+            { title: 'Публикации', href: route('posts') },
+            { title: 'TikTok', href: route('posts.tiktok.create', channelId) },
+            ...(finalReceipt ? [{ title: title, href: page.url }] : []),
+        ]"
     >
         <Head :title="title" />
         <div v-if="finalReceipt && video" class="workspace-page receipt-screen">

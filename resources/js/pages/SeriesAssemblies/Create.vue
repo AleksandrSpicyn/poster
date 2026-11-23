@@ -11,8 +11,9 @@ const route = useRoute();
 <template>
     <AppLayout
         :breadcrumbs="[
-            { title: 'Проект', href: route('projects.show', series.project_id) },
+            { title: 'Сериалы', href: route('series.index') },
             { title: series.name, href: route('series.show', { project: series.project_id, series: series.id }) },
+            { title: 'Параметры сборки', href: route('series_assemblies.create', series.id) },
         ]"
     >
         <Head title="Параметры сборки" />

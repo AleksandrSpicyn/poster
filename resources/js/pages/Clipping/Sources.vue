@@ -106,6 +106,7 @@ function selectMode(mode: 'existing' | 'new') {
     <AppLayout
         :breadcrumbs="[
             { title: 'Источники', href: route('clipping.index') },
+            ...(target ? [{ title: 'Выбор источника', href: route('clipping.sources', connection.id) }] : []),
             { title: target ? 'Сопоставление' : 'Выбор источника', href: route('clipping.sources', connection.id) },
         ]"
     >

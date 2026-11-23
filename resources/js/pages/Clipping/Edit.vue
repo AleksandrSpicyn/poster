@@ -148,7 +148,12 @@ function selectConnection(event: Event) {
 }
 </script>
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Источники', href: route('clipping.index') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Источники', href: route('clipping.index') },
+            { title: connection.name, href: route('clipping.edit', connection.id) },
+        ]"
+    >
         <Head :title="tab === 'driver' ? 'Выбор провайдера' : 'Подключение провайдера'" />
         <div class="workspace-page provider" :class="{ 'provider-detail': tab !== 'driver' }">
             <header class="flex flex-wrap items-start justify-between gap-3">

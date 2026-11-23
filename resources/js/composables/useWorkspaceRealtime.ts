@@ -11,7 +11,7 @@ const liveProps: Record<string, string[]> = {
     PublicationAnalytics: ['analytics'],
     Dashboard: ['analytics', 'stats', 'recentPrompts', 'recentPosts'],
     'Projects/Index': ['projects'],
-    'Projects/Show': ['project', 'prompts', 'series', 'characters', 'episodes', 'opusClips', 'clipWeek'],
+    'Projects/Show': ['project', 'prompts', 'series', 'characters', 'episodes', 'opusClips'],
     'Series/Index': ['series'],
     'Series/Show': ['series', 'characters', 'episodes'],
     'Characters/Show': ['character', 'revisions', 'series', 'episodesCount'],
@@ -25,7 +25,7 @@ const liveProps: Record<string, string[]> = {
 
 const affectedProps: Record<string, string[]> = {
     Project: ['parameters', 'projects', 'project', 'prompts', 'series', 'channels', 'destinations'],
-    OpusClipMetric: ['analytics', 'opusClips', 'clipWeek'],
+    OpusClipMetric: ['analytics', 'opusClips'],
     PublicationObservation: ['analytics'],
     Channel: ['analytics', 'channels', 'projects', 'project', 'destinations', 'requests', 'posts', 'recentPosts'],
     Prompt: ['prompts', 'projects', 'project', 'stats', 'recentPrompts', 'episode', 'assemblies'],
