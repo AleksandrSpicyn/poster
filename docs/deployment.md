@@ -127,8 +127,9 @@ server блока, выполните `nginx -t`, перечитайте Supervi
 
 ## GitHub
 
-Окружение `production` разрешает deploy из `main`. Повторный запуск доступен
-через workflow_dispatch. Переменная `PRODUCTION_URL` содержит адрес сайта.
+CI запускается при push в `main` и при открытии pull request в `main`. После
+успешной проверки push актуальный коммит разворачивается в окружении `production`.
+Переменная `PRODUCTION_URL` содержит адрес сайта.
 SSH secrets:
 
 - `POSTER_SSH_HOST`, `POSTER_SSH_PORT`, `POSTER_SSH_USER`

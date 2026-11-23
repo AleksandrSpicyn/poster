@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
+    branches: [main]
+    types: [opened]
 
 permissions:
   contents: read
@@ -90,13 +91,13 @@ jobs:
           php artisan scribe:generate --no-interaction
           bash -n deploy/*.sh
       - name: Package production dependencies and assets
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
           php artisan vendor:publish --tag=laravel-assets --force
           bash deploy/package.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: app-${{ github.sha }}
           path: app.tar.gz
@@ -107,7 +108,7 @@ jobs:
   deploy:
     name: Deploy production
     needs: verify
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:
