@@ -8,7 +8,7 @@ import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue'
 import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
 import { Button } from '@/components/ui/button';
-import { amount, counterNames, dateLabel, platformNames, rangeLabel, signed } from '@/types/analytics';
+import { amount, counterNames, dateLabel, observedCountersByDate, platformNames, rangeLabel, signed } from '@/types/analytics';
 import type { AnalyticsFilters, Counter, MetricsReport, PublicationTimeline } from '@/types/analytics';
 
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
@@ -33,8 +33,12 @@ const interval = computed(() => rangeLabel(start.value, props.report.to));
 const period = computed(() => (filters.value.from ? interval.value : filters.value.days + ' дней'));
 const names = counterNames;
 const metric = computed(() => filters.value.metric);
-const list = computed(() => [...props.report.publications].sort((a, b) => (b.change ?? -Infinity) - (a.change ?? -Infinity)));
-const bestPublications = computed(() => list.value.filter((publication) => publication.change !== null).slice(0, 5));
+const list = computed(() =>
+    props.report.publications.filter((p) => p.latest[metric.value] != null).sort((a, b) => b.latest[metric.value]! - a.latest[metric.value]!),
+);
+const bestPublications = computed(() => list.value.slice(0, 5));
+const showGrowth = ref(false);
+const dailySnapshots = computed(() => observedCountersByDate(props.report));
 const scope = computed(() =>
     [
         project.value?.name ?? 'Все проекты',
@@ -59,13 +63,20 @@ function url(v: View, patch: Partial<AnalyticsFilters> = {}, item?: PublicationT
 const platforms = computed(() => {
     const sums = new Map<string, number>();
     for (const p of list.value) {
-        if (p.change !== null) sums.set(p.platform, (sums.get(p.platform) ?? 0) + p.change);
+        const value = p.latest[metric.value];
+        if (value != null) sums.set(p.platform, (sums.get(p.platform) ?? 0) + value);
     }
     const total = [...sums.values()].reduce((s, n) => s + Math.max(n, 0), 0);
     return [...sums].map(([key, value]) => ({ key, value, pct: total ? (100 * Math.max(value, 0)) / total : 0 })).sort((a, b) => b.value - a.value);
 });
 function entry(label: string, key: Counter) {
-    return { label, value: props.report.summaries[key], href: url('drill', { metric: key }) };
+    const growth = props.report.summaries[key];
+    return {
+        label,
+        value: props.report.totals[key],
+        note: growth == null ? undefined : 'Измеренный прирост: ' + signed(growth),
+        href: url('drill', { metric: key }),
+    };
 }
 const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter)));
 const selectedWatch = computed(() => {
@@ -77,12 +88,6 @@ const selectedWatch = computed(() => {
         hours: minutes.length && minutes.every((v): v is number => v != null) ? minutes.reduce((s, v) => s + v, 0) / 60 : null,
     };
 });
-const detailCards = computed(() => [
-    entry('Просмотры', 'views'),
-    { label: 'Время просмотра', value: selectedWatch.value.hours, unit: 'ч' },
-    entry('Репосты', 'shares'),
-    { label: 'Ср. просмотр', value: selectedWatch.value.duration, unit: 'с', description: 'Последний отчёт площадки по ролику' },
-]);
 const selectedDays = computed(() =>
     Object.keys(props.report.daily).map((date) => ({
         date,
@@ -107,45 +112,47 @@ const tabs: { name: string; view: View }[] = [
             >
         </header>
         <template v-if="view === 'overview'">
-            <PublicationCounters :items="detail ? detailCards : dashboardCards" />
+            <h2>Последние показатели за выбранный период</h2>
+            <PublicationCounters :items="dashboardCards" />
             <div class="analytics-panels">
                 <section class="studio-panel chart-panel">
-                    <h2>
-                        <Link :href="selected ? url('data', {}, selected, true) : url('drill')">{{
-                            detail ? names[metric] + ' по дням' : metric === 'views' ? 'Динамика просмотров' : names[metric] + ' по дням'
-                        }}</Link>
-                    </h2>
-                    <p class="secondary">{{ interval }} · По дням</p>
-                    <PublicationMetricChart :values="report.daily" :label="names[metric] + ' по дням'" />
+                    <h2>{{ names[metric] }} по дням</h2>
+                    <div class="analytics-tabs" aria-label="Режим графика">
+                        <Button size="sm" :variant="showGrowth ? 'outline' : 'default'" :aria-pressed="!showGrowth" @click="showGrowth = false"
+                            >Наблюдения</Button
+                        >
+                        <Button size="sm" :variant="showGrowth ? 'default' : 'outline'" :aria-pressed="showGrowth" @click="showGrowth = true"
+                            >Прирост</Button
+                        >
+                    </div>
+                    <p class="secondary">
+                        {{ interval }} ·
+                        {{ showGrowth ? 'Разница между замерами за соседние дни' : 'Сумма счётчиков роликов, измеренных в этот день' }}
+                    </p>
+                    <PublicationMetricChart
+                        :values="showGrowth ? report.daily : dailySnapshots"
+                        :snapshots="!showGrowth"
+                        :label="names[metric] + (showGrowth ? ' · прирост' : ' · наблюдения')"
+                    />
                 </section>
                 <section class="studio-panel platforms-panel">
                     <h2>
-                        <Link :href="url('coverage', {}, selected, true)">{{
-                            detail ? 'Метрики ' + (filters.platform ? platformNames[filters.platform] : 'площадок') : 'Каналы'
-                        }}</Link>
+                        <Link :href="url('coverage', {}, selected, true)">{{ names[metric] }} по площадкам</Link>
                     </h2>
-                    <template v-if="!detail">
-                        <Link
-                            v-for="row in platforms"
-                            :key="row.key"
-                            :href="url('overview', { platform: row.key }, undefined, true)"
-                            class="platform-row"
-                        >
-                            <span>{{ platformNames[row.key] ?? row.key }}</span><strong>{{ amount(row.value) }}</strong
-                            ><i :class="'bar-' + row.key" :style="{ '--progress': row.pct + '%' }"
-                        /></Link>
-                        <p v-if="!platforms.length" class="secondary">Нет измерений за период</p>
-                    </template>
-                    <template v-else>
-                        <div class="platform-row">
-                            <span title="Последний отчёт площадки по ролику">Средний процент просмотра</span
-                            ><strong>{{ amount(selectedWatch.percent) }}{{ selectedWatch.percent !== null ? ' %' : '' }}</strong
-                            ><i :style="{ '--progress': Math.min(100, selectedWatch.percent ?? 0) + '%' }" />
-                        </div>
-                        <Link v-for="key in ['likes', 'comments'] as const" :key="key" :href="url('drill', { metric: key })" class="platform-row"
-                            ><span>{{ names[key] }}</span
-                            ><strong>{{ amount(report.summaries[key]) }}</strong></Link
-                        >
+                    <Link
+                        v-for="row in platforms"
+                        :key="row.key"
+                        :href="url('overview', { platform: row.key }, undefined, true)"
+                        class="platform-row"
+                    >
+                        <span>{{ platformNames[row.key] ?? row.key }}</span><strong>{{ amount(row.value) }}</strong
+                        ><i :class="'bar-' + row.key" :style="{ '--progress': row.pct + '%' }"
+                    /></Link>
+                    <p v-if="!platforms.length" class="secondary">Нет измерений за период</p>
+                    <template v-if="detail">
+                        <p v-if="selectedWatch.percent != null">Средний процент просмотра: {{ amount(selectedWatch.percent) }} %</p>
+                        <p v-if="selectedWatch.duration != null">Среднее время просмотра: {{ amount(selectedWatch.duration) }} с</p>
+                        <p v-if="selectedWatch.hours != null">Прирост времени просмотра: {{ amount(selectedWatch.hours) }} ч</p>
                     </template>
                 </section>
             </div>
@@ -155,7 +162,8 @@ const tabs: { name: string; view: View }[] = [
                     <ProjectArtwork :name="p.title" :cover="report.projects.find((x) => x.id === p.projectId)?.cover" /><span
                         ><strong>{{ p.title }}</strong
                         ><small
-                            >{{ platformNames[p.platform] ?? p.platform }} · {{ amount(p.change) + ' · ' + names[metric].toLowerCase() }}</small
+                            >{{ platformNames[p.platform] ?? p.platform }} ·
+                            {{ amount(p.latest[metric]) + ' · ' + names[metric].toLowerCase() }}</small
                         ></span
                     >
                 </Link>
@@ -181,7 +189,7 @@ const tabs: { name: string; view: View }[] = [
                 />
                 <section v-else-if="view === 'drill'" class="studio-panel">
                     <h2>{{ names[metric] }}</h2>
-                    <strong>{{ names[metric] }} · {{ amount(report.change) }}</strong>
+                    <strong>{{ names[metric] }} · {{ amount(report.totals[metric]) }}</strong>
                     <div class="analytics-tabs filter-chips">
                         <span>{{ project?.name ?? 'Все проекты' }}</span><span v-if="filters.platform">{{ platformNames[filters.platform] }}</span
                         ><span>{{ interval }}</span>
@@ -189,12 +197,11 @@ const tabs: { name: string; view: View }[] = [
                     <Link v-for="p in list" :key="p.key" class="drill-row" :href="url('publication', {}, p, true)"
                         ><strong>{{ p.title }}</strong
                         ><small
-                            >{{ amount(p.change) }} ·
-                            {{ p.intervals.length ? dateLabel(p.intervals[p.intervals.length - 1].to) : 'Нет базы сравнения' }}</small
+                            >{{ amount(p.latest[metric]) }}<template v-if="p.change != null"> · прирост {{ signed(p.change) }}</template></small
                         ></Link
                     >
                     <div class="report-row">
-                        <span>Всего по выборке</span><span>{{ amount(report.change) }} · Публикаций: {{ list.length }}</span>
+                        <span>Всего по выборке</span><span>{{ amount(report.totals[metric]) }} · Публикаций: {{ list.length }}</span>
                     </div>
                     <Link :href="url('overview')" class="report-link">Вернуться в обзор ↗</Link>
                 </section>
