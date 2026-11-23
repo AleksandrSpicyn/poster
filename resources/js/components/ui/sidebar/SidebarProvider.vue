@@ -18,10 +18,10 @@ const emits = defineEmits<{
   'update:open': [open: boolean]
 }>()
 
-const isMobile = useMediaQuery('(max-width: 767px)')
+const isMobile = useMediaQuery('(max-width: 699px)')
 const openMobile = ref(false)
 
-const tablet = useMediaQuery('(min-width: 768px) and (max-width: 1099px)')
+const tablet = useMediaQuery('(min-width: 700px) and (max-width: 1099px)')
 const tabletOpen = ref(false)
 const desktopOpen = useVModel(props, 'open', emits, {
   defaultValue: props.defaultOpen ?? false,

@@ -7,7 +7,7 @@ const id = useId();
 </script>
 
 <template>
-    <div class="flex flex-wrap items-end gap-3">
+    <div data-list-controls class="flex flex-wrap items-end gap-4">
         <slot />
         <div class="grid gap-1.5">
             <label :for="`${id}-sort`" class="text-muted-foreground text-xs font-medium">Порядок</label>

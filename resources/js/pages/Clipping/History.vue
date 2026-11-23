@@ -413,7 +413,7 @@ function refresh() {
 }
 .history-chip[aria-pressed='true'],
 .history-chip[aria-expanded='true'] {
-    color: var(--primary);
+    color: var(--ring);
     background: var(--sidebar-accent);
 }
 .import-history h2 {
@@ -444,7 +444,7 @@ function refresh() {
     color: var(--sidebar-accent-foreground);
 }
 .history-row [data-status='warning'] {
-    color: light-dark(#84482e, #e6bba4);
+    color: var(--warning);
 }
 .history-link {
     width: fit-content;
@@ -516,7 +516,7 @@ function refresh() {
     color: var(--color-amber-600);
 }
 .history-state.success strong {
-    color: var(--primary);
+    color: var(--ring);
 }
 .history-step {
     padding-block: 10px;

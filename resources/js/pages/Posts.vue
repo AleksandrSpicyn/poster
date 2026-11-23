@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
-import { formatProjectDate } from '@/lib/formatProjectDate';
+import ChannelIcon from '@/components/ChannelIcon.vue';
 import ListControls from '@/components/ListControls.vue';
 import ListPanel from '@/components/ListPanel.vue';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const route = useRoute();
+const eventTime = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Moscow' });
 const page = usePage<PostsPageProps>();
 const { filters, loading, error, applyFilters, changePage, refresh } = useListFilters('posts', () => ({
     type: page.props.filters.type ?? page.props.allTypes,
@@ -58,7 +59,7 @@ function resetFilters() {
                     >
                 </div>
             </header>
-            <form v-if="section === 'filters'" class="studio-panel flex flex-wrap items-end gap-4" role="search" @submit.prevent="applyFilters">
+            <form v-if="section === 'filters'" class="studio-panel studio-filters" role="search" @submit.prevent="applyFilters">
                 <label>Название ролика<Input v-model="filters.search" type="search" maxlength="200" /></label>
                 <label
                     >Площадка<select v-model="filters.type" class="list-select">
@@ -108,9 +109,12 @@ function resetFilters() {
                         >
                         <strong v-else>{{ row.title }}</strong>
                         <div class="grid">
-                            <span
+                            <span class="flex flex-wrap items-center gap-2"
+                                ><ChannelIcon :channel="row.platform" /><span v-if="row.platform" class="sr-only">{{
+                                    page.props.types[row.platform]
+                                }}</span
                                 >{{ row.channel_name ?? 'Канал удалён' }} ·
-                                <time :datetime="row.created_at">{{ formatProjectDate(row.created_at) }}</time></span
+                                <time v-if="row.event_at" :datetime="row.event_at">{{ eventTime.format(new Date(row.event_at)) }} МСК</time></span
                             ><span :data-status="row.status">{{ publicationStates[row.status] }}</span>
                         </div>
                     </li>
@@ -153,13 +157,13 @@ function resetFilters() {
     font-size: 14px;
 }
 .feed-row [data-status='published'] {
-    color: var(--primary);
+    color: var(--ring);
 }
 .feed-row [data-status='submission_unknown'] {
-    color: #cd9167;
+    color: var(--warning);
 }
 .feed-row [data-status='planned'] {
-    color: #a798d0;
+    color: var(--progress);
 }
 form label {
     display: grid;

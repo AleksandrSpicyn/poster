@@ -333,7 +333,7 @@ function selectConnection(event: Event) {
 }
 .provider-tab[aria-current='page'] {
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
-    color: var(--primary);
+    color: var(--ring);
 }
 .provider-result {
     padding: 10px 14px;
@@ -436,17 +436,17 @@ function selectConnection(event: Event) {
 }
 .permission[data-status='available'] strong,
 .permission[data-status='available'] .permission-icon {
-    color: var(--primary);
+    color: var(--ring);
 }
 .permission[data-status='unsupported'],
 .permission[data-status='denied'] {
-    border-color: #e8aa80;
+    border-color: var(--warning);
 }
 .permission[data-status='unsupported'] strong,
 .permission[data-status='denied'] strong,
 .permission[data-status='unsupported'] .permission-icon,
 .permission[data-status='denied'] .permission-icon {
-    color: #e8aa80;
+    color: var(--warning);
 }
 .permission-icon {
     position: absolute;

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { ProjectSummary } from '@/types/projects';
 import { Head, useForm } from '@inertiajs/vue3';
+import ImageFilePicker from '@/components/ImageFilePicker.vue';
 import { computed, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -24,9 +25,7 @@ function releasePreview() {
     localImage.value = '';
 }
 onUnmounted(releasePreview);
-function chooseFile(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+function chooseFile(file: File) {
     releasePreview();
     form.file = file;
     localImage.value = URL.createObjectURL(file);
@@ -98,11 +97,10 @@ function save() {
                         <figcaption>Карточка 16:9</figcaption>
                     </figure>
                 </div>
-                <label class="mb-4 block text-sm">
-                    Изображение<input type="file" accept="image/png,image/jpeg,image/webp" class="mt-2 block max-w-full" @change="chooseFile" />
-                </label>
+                <ImageFilePicker label="Изображение обложки" :file="form.file" :disabled="form.processing" @select="chooseFile" />
+                <p v-if="form.progress" role="status">Загрузка · {{ form.progress.percentage }}%</p>
                 <InputError :message="form.errors.file ?? form.errors.x ?? form.errors.y ?? form.errors.base_id" />
-                <Button type="submit" :disabled="form.processing || !source">Применить кадрирование</Button>
+                <Button type="submit" :disabled="form.processing || !source || !!form.errors.file">Применить кадрирование</Button>
             </form>
         </div>
     </AppLayout>

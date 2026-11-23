@@ -44,7 +44,7 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
                     >Фильтры</Button
                 >
             </header>
-            <div v-if="filterOpen" class="studio-panel flex flex-wrap items-end gap-4">
+            <div v-if="filterOpen" class="studio-panel studio-filters">
                 <label class="grid gap-1 text-sm"
                     >Проект<select v-model="filters.project" class="list-select max-w-full" :disabled="loading" @change="applyFilters">
                         <option :value="null">Все проекты</option>
@@ -67,7 +67,7 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
                 <p v-if="!page.props.prompts.data.length" class="text-muted-foreground">Пока нет генераций</p>
                 <div v-for="prompt in page.props.prompts.data" :key="prompt.id" class="generation-row">
                     <div>
-                        <strong>{{ prompt.title }}</strong>
+                        <span class="generation-title">{{ prompt.title }}</span>
                         <p>{{ prompt.project ?? 'Проект удалён' }} · {{ formatProjectDate(prompt.created_at) }}</p>
                     </div>
                     <span :data-stage="prompt.stage">{{ prompt.stage_label }}</span>
@@ -101,7 +101,7 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
 }
 .generation-row {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) 10rem;
     gap: 12px;
     text-align: left;
     align-items: center;
@@ -110,7 +110,10 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
     border-bottom: 1px solid var(--border);
     padding: 15px 0;
 }
-.generation-row span,
+.generation-title {
+    overflow-wrap: anywhere;
+}
+.generation-row [data-stage],
 .generation-row p {
     font-size: 14px;
     color: var(--muted-foreground);
@@ -120,10 +123,10 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
         flex-direction: column;
     }
 }
-@media (max-width: 639px) {
+@media (max-width: 699px) {
     .generation-row {
         grid-template-columns: 1fr;
-        gap: 2px;
+        gap: 8px;
         padding: 10px 0;
     }
 }
@@ -139,12 +142,12 @@ const projectName = computed(() => page.props.projects.find((p) => p.id === page
 .generation-row span[data-stage='video'],
 .generation-row span[data-stage='audio'],
 .generation-row span[data-stage='media'] {
-    color: #605588;
+    color: var(--progress);
 }
 .dark .generation-row span[data-stage='image'],
 .dark .generation-row span[data-stage='video'],
 .dark .generation-row span[data-stage='audio'],
 .dark .generation-row span[data-stage='media'] {
-    color: #c7c2e0;
+    color: var(--progress);
 }
 </style>

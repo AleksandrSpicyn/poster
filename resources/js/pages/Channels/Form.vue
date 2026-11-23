@@ -14,7 +14,7 @@ import type { BreadcrumbItem, ChannelType, SharedData } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Link2, LoaderCircle, Trash2 } from '@lucide/vue';
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'ziggy-js';
 
 const props = defineProps<{
@@ -33,15 +33,13 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 const form = useForm({
     name: props.channel?.name ?? '',
     type: props.channel?.type ?? (Object.keys(props.channelTypes)[0] as ChannelType),
-    client_id: props.channel?.client_id ?? '',
-    client_secret: '',
     is_active: props.channel?.is_active ?? true,
 });
 const connection = useForm({});
 const deletion = useForm({});
 const deletionErrors = computed<Record<string, string | undefined>>(() => deletion.errors);
 const requestError = ref('');
-const replacingSecret = ref(false);
+
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
 const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
 const tab = ref('');
@@ -63,28 +61,10 @@ const basic = computed(
 const connectionPage = computed(
     () => props.channel?.type === 'tiktok' && ['overview', 'connection-heading', 'platform', 'authorization', 'account'].includes(tab.value),
 );
-function revealInvalidField(event: Event) {
-    const input = event.target;
-    if (props.channel || !(input instanceof HTMLInputElement) || input.id !== 'channel-name' || tab.value !== 'oauth-settings') return;
-    event.preventDefault();
-    tab.value = 'channel-name';
-    window.location.hash = 'channel-name';
-    void nextTick(() => {
-        input.focus();
-        input.reportValidity();
-    });
-}
 function submit() {
     requestError.value = '';
     form.submit(props.channel ? 'patch' : 'post', props.channel ? route('channels.update', props.channel.id) : route('channels.store'), {
         preserveScroll: 'errors',
-        onSuccess: () => {
-            form.reset('client_secret');
-            replacingSecret.value = false;
-        },
-        onError: (errors) => {
-            if (!props.channel) window.location.hash = errors.client_id || errors.client_secret ? 'oauth-settings' : 'channel-name';
-        },
         onNetworkError: () => {
             requestError.value = 'Связь прервана. Повторите сохранение после подключения.';
             return false;
@@ -118,11 +98,10 @@ function remove() {
                     channel ? 'Сохранить' : 'Создать канал'
                 }}</Button>
             </header>
-            <nav aria-label="Разделы канала" class="workspace-tabs">
+            <nav v-if="channel" aria-label="Разделы канала" class="workspace-tabs">
                 <a href="#channel-name" :aria-current="basic ? 'page' : undefined">Основное</a>
                 <a
-                    v-if="channel || oauthSupported"
-                    :href="channel ? (channel.type === 'tiktok' ? '#platform' : '#connection-heading') : '#oauth-settings'"
+                    :href="channel.type === 'tiktok' ? '#platform' : '#connection-heading'"
                     :aria-current="!basic && tab !== 'connected-projects' ? 'page' : undefined"
                     >Подключение</a
                 >
@@ -154,11 +133,10 @@ function remove() {
                     id="studio-channel"
                     class="bg-card min-w-0 space-y-6 rounded-xl border p-5 sm:p-7"
                     :aria-busy="form.processing"
-                    @invalid.capture="revealInvalidField"
                     @submit.prevent="submit"
                 >
-                    <h2 v-if="!channel" class="text-xl font-bold">{{ tab === 'oauth-settings' ? 'Настройки приложения' : 'Параметры' }}</h2>
-                    <div v-show="channel || tab !== 'oauth-settings'" class="grid gap-2">
+                    <h2 v-if="!channel" class="text-xl font-bold">Параметры</h2>
+                    <div class="grid gap-2">
                         <Label for="channel-name">Название</Label
                         ><Input
                             id="channel-name"
@@ -172,7 +150,7 @@ function remove() {
                             class="h-11"
                         /><InputError :message="form.errors.name" />
                     </div>
-                    <div v-show="channel || tab !== 'oauth-settings'" class="grid gap-2">
+                    <div class="grid gap-2">
                         <Label for="channel-type">Площадка</Label
                         ><select id="channel-type" v-model="form.type" :disabled="!!channel || form.processing" class="list-select w-full">
                             <option v-for="(label, value) in channelTypes" :key="value" :value="value">{{ label }}</option></select
@@ -191,7 +169,7 @@ function remove() {
                             ></span
                         ></label
                     >
-                    <div v-else-if="tab !== 'oauth-settings'" class="grid gap-2">
+                    <div v-else class="grid gap-2">
                         <Label for="channel-state">Состояние</Label>
                         <select id="channel-state" v-model="form.is_active" class="list-select w-full">
                             <option :value="true">Активен</option>
@@ -199,72 +177,6 @@ function remove() {
                         </select>
                     </div>
                     <InputError :message="form.errors.is_active" />
-                    <details
-                        v-if="oauthSupported && (channel || tab === 'oauth-settings')"
-                        class="space-y-4 border-t pt-5"
-                        :open="!channel || !!form.errors.client_id || !!form.errors.client_secret || (!!channel && !channel.oauth_configured)"
-                    >
-                        <summary class="cursor-pointer text-sm font-semibold">Настройки приложения OAuth</summary>
-                        <p class="text-muted-foreground text-sm">
-                            Для общего приложения оставьте оба поля пустыми. Для собственного укажите данные
-                            {{
-                                form.type === 'youtube'
-                                    ? 'Google OAuth web application'
-                                    : form.type === 'tiktok'
-                                      ? 'TikTok Login Kit web app'
-                                      : 'Instagram app with Instagram API login'
-                            }}
-                            и подключите аккаунт повторно.
-                        </p>
-                        <div class="grid gap-2">
-                            <Label for="client-id">{{ form.type === 'tiktok' ? 'Client key' : 'Client ID / App ID' }}</Label><Input
-                                id="client-id"
-                                v-model="form.client_id"
-                                maxlength="255"
-                                autocomplete="off"
-                                :disabled="form.processing"
-                                :aria-invalid="!!form.errors.client_id"
-                            /><InputError :message="form.errors.client_id" />
-                        </div>
-                        <div class="grid gap-2">
-                            <template v-if="channel?.has_client_secret && !replacingSecret">
-                                <Label for="saved-secret">Сохранённый Client Secret</Label>
-                                <Input id="saved-secret" model-value="••••••••••••••••" readonly />
-                                <p class="text-muted-foreground text-sm">Секрет сохранён</p>
-                                <Button type="button" variant="outline" class="justify-self-start" @click="replacingSecret = true"
-                                    >Заменить секрет</Button
-                                >
-                            </template>
-                            <template v-else>
-                                <Label for="client-secret">Client secret / App secret</Label
-                                ><Input
-                                    id="client-secret"
-                                    v-model="form.client_secret"
-                                    type="password"
-                                    maxlength="2048"
-                                    autocomplete="new-password"
-                                    :disabled="form.processing"
-                                    :aria-invalid="!!form.errors.client_secret"
-                                    :placeholder="channel?.has_client_secret ? 'Секрет сохранён' : 'Введите секрет приложения'"
-                                    aria-describedby="secret-help"
-                                />
-                            </template>
-                            <p id="secret-help" class="text-muted-foreground text-xs">
-                                При прежнем ID оставьте поле пустым, чтобы сохранить действующий секрет.
-                            </p>
-                            <InputError :message="form.errors.client_secret" />
-                        </div>
-                        <div class="space-y-2">
-                            <p class="text-sm font-medium">OAuth redirect URI</p>
-                            <p class="bg-muted rounded-md p-3 font-mono text-xs leading-relaxed break-all select-all">
-                                {{
-                                    callbackUrl ??
-                                    (form.type === 'tiktok' ? route('channels.tiktok-redirect') : route('channels.provider-callback', form.type))
-                                }}
-                            </p>
-                            <p class="text-muted-foreground text-xs">Укажите этот адрес возврата в настройках приложения площадки.</p>
-                        </div>
-                    </details>
                 </form>
                 <aside v-if="channel" class="min-w-0 space-y-5">
                     <section v-if="!basic" class="bg-card space-y-4 rounded-xl border p-5" aria-labelledby="connection-heading">
@@ -317,7 +229,7 @@ function remove() {
                             >
                             <p v-if="form.isDirty" class="text-muted-foreground text-xs">Сохраните изменения перед подключением.</p>
                             <p v-else-if="!channel.oauth_configured" class="text-muted-foreground text-xs">
-                                Сохраните данные приложения для подключения.
+                                Подключение пока недоступно. Обратитесь к администратору студии.
                             </p>
                             <p v-if="channel.type === 'instagram'" class="text-muted-foreground text-xs leading-relaxed">
                                 Нужен профессиональный аккаунт Instagram.
@@ -332,7 +244,7 @@ function remove() {
                             @confirm="disconnect"
                         />
                     </section>
-                    <section v-if="basic" class="space-y-3 rounded-xl border p-5">
+                    <section v-if="basic" class="grid justify-items-start gap-4 rounded-xl border p-5">
                         <h2 class="text-sm font-semibold">{{ deletingAllowed ? 'Удалить канал' : 'Удаление канала недоступно' }}</h2>
                         <template v-if="channel.projects?.length">
                             <p class="font-medium">Канал связан с проектами</p>

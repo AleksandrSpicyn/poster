@@ -393,10 +393,10 @@ const tabs: { name: string; view: View }[] = [
     background: var(--primary);
 }
 .platform-row .bar-instagram::before {
-    background: #beb2e2;
+    background: var(--progress);
 }
 .platform-row .bar-tiktok::before {
-    background: #e8ac7d;
+    background: var(--warning);
 }
 .best-publications h2 {
     margin-bottom: 14px;
@@ -443,7 +443,7 @@ const tabs: { name: string; view: View }[] = [
     font-size: 14px;
 }
 .analytics-tabs a[aria-current='page'] {
-    color: var(--primary);
+    color: var(--ring);
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
 }
 .report-row > span:first-child {
@@ -482,7 +482,7 @@ const tabs: { name: string; view: View }[] = [
 .report-link {
     display: inline-flex;
     padding: 12px 0;
-    color: var(--primary);
+    color: var(--ring);
     font-weight: 700;
 }
 .coverage-row {
@@ -498,7 +498,7 @@ const tabs: { name: string; view: View }[] = [
     margin: 4px 0;
     padding-inline-start: 38px;
     position: relative;
-    border-inline-start-color: #e8ac7d;
+    border-inline-start-color: var(--warning);
 }
 .observation-gap::before {
     content: '!';
@@ -510,10 +510,10 @@ const tabs: { name: string; view: View }[] = [
     height: 16px;
     line-height: 14px;
     text-align: center;
-    color: #e8ac7d;
+    color: var(--warning);
 }
 .analytics-screen .observation-gap > span:first-child {
-    color: #e8ac7d;
+    color: var(--warning);
 }
 @media (min-width: 768px) {
     .analytics-screen[data-view='data'] .report-row:not(.observation-gap),
@@ -547,7 +547,7 @@ const tabs: { name: string; view: View }[] = [
 }
 .coverage-row[data-state='temporary_error'],
 .coverage-row[data-state='rate_limited'] {
-    border-color: #e8ac7d;
+    border-color: var(--warning);
 }
 @media (min-width: 1100px) {
     .analytics-screen:not(.analytics-state) > .publication-counters {

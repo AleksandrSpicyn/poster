@@ -65,7 +65,7 @@ h1 {
 .access-form :deep([data-slot='input']) {
     height: 48px;
     margin: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     padding-inline: 14px;
     font-size: 16px;
     background: var(--background);
@@ -103,7 +103,7 @@ h1 {
         padding-top: 31px;
     }
     h1 {
-        font-size: 38px;
+        font-size: 40px;
     }
 }
 @media (min-width: 1001px) {

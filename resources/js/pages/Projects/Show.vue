@@ -7,6 +7,7 @@ import VideoPreview from '@/components/VideoPreview.vue';
 import Heading from '@/components/Heading.vue';
 import ProjectNotice from '@/components/projects/ProjectNotice.vue';
 import ProductionPanel from '@/components/ProductionPanel.vue';
+import ProjectArchive from '@/components/projects/ProjectArchive.vue';
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import { Button } from '@/components/ui/button';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -39,11 +40,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     ...(managing.value || viewingClip.value ? [{ title: managing.value ? 'Управление проектом' : 'Клип', href: page.url }] : []),
 ]);
 const viewingClip = ref(false);
-const archiveForm = useForm({ archived: false });
-function toggleArchive() {
-    archiveForm.archived = !page.props.project.archived_at;
-    archiveForm.patch(route('projects.archive', page.props.project.id));
-}
+
 const managing = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'management');
 const deleteError = ref('');
 const deleteForm = useForm({});
@@ -292,15 +289,7 @@ function destroyProject() {
                         <dd>{{ formatProjectDate(page.props.project.updated_at) }}</dd>
                     </div>
                 </dl>
-                <section
-                    class="flex flex-col items-start justify-between gap-4 rounded-xl border p-5 sm:flex-row sm:items-center"
-                    aria-labelledby="archive-project-heading"
-                >
-                    <h2 id="archive-project-heading" class="font-semibold">Архив проекта</h2>
-                    <Button variant="outline" :disabled="archiveForm.processing" @click="toggleArchive">{{
-                        page.props.project.archived_at ? 'Вернуть из архива' : 'Архивировать проект'
-                    }}</Button>
-                </section>
+                <ProjectArchive :project-id="page.props.project.id" :archived="!!page.props.project.archived_at" />
                 <section
                     class="flex flex-col items-start justify-between gap-4 rounded-xl border p-5 sm:flex-row sm:items-center"
                     aria-labelledby="delete-project-heading"

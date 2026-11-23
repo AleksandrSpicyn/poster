@@ -13,7 +13,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Info, LoaderCircle, Save } from '@lucide/vue';
+import { LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -39,10 +39,8 @@ function deleteProject() {
         },
     });
 }
-const initialMode =
-    new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series' && 'series' in props.contentModes
-        ? 'series'
-        : Object.keys(props.contentModes)[0];
+const dedicatedSeries = !props.project && new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series';
+const initialMode = dedicatedSeries && 'series' in props.contentModes ? 'series' : Object.keys(props.contentModes)[0];
 const form = useForm({
     schedule: props.scheduleSettings?.configured
         ? { enabled: props.scheduleSettings.enabled, time: props.scheduleSettings.time, timezone: props.scheduleSettings.timezone }
@@ -155,6 +153,7 @@ onMounted(() => {
                     form,
                     Object.fromEntries(fieldKeys.filter((key) => Object.hasOwn(saved.fields, key)).map((key) => [key, saved.fields[key]])),
                 );
+                if (dedicatedSeries) form.content_mode = 'series';
                 restored.value = true;
             } else clearDraft();
         }
@@ -203,7 +202,7 @@ const sections = computed((): Record<string, string> => {
     if (!props.project) {
         return {
             main: 'Основные сведения',
-            format: 'Формат производства',
+            ...(dedicatedSeries ? {} : { format: 'Формат производства' }),
             ...(props.auth.can_manage_channels ? { channels: 'Каналы проекта' } : {}),
             ...(isSeries.value ? { cast: seriesSettingsSections.cast, plan: seriesSettingsSections.plan } : {}),
         };
@@ -216,7 +215,6 @@ const formatOptions = computed(() => ['series', 'short'].filter((value) => Objec
 const selectedChannelNames = computed(() =>
     props.channels.filter((channel) => form.channel_ids?.includes(channel.id)).map((channel) => channel.name),
 );
-const clippingUrl = computed(() => route('clipping.index', { view: 'select' }));
 const sharedChannels = computed(() =>
     props.channels.filter(
         (channel) => props.selectedChannelIds.includes(channel.id) && channel.projects?.some((project) => project.id !== props.project?.id),
@@ -343,7 +341,7 @@ function submit() {
                     form="project-form"
                     class="h-11"
                     :disabled="form.processing || conflict"
-                    >{{ isSeries ? 'Сохранить сериал' : project ? 'Сохранить' : 'Создать проект' }}</Button
+                    >{{ project ? 'Сохранить' : isSeries ? 'Создать сериал' : 'Создать проект' }}</Button
                 >
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
@@ -448,13 +446,6 @@ function submit() {
                                     }}</small></span
                                 >
                             </label>
-                            <Link v-if="!project" :href="clippingUrl" class="flex min-h-14 items-center gap-3 rounded-lg border p-3 font-semibold"
-                                ><span class="format-circle" aria-hidden="true"></span
-                                ><span
-                                    ><strong>Клиппинг</strong
-                                    ><small class="text-muted-foreground block font-normal">Импорт готовых клипов из источника</small></span
-                                ></Link
-                            >
                         </fieldset>
                         <InputError :message="form.errors.content_mode" />
                     </div>
@@ -661,13 +652,6 @@ function submit() {
                         <p v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
                             Подключите канал, чтобы выбрать его для проекта.
                         </p>
-                        <div class="bg-muted text-muted-foreground flex gap-3 rounded-md border-l-2 p-3">
-                            <Info aria-hidden="true" class="mt-0.5 size-5 shrink-0" />
-                            <div>
-                                <strong class="block text-sm">Один владелец</strong>
-                                <p class="mt-1 text-sm">Связи используют один аккаунт. Снятие выбора затронет только этот проект.</p>
-                            </div>
-                        </div>
                         <InputError :message="form.errors.channel_ids" />
                         <InputError
                             v-for="(error, key) in formErrors"
@@ -713,7 +697,28 @@ function submit() {
                         >
                     </div>
                 </form>
-                <aside v-if="!project || detailSection || isSeries" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
+                <aside v-if="!project" class="studio-panel hidden min-w-0 min-[1100px]:block" aria-label="Сводка проекта">
+                    <h2 class="text-xl font-bold">{{ form.name.trim() || 'Новый ' + (isSeries ? 'сериал' : 'проект') }}</h2>
+                    <dl class="mt-4 grid gap-3 break-words">
+                        <div>
+                            <dt>Формат</dt>
+                            <dd>{{ isSeries ? 'Сериал' : 'Короткие ролики' }}</dd>
+                        </div>
+                        <div v-if="form.prompt.trim()">
+                            <dt>{{ isSeries ? 'Завязка' : 'Описание' }}</dt>
+                            <dd class="whitespace-pre-wrap">{{ form.prompt }}</dd>
+                        </div>
+                        <div v-if="selectedChannelNames.length">
+                            <dt>Каналы</dt>
+                            <dd>{{ selectedChannelNames.join(', ') }}</dd>
+                        </div>
+                        <div v-if="isSeries && form.episode_limit">
+                            <dt>Количество эпизодов</dt>
+                            <dd>{{ form.episode_limit }}</dd>
+                        </div>
+                    </dl>
+                </aside>
+                <aside v-else-if="detailSection || isSeries" class="studio-panel hidden min-w-0 space-y-3 min-[1100px]:block">
                     <ProjectArtwork
                         v-if="project"
                         :name="project.name"

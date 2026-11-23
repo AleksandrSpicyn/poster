@@ -54,8 +54,9 @@ readonly class PostRepository extends EloquentRepository
     {
         $published = $this->owned($owner)
             ->leftJoin('channels', 'channels.id', '=', 'posts.channel_id')
+            ->leftJoin('publication_requests as receipt', 'receipt.id', '=', 'posts.publication_request_id')
             ->select(['posts.id', 'posts.title', 'posts.url', 'posts.created_at', 'channels.type as platform', 'channels.name as channel_name', 'posts.channel_id'])
-            ->selectRaw("'published' as status, 'post' as kind");
+            ->selectRaw("COALESCE(receipt.published_at, posts.created_at) as event_at, 'published' as status, 'post' as kind");
 
         $requests = PublicationRequest::query()
             ->join('channels', 'channels.id', '=', 'publication_requests.channel_id')
@@ -67,8 +68,8 @@ readonly class PostRepository extends EloquentRepository
             ->whereNotExists(fn(QueryBuilder $query) => $query->selectRaw('1')->from('posts')->whereColumn('posts.publication_request_id', 'publication_requests.id'))
             ->select(['publication_requests.id', 'publication_requests.payload->title as title'])
             ->selectRaw('NULL as url')
-            ->addSelect(['publication_requests.created_at', 'channels.type as platform', 'channels.name as channel_name', 'publication_requests.channel_id', 'publication_requests.status'])
-            ->selectRaw("'request' as kind");
+            ->addSelect(['publication_requests.created_at', 'channels.type as platform', 'channels.name as channel_name', 'publication_requests.channel_id'])
+            ->selectRaw("COALESCE(publication_requests.published_at, publication_requests.scheduled_at, publication_requests.created_at) as event_at, publication_requests.status, 'request' as kind");
 
         $type = is_string($filters->type) ? ChannelType::tryFrom($filters->type) : null;
         $order = $filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC;

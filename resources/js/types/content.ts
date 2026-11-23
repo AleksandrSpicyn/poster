@@ -58,6 +58,7 @@ export interface ListPageProps extends SharedData {
 
 export interface PostsPageProps extends ListPageProps {
     activity: PaginatedResource<{
+        event_at: string | null;
         created_at: string;
         id: number;
         title: string;

@@ -129,7 +129,7 @@ const submit = () => {
                 <p v-if="form.recentlySuccessful" role="status" class="text-primary mt-3 text-sm">Изменения сохранены.</p>
             </form>
             <div class="mt-4 flex flex-wrap items-center gap-4">
-                <a v-if="!emailNotice" href="#change-email" class="underline">Изменение почты</a>
+                <Button v-if="!emailNotice" as-child variant="outline"><a href="#change-email">Изменить почту</a></Button>
                 <a v-else href="#profile" class="underline">К личным данным</a>
                 <DeleteUser />
             </div>
@@ -145,7 +145,7 @@ const submit = () => {
     background: var(--muted);
 }
 .profile-notice.warning {
-    border-color: #ce9675;
+    border-color: var(--warning);
 }
 .profile-notice p {
     color: var(--muted-foreground);

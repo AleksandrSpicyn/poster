@@ -114,7 +114,7 @@ function time(value: string) {
     border-left: 3px solid currentColor;
     border-radius: 6px;
     background: var(--muted);
-    color: light-dark(#715487, #cbb9e6);
+    color: var(--progress);
 }
 .receipt-notice.published,
 .complete,
@@ -154,7 +154,7 @@ function time(value: string) {
 }
 .receipt-steps .active,
 .receipt-steps li:has(.active) strong {
-    color: light-dark(#715487, #cbb9e6);
+    color: var(--progress);
 }
 .receipt-refresh,
 .receipt-link {
