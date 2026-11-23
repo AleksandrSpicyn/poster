@@ -39,7 +39,7 @@ const labels: Record<string, string> = {
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="grid min-w-0 gap-6">
         <div v-if="section === 'cast'" class="grid gap-3">
             <div v-if="selectedHero" class="flex min-h-12 items-center gap-3">
                 <img
@@ -76,12 +76,7 @@ const labels: Record<string, string> = {
         </div>
         <div v-if="section === 'plan'" class="grid gap-2">
             <Label for="output-mode">Формат выпуска</Label>
-            <select
-                id="output-mode"
-                v-model="outputMode"
-                :disabled="processing"
-                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
-            >
+            <select id="output-mode" v-model="outputMode" :disabled="processing" class="list-select">
                 <option v-for="(label, value) in outputModes" :key="value" :value="value">{{ labels[value] ?? label }}</option>
             </select>
             <InputError :message="errors.output_mode" />
@@ -91,34 +86,18 @@ const labels: Record<string, string> = {
         </div>
         <div v-if="section === 'plan' && outputMode === 'single_video'" class="grid gap-2">
             <Label for="cycle-structure">Структура истории</Label>
-            <select
-                id="cycle-structure"
-                v-model="specification.cycle_structure"
-                :disabled="processing"
-                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
-            >
+            <select id="cycle-structure" v-model="specification.cycle_structure" :disabled="processing" class="list-select">
                 <option v-for="(label, value) in cycleStructures" :key="value" :value="value">{{ labels[value] ?? label }}</option>
             </select>
             <Label for="cycle-scenes">Связь сцен</Label>
-            <select
-                id="cycle-scenes"
-                v-model="specification.scene_mode"
-                :disabled="processing"
-                class="border-input bg-background h-11 rounded-md border px-3 text-sm"
-            >
+            <select id="cycle-scenes" v-model="specification.scene_mode" :disabled="processing" class="list-select">
                 <option v-for="(label, value) in sceneModes" :key="value" :value="value">{{ labels[value] ?? label }}</option>
             </select>
             <p class="text-muted-foreground text-xs">Опишите переходы между сценами или непрерывный дубль в правилах повествования.</p>
         </div>
         <InputError :message="errors.series_lock_version" /><InputError :message="errors.series" />
-        <div v-if="section === 'plan'" class="grid gap-2">
-            <Label for="generation-duration">Длительность генерации, секунды</Label>
-            <Input id="generation-duration" v-model="specification.shot_duration_seconds" type="number" min="4" max="30" :disabled="processing" />
-            <InputError :message="errors['series_specification.shot_duration_seconds']" />
-            <p class="text-muted-foreground text-xs">Для эпизода на 60 секунд требуется четыре генерации по 15 секунд.</p>
-        </div>
-        <div v-if="section === 'main' || section === 'plan'" class="grid gap-5 sm:grid-cols-2">
-            <div v-if="section === 'main'" class="grid gap-2">
+        <div v-if="section === 'main'" class="grid gap-5 sm:grid-cols-2">
+            <div class="grid gap-2">
                 <Label for="series-style">Визуальный стиль</Label
                 ><Input
                     id="series-style"
@@ -128,24 +107,27 @@ const labels: Record<string, string> = {
                     placeholder="Например, акварельная анимация"
                 /><InputError :message="errors['series_specification.visual_style']" />
             </div>
-            <div v-if="section === 'main'" class="grid gap-2">
+            <div class="grid gap-2">
                 <Label for="series-language">Язык</Label
                 ><Input id="series-language" v-model="specification.language" maxlength="35" :disabled="processing" placeholder="en" /><InputError
                     :message="errors['series_specification.language']"
                 />
             </div>
-            <div v-if="section === 'main'" class="grid gap-2">
+            <div class="grid gap-2">
                 <Label for="series-audience">Аудитория</Label
-                ><select
-                    id="series-audience"
-                    v-model="specification.audience"
-                    :disabled="processing"
-                    class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
-                >
+                ><select id="series-audience" v-model="specification.audience" :disabled="processing" class="list-select">
                     <option v-for="(label, value) in audiences" :key="value" :value="value">{{ labels[value] ?? label }}</option></select
                 ><InputError :message="errors['series_specification.audience']" />
             </div>
-            <div v-if="section === 'plan'" class="grid gap-2">
+        </div>
+        <div v-if="section === 'plan'" class="grid items-start gap-5 lg:grid-cols-2">
+            <div class="grid gap-2">
+                <Label for="generation-duration">Длительность генерации, секунды</Label>
+                <Input id="generation-duration" v-model="specification.shot_duration_seconds" type="number" min="4" max="30" :disabled="processing" />
+                <InputError :message="errors['series_specification.shot_duration_seconds']" />
+                <p class="text-muted-foreground text-xs">Для эпизода на 60 секунд требуется четыре генерации по 15 секунд.</p>
+            </div>
+            <div class="grid gap-2">
                 <Label for="series-duration">Длительность эпизода, секунды</Label
                 ><Input
                     id="series-duration"
@@ -159,12 +141,7 @@ const labels: Record<string, string> = {
         </div>
         <div v-if="section === 'plan'" class="grid gap-2">
             <Label for="series-audio">Звук</Label>
-            <select
-                id="series-audio"
-                v-model="specification.audio_mode"
-                :disabled="processing"
-                class="border-input bg-background focus-visible:ring-ring/50 h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
-            >
+            <select id="series-audio" v-model="specification.audio_mode" :disabled="processing" class="list-select">
                 <option v-for="(label, value) in audioModes" :key="value" :value="value">{{ labels[value] ?? label }}</option>
             </select>
             <p class="text-muted-foreground text-xs">

@@ -26,6 +26,7 @@ test('проект показывает собственных персонаж�
     $context = serialCharacterContext();
     $context['project']->update(['content_mode' => ProjectContentMode::SERIES]);
     $episode = Episode::factory()->recycle(workspaceOwner())->for($context['series'])->create();
+    Character::factory()->for($context['series'])->create(['archived_at' => now()]);
     Character::factory()->create(['name' => 'Foreign private character']);
     Episode::factory()->recycle(workspaceOwner())->create(['title' => 'Foreign private episode']);
     $run = ProductionRun::factory()->recycle(workspaceOwner())->for($context['project'])->for($context['series'])->create();

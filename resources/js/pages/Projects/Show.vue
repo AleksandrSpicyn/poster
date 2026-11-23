@@ -124,9 +124,11 @@ function destroyProject() {
                     >
                     <Button as-child class="h-11 shrink-0"><Link :href="route('clipping.index')">Импортировать</Link></Button>
                 </div>
-                <Button v-if="!page.props.opusClips" as-child variant="default" class="h-11 shrink-0"
-                    ><Link :href="route('projects.edit', page.props.project.id)">Открыть настройки</Link></Button
-                >
+                <div v-if="!page.props.opusClips" id="project-heading-actions" class="flex flex-wrap gap-2">
+                    <Button as-child variant="default" class="h-11 shrink-0"
+                        ><Link :href="route('projects.edit', page.props.project.id)">Открыть настройки</Link></Button
+                    >
+                </div>
             </div>
 
             <section v-if="page.props.opusClips && !managing" aria-label="Библиотека клипов" class="space-y-4">
@@ -150,6 +152,7 @@ function destroyProject() {
                 />
             </section>
             <SeriesWorkspace
+                actions-target="#project-heading-actions"
                 v-else-if="page.props.series && page.props.characters"
                 :project="page.props.project"
                 :series="page.props.series"

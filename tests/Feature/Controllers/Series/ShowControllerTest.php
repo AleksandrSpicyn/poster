@@ -112,23 +112,21 @@ test('производство показывает ручную проверк�
             ->where('series.latest_production.has_late_take', false));
 });
 
-test('фильтр архивных персонажей применяется до разбивки на страницы', function (): void {
+test('скрывает архивных персонажей до разбивки на страницы', function (): void {
     $context = serialCharacterContext();
     Character::factory()->count(20)->for($context['series'])->create(['archived_at' => now(), 'name' => 'AAA']);
 
     actingAs(serialOperator())
-        ->get(route('series.show', [...$context['params'], 'with_archived' => 0]))
+        ->get(route('series.show', $context['params']))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
-            ->where('withArchived', false)
             ->where('characters.meta.total', 1)
             ->where('characters.data.0.id', $context['character']->id));
 
     actingAs(serialOperator())
-        ->get(route('series.show', [...$context['params'], 'page' => 2]))
+        ->get(route('series.show', [...$context['params'], 'page' => 2, 'with_archived' => 1]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
-            ->where('withArchived', true)
-            ->where('characters.meta.total', 21)
-            ->has('characters.data', 1));
+            ->where('characters.meta.total', 1)
+            ->has('characters.data', 0));
 });
