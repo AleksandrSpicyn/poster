@@ -71,6 +71,14 @@ class Channel extends Model
         return is_string($account) ? $account : null;
     }
 
+    /** @return list<string> */
+    public function metricAccounts(): array
+    {
+        $accounts = [$this->metricAccount(), $this->credentials['channel_id'] ?? null];
+
+        return array_values(array_unique(array_filter($accounts, is_string(...))));
+    }
+
     public function canSendTiktokInboxVideo(): bool
     {
         return $this->external_account === null && $this->hasTiktokScope('video.upload');

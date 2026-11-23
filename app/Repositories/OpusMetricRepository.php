@@ -46,7 +46,7 @@ final readonly class OpusMetricRepository
             ->leftJoinSub($accounts, 'assigned', fn(JoinClause $join) => $join->on('assigned.project_id', '=', 'projects.id')->on('assigned.type', '=', 'opus_clip_metrics.platform'))
             ->where('projects.owner_id', $owner->id)
             ->when($channel, fn($query, Channel $selected) => $query->where('opus_clip_metrics.platform', $selected->type->value)
-                ->whereRaw('coalesce(opus_clip_metrics.account_id, assigned.account) = ?', [$selected->metricAccount()]))
+                ->whereIn(DB::raw('coalesce(opus_clip_metrics.account_id, assigned.account)'), $selected->metricAccounts()))
             ->where(fn($query) => $query->whereNotNull('opus_clip_metrics.account_id')->orWhereNotNull('assigned.account'))
             ->when($filters->project, fn($query) => $query->where('projects.id', $filters->project))
             ->whereBetween('opus_clip_metrics.observed_on', [$from, $to])

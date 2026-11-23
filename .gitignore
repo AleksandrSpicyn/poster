@@ -42,3 +42,9 @@ _ide_helper_models.php
 /graphify-out/
 /resources/images/
 /docs/series/
+
+# Local platform refactoring plan and design references
+/docs/poster-platform-plan.md
+/docs/images/poster-platform-*
+/docs/qa/
+/generated_images/

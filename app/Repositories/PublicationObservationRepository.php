@@ -31,7 +31,10 @@ final readonly class PublicationObservationRepository
     public function channels(): LazyCollection
     {
         return Channel::query()->whereNotNull('owner_id')
-            ->where(fn(Builder $query) => $query->whereHas('posts')
+            ->where(fn(Builder $query) => $query->whereNull('external_account')
+                ->orWhereDoesntHave('projects', fn(Builder $projects) => $projects->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)
+                    ->whereColumn('projects.owner_id', 'channels.owner_id'))
+                ->orWhereHas('posts')
                 ->orWhereIn('id', ClippingAccountMapping::query()->select('channel_id')))->with('owner')->lazyById();
     }
 
@@ -89,7 +92,7 @@ final readonly class PublicationObservationRepository
             ])->withCasts(['clip_publications' => 'array'])->where('publication_observations.owner_id', $owner->id)->whereBetween('observed_on', [$from, $to])
             ->when($channel, fn($query, Channel $selected) => $query->where(fn($scope) => $scope->where('publication_observations.channel_id', $selected->id)
                 ->orWhere(fn($historical) => $historical->whereNull('publication_observations.channel_id')->where('identity.platform', $selected->type->value)
-                    ->whereRaw('identity.account = ?', [$selected->metricAccount()]))))
+                    ->whereIn('identity.account', $selected->metricAccounts()))))
             ->when($filters->platform, fn($query) => $query->where('platform', $filters->platform?->value))
             ->when($filters->format, fn($query) => $query->whereIn('publication_observations.publication_key', DB::table('publication_metric_origins as origin')
                 ->join('projects', 'projects.id', '=', 'origin.project_id')->where('projects.owner_id', $owner->id)->where('origin.owner_id', $owner->id)

@@ -8,6 +8,7 @@ use App\Enums\ChannelType;
 use App\Support\Integrations\Payload;
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use UnexpectedValueException;
 
 final readonly class InstagramMetrics
@@ -16,12 +17,12 @@ final readonly class InstagramMetrics
      * @param list<string> $references
      * @return Generator<string, array<string, int|float>>
      */
-    public function read(PendingRequest $http, string $account, array $references, bool $insights = true): Generator
+    public function read(PendingRequest $http, string $account, array $references, bool $insights = true, bool $allowBasic = false): Generator
     {
         $http->withoutRedirecting()->timeout(30)->baseUrl('https://graph.instagram.com/' . config()->string('services.instagram.version'));
         $remaining = array_fill_keys($references, true);
         $seen = [];
-        $params = ['fields' => $insights ? 'id,permalink' : 'id,permalink,like_count,comments_count', 'limit' => 100];
+        $params = ['fields' => 'id,permalink,like_count,comments_count', 'limit' => 100];
 
         do {
             $page = $http->get(rawurlencode($account) . '/media', $params)->throw();
@@ -34,9 +35,19 @@ final readonly class InstagramMetrics
                 }
 
                 $id = Payload::string(data_get($media, 'id'), 'id');
-                $metrics = $insights ? $this->insights($http, $id) : array_filter([
+                $metrics = array_filter([
                     'likes' => data_get($media, 'like_count'), 'comments' => data_get($media, 'comments_count'),
                 ], is_int(...));
+
+                if ($insights) {
+                    $response = $http->get(rawurlencode($id) . '/insights', ['metric' => 'views,reach,ig_reels_avg_watch_time,shares,saved']);
+
+                    if ($allowBasic && in_array($response->json('error.code'), [10, 200], true) && in_array($response->status(), [400, 403], true)) {
+                        $insights = false;
+                    } else {
+                        $metrics += $this->insights($response->throw());
+                    }
+                }
 
                 if ($metrics !== []) {
                     yield $ref => $metrics;
@@ -61,9 +72,8 @@ final readonly class InstagramMetrics
     }
 
     /** @return array<string, int|float> */
-    private function insights(PendingRequest $http, string $id): array
+    private function insights(Response $response): array
     {
-        $response = $http->get(rawurlencode($id) . '/insights', ['metric' => 'views,reach,ig_reels_avg_watch_time,shares,saved'])->throw();
         $metrics = [];
 
         foreach ($response->collect('data') as $metric) {
