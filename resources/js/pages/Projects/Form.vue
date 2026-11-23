@@ -210,7 +210,7 @@ const sections = computed((): Record<string, string> => {
     }
     return isSeries.value
         ? seriesSettingsSections
-        : { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', access: 'Доступ', deletion: 'Удаление проекта' };
+        : { main: 'Основное', channels: 'Каналы проекта', automation: 'Автоматизация', deletion: 'Удаление проекта' };
 });
 const formatOptions = computed(() => ['series', 'short'].filter((value) => Object.hasOwn(props.contentModes, value)));
 const selectedChannelNames = computed(() =>
@@ -223,15 +223,13 @@ const sharedChannels = computed(() =>
     ),
 );
 function readSection() {
-    const hash = window.location.hash.slice(1);
+    const requested = window.location.hash.slice(1);
+    const hash = isSeries.value && requested === 'automation' ? 'plan' : requested;
     if (!props.project) {
         section.value = Object.hasOwn(sections.value, hash) ? hash : 'main';
         return;
     }
-    section.value =
-        ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) || (hash === 'access' && props.project)
-            ? hash
-            : 'main';
+    section.value = ['main', 'format', 'channels', 'cast', 'plan', 'automation', 'deletion'].includes(hash) ? hash : 'main';
 }
 onMounted(() => {
     readSection();
@@ -282,17 +280,12 @@ function submit() {
             else if (errors.content_mode && !props.project) window.location.hash = 'format';
             else if (Object.keys(errors).some((key) => key.startsWith('cast_settings.'))) window.location.hash = 'cast';
             else if (errors.channel_ids || Object.keys(errors).some((key) => key.startsWith('channel_ids.'))) window.location.hash = 'channels';
-            else if (Object.keys(errors).some((key) => key.startsWith('schedule.'))) window.location.hash = 'automation';
+            else if (Object.keys(errors).some((key) => key.startsWith('schedule.'))) window.location.hash = isSeries.value ? 'plan' : 'automation';
             else if (isSeries.value && !errors.settings_version)
                 window.location.hash = Object.keys(errors).some((key) =>
-                    [
-                        'series_specification.audio_mode',
-                        'series_specification.visual_style',
-                        'series_specification.language',
-                        'series_specification.audience',
-                    ].includes(key),
+                    ['series_specification.visual_style', 'series_specification.language', 'series_specification.audience'].includes(key),
                 )
-                    ? 'cast'
+                    ? 'main'
                     : 'plan';
             if (errors.settings_version && props.project)
                 router.visit(route('projects.edit', props.project.id), { replace: true, preserveState: false, preserveScroll: true });
@@ -345,7 +338,7 @@ function submit() {
                     "
                 />
                 <Button
-                    v-if="!['access', 'deletion'].includes(section) && !detailSection"
+                    v-if="section !== 'deletion' && !detailSection"
                     type="submit"
                     form="project-form"
                     class="h-11"
@@ -354,7 +347,7 @@ function submit() {
                 >
             </div>
             <div class="grid items-start gap-4 min-[1100px]:grid-cols-[min(28%,276px)_minmax(0,1fr)]">
-                <SeriesSettingsTabs v-if="isSeries && project" :project-id="project?.id" :section="section" />
+                <SeriesSettingsTabs v-if="isSeries && project" :project-id="project.id" :section="section" />
                 <nav
                     v-else-if="!project || section !== 'format'"
                     aria-label="Разделы проекта"
@@ -374,7 +367,7 @@ function submit() {
                 <form
                     ref="formElement"
                     id="project-form"
-                    class="bg-card min-w-0 space-y-6 rounded-xl border p-5 sm:p-7"
+                    class="bg-card grid min-w-0 gap-6 rounded-xl border p-5 sm:p-7"
                     :aria-busy="form.processing"
                     @invalid.capture="revealRequiredField"
                     @submit.prevent="submit"
@@ -485,45 +478,6 @@ function submit() {
                             :message="form.errors.series_specification"
                         /><InputError :message="formErrors['series_specification.premise']" />
                     </div>
-                    <fieldset v-if="project && section === 'automation' && schedule" class="grid gap-4" :disabled="form.processing || conflict">
-                        <label class="flex items-center gap-3 rounded-lg border p-3">
-                            <input
-                                type="checkbox"
-                                :checked="schedule.enabled"
-                                @change="changeSchedule({ enabled: ($event.target as HTMLInputElement).checked })"
-                            />
-                            <span><strong class="block">Автоматический запуск</strong><small>По расписанию проекта</small></span>
-                        </label>
-                        <div class="grid gap-2">
-                            <Label for="project-start-time">Время запуска</Label>
-                            <Input
-                                id="project-start-time"
-                                type="time"
-                                required
-                                :aria-invalid="!!formErrors['schedule.time']"
-                                :aria-describedby="formErrors['schedule.time'] ? 'schedule-time-error' : undefined"
-                                :model-value="schedule.time"
-                                @update:model-value="changeSchedule({ time: String($event) })"
-                            />
-                            <InputError id="schedule-time-error" :message="formErrors['schedule.time']" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="project-timezone">Часовой пояс</Label>
-                            <select
-                                id="project-timezone"
-                                class="list-select"
-                                :aria-invalid="!!formErrors['schedule.timezone']"
-                                :aria-describedby="formErrors['schedule.timezone'] ? 'schedule-timezone-error' : undefined"
-                                :value="schedule.timezone"
-                                @change="changeSchedule({ timezone: ($event.target as HTMLSelectElement).value })"
-                            >
-                                <option v-for="timezone in scheduleSettings?.timezones" :key="timezone">{{ timezone }}</option></select
-                            ><InputError id="schedule-timezone-error" :message="formErrors['schedule.timezone']" />
-                        </div>
-                        <p class="flex justify-between gap-3">
-                            <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
-                        </p>
-                    </fieldset>
                     <div v-if="!isSeries && project && section === 'main'" class="grid gap-2">
                         <Label for="project-active">Состояние</Label>
                         <select id="project-active" v-model="form.is_active" class="list-select" :disabled="form.processing || conflict">
@@ -558,20 +512,6 @@ function submit() {
                         <span class="text-muted-foreground text-sm">Каналы</span>
                         <a href="#channels" class="list-select flex items-center">{{ selectedChannelNames.join(', ') || 'Выбрать каналы' }}</a>
                     </div>
-                    <dl v-if="project && section === 'access'" class="grid gap-4">
-                        <div>
-                            <dt class="text-muted-foreground text-sm">Владелец проекта</dt>
-                            <dd>{{ auth.user.name }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-muted-foreground text-sm">Электронная почта</dt>
-                            <dd class="break-all">{{ auth.user.email }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-muted-foreground text-sm">Роль</dt>
-                            <dd>{{ auth.can_view_logs ? 'Администратор' : 'Владелец' }}</dd>
-                        </div>
-                    </dl>
                     <div v-if="project && section === 'deletion'" class="space-y-4">
                         <div class="bg-muted rounded-lg border-l-4 border-amber-500 p-4">
                             <strong>Удаление проекта</strong>
@@ -633,6 +573,50 @@ function submit() {
                         :audiences="audiences"
                         :audio-modes="audioModes"
                     />
+                    <fieldset
+                        v-if="project && schedule && (isSeries ? section === 'plan' : section === 'automation')"
+                        class="grid gap-4"
+                        :disabled="form.processing || conflict"
+                    >
+                        <legend v-if="isSeries" class="mb-3 font-semibold">Расписание производства</legend>
+                        <label class="flex items-center gap-3 rounded-lg border p-3">
+                            <input
+                                type="checkbox"
+                                :checked="schedule.enabled"
+                                @change="changeSchedule({ enabled: ($event.target as HTMLInputElement).checked })"
+                            />
+                            <span><strong class="block">Автоматический запуск</strong><small>По расписанию проекта</small></span>
+                        </label>
+                        <div class="grid gap-2">
+                            <Label for="project-start-time">Время запуска</Label>
+                            <Input
+                                id="project-start-time"
+                                type="time"
+                                required
+                                :aria-invalid="!!formErrors['schedule.time']"
+                                :aria-describedby="formErrors['schedule.time'] ? 'schedule-time-error' : undefined"
+                                :model-value="schedule.time"
+                                @update:model-value="changeSchedule({ time: String($event) })"
+                            />
+                            <InputError id="schedule-time-error" :message="formErrors['schedule.time']" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="project-timezone">Часовой пояс</Label>
+                            <select
+                                id="project-timezone"
+                                class="list-select"
+                                :aria-invalid="!!formErrors['schedule.timezone']"
+                                :aria-describedby="formErrors['schedule.timezone'] ? 'schedule-timezone-error' : undefined"
+                                :value="schedule.timezone"
+                                @change="changeSchedule({ timezone: ($event.target as HTMLSelectElement).value })"
+                            >
+                                <option v-for="timezone in scheduleSettings?.timezones" :key="timezone">{{ timezone }}</option></select
+                            ><InputError id="schedule-timezone-error" :message="formErrors['schedule.timezone']" />
+                        </div>
+                        <p class="flex justify-between gap-3">
+                            <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
+                        </p>
+                    </fieldset>
                     <fieldset
                         id="publishing-channels"
                         tabindex="-1"
@@ -698,7 +682,7 @@ function submit() {
                         >
                     </fieldset>
                     <div
-                        v-if="!['main', 'access', 'deletion'].includes(section)"
+                        v-if="!['main', 'deletion'].includes(section)"
                         :class="section === 'channels' ? 'justify-start' : 'justify-end'"
                         class="flex flex-wrap items-center gap-3 border-t pt-5"
                     >
@@ -775,14 +759,28 @@ function submit() {
 .project-editor #project-form {
     padding: 20px 24px 48px;
 }
-.project-editor #project-form > .grid {
-    margin-block: 16px 0;
-}
 .project-editor #project-form > .grid > :is(input, select, textarea, .list-select) {
     min-height: 48px;
-    background: var(--background);
+    background-color: var(--background);
     color: var(--foreground);
     font-size: 16px;
+}
+.project-editor #project-form :deep(:is(select, input[data-slot='input'])) {
+    width: 100%;
+    min-width: 0;
+    height: 3rem;
+    border-radius: var(--radius-md);
+    background-color: var(--background);
+    color: var(--foreground);
+    font-size: 1rem;
+}
+.project-editor #project-form :deep(select) {
+    padding-inline: 0.75rem 2.5rem;
+}
+.project-editor #project-form :deep(select:focus-visible) {
+    border-color: var(--ring);
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
 }
 .project-editor #project-form > .grid > label {
     font-weight: 400;
@@ -877,7 +875,7 @@ function submit() {
 }
 .schedule-editor fieldset :is(input[type='time'], select) {
     height: 46px;
-    background: var(--background);
+    background-color: var(--background);
     color: var(--foreground);
 }
 .schedule-editor fieldset > p {

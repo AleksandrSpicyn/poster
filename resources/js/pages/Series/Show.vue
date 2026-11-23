@@ -56,17 +56,15 @@ const breadcrumbs = computed(() => [
                 <div v-if="!production" class="w-full space-y-2 min-[1100px]:w-auto">
                     <div class="flex items-center justify-between gap-1 md:justify-start">
                         <Heading :title="series.name" />
-                        <div id="series-heading-actions"></div>
                     </div>
                     <p class="text-muted-foreground text-sm leading-relaxed">Сериал / Эпизоды и персонажи</p>
                 </div>
                 <Heading v-else :title="series.name" />
-                <Link
-                    v-if="!production"
-                    class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold"
-                    :href="route('projects.edit', project.id)"
-                    >Открыть паспорт</Link
-                >
+                <div v-if="!production" id="series-heading-actions" class="flex flex-wrap gap-2">
+                    <Link class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold" :href="route('projects.edit', project.id)"
+                        >Открыть паспорт</Link
+                    >
+                </div>
             </div>
             <template v-if="production">
                 <nav class="run-tabs" aria-label="Разделы сериала">

@@ -73,7 +73,7 @@ function save() {
                     <button
                         type="button"
                         class="crop-source"
-                        aria-label="Точка интереса. Переместить рамку стрелками"
+                        aria-label="Переместить рамку кадрирования стрелками"
                         @pointerdown="move"
                         @pointermove="move"
                         @keydown.left.prevent="form.x = clamp(form.x - 1)"
@@ -98,7 +98,6 @@ function save() {
                         <figcaption>Карточка 16:9</figcaption>
                     </figure>
                 </div>
-                <div v-if="source" class="focus-summary"><span>Точка интереса</span><strong>Центр кадрирования</strong></div>
                 <label class="mb-4 block text-sm">
                     Изображение<input type="file" accept="image/png,image/jpeg,image/webp" class="mt-2 block max-w-full" @change="chooseFile" />
                 </label>
@@ -160,22 +159,6 @@ function save() {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
 }
-.focus-summary {
-    display: grid;
-    grid-template-columns: 39% minmax(0, 1fr);
-    align-items: center;
-    padding-block: 11px 16px;
-    margin-top: 8px;
-    margin-bottom: 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-}
-.focus-summary span {
-    color: var(--muted-foreground);
-}
-.focus-summary strong {
-    font-weight: 400;
-}
 .crop-panel button[type='submit'] {
     padding-inline: 15px;
     min-height: 44px;
@@ -190,13 +173,6 @@ function save() {
     }
     .crop-panel {
         padding: 8px 15px 20px;
-    }
-    .focus-summary {
-        grid-template-columns: 1fr;
-        gap: 2px;
-        margin-top: 8px;
-        margin-bottom: 12px;
-        padding-top: 2px;
     }
 }
 </style>

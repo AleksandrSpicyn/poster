@@ -11,6 +11,5 @@ class SeriesCharactersListData extends Data
 {
     public function __construct(
         #[Min(1)] public int $page = 1,
-        public bool $with_archived = true,
     ) {}
 }

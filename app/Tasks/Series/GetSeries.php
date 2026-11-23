@@ -14,9 +14,9 @@ class GetSeries
 {
     public function __construct(private readonly SeriesRepository $series, private readonly ProductionRunRepository $runs) {}
 
-    public function run(Series $series, int $page, bool $withArchived = true): SeriesWorkspaceData
+    public function run(Series $series, int $page): SeriesWorkspaceData
     {
-        $workspace = $this->series->workspace($series, $page, $withArchived);
+        $workspace = $this->series->workspace($series, $page);
         $run = $workspace->series->latestProductionRun;
 
         if ($run !== null && in_array($run->status, [ProductionStatus::STOPPED, ProductionStatus::NEEDS_ATTENTION], true)) {
