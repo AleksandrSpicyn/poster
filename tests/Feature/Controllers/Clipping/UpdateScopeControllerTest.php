@@ -24,7 +24,7 @@ test('сохраняет область подключения и отклоня
     $scope = ['import_projects' => true, 'import_accounts' => false, 'import_archives' => false];
     actingAs(User::query()->findOrFail($connection->owner_id));
 
-    patch(route('clipping.scope.update', $connection), $scope)->assertRedirect(route('clipping.sources', $connection));
+    patch(route('clipping.scope.update', $connection), $scope)->assertRedirect(route('clipping.edit', $connection));
     patch(route('clipping.scope.update', $connection), $scope)->assertRedirect();
 
     post(route('clipping.import', [$connection, $preview]))->assertSessionHasErrors('project_id');

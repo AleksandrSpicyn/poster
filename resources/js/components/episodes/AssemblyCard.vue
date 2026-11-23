@@ -8,7 +8,7 @@ import PublicationRecoveryForm from '@/components/episodes/PublicationRecoveryFo
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { EpisodeAssemblySummary, EpisodeRouteParams, PublicationSummary } from '@/types/episodes';
-import { router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -52,12 +52,9 @@ const ordered = computed(() => props.publications.toSorted((a, b) => Number(b.st
 watch(reviewId, (value) => emit('review', value !== null));
 const confirmed = ref(false);
 const reviewedVersion = ref(false);
-watch(
-    [() => publishForm.channel_ids.slice(), () => publishForm.caption],
-    () => {
-        confirmed.value = false;
-    },
-);
+watch([() => publishForm.channel_ids.slice(), () => publishForm.caption], () => {
+    confirmed.value = false;
+});
 const acceptErrors = computed(() => Object.values(acceptForm.errors).join(' '));
 const publishErrors = computed(() => Object.values(publishForm.errors).join(' '));
 function accept() {
@@ -109,7 +106,13 @@ function publish() {
                         </dd>
                     </div>
                 </dl>
-                <p v-if="assembly.error_message" role="alert" class="text-destructive text-sm">{{ assembly.error_message }}</p>
+                <div v-if="assembly.error_message" class="grid gap-2">
+                    <p role="alert">Не удалось собрать видео. <a href="#montage" class="underline">Перейти к монтажу</a></p>
+                    <details>
+                        <summary>Подробности ошибки</summary>
+                        <p class="break-words">{{ assembly.error_message }}</p>
+                    </details>
+                </div>
             </template>
             <form v-if="section === 'preview' && assembly.status === 'ready' && !archived" class="grid gap-4 border-t pt-5" @submit.prevent="accept">
                 <h3>Приёмка версии {{ String(assembly.number).padStart(2, '0') }}</h3>
@@ -248,7 +251,16 @@ function publish() {
                         <time v-if="publication.scheduled_at" :datetime="publication.scheduled_at">{{
                             new Date(publication.scheduled_at).toLocaleString()
                         }}</time>
-                        <p v-if="publication.error_message" class="text-destructive mt-1 text-xs">{{ publication.error_message }}</p>
+                        <Link
+                            v-if="publication.status === 'failed' && publication.channel_id"
+                            :href="route('channels.edit', publication.channel_id) + '#connection-heading'"
+                            class="underline"
+                            >Проверить подключение канала</Link
+                        >
+                        <details v-if="publication.error_message">
+                            <summary>Подробности ошибки</summary>
+                            <p class="break-words">{{ publication.error_message }}</p>
+                        </details>
                         <template v-if="publication.status === 'submission_unknown' && publication.can_verify">
                             <Button v-if="reviewId !== publication.id" class="mt-3" @click="reviewId = publication.id"
                                 >Сверить результат отправки</Button

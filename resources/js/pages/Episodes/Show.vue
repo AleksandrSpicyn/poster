@@ -230,9 +230,7 @@ function refresh() {
             }"
             @keydown.esc="leaveDialogueFocus"
         >
-            <EpisodeRelease v-if="panel === 'release'" :workspace="props" :assemblies="allAssemblies" />
-            <EpisodeMemory v-else-if="memoryOpen" :workspace="props" :assembly="revision ? memoryAssembly : sourceAssembly" />
-            <template v-else>
+            <template v-if="!memoryOpen || panel === 'release'">
                 <header v-if="dialogueFocus" class="space-y-3">
                     <Heading title="Сценарий эпизода" />
                     <button
@@ -271,7 +269,7 @@ function refresh() {
                         >Создать дубль</Button
                     >
                     <ConfirmationDialog
-                        v-else-if="hasDraft"
+                        v-else-if="hasDraft && panel !== 'release'"
                         heading="Сброс несохранённых изменений"
                         title="Сбросить черновик?"
                         description="Несохранённые изменения будут заменены последней сохранённой версией сценария."
@@ -301,7 +299,7 @@ function refresh() {
                             <dd>{{ changedFields.join(', ') || 'Черновик сценария' }}</dd>
                         </div>
                     </ConfirmationDialog>
-                    <Button v-else variant="outline" class="h-11" @click="refresh"
+                    <Button v-else-if="panel !== 'release'" variant="outline" class="h-11" @click="refresh"
                         ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
                     >
                 </div>
@@ -322,6 +320,10 @@ function refresh() {
                         >История</a
                     >
                 </nav>
+            </template>
+            <EpisodeRelease v-if="panel === 'release'" :workspace="props" :assemblies="allAssemblies" />
+            <EpisodeMemory v-else-if="memoryOpen" :workspace="props" :assembly="revision ? memoryAssembly : sourceAssembly" />
+            <template v-else>
                 <p v-if="archived" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
                     Сериал в архиве. Сохранённые сценарии, дубли и монтажи доступны для просмотра.
                 </p>

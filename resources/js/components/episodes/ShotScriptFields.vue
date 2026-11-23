@@ -91,11 +91,7 @@ function error(field: string): string | undefined {
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
                 <Label :for="'shot-transition-' + sceneIndex + '-' + shotIndex">Начало кадра</Label
-                ><select
-                    :id="'shot-transition-' + sceneIndex + '-' + shotIndex"
-                    v-model="shot.transition_mode"
-                    class="border-input bg-background h-11 rounded-md border px-3 text-sm"
-                >
+                ><select :id="'shot-transition-' + sceneIndex + '-' + shotIndex" v-model="shot.transition_mode" class="list-select w-full">
                     <option v-for="(label, value) in transitions" :key="value" :value="value">{{ label }}</option>
                 </select>
             </div>
@@ -104,7 +100,7 @@ function error(field: string): string | undefined {
                 ><select
                     :id="'shot-source-' + sceneIndex + '-' + shotIndex"
                     :value="sourceValue(shot)"
-                    class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+                    class="list-select w-full"
                     @change="chooseSource(shot, $event)"
                 >
                     <option value="">Предыдущий принятый эпизод или выбранный кадр</option>
@@ -157,7 +153,7 @@ function error(field: string): string | undefined {
                         :id="'speaker-' + sceneIndex + '-' + shotIndex + '-' + lineIndex"
                         v-model="line.character_id"
                         required
-                        class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+                        class="list-select w-full"
                     >
                         <option v-for="speaker in speakers" :key="speaker.id" :value="speaker.character_id">
                             {{ speaker.character_name ?? 'Персонаж' }}

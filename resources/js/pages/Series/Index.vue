@@ -9,7 +9,7 @@ import type { SeriesSummary } from '@/types/series';
 import { Head, Link } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
-const props = defineProps<{ series: PaginatedResource<SeriesSummary>; filters: { active: boolean; updated: boolean } }>();
+const props = defineProps<{ series: PaginatedResource<SeriesSummary>; filters: { active: boolean } }>();
 const route = useRoute();
 const breadcrumbs = [{ title: 'Сериалы', href: route('series.index') }];
 const plurals = new Intl.PluralRules('ru');
@@ -22,10 +22,6 @@ function progress(series: SeriesSummary) {
     const form = plurals.select(count);
     return count + ' ' + (form === 'one' ? 'эпизод' : form === 'few' ? 'эпизода' : 'эпизодов');
 }
-
-function listUrl(active: boolean, updated: boolean) {
-    return route('series.index', { ...(active && { active: 1 }), ...(updated && { updated: 1 }) });
-}
 </script>
 
 <template>
@@ -37,11 +33,8 @@ function listUrl(active: boolean, updated: boolean) {
                 <Button as-child class="h-11 font-bold"><Link :href="route('projects.create', { format: 'series' })">Создать сериал</Link></Button>
             </div>
             <nav aria-label="Фильтры сериалов" class="catalog-tabs flex flex-wrap gap-2">
-                <Link :href="listUrl(false, filters.updated)" :aria-current="!filters.active ? 'true' : undefined" preserve-scroll>Все</Link>
-                <Link :href="listUrl(true, filters.updated)" :aria-current="filters.active ? 'true' : undefined" preserve-scroll>Активные</Link>
-                <Link :href="listUrl(filters.active, !filters.updated)" :aria-current="filters.updated ? 'true' : undefined" preserve-scroll
-                    >По дате изменения</Link
-                >
+                <Link :href="route('series.index')" :aria-current="!filters.active ? 'true' : undefined" preserve-scroll>Все</Link>
+                <Link :href="route('series.index', { active: 1 })" :aria-current="filters.active ? 'true' : undefined" preserve-scroll>Активные</Link>
             </nav>
             <section aria-labelledby="series-catalog">
                 <h2 id="series-catalog" class="mb-[19px] text-xl font-bold">В производстве</h2>

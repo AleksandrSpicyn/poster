@@ -99,6 +99,6 @@ export interface CharacterRouteParams {
 }
 
 export interface AssemblyParameters {
-    parts: { number: number; title: string | null; version: number | null; ready: boolean }[];
+    parts: { id: number | null; number: number; title: string | null; version: number | null; ready: boolean }[];
     can_build: boolean;
 }

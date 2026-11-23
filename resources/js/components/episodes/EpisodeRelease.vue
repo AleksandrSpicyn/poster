@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import AssemblyCard from '@/components/episodes/AssemblyCard.vue';
-import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
-import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import type { EpisodeAssemblySummary, EpisodeWorkspaceProps } from '@/types/episodes';
 import { computed, ref } from 'vue';
@@ -22,188 +20,69 @@ const assembly = computed(
         props.assemblies[0],
 );
 const recheck = computed(() => props.workspace.episode.validity === 'requires_review');
-const accepting = computed(() => !recheck.value && section.value === 'preview' && assembly.value?.status === 'ready');
-const reviewing = ref(false);
-const mixed = computed(
-    () =>
-        section.value === 'results' &&
-        props.workspace.publications.some((item) => item.episode_assembly_id === assembly.value?.id && item.status === 'submission_unknown'),
-);
 const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== assembly.value?.id));
 </script>
 <template>
-    <div class="release-page" :class="{ detail: section !== 'preview' || recheck || accepting, mixed: mixed || recheck || accepting }">
-        <header class="flex flex-wrap items-start justify-between gap-3">
-            <Heading
-                :title="
-                    recheck ? 'Перепроверка эпизода' : accepting ? 'Приёмка эпизода' : section === 'preview' ? 'Публикация эпизода' : 'Выпуск эпизода'
-                "
-                :description="
-                    section === 'preview'
-                        ? workspace.series.name + (workspace.episode.accepted_assembly_id ? ' / Принятая сборка' : '')
-                        : mixed
-                          ? reviewing
-                              ? 'Сверка вручную'
-                              : 'Результаты'
-                          : undefined
-                "
-            />
-            <Button v-if="section === 'preview' && !recheck && !accepting" class="h-11" :disabled="!assembly" @click="section = 'confirmation'"
-                >Подтвердить отправку</Button
-            >
-        </header>
-        <div class="release-grid">
-            <nav aria-label="Разделы публикации" class="studio-panel flex flex-wrap gap-2 min-[1100px]:grid">
-                <h2 class="hidden font-bold min-[1100px]:block">В этом разделе</h2>
-                <button
-                    v-for="item in sections.filter((item) => item.key !== 'results' || section !== 'preview' || workspace.publications.length)"
-                    :key="item.key"
-                    class="rounded-md px-3 py-2 text-left"
-                    :aria-current="section === item.key ? 'step' : undefined"
-                    @click="section = item.key"
-                >
-                    {{ item.label }}
-                </button>
-            </nav>
-            <div>
-                <section v-if="recheck" class="studio-panel grid gap-4">
-                    <h2>Требует перепроверки</h2>
-                    <p>После принятия этой версии изменился финал предыдущего эпизода.</p>
-                    <p class="studio-row">
-                        <strong>Эпизод</strong>{{ workspace.episode.title }} · выпуск {{ String(workspace.episode.number).padStart(2, '0') }}
-                    </p>
-                    <p v-if="workspace.sourceAssembly?.continuity_snapshot.character_state" class="studio-row">
-                        <strong>Что проверить</strong>{{ workspace.sourceAssembly.continuity_snapshot.character_state }}
-                    </p>
-                    <Button as-child class="justify-self-start"><a href="#screenplay">Открыть перепроверку</a></Button>
-                </section>
-                <p v-else-if="!assembly">Здесь появятся сборки для просмотра и приёмки.</p>
-                <AssemblyCard
-                    v-else
-                    :key="assembly.id + ':' + assembly.lock_version"
-                    :assembly="assembly"
-                    :episode-title="workspace.episode.title"
-                    :project="workspace.project"
-                    @review="reviewing = $event"
-                    :episode-number="workspace.episode.number"
-                    :caption="workspace.screenplay?.public_caption"
-                    :section="section"
-                    @navigate="section = $event"
-                    :params="{ series: workspace.series.id, episode: workspace.episode.id }"
-                    :channels="workspace.channels.filter((c) => ['youtube', 'instagram', 'tiktok'].includes(c.type))"
-                    :publications="workspace.publications.filter((p) => p.episode_assembly_id === assembly.id)"
-                    :can-publish="workspace.series.output_mode !== 'single_video'"
-                    :current-accepted="workspace.episode.accepted_assembly_id === assembly.id && workspace.episode.validity === 'current'"
-                    :archived="!!workspace.series.archived_at"
-                    :project-enabled="workspace.project.is_active"
-                />
-                <details v-if="otherVersions.length" class="mt-3">
-                    <summary>Другие версии сборки</summary>
-                    <button
-                        v-for="item in otherVersions"
-                        :key="item.id"
-                        class="block p-2"
-                        @click="
-                            selectedId = item.id;
-                            section = 'preview';
-                        "
-                    >
-                        Версия {{ item.number }}
-                    </button>
-                </details>
-            </div>
-            <aside v-if="section !== 'preview' || recheck || accepting" class="studio-panel hidden min-[1100px]:block">
-                <ProjectArtwork :name="workspace.project.name" :cover="workspace.project.cover" class="mb-3 aspect-[2.4] w-full rounded-lg" />
-                <h2>{{ workspace.episode.title }}</h2>
-                <p>Проект · {{ workspace.project.name }}</p>
-                <p v-if="assembly">Версия {{ String(assembly.number).padStart(2, '0') }}</p>
-            </aside>
-        </div>
-        <nav aria-label="Этапы эпизода" class="mt-6 flex flex-wrap gap-4">
+    <section class="grid gap-4">
+        <nav v-if="assembly && !recheck" aria-label="Разделы публикации" class="workspace-tabs">
             <button
-                v-if="mixed"
-                type="button"
-                @click="
-                    section = 'preview';
-                    reviewing = false;
-                "
+                v-for="item in sections.filter((item) => item.key !== 'results' || workspace.publications.length)"
+                :key="item.key"
+                class="rounded-md px-3 py-2 text-left"
+                :aria-current="section === item.key ? 'step' : undefined"
+                @click="section = item.key"
             >
-                Предпросмотр
+                {{ item.label }}
             </button>
-            <a href="#screenplay">Сценарий</a><a href="#shots">Кадры</a><a href="#montage">Монтаж</a>
         </nav>
-    </div>
+        <div>
+            <section v-if="recheck" class="studio-panel grid gap-4">
+                <h2>Требует перепроверки</h2>
+                <p>После принятия этой версии изменился финал предыдущего эпизода.</p>
+                <p class="studio-row">
+                    <strong>Эпизод</strong>{{ workspace.episode.title }} · выпуск {{ String(workspace.episode.number).padStart(2, '0') }}
+                </p>
+                <p v-if="workspace.sourceAssembly?.continuity_snapshot.character_state" class="studio-row">
+                    <strong>Что проверить</strong>{{ workspace.sourceAssembly.continuity_snapshot.character_state }}
+                </p>
+                <Button as-child class="justify-self-start"><a href="#screenplay">Открыть перепроверку</a></Button>
+            </section>
+            <div v-else-if="!assembly" class="studio-panel grid justify-items-start gap-3">
+                <p>Для публикации сначала соберите монтаж эпизода.</p>
+                <Button as-child><a href="#montage">Перейти к монтажу</a></Button>
+            </div>
+            <AssemblyCard
+                v-else
+                :key="assembly.id + ':' + assembly.lock_version"
+                :assembly="assembly"
+                :episode-title="workspace.episode.title"
+                :project="workspace.project"
+                :episode-number="workspace.episode.number"
+                :caption="workspace.screenplay?.public_caption"
+                :section="section"
+                @navigate="section = $event"
+                :params="{ series: workspace.series.id, episode: workspace.episode.id }"
+                :channels="workspace.channels.filter((c) => ['youtube', 'instagram', 'tiktok'].includes(c.type))"
+                :publications="workspace.publications.filter((p) => p.episode_assembly_id === assembly.id)"
+                :can-publish="workspace.series.output_mode !== 'single_video'"
+                :current-accepted="workspace.episode.accepted_assembly_id === assembly.id && workspace.episode.validity === 'current'"
+                :archived="!!workspace.series.archived_at"
+                :project-enabled="workspace.project.is_active"
+            />
+            <details v-if="otherVersions.length" class="mt-3">
+                <summary>Другие версии сборки</summary>
+                <button
+                    v-for="item in otherVersions"
+                    :key="item.id"
+                    class="block p-2"
+                    @click="
+                        selectedId = item.id;
+                        section = 'preview';
+                    "
+                >
+                    Версия {{ item.number }}
+                </button>
+            </details>
+        </div>
+    </section>
 </template>
-<style scoped>
-.detail.mixed .release-grid nav {
-    display: none;
-}
-@media (min-width: 1100px) {
-    .detail.mixed .release-grid {
-        grid-template-columns: minmax(0, 2.23fr) minmax(0, 1fr);
-    }
-}
-
-.detail .release-grid nav {
-    display: flex;
-    min-height: 0;
-    gap: 6px;
-    flex-wrap: wrap;
-    grid-column: 1/-1;
-    padding: 0;
-    border: 0;
-    background: transparent;
-}
-.detail .release-grid nav h2 {
-    display: none;
-}
-.detail .release-grid nav button {
-    background: var(--muted);
-}
-@media (min-width: 1100px) {
-    .detail .release-grid {
-        grid-template-columns: minmax(0, 2.35fr) minmax(0, 1fr);
-        max-width: 1236px;
-    }
-}
-
-.release-page header {
-    margin-bottom: 20px;
-}
-.release-grid {
-    display: grid;
-    align-items: start;
-    gap: 16px;
-}
-.release-grid nav [aria-current] {
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 14%, var(--card));
-}
-@media (min-width: 1100px) {
-    .release-grid {
-        grid-template-columns: 276px minmax(0, 852px);
-    }
-    .release-grid nav {
-        min-height: 240px;
-        align-content: start;
-    }
-}
-@media (min-width: 1920px) {
-    .release-grid {
-        grid-template-columns: 276px minmax(0, 820px);
-    }
-}
-@media (max-width: 1099px) {
-    .release-page header {
-        flex-direction: column;
-    }
-    .release-grid nav {
-        padding: 0;
-        border: 0;
-        background: transparent;
-    }
-    .release-grid nav button {
-        background: var(--muted);
-    }
-}
-</style>

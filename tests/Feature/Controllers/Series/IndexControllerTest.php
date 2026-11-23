@@ -84,8 +84,8 @@ test('фильтры каталога сохраняют владение и о�
     $owner = User::factory()->create();
     $active = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => true]);
     $paused = Project::factory()->create(['owner_id' => $owner->id, 'is_active' => false]);
-    $recent = Series::factory()->for($active)->create(['updated_at' => now()]);
-    $older = Series::factory()->for($active)->create(['updated_at' => now()->subDay()]);
+    $recent = Series::factory()->for($active)->create(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
+    $older = Series::factory()->for($active)->create(['created_at' => now()->subDays(2), 'updated_at' => now()]);
     Series::factory()->for($active)->create(['archived_at' => now()]);
     Series::factory()->for($paused)->create();
     Series::factory()->create();
@@ -99,7 +99,7 @@ test('фильтры каталога сохраняют владение и о�
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('filters.active', true)
-            ->where('filters.updated', true)
+            ->missing('filters.updated')
             ->where('series.meta.total', 2)
             ->where('series.data.0.id', $recent->id)
             ->where('series.data.0.accepted_episodes_count', 1)

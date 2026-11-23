@@ -149,14 +149,6 @@ async function playBoundary(time: number) {
         <div class="workspace-page" :class="{ 'status-page': tab === 'status' }">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <Heading title="Сборка сериала" :description="tab === 'status' ? undefined : series.name + ' / Полная версия'" />
-                <Button
-                    v-if="tab === 'assembly' && assembly.status === 'ready' && !release_started"
-                    class="h-11"
-                    form="assembly-review"
-                    type="submit"
-                    :disabled="form.processing || !boundariesComplete"
-                    >Принять сборку</Button
-                >
             </div>
             <nav class="flex flex-wrap gap-2" aria-label="Разделы сборки">
                 <a
@@ -297,7 +289,13 @@ async function playBoundary(time: number) {
                 <p>
                     Версия {{ assembly.number }}<span v-if="assembly.duration_ms"> · {{ (assembly.duration_ms / 1000).toLocaleString('ru') }} с</span>
                 </p>
-                <p v-if="assembly.status === 'failed'" role="alert">Проверьте готовность эпизодов и исходные видео.</p>
+                <div v-if="assembly.status === 'failed'" class="grid gap-2">
+                    <p role="alert"><a href="#parameters" class="underline">Проверьте готовность эпизодов</a> и исходные видео.</p>
+                    <details v-if="assembly.error_message">
+                        <summary>Подробности ошибки</summary>
+                        <p class="break-words">{{ assembly.error_message }}</p>
+                    </details>
+                </div>
                 <div v-else-if="assembly.status === 'building'" class="grid gap-2">
                     <p v-if="assembly.started_at">Начата в {{ releaseTime.format(new Date(assembly.started_at)) }} UTC</p>
                     <div class="studio-row"><span>Монтаж</span><strong>Соединяются эпизоды</strong></div>
@@ -397,6 +395,7 @@ async function playBoundary(time: number) {
                     <InputError :message="form.errors.review_notes" /><InputError :message="errors.assembly" />
 
                     <p class="text-muted-foreground text-sm">Действующий производственный запуск отправит принятую сборку в выбранные каналы.</p>
+                    <Button type="submit" :disabled="form.processing || !boundariesComplete">Принять сборку</Button>
                 </form>
                 <p v-if="assembly.review?.notes" class="rounded-lg border p-4 text-sm">{{ assembly.review.notes }}</p>
                 <p v-if="release_started" class="text-muted-foreground">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'ziggy-js';
 
@@ -141,7 +141,7 @@ function updateKey() {
 function updateScope() {
     scope
         .transform((data) => ({ ...data, project_id: activeProjectId.value, import_archives: data.import_projects && data.import_archives }))
-        .patch(route('clipping.scope.update', props.connection.id));
+        .patch(route('clipping.scope.update', props.connection.id), { preserveScroll: true });
 }
 function selectConnection(event: Event) {
     router.visit(route('clipping.edit', (event.target as HTMLSelectElement).value));
@@ -163,7 +163,7 @@ function selectConnection(event: Event) {
                 />
                 <Button v-if="tab === 'driver'" :disabled="checking" @click="check">Проверить доступ</Button>
             </header>
-            <nav v-if="tab !== 'driver'" aria-label="Настройки подключения" class="flex flex-wrap gap-2">
+            <nav aria-label="Настройки подключения" class="flex flex-wrap gap-2">
                 <button
                     v-for="item in tabs"
                     :key="item.id"
@@ -175,18 +175,6 @@ function selectConnection(event: Event) {
                 </button>
             </nav>
             <div :class="['provider-grid', { 'provider-main': tab === 'driver' }]">
-                <nav v-if="tab === 'driver'" aria-label="Настройки подключения" class="studio-panel provider-nav">
-                    <h2>В этом разделе</h2>
-                    <button
-                        v-for="item in tabs"
-                        :key="item.id"
-                        class="provider-tab"
-                        :aria-current="tab === item.id ? 'page' : undefined"
-                        @click="tab = item.id"
-                    >
-                        {{ item.name }}
-                    </button>
-                </nav>
                 <section v-if="tab === 'driver'" class="studio-panel studio-form">
                     <h2>Параметры</h2>
                     <Label for="driver-label">Драйвер</Label><Input id="driver-label" readonly :model-value="driver" />
@@ -293,7 +281,11 @@ function selectConnection(event: Event) {
                     >
                     <InputError :message="scope.errors.import_archives" />
                     <div class="provider-result"><strong>Предпросмотр</strong><span>Изменения сохранятся после подтверждения импорта.</span></div>
-                    <Button :disabled="scope.processing">Посмотреть выбранное</Button>
+                    <Button :disabled="scope.processing">Сохранить настройки импорта</Button>
+                    <p v-if="scope.recentlySuccessful" role="status">Настройки импорта сохранены.</p>
+                    <Link class="underline" :href="route('clipping.sources', { connection: connection.id, project_id: activeProjectId })"
+                        >Перейти к выбору источника</Link
+                    >
                 </form>
                 <aside v-if="tab !== 'driver'" class="studio-panel space-y-2">
                     <ProjectArtwork v-if="project" :name="project.name" :cover="project.cover" class="aspect-[2.88] rounded-lg" />
@@ -330,7 +322,7 @@ function selectConnection(event: Event) {
     gap: 20px;
 }
 .provider-main {
-    grid-template-columns: minmax(210px, 0.325fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
 }
 .provider-tab {
@@ -342,13 +334,6 @@ function selectConnection(event: Event) {
 .provider-tab[aria-current='page'] {
     background: color-mix(in srgb, var(--primary) 14%, var(--card));
     color: var(--primary);
-}
-.provider-nav {
-    display: grid;
-    gap: 6px;
-}
-.provider-nav .provider-tab:not([aria-current]) {
-    background: transparent;
 }
 .provider-result {
     padding: 10px 14px;
@@ -386,20 +371,8 @@ function selectConnection(event: Event) {
     .provider-main {
         gap: 22px;
     }
-    .provider-nav {
-        display: flex;
-        flex-wrap: wrap;
-        padding: 0;
-        gap: 8px;
-        background: transparent;
-        border: none;
-    }
-    .provider-nav h2,
     .provider-grid aside {
         display: none;
-    }
-    .provider-nav .provider-tab:not([aria-current]) {
-        background: var(--muted);
     }
 }
 .provider-tab {
@@ -502,10 +475,7 @@ function selectConnection(event: Event) {
 }
 @media (min-width: 1100px) {
     .provider-main {
-        grid-template-columns: 276px minmax(0, 852px);
-    }
-    .provider-nav {
-        min-height: 240px;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 @media (min-width: 1920px) {
@@ -515,7 +485,7 @@ function selectConnection(event: Event) {
     }
     .provider-main {
         max-width: 1112px;
-        grid-template-columns: 276px minmax(0, 820px);
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 @media (max-width: 767px) {

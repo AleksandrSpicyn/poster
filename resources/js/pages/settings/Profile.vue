@@ -68,23 +68,11 @@ const submit = () => {
     >
         <Head title="Профиль" />
 
-        <SettingsLayout title="Профиль" :description="emailNotice ? 'Изменение почты' : 'Личные данные / Учётная запись'" :detail="emailNotice">
-            <template #side
-                ><h2>Аккаунт студии</h2>
-                <small>Студия</small>
-                <p>{{ user.name }}</p>
-                <small>Владелец</small>
-                <p>{{ user.name }}</p></template
-            >
+        <SettingsLayout title="Профиль" :description="emailNotice ? 'Изменение почты' : 'Личные данные / Учётная запись'">
             <template #action>
                 <Button v-if="section !== 'delete' && !emailNotice" form="profile-form" type="submit" :disabled="form.processing">{{
                     form.processing ? 'Сохранение…' : 'Сохранить'
                 }}</Button>
-            </template>
-            <template #navigation>
-                <a href="#profile" :aria-current="section !== 'delete' && section !== 'change-email' ? 'page' : undefined">Профиль</a>
-                <a href="#change-email" :aria-current="section === 'change-email' ? 'page' : undefined">Изменение почты</a>
-                <DeleteUser />
             </template>
             <section v-if="emailNotice" class="space-y-4">
                 <HeadingSmall title="Изменение почты" />
@@ -140,6 +128,11 @@ const submit = () => {
                 >
                 <p v-if="form.recentlySuccessful" role="status" class="text-primary mt-3 text-sm">Изменения сохранены.</p>
             </form>
+            <div class="mt-4 flex flex-wrap items-center gap-4">
+                <a v-if="!emailNotice" href="#change-email" class="underline">Изменение почты</a>
+                <a v-else href="#profile" class="underline">К личным данным</a>
+                <DeleteUser />
+            </div>
         </SettingsLayout>
     </AppLayout>
 </template>

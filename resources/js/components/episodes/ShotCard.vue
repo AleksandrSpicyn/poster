@@ -81,7 +81,7 @@ function stop(prompt: number) {
                 ><select
                     :id="'shot-source-' + shot.id"
                     v-model="form.source_prompt_id"
-                    class="border-input bg-background h-11 max-w-80 rounded-md border px-3 text-sm"
+                    class="list-select w-full max-w-80"
                     :disabled="form.processing || hasActiveRequest"
                 >
                     <option value="">Источник из сценария</option>
