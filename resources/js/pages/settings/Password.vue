@@ -13,6 +13,7 @@ import { useRoute } from 'ziggy-js';
 const route = useRoute();
 
 const breadcrumbItems: BreadcrumbItem[] = [
+    { title: 'Профиль', href: route('profile.edit') },
     {
         title: 'Безопасность',
         href: route('password.edit', undefined, false),

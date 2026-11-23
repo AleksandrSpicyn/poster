@@ -41,7 +41,12 @@ function resetFilters() {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Публикации', href: route('posts') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Публикации', href: route('posts') },
+            ...(['filters', 'channels'].includes(section) ? [{ title: section === 'filters' ? 'Фильтры' : 'Все каналы', href: '#' + section }] : []),
+        ]"
+    >
         <Head title="Публикации" />
         <div class="workspace-page posts-page">
             <header class="flex flex-wrap items-start justify-between gap-4">

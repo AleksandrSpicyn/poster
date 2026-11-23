@@ -27,8 +27,8 @@ const props = defineProps<EpisodeWorkspaceProps>();
 const route = useRoute();
 const params = { series: props.series.id, episode: props.episode.id };
 const breadcrumbs = [
-    { title: 'Проекты', href: route('projects.index') },
-    { title: props.project.name, href: route('projects.show', props.project.id) },
+    { title: 'Сериалы', href: route('series.index') },
+    { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) },
     { title: props.episode.title, href: route('episodes.show', params) },
 ];
 const revision = computed(() => props.episode.current_revision);
@@ -217,7 +217,7 @@ function refresh() {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="panel !== 'release' ? [{ title: 'Сериалы', href: route('series.index') }] : breadcrumbs">
+    <AppLayout :breadcrumbs="breadcrumbs">
         <Head :title="episode.title" />
         <div
             class="workspace-page"

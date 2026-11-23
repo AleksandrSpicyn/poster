@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SeriesSettingsTabs from '@/components/projects/SeriesSettingsTabs.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -57,12 +58,15 @@ function save() {
     <AppLayout
         :breadcrumbs="[
             { title: 'Мои проекты', href: route('projects.index') },
-            { title: project.name, href: route('projects.edit', project.id) },
+            { title: project.name, href: route('projects.show', project.id) },
+            { title: project.content_mode === 'series' ? 'Паспорт сериала' : 'Настройки проекта', href: route('projects.edit', project.id) },
+            { title: 'Обложка проекта', href: route('projects.cover.edit', project.id) },
         ]"
     >
         <Head title="Обложка проекта" />
         <div class="workspace-page cover-editor">
             <Heading title="Обложка проекта" description="Кадрирование" />
+            <SeriesSettingsTabs v-if="project.content_mode === 'series'" :project-id="project.id" section="cover" />
             <form class="studio-panel crop-panel" @submit.prevent="save">
                 <h2>Кадрирование</h2>
                 <div v-if="source" class="crop-images">

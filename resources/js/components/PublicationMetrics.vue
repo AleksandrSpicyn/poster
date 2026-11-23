@@ -34,6 +34,7 @@ const period = computed(() => (filters.value.from ? interval.value : filters.val
 const names = counterNames;
 const metric = computed(() => filters.value.metric);
 const list = computed(() => [...props.report.publications].sort((a, b) => (b.change ?? -Infinity) - (a.change ?? -Infinity)));
+const bestPublications = computed(() => list.value.filter((publication) => publication.change !== null).slice(0, 5));
 const scope = computed(() =>
     [
         project.value?.name ?? 'Все проекты',
@@ -148,18 +149,16 @@ const tabs: { name: string; view: View }[] = [
                     </template>
                 </section>
             </div>
-            <section class="best-publications">
+            <section v-if="bestPublications.length" class="best-publications">
                 <h2>Лучшие публикации</h2>
-                <Link v-for="p in list" :key="p.key" class="publication-link" :href="url('publication', {}, p, true)">
+                <Link v-for="p in bestPublications" :key="p.key" class="publication-link" :href="url('publication', {}, p, true)">
                     <ProjectArtwork :name="p.title" :cover="report.projects.find((x) => x.id === p.projectId)?.cover" /><span
                         ><strong>{{ p.title }}</strong
                         ><small
-                            >{{ platformNames[p.platform] ?? p.platform }} ·
-                            {{ p.change === null ? 'Нет базы сравнения' : amount(p.change) + ' · ' + names[metric].toLowerCase() }}</small
+                            >{{ platformNames[p.platform] ?? p.platform }} · {{ amount(p.change) + ' · ' + names[metric].toLowerCase() }}</small
                         ></span
                     >
                 </Link>
-                <p v-if="!list.length" class="secondary">За выбранный период нет публикаций с наблюдениями.</p>
             </section>
         </template>
         <template v-else>

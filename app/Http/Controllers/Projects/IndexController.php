@@ -49,7 +49,7 @@ class IndexController
             ] : null,
             'projects' => ProjectResource::collection($action->run($owner, $data)),
             'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value,
-                ...($data->archived ? ['archived' => true] : []), ...($data->active ? ['active' => true] : []), ...($data->updated ? ['updated' => true] : []), ...($data->alphabetical ? ['alphabetical' => true] : []), ...($data->clipping ? ['clipping' => true] : [])],
+                ...($data->archived ? ['archived' => true] : []), ...($data->active ? ['active' => true] : []), ...($data->clipping ? ['clipping' => true] : [])],
             'sortDirections' => SortDirection::labels(),
         ]);
     }

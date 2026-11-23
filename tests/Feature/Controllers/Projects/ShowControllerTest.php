@@ -8,7 +8,6 @@ use App\Models\Channel;
 use App\Models\Character;
 use App\Models\Episode;
 use App\Models\OpusClip;
-use App\Models\OpusClipMetric;
 use App\Models\OpusSource;
 use App\Models\Post;
 use App\Models\ProductionRun;
@@ -164,39 +163,22 @@ test('карточка Opus показывает только клипы сво�
         ->assertInertia(fn(Assert $page): Assert => $page->has('opusClips.data', 2));
 });
 
-test('недельный отчёт клипов сопоставляет даты и источники выбранной карточки', function (): void {
+test('старая ссылка на недельный отчёт открывает клипы по дате добавления', function (): void {
     $owner = workspaceOwner();
     $workspace = Project::factory()->create(['owner_id' => $owner->id, 'clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
     $source = OpusSource::factory()->for($workspace)->create();
     $card = Project::factory()->create(['owner_id' => $owner->id, 'opus_source_id' => $source->id]);
-    $clip = OpusClip::factory()->for($source, 'source')->create(['title' => 'Вечерний заезд']);
-    $sibling = OpusClip::factory()->for(OpusSource::factory()->for($workspace), 'source')->create();
+    $recent = OpusClip::factory()->for($source, 'source')->create(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
+    OpusClip::factory()->for($source, 'source')->create(['created_at' => now()->subDays(3), 'updated_at' => now()]);
+    $url = route('projects.show', ['project' => $card, 'week' => '2025-11-20', 'updated' => 1]);
 
-    foreach ([$clip, $sibling] as $item) {
-        foreach (['2025-11-16' => 10, '2025-11-21' => 15, '2025-11-23' => 520] as $day => $views) {
-            OpusClipMetric::create(['opus_clip_id' => $item->id, 'platform' => 'youtube', 'media_id' => 'shared', 'account_id' => 'studio', 'observed_on' => $day, 'metrics' => ['views' => $views]]);
-        }
-    }
-
-    OpusClipMetric::create(['opus_clip_id' => $clip->id, 'platform' => 'instagram', 'media_id' => 'no-baseline', 'observed_on' => '2025-11-23', 'metrics' => ['views' => 9000]]);
-
-    actingAs($owner)
-        ->get(route('projects.show', ['project' => $card, 'week' => '2025-11-20']))
-        ->assertOk()
+    actingAs($owner)->get($url)
         ->assertInertia(fn(Assert $page): Assert => $page
-            ->where('clipWeek.from', '2025-11-17')
-            ->where('clipWeek.to', '2025-11-23')
-            ->where('clipWeek.observedOn', '2025-11-23')
-            ->has('clipWeek.clips', 1)
-            ->where('clipWeek.clips.0.title', 'Вечерний заезд')
-            ->where('clipWeek.clips.0.views', 510));
+            ->missing('clipWeek')
+            ->has('opusClips.data', 2)
+            ->where('opusClips.data.0.id', $recent->id));
 
-    get(route('projects.show', ['project' => $card, 'week' => '2025-11-10']))
-        ->assertInertia(fn(Assert $page): Assert => $page->has('clipWeek.clips', 0));
-
-    actingAs(User::factory()->create())
-        ->get(route('projects.show', ['project' => $card, 'week' => '2025-11-20']))
-        ->assertNotFound();
+    actingAs(User::factory()->create())->get($url)->assertNotFound();
 });
 
 test('активные клипы включают только записи с публикациями выбранного проекта', function (): void {

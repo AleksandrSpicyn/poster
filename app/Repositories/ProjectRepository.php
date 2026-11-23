@@ -49,11 +49,7 @@ readonly class ProjectRepository extends EloquentRepository
             ->when($data->clipping, fn(Builder $query) => $query->where(fn(Builder $projects) => $projects
                 ->whereNotNull('clipping_connection_id')->orWhereNotNull('clipping_workspace')->orWhereNotNull('opus_source_id')))
             ->when($data->active, fn($query) => $query->where('is_active', true))
-            ->when(
-                $data->alphabetical,
-                fn($query) => $query->orderBy('name'),
-                fn($query) => $query->orderBy($data->updated ? 'updated_at' : 'created_at', $direction->value),
-            )
+            ->orderBy('created_at', $direction->value)
             ->orderBy('id', $direction->value)
             ->paginate($data->perPage ?? 10, page: $data->page ?? 1)
             ->withQueryString();

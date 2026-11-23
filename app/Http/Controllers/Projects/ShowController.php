@@ -51,14 +51,13 @@ class ShowController
         return inertia('Projects/Show', [
             'project' => ProjectResource::make($data->project)->resolve(),
             'gamingTrends' => $data->trends,
-            'clipWeek' => $data->week,
             'opusClips' => $data->clips instanceof LengthAwarePaginator ? OpusClipResource::collection($data->clips) : null,
             'prompts' => PromptResource::collection($data->prompts),
             'series' => $data->series instanceof Series ? SeriesResource::make($data->series)->resolve() : null,
             'characters' => $data->characters instanceof LengthAwarePaginator ? CharacterResource::collection($data->characters) : null,
             'episodes' => EpisodeSummaryResource::collection($data->episodes)->resolve(),
             'sortDirections' => SortDirection::labels(),
-            'filters' => ['active' => $filters->active, 'updated' => $filters->updated, 'sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
+            'filters' => ['active' => $filters->active, 'sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
         ]);
     }
 }

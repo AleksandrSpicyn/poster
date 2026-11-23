@@ -59,7 +59,13 @@ const submit = () => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AppLayout
+        :breadcrumbs="
+            emailNotice || section === 'delete'
+                ? [...breadcrumbs, { title: emailNotice ? 'Изменение почты' : 'Удаление аккаунта', href: page.url }]
+                : breadcrumbs
+        "
+    >
         <Head title="Профиль" />
 
         <SettingsLayout title="Профиль" :description="emailNotice ? 'Изменение почты' : 'Личные данные / Учётная запись'" :detail="emailNotice">

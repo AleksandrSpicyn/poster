@@ -2,18 +2,15 @@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@inertiajs/vue3';
 
-interface BreadcrumbItem {
-    title: string;
-    href?: string;
-}
+import type { BreadcrumbItem as BreadcrumbEntry } from '@/types';
 
 defineProps<{
-    breadcrumbs: BreadcrumbItem[];
+    breadcrumbs: BreadcrumbEntry[];
 }>();
 </script>
 
 <template>
-    <Breadcrumb class="min-w-0">
+    <Breadcrumb class="min-w-0" aria-label="Хлебные крошки">
         <BreadcrumbList class="flex-nowrap">
             <template v-for="(item, index) in breadcrumbs" :key="index">
                 <BreadcrumbItem class="min-w-0 first:shrink-0">
@@ -22,7 +19,7 @@ defineProps<{
                     </template>
                     <template v-else>
                         <BreadcrumbLink as-child>
-                            <Link :href="item.href ?? '#'" class="truncate" :title="item.title">{{ item.title }}</Link>
+                            <Link :href="item.href" class="truncate" :title="item.title">{{ item.title }}</Link>
                         </BreadcrumbLink>
                     </template>
                 </BreadcrumbItem>

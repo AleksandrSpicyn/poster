@@ -8,8 +8,9 @@ import { Link } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 
 const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>(), { breadcrumbs: () => [] });
-const mobileReturn = computed(() => props.breadcrumbs.find((item) => item.mobileReturn));
 const route = useRoute();
+const studio = { title: 'Обзор', href: route('dashboard') };
+const mobileReturn = computed(() => props.breadcrumbs.at(-2) ?? (props.breadcrumbs[0]?.href !== studio.href ? studio : undefined));
 const { setOpenMobile } = useSidebar();
 </script>
 <template>
@@ -18,7 +19,9 @@ const { setOpenMobile } = useSidebar();
         <nav v-if="mobileReturn" class="mx-3 min-w-0 md:hidden" aria-label="Хлебные крошки">
             <Link :href="mobileReturn.href" class="block truncate text-sm underline" :title="mobileReturn.title">{{ mobileReturn.title }}</Link>
         </nav>
-        <button class="text-muted-foreground ml-auto min-h-11 translate-x-px translate-y-px px-4 text-[13px] md:hidden" @click="setOpenMobile(true)">Моя студия</button>
+        <button class="text-muted-foreground ml-auto min-h-11 translate-x-px translate-y-px px-4 text-[13px] md:hidden" @click="setOpenMobile(true)">
+            Моя студия
+        </button>
         <div class="hidden min-w-0 flex-1 items-center gap-4 md:flex">
             <Link class="text-muted-foreground shrink-0 text-sm" :href="route('dashboard')">Моя студия</Link>
             <span aria-hidden="true" class="text-muted-foreground">/</span><Breadcrumbs v-if="breadcrumbs.length" :breadcrumbs="breadcrumbs" />

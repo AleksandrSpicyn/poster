@@ -138,7 +138,13 @@ async function playBoundary(time: number) {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="[{ title: 'Сериалы', href: route('series.index') }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Сериалы', href: route('series.index') },
+            { title: series.name, href: route('series.show', { project: series.project_id, series: series.id }) },
+            { title: 'Сборка сериала', href: route('series_assemblies.show', assembly.id) },
+        ]"
+    >
         <Head :title="series.name + ' · Сборка сериала'" />
         <div class="workspace-page" :class="{ 'status-page': tab === 'status' }">
             <div class="flex flex-wrap items-start justify-between gap-4">

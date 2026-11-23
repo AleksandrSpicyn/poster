@@ -27,7 +27,6 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
     'projects.show',
     () => ({
         sort: page.props.filters.sort,
-        updated: Number(!!page.props.filters.updated),
         active: Number(!!page.props.filters.active),
         perPage: (page.props.opusClips ?? page.props.prompts).meta.per_page,
         page: (page.props.opusClips ?? page.props.prompts).meta.current_page,
@@ -37,6 +36,7 @@ const { filters, loading, error, applyFilters, changePage, refresh } = useListFi
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Проекты', href: route('projects.index') },
     { title: page.props.project.name, href: route('projects.show', page.props.project.id) },
+    ...(managing.value || viewingClip.value ? [{ title: managing.value ? 'Управление проектом' : 'Клип', href: page.url }] : []),
 ]);
 const viewingClip = ref(false);
 const archiveForm = useForm({ archived: false });
@@ -71,7 +71,7 @@ function destroyProject() {
         <div
             class="workspace-page"
             :class="{
-                'clip-project-page': !!page.props.opusClips && !page.props.clipWeek && !viewingClip,
+                'clip-project-page': !!page.props.opusClips && !viewingClip,
                 'selected-clip': viewingClip,
                 'short-project': !page.props.opusClips && !page.props.series,
             }"
@@ -85,8 +85,8 @@ function destroyProject() {
                     <div class="project-title-row flex items-start gap-2">
                         <Heading
                             :title="
-                                page.props.clipWeek
-                                    ? page.props.project.name
+                                managing
+                                    ? 'Управление проектом'
                                     : page.props.opusClips
                                       ? 'Библиотека клипов'
                                       : page.props.series
@@ -94,28 +94,17 @@ function destroyProject() {
                                         : 'Проект коротких роликов'
                             "
                             :description="
-                                page.props.clipWeek
-                                    ? 'Тренды игры'
-                                    : viewingClip
-                                      ? page.props.project.name
-                                      : page.props.project.name + (page.props.opusClips ? ' / Источники и клипы' : ' / Производство')
+                                viewingClip
+                                    ? page.props.project.name
+                                    : page.props.project.name + (page.props.opusClips ? ' / Источники и клипы' : ' / Производство')
                             "
                         />
-                        <DropdownMenu v-if="!page.props.series">
+                        <DropdownMenu v-if="!page.props.series && !page.props.opusClips">
                             <DropdownMenuTrigger as-child>
                                 <Button variant="ghost" size="icon" aria-label="Меню проекта"><Ellipsis aria-hidden="true" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem v-if="page.props.opusClips" as-child>
-                                    <Link
-                                        :href="
-                                            route('projects.show', { project: page.props.project.id, week: new Date().toISOString().slice(0, 10) })
-                                        "
-                                    >
-                                        Просмотры клипов за неделю
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem v-if="!page.props.opusClips" as-child>
+                                <DropdownMenuItem as-child>
                                     <Link :href="route('prompts', { project: page.props.project.id })">Вся история</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem as-child
@@ -127,9 +116,14 @@ function destroyProject() {
                         </DropdownMenu>
                     </div>
                 </div>
-                <Button v-if="page.props.opusClips && !viewingClip && !page.props.clipWeek" as-child class="h-11 shrink-0"
-                    ><Link :href="route('clipping.index')">Импортировать</Link></Button
-                >
+                <div v-if="page.props.opusClips && !viewingClip && !managing" class="flex flex-wrap gap-2">
+                    <Button as-child variant="outline" class="h-11"
+                        ><Link :href="route('projects.show', { project: page.props.project.id, section: 'management' })"
+                            >Открыть настройки</Link
+                        ></Button
+                    >
+                    <Button as-child class="h-11 shrink-0"><Link :href="route('clipping.index')">Импортировать</Link></Button>
+                </div>
                 <Button v-if="!page.props.opusClips" as-child variant="default" class="h-11 shrink-0"
                     ><Link :href="route('projects.edit', page.props.project.id)">Открыть настройки</Link></Button
                 >
@@ -138,23 +132,16 @@ function destroyProject() {
             <section v-if="page.props.opusClips && !managing" aria-label="Библиотека клипов" class="space-y-4">
                 <ClipLibrary
                     :clips="page.props.opusClips"
-                    :week="page.props.clipWeek"
                     @select="viewingClip = $event"
                     :project="page.props.project"
                     :loading="loading"
                     :error="error"
-                    :updated="!!page.props.filters.updated"
                     :active="!!page.props.filters.active"
                     @active="
                         filters.active = Number(!filters.active);
                         applyFilters();
                     "
-                    @sort="
-                        filters.updated = Number(!filters.updated);
-                        applyFilters();
-                    "
                     @reset="
-                        filters.updated = 0;
                         filters.active = 0;
                         applyFilters();
                     "
@@ -371,21 +358,6 @@ function destroyProject() {
 @media (max-width: 767px) {
     .clip-project-page {
         padding-top: 16px;
-    }
-    .clip-project-page .project-title-row {
-        position: relative;
-    }
-    .clip-project-page .project-title-row > :first-child {
-        width: 100%;
-    }
-    .clip-project-page .project-title-row > button {
-        position: absolute;
-        right: 0;
-        bottom: -3px;
-        height: 32px;
-    }
-    .clip-project-page .project-title-row :deep(p) {
-        padding-right: 34px;
     }
     .selected-clip {
         gap: 13px;
