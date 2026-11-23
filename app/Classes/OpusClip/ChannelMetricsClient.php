@@ -23,7 +23,7 @@ final readonly class ChannelMetricsClient
     public function read(Channel $channel, array $references): Generator
     {
         $credentials = $channel->credentials ?? [];
-        $account = $channel->type === ChannelType::INSTAGRAM ? ($credentials['account_name'] ?? null) : ($credentials['channel_id'] ?? null);
+        $account = $channel->type === ChannelType::INSTAGRAM ? ($credentials['account_name'] ?? $credentials['username'] ?? null) : ($credentials['channel_id'] ?? null);
 
         if (! $channel->is_active || ! is_string($account) || $account === '' || ($channel->external_account !== null && $account !== $channel->external_account)) {
             throw new RuntimeException('Connect the assigned account in Poster.');
@@ -51,14 +51,25 @@ final readonly class ChannelMetricsClient
             $http = $this->youtubeClient->forChannel($channel);
 
             if ($channel->external_account !== null) {
-                yield from $this->youtube->read($http, $account, $references);
-            } else {
-                yield from $this->youtube->statistics($http, $account, $references);
+                $remaining = array_fill_keys($references, true);
+
+                foreach ($this->youtube->read($http, $account, $references) as $id => $metrics) {
+                    unset($remaining[$id]);
+
+                    yield $id => $metrics;
+                }
+
+                $references = array_map(strval(...), array_keys($remaining));
             }
+
+            yield from $this->youtube->statistics($http, $account, $references);
 
             return;
         }
 
-        yield from $this->instagram->read(Http::withToken($token), Payload::string($credentials['channel_id'] ?? null, 'channel_id'), $references, $channel->external_account !== null);
+        $scopes = $credentials['granted_scopes'] ?? null;
+        $insights = $channel->external_account !== null || ! is_array($scopes) || in_array('instagram_business_manage_insights', $scopes, true);
+
+        yield from $this->instagram->read(Http::withToken($token), Payload::string($credentials['channel_id'] ?? null, 'channel_id'), $references, $insights, $channel->external_account === null);
     }
 }

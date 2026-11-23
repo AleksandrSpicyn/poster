@@ -77,13 +77,14 @@ test('продолжает сбор после таймаута и пропус�
         'credentials' => ['channel_id' => 'yt', 'access_token' => 'fake', 'created' => now()->timestamp, 'expires_in' => 3600]]);
     Post::factory()->for($prompt)->for($youtube)->create(['url' => 'https://youtu.be/abcdefghijk']);
     $instagram = Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM,
-        'credentials' => ['channel_id' => '123', 'account_name' => 'studio', 'access_token' => 'fake']]);
+        'credentials' => ['channel_id' => '123', 'username' => 'studio', 'access_token' => 'fake']]);
     Post::factory()->for($prompt)->for($instagram)->create(['url' => 'https://www.instagram.com/reel/sunset/']);
     $tiktok = Channel::factory()->for($project)->create(['type' => ChannelType::TIKTOK,
         'credentials' => ['channel_id' => 'tt', 'scope' => 'video.upload', 'access_token' => 'fake']]);
     Post::factory()->for($prompt)->for($tiktok)->create(['url' => 'https://www.tiktok.com/@studio/video/123']);
     Http::fake([
         '*/youtube/v3/videos*' => Http::failedConnection(),
+        '*/321/insights*' => Http::response(['error' => ['code' => 10]], 403),
         '*/123/media*' => Http::response(['data' => [['id' => '321', 'permalink' => 'https://www.instagram.com/reel/sunset/', 'like_count' => 0, 'comments_count' => 2]]]),
     ]);
 

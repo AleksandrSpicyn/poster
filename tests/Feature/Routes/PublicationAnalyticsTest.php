@@ -111,3 +111,19 @@ test('разделяет одноимённые каналы, пропуски �
 
     get(route('dashboard.analytics', [...$period, 'channel' => $foreign->id]))->assertNotFound();
 });
+
+test('связывает статистику Instagram с каналом по числовому ID аккаунта', function (): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => $owner->id]);
+    $channel = Channel::factory()->for($project)->create(['type' => ChannelType::INSTAGRAM,
+        'external_account' => 'fixture_creator', 'credentials' => ['account_name' => 'fixture_creator', 'channel_id' => '123']]);
+    $clip = OpusClip::factory()->for(OpusSource::factory()->for($project), 'source')->create();
+    $clip->latestMetrics()->create(['platform' => 'instagram', 'account_id' => '123', 'media_id' => 'clip',
+        'observed_on' => now('UTC')->toDateString(), 'metrics' => ['views' => 42]]);
+
+    actingAs($owner);
+    get(route('dashboard.analytics', ['channel' => $channel->id]))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('analytics.totals.views', 42)
+            ->where('analytics.publications.0.channelName', $channel->name));
+});

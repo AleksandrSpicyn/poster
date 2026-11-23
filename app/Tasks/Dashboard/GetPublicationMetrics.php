@@ -38,9 +38,7 @@ final readonly class GetPublicationMetrics
         $accounts = [];
 
         foreach ($included as $channel) {
-            $key = $channel->metricAccount();
-
-            if (is_string($key)) {
+            foreach ($channel->metricAccounts() as $key) {
                 $accounts[$channel->type->value][$key] = $channel->name;
             }
         }
