@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useRoute } from 'ziggy-js';
 import Heading from '@/components/Heading.vue';
@@ -38,6 +38,16 @@ const list = computed(() =>
 );
 const bestPublications = computed(() => list.value.slice(0, 5));
 const showGrowth = ref(false);
+const chartTitles: Record<Counter, string> = {
+    views: 'Динамика просмотров',
+    likes: 'Динамика лайков',
+    shares: 'Динамика репостов',
+    comments: 'Динамика комментариев',
+};
+const chartTotal = computed(() => {
+    const growth = props.report.summaries[metric.value];
+    return showGrowth.value && growth !== null ? signed(growth) : amount(showGrowth.value ? null : props.report.totals[metric.value]);
+});
 const dailySnapshots = computed(() => observedCountersByDate(props.report));
 const scope = computed(() =>
     [
@@ -73,10 +83,14 @@ function entry(label: string, key: Counter) {
     const growth = props.report.summaries[key];
     return {
         label,
+        id: `counter-${key}`,
         value: props.report.totals[key],
         note: growth == null ? undefined : 'Измеренный прирост: ' + signed(growth),
         href: url('drill', { metric: key }),
     };
+}
+function focusCounter(key: Counter) {
+    void nextTick(() => document.getElementById(`counter-${key}`)?.focus());
 }
 const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter)));
 const selectedWatch = computed(() => {
@@ -112,12 +126,15 @@ const tabs: { name: string; view: View }[] = [
             >
         </header>
         <template v-if="view === 'overview'">
-            <h2>Последние показатели за выбранный период</h2>
-            <PublicationCounters :items="dashboardCards" />
+            <section class="counter-section" aria-labelledby="dashboard-counters-title">
+                <h2 id="dashboard-counters-title">Последние показатели за выбранный период</h2>
+                <p class="secondary">{{ interval }}</p>
+                <PublicationCounters :items="dashboardCards" />
+            </section>
             <div class="analytics-panels">
                 <section class="studio-panel chart-panel">
-                    <h2>{{ names[metric] }} по дням</h2>
-                    <div class="analytics-tabs" aria-label="Режим графика">
+                    <h2>{{ chartTitles[metric] }}</h2>
+                    <div class="analytics-tabs chart-modes" role="group" aria-label="Режим графика">
                         <Button size="sm" :variant="showGrowth ? 'outline' : 'default'" :aria-pressed="!showGrowth" @click="showGrowth = false"
                             >Наблюдения</Button
                         >
@@ -129,7 +146,9 @@ const tabs: { name: string; view: View }[] = [
                         {{ interval }} ·
                         {{ showGrowth ? 'Разница между замерами за соседние дни' : 'Сумма счётчиков роликов, измеренных в этот день' }}
                     </p>
+                    <strong class="chart-total">{{ chartTotal }}</strong>
                     <PublicationMetricChart
+                        overview
                         :values="showGrowth ? report.daily : dailySnapshots"
                         :snapshots="!showGrowth"
                         :label="names[metric] + (showGrowth ? ' · прирост' : ' · наблюдения')"
@@ -146,7 +165,7 @@ const tabs: { name: string; view: View }[] = [
                         class="platform-row"
                     >
                         <span>{{ platformNames[row.key] ?? row.key }}</span><strong>{{ amount(row.value) }}</strong
-                        ><i :class="'bar-' + row.key" :style="{ '--progress': row.pct + '%' }"
+                        ><i :class="'bar-' + row.key" :style="{ '--bar-width': row.pct + '%' }"
                     /></Link>
                     <p v-if="!platforms.length" class="secondary">Нет измерений за период</p>
                     <template v-if="detail">
@@ -200,10 +219,13 @@ const tabs: { name: string; view: View }[] = [
                             >{{ amount(p.latest[metric]) }}<template v-if="p.change != null"> · прирост {{ signed(p.change) }}</template></small
                         ></Link
                     >
+                    <p v-if="!list.length" class="secondary">За выбранный период нет наблюдений по этому показателю.</p>
                     <div class="report-row">
                         <span>Всего по выборке</span><span>{{ amount(report.totals[metric]) }} · Публикаций: {{ list.length }}</span>
                     </div>
-                    <Link :href="url('overview')" class="report-link">Вернуться в обзор ↗</Link>
+                    <Link :href="url('overview') + '#counter-' + metric" class="report-link" @success="focusCounter(metric)"
+                        >Вернуться к счётчику</Link
+                    >
                 </section>
                 <section v-else-if="view === 'coverage'" class="studio-panel">
                     <h2>Состояние сбора по каналам</h2>
@@ -343,6 +365,23 @@ const tabs: { name: string; view: View }[] = [
     min-height: 44px;
     font-weight: 700;
 }
+.counter-section .secondary {
+    margin: 4px 0 10px;
+}
+.chart-modes {
+    margin: 10px 0;
+}
+.chart-modes [aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--ring);
+    border: 1px solid var(--ring);
+}
+.chart-total {
+    display: block;
+    margin-top: 5px;
+    font: 700 28px/1.4 var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
 .analytics-panels {
     display: grid;
     grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
@@ -351,6 +390,7 @@ const tabs: { name: string; view: View }[] = [
 .analytics-panels .studio-panel {
     min-height: 322px;
 }
+.counter-section h2,
 .analytics-panels h2,
 .analytics-columns h2,
 .best-publications h2 {
@@ -389,7 +429,7 @@ const tabs: { name: string; view: View }[] = [
     display: block;
     content: '';
     height: 100%;
-    width: var(--progress);
+    width: var(--bar-width);
     background: var(--primary);
 }
 .platform-row .bar-instagram::before {
@@ -525,11 +565,6 @@ const tabs: { name: string; view: View }[] = [
         min-height: 64px;
     }
 }
-@media (min-width: 768px) and (max-width: 1099px) {
-    .analytics-screen:not(.analytics-state) > .publication-counters {
-        margin-top: 5px;
-    }
-}
 @media (min-width: 1920px) {
     .analytics-panels {
         grid-template-columns: minmax(0, 1.835fr) minmax(0, 1fr);
@@ -550,9 +585,6 @@ const tabs: { name: string; view: View }[] = [
     border-color: var(--warning);
 }
 @media (min-width: 1100px) {
-    .analytics-screen:not(.analytics-state) > .publication-counters {
-        margin-top: 3px;
-    }
     .analytics-columns.tabbed-report {
         grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
         gap: 20px;
@@ -560,7 +592,7 @@ const tabs: { name: string; view: View }[] = [
 }
 @media (min-width: 1920px) {
     .analytics-panels,
-    .analytics-screen > .publication-counters,
+    .counter-section,
     .best-publications,
     .analytics-columns {
         max-width: 1440px;
