@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\BillingProduct;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Event;
+use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertAuthenticatedAs;
 use function Pest\Laravel\assertGuest;
+use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 use function Pest\Laravel\postJson;
 
@@ -90,3 +93,22 @@ test('невалидное запоминание не создаёт сесси
 
     assertGuest();
 });
+
+test('после входа открывается оформление выбранного пакета', function (BillingProduct $product): void {
+    $owner = User::factory()->create();
+    $checkout = route('billing.checkout', ['product' => $product->value]);
+
+    get($checkout)
+        ->assertRedirect(route('login'))
+        ->assertSessionHas('url.intended', $checkout);
+
+    post(route('login.store'), ['email' => $owner->email, 'password' => 'password'])
+        ->assertRedirect($checkout);
+
+    get($checkout)
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('Billing/Workspace')
+            ->where('selected', $product->value)
+            ->where('pendingOrder', null));
+})->with(BillingProduct::cases());

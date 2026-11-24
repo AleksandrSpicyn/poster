@@ -14,7 +14,7 @@ use stdClass;
 
 final readonly class ShowBillingWorkspaceAction
 {
-    public function __construct(private BillingWorkspaceRepository $workspace, private CheckoutAvailability $availability) {}
+    public function __construct(private BillingWorkspaceRepository $workspace, private CheckoutAvailability $availability, private GetBillingCatalogAction $catalog) {}
 
     /** @return array<string, mixed> */
     public function run(int $owner, BillingSection $section, int $page = 1, ?BillingProduct $selected = null, ?int $orderId = null, ?int $project = null): array
@@ -29,13 +29,7 @@ final readonly class ShowBillingWorkspaceAction
         return [
             'section' => $section->value,
             'catalogVersion' => BillingProduct::CATALOG_VERSION,
-            'catalog' => collect(BillingProduct::cases())->map(fn(BillingProduct $product): array => [
-                'code' => $product->value,
-                'label' => $product->label(),
-                'seconds' => $product->seconds(),
-                'amount' => $product->amountKopecks(),
-                'monthly' => $product->isMonthly(),
-            ]),
+            'catalog' => $this->catalog->run(),
             'account' => $account,
             'sources' => $section === BillingSection::OVERVIEW ? $this->workspace->sources($owner) : [],
             'history' => $history,

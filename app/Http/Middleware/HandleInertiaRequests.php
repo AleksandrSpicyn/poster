@@ -60,7 +60,9 @@ class HandleInertiaRequests extends Middleware
             'name' => $this->appName,
             'appearanceValues' => array_column(Appearance::cases(), 'value', 'name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
-            'balance' => fn(): ?GenerationBalanceData => $request->user() === null ? null : $this->billing->balance($request->user()->id),
+            ...($request->routeIs('pricing') ? [] : [
+                'balance' => fn(): ?GenerationBalanceData => $request->user() === null ? null : $this->billing->balance($request->user()->id),
+            ]),
             'auth' => [
                 'user' => $request->user(),
                 'can_view_logs' => $request->user() !== null && Gate::forUser($request->user())->allows('viewLogViewer'),

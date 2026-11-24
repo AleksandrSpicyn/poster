@@ -38,7 +38,7 @@ export interface SharedData extends PageProps {
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
-    balance: Balance | null;
+    balance?: Balance | null;
     appearanceValues: AppearanceValues;
     realtime: { enabled: boolean; key: string | null };
     contentScheduleEnabled: boolean;

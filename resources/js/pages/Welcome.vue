@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { useHashNavigation } from '@/composables/useHashNavigation';
-import type { SharedData } from '@/types';
-import { Head, usePage } from '@inertiajs/vue3';
+import LandingHeader from '@/components/LandingHeader.vue';
+import { Head, Link } from '@inertiajs/vue3';
 import { useTemplateRef } from 'vue';
 import { useRoute } from '@/composables/useRoute';
 import lunarLandscape from '../../assets/studio/lunar-landscape.webp';
 import projectTray from '../../assets/studio/project-tray.webp';
 
 const route = useRoute();
-const page = usePage<SharedData>();
 const workflow = useTemplateRef<HTMLDetailsElement>('workflow');
 
 function openWorkflow() {
@@ -26,26 +25,17 @@ useHashNavigation(revealSection);
     <div class="landing">
         <Head title="Poster — студия коротких форм" /> <a class="skip" href="#main">К содержанию</a>
         <div class="top">
-            <header class="head">
-                <div class="outer nav">
-                    <a class="logo" href="#main" aria-label="Poster, главная"
-                        ><i aria-hidden="true"><b></b><b></b><b></b></i>Poster</a
-                    >
-                    <nav aria-label="Навигация">
-                        <a href="#features">Возможности</a><a href="#workflow" class="flow-link" @click="openWorkflow">Рабочий процесс</a>
-                    </nav>
-                    <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">{{
-                        page.props.auth.user ? 'Моя студия' : 'Войти в студию'
-                    }}</a>
-                </div>
-            </header>
+            <LandingHeader @workflow="openWorkflow" />
             <main id="main" tabindex="-1">
                 <div class="outer">
                     <section class="hero" aria-labelledby="title">
                         <div class="copy">
                             <h1 id="title"><span>Ваша студия</span> <span>коротких</span> <span>форм.</span></h1>
                             <p class="lede">Создавайте сериалы, собирайте клипы и планируйте публикации в одном месте.</p>
-                            <a class="cta" href="#features">Изучить возможности <span aria-hidden="true">↓</span></a>
+                            <div class="hero-links">
+                                <a class="cta" href="#features">Изучить возможности <span aria-hidden="true">↓</span></a
+                                ><Link class="price-link" :href="route('pricing')">Тарифы <span aria-hidden="true">→</span></Link>
+                            </div>
                         </div>
                         <figure class="art">
                             <svg viewBox="602 82 900 680" role="img" aria-labelledby="art-title">
@@ -188,70 +178,30 @@ figure {
     margin-inline: auto;
     padding-inline: var(--pad);
 }
-.head {
-    border-bottom: 1px solid #696276;
-}
-.nav {
+.hero-links {
     display: flex;
     align-items: center;
-    gap: clamp(25px, 4.2vw, 80px);
-    min-height: calc(clamp(70px, 5.2vw, 92px) - 1px);
+    flex-wrap: wrap;
+    gap: 10px 26px;
 }
-.logo {
+.price-link {
     display: inline-flex;
-    gap: clamp(0px, calc(1vw - 8.4px), 9px);
     align-items: center;
-    line-height: 1;
-    flex-basis: calc(3.66em + 52px);
-    font-size: clamp(29px, 3vw, 48px);
-    letter-spacing: -0.072em;
+    gap: 9px;
+    min-height: 44px;
+    font-size: clamp(16px, 1.3vw, 21px);
     font-weight: 700;
+    border-bottom: 1px solid #b9a5de;
 }
-.logo i {
-    display: inline-flex;
-    gap: 4px;
-    transform: skew(-24deg) scaleX(1.08);
-    margin-inline: 5px;
-}
-.logo b {
-    height: 0.74em;
-    width: 0.17em;
-    background: currentColor;
-}
-.nav nav {
-    display: flex;
-    gap: clamp(18px, 3.2vw, 54px);
+.price-link:hover {
+    color: var(--lime);
 }
 .copy a {
     pointer-events: auto;
 }
-.nav nav a,
-.login,
-.cta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    font-weight: 700;
-    letter-spacing: normal;
-}
-.nav nav a {
-    font-size: clamp(14px, 1.4vw, 22px);
-}
+
 .foot a:hover {
     text-decoration: underline;
-}
-.nav nav a:hover {
-    color: #d8c5ff;
-}
-.login {
-    margin-left: auto;
-    border: 1.5px solid currentColor;
-    border-radius: 11px;
-    padding: 6px 20px;
-}
-.login:hover {
-    background: var(--ink);
-    color: var(--bg);
 }
 .hero {
     min-height: clamp(530px, 44vw, 765px);
@@ -294,6 +244,12 @@ h1 span:last-child {
     letter-spacing: normal;
 }
 .cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 700;
+    letter-spacing: normal;
+
     gap: 12px;
     padding: 11px clamp(16px, calc(13px + 0.35vw), 18.5px);
     border-radius: 11px;
@@ -569,7 +525,6 @@ h3 {
         animation: enter-card 0.4s ease-out both;
         animation-delay: calc(0.14s + var(--i) * 0.055s);
     }
-    .login,
     .cta {
         transition:
             background-color 0.17s,
@@ -618,17 +573,11 @@ h3 {
     }
 }
 @media (max-width: 700px) {
-    .nav {
-        min-height: 61px;
-        gap: 8px;
+    .hero-links {
+        gap: 4px 15px;
     }
-    .nav nav {
-        display: none;
-    }
-    .login {
-        padding: 5px 12px;
-        font-size: 14px;
-        border-radius: 9px;
+    .price-link {
+        font-size: 15px;
     }
     .hero {
         min-height: 0;
@@ -656,6 +605,7 @@ h3 {
         font-size: 17px;
     }
     .cta {
+        font-size: 15px;
         min-height: 47px;
         padding: 9px 15px 9px 16px;
     }

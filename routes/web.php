@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PolicyController;
+use App\Http\Controllers\PricingController;
 use App\Http\Controllers\Prompts\ListController as PromptsListController;
 use App\Http\Controllers\Prompts\MediaController;
 use App\Http\Controllers\PublicationAnalyticsController;
@@ -14,6 +15,8 @@ use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+Route::get('pricing', PricingController::class)->name('pricing');
 
 Route::get('policy', PolicyController::class)->name('policy');
 
