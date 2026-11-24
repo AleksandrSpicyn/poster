@@ -206,3 +206,25 @@ test('игровой канал находится на следующей ст�
     expect($channel->refresh()->credentials)->toMatchArray(['account_name' => 'UCgaming', 'channel_id' => 'UCgaming']);
     Http::assertSent(fn(Request $request): bool => str_contains($request->url(), 'pageToken=next') && str_contains($request->url(), 'mine=true'));
 });
+
+test('повтор страницы YouTube завершает авторизацию с ошибкой', function (): void {
+    $channel = Channel::factory()
+        ->recycle(workspaceOwner())
+        ->create(['type' => ChannelType::YOUTUBE, 'external_account' => 'UCgaming']);
+    actingAs(serialOperator());
+    $state = legacyChannelOAuthState($channel);
+    $page = ['items' => [], 'nextPageToken' => 'same'];
+    Http::fake([
+        'oauth2.googleapis.com/token' => Http::response(['access_token' => 'access', 'refresh_token' => 'refresh']),
+        '*/youtube/v3/channels*' => Http::sequence()->push($page)->push($page),
+    ]);
+
+    get(route('channels.callback', [
+        $channel,
+        'state' => $state,
+        'code' => 'code',
+    ]))->assertSessionHasErrors(['oauth' => 'YouTube returned a repeated page of channels. Reconnect the channel to try again.']);
+
+    expect($channel->refresh()->credentials)->toBeNull();
+    Http::assertSentCount(3);
+});

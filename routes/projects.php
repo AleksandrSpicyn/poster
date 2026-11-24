@@ -19,14 +19,16 @@ Route::prefix('projects')->name('projects.')->group(function (): void {
     Route::get('', ProjectsIndexController::class)->name('index');
     Route::get('create', ProjectsCreateController::class)->name('create');
     Route::post('', ProjectsStoreController::class)->name('store');
-    Route::get('{project}', ProjectsShowController::class)->whereNumber('project')->name('show');
-    Route::prefix('{project}/cover')->whereNumber('project')->name('cover.')->group(function (): void {
-        Route::get('edit', ProjectCoverEditController::class)->name('edit');
-        Route::get('', ProjectCoverShowController::class)->name('show');
-        Route::post('', ProjectCoverStoreController::class)->name('store');
+    Route::prefix('{project}')->whereNumber('project')->group(function (): void {
+        Route::get('', ProjectsShowController::class)->name('show');
+        Route::prefix('cover')->name('cover.')->group(function (): void {
+            Route::get('edit', ProjectCoverEditController::class)->name('edit');
+            Route::get('', ProjectCoverShowController::class)->name('show');
+            Route::post('', ProjectCoverStoreController::class)->name('store');
+        });
+        Route::get('edit', ProjectsEditController::class)->name('edit');
+        Route::patch('archive', ProjectsArchiveController::class)->name('archive');
+        Route::patch('', ProjectsUpdateController::class)->name('update');
+        Route::delete('', ProjectsDestroyController::class)->name('destroy');
     });
-    Route::get('{project}/edit', ProjectsEditController::class)->whereNumber('project')->name('edit');
-    Route::patch('{project}/archive', ProjectsArchiveController::class)->whereNumber('project')->name('archive');
-    Route::patch('{project}', ProjectsUpdateController::class)->whereNumber('project')->name('update');
-    Route::delete('{project}', ProjectsDestroyController::class)->whereNumber('project')->name('destroy');
 });

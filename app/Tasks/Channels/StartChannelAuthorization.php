@@ -20,12 +20,12 @@ readonly class StartChannelAuthorization
         $channel = $this->channels->findOrFail($channel->id);
         abort_unless($channel->owner_id === $actor->id, 404);
         $state = Str::random(64);
-        $url = $this->oauth->authorizationUrl($channel, $state);
+        $url = $this->oauth->authorizationUrl($channel, $state, ChannelOAuth::redirectUri($channel->type));
         $this->session->put('channel_oauth.' . hash('sha256', $state), [
             'provider' => $channel->type->value,
             'channel_id' => $channel->id,
             'user_id' => $actor->id,
-            'fingerprint' => $this->oauth->fingerprint($channel),
+            'fingerprint' => ChannelOAuth::fingerprint($channel),
             'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tasks\Channels;
 
-use App\Classes\Story\Snapshot;
+use App\Classes\Channels\ChannelOAuth;
 use App\Models\Channel;
 use App\Repositories\ChannelRepository;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +20,7 @@ readonly class SaveChannelCredentials
         DB::transaction(function () use ($channel, $credentials, $preserveMetadata): void {
             $current = $this->channels->findLockedOrFail($channel->id);
 
-            if ($current->client_id !== $channel->client_id || $current->client_secret !== $channel->client_secret || Snapshot::hash(['credentials' => $current->credentials]) !== Snapshot::hash(['credentials' => $channel->credentials])) {
+            if ($current->owner_id !== $channel->owner_id || ChannelOAuth::fingerprint($current) !== ChannelOAuth::fingerprint($channel)) {
                 throw new RuntimeException('The channel connection changed.');
             }
 

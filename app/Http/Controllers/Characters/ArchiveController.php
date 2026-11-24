@@ -6,12 +6,13 @@ namespace App\Http\Controllers\Characters;
 
 use App\Actions\Characters\ArchiveCharacterAction;
 use App\Data\ExpectedVersionData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class ArchiveController
+class ArchiveController extends CharacterController
 {
     /**
      * Архивирование персонажа с сохранением версий
@@ -36,10 +37,6 @@ class ArchiveController
     {
         $action->run($character, $data->lock_version);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

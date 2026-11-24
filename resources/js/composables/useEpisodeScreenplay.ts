@@ -1,6 +1,6 @@
 import { useFormApi } from '@/lib/api/useFormApi';
 import { createScreenplayScene, createScreenplayShot, parseScreenplayImport } from '@/lib/screenplay';
-import type { SharedData } from '@/types';
+import type { WorkspacePageProps } from '@/types';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { useOnline } from '@vueuse/core';
@@ -54,7 +54,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         if (scriptText.value !== initialScriptJson && scriptText.value !== JSON.stringify(current, null, 2)) changes.push('Текст для импорта');
         return changes;
     });
-    const draftKey = `poster:episode:${usePage<SharedData>().props.auth.user.id}:${props.episode.id}`;
+    const draftKey = `poster:episode:${usePage<WorkspacePageProps>().props.auth.user.id}:${props.episode.id}`;
     function clearDraft() {
         draftStored.value = false;
         restored.value = false;
@@ -102,10 +102,10 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             } else {
                 clearDraft();
             }
-            watch(() => [scriptForm.script, scriptText.value, generateForm.brief], persistDraft, { deep: true, flush: 'sync' });
         } catch {
             clearDraft();
         }
+        watch(() => [scriptForm.script, scriptText.value, generateForm.brief], persistDraft, { deep: true, flush: 'sync' });
     });
     watch(
         () => props.screenplay,

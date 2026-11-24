@@ -5,6 +5,7 @@ import { useRoute } from '@/composables/useRoute';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue';
+import PublicationPlatformBreakdown from '@/components/PublicationPlatformBreakdown.vue';
 import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationOverviewChart from '@/components/PublicationOverviewChart.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
@@ -12,6 +13,9 @@ import { Button } from '@/components/ui/button';
 import {
     rankedPublications,
     platformShares,
+    publicationDays,
+    observationLabel,
+    spansMultipleDays,
     amount,
     counterNames,
     dateLabel,
@@ -27,7 +31,7 @@ const page = usePage();
 const route = useRoute();
 const filters = computed(() => props.report.filters);
 type View = 'overview' | 'filters' | 'drill' | 'publication' | 'data' | 'coverage';
-const params = computed(() => new URLSearchParams(page.url.split('?')[1] ?? ''));
+const params = computed(() => new URL(page.url, page.props.ziggy.url).searchParams);
 const view = computed<View>(() => {
     const v = params.value.get('view');
     return v && ['filters', 'drill', 'publication', 'data', 'coverage'].includes(v) ? (v as View) : 'overview';
@@ -45,6 +49,7 @@ const period = computed(() => (filters.value.from ? undefined : metricPeriods.fi
 const names = counterNames;
 const metric = computed(() => filters.value.metric);
 const list = computed(() => rankedPublications(props.report.publications, metric.value));
+const platforms = computed(() => platformShares(list.value, metric.value));
 const bestPublications = computed(() => list.value.slice(0, 5));
 const showGrowth = ref(false);
 const scope = computed(() =>
@@ -68,7 +73,6 @@ function url(v: View, patch: Partial<AnalyticsFilters> = {}, item?: PublicationT
         publication: item?.key,
     });
 }
-const platforms = computed(() => platformShares(list.value, metric.value));
 function entry(label: string, key: Counter) {
     const growth = props.report.summaries[key];
     return {
@@ -83,21 +87,11 @@ function focusCounter(key: Counter) {
     void nextTick(() => document.getElementById(`counter-${key}`)?.focus());
 }
 const dashboardCards = computed(() => Object.entries(names).map(([key, label]) => entry(label, key as Counter)));
-const selectedWatch = computed(() => {
-    const rows = props.report.publications;
-    const minutes = rows.map((p) => p.watchMinutesChange);
-    return {
-        duration: rows.length === 1 ? (rows[0].latest.averageViewDuration ?? null) : null,
-        percent: rows.length === 1 ? (rows[0].latest.averageViewPercentage ?? null) : null,
-        hours: minutes.length && minutes.every((v): v is number => v != null) ? minutes.reduce((s, v) => s + v, 0) / 60 : null,
-    };
-});
-const selectedDays = computed(() =>
-    Object.keys(props.report.daily).map((date) => ({
-        date,
-        value: selected.value?.snapshots[date] ?? null,
-        interval: selected.value?.intervals.find((i) => i.to === date),
-    })),
+const selectedDays = computed(() => publicationDays(Object.keys(props.report.daily), selected.value));
+const observationSummary = computed(() =>
+    selectedDays.value
+        .map(({ date, value }) => dateLabel(date, { day: '2-digit', month: '2-digit' }) + ' — ' + (value === null ? 'пропуск' : amount(value)))
+        .join(' · '),
 );
 const snapshotSeries = computed(() => Object.fromEntries(selectedDays.value.map((d) => [d.date, d.value])));
 const tabs: { name: string; view: View }[] = [
@@ -123,26 +117,13 @@ const tabs: { name: string; view: View }[] = [
             </section>
             <div class="analytics-panels">
                 <PublicationOverviewChart v-model="showGrowth" :report="report" :chart-period="period?.caption ?? interval" />
-                <section class="studio-panel platforms-panel">
-                    <h2>
-                        <Link :href="url('coverage', {}, selected, true)">{{ names[metric] }} по площадкам</Link>
-                    </h2>
-                    <Link
-                        v-for="row in platforms"
-                        :key="row.key"
-                        :href="url('overview', { platform: row.key }, undefined, true)"
-                        class="platform-row"
-                    >
-                        <span>{{ platformNames[row.key] ?? row.key }}</span><strong>{{ amount(row.value) }}</strong
-                        ><i :class="'bar-' + row.key" :style="{ '--bar-width': row.pct + '%' }"
-                    /></Link>
-                    <p v-if="!platforms.length" class="secondary">Нет измерений за период</p>
-                    <template v-if="detail">
-                        <p v-if="selectedWatch.percent != null">Средний процент просмотра: {{ amount(selectedWatch.percent) }} %</p>
-                        <p v-if="selectedWatch.duration != null">Среднее время просмотра: {{ amount(selectedWatch.duration) }} с</p>
-                        <p v-if="selectedWatch.hours != null">Прирост времени просмотра: {{ amount(selectedWatch.hours) }} ч</p>
-                    </template>
-                </section>
+                <PublicationPlatformBreakdown
+                    :platforms="platforms"
+                    :publications="report.publications"
+                    :filters="filters"
+                    :detail="detail"
+                    :coverage-href="url('coverage', {}, selected, true)"
+                />
             </div>
             <section v-if="bestPublications.length" class="best-publications">
                 <h2>Лучшие публикации</h2>
@@ -237,38 +218,14 @@ const tabs: { name: string; view: View }[] = [
                                 class="report-row"
                                 :class="{ 'coverage-row observation-gap': day.value === null }"
                             >
-                                <span>{{ dateLabel(day.date) }}</span><span>{{
-                                    day.value === null
-                                        ? 'Нет наблюдения'
-                                        : amount(day.value) +
-                                          ' · ' +
-                                          (day.interval
-                                              ? (new Date(day.interval.to).getTime() - new Date(day.interval.from).getTime() > 86400000
-                                                    ? 'прирост за ' + rangeLabel(day.interval.from, day.interval.to) + ' '
-                                                    : 'прирост ') + signed(day.interval.change)
-                                              : 'первое наблюдение')
-                                }}</span>
+                                <span>{{ dateLabel(day.date) }}</span><span>{{ observationLabel(day) }}</span>
                             </div></template
                         >
                         <template v-else
                             ><div class="report-row">
-                                <span>Наблюдения</span
-                                ><span>{{
-                                    selectedDays
-                                        .map(
-                                            (d) =>
-                                                dateLabel(d.date, { day: '2-digit', month: '2-digit' }) +
-                                                ' — ' +
-                                                (d.value === null ? 'пропуск' : amount(d.value)),
-                                        )
-                                        .join(' · ')
-                                }}</span>
+                                <span>Наблюдения</span><span>{{ observationSummary }}</span>
                             </div>
-                            <div
-                                v-for="i in selected.intervals.filter((i) => new Date(i.to).getTime() - new Date(i.from).getTime() > 86400000)"
-                                :key="i.to"
-                                class="report-row"
-                            >
+                            <div v-for="i in selected.intervals.filter(spansMultipleDays)" :key="i.to" class="report-row">
                                 <span>{{ rangeLabel(i.from, i.to) }}</span><span
                                     >{{ signed(i.change) }} за интервал · разбивка по дням неизвестна</span
                                 >
@@ -363,33 +320,6 @@ const tabs: { name: string; view: View }[] = [
 }
 .platforms-panel {
     padding: 16px 24px;
-}
-.platform-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 6px;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-}
-.platform-row i {
-    grid-column: 1/-1;
-    background: var(--muted);
-    height: 4px;
-}
-.platform-row i::before {
-    display: block;
-    content: '';
-    height: 100%;
-    width: var(--bar-width);
-    background: var(--primary);
-}
-.platform-row .bar-instagram::before {
-    background: var(--progress);
-}
-.platform-row .bar-tiktok::before {
-    background: var(--warning);
 }
 .best-publications h2 {
     margin-bottom: 14px;

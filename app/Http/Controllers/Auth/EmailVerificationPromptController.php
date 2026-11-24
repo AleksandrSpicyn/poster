@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\GetEmailVerificationStatusAction;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Response;
 
-class EmailVerificationPromptController
+class EmailVerificationPromptController extends Controller
 {
     /**
      * Форма проверки email
@@ -60,7 +61,7 @@ class EmailVerificationPromptController
     public function __invoke(Request $request, #[CurrentUser] User $user, GetEmailVerificationStatusAction $action): RedirectResponse|Response
     {
         return $action->run($user)
-                    ? redirect()->intended(route('dashboard', absolute: false))
-                    : inertia('auth/VerifyEmail', ['status' => $request->session()->get('status')]);
+            ? $this->intendedDashboard()
+            : inertia('auth/VerifyEmail', ['status' => $request->session()->get('status')]);
     }
 }

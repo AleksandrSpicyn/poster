@@ -22,3 +22,12 @@ test('запоздавший refresh не восстанавливает отк�
 
     expect($channel->refresh()->credentials)->toBeNull();
 });
+
+test('поздний токен не заменяет связь с новым аккаунтом', function (): void {
+    $channel = Channel::factory()->create(['external_account' => 'old', 'credentials' => ['access_token' => 'active']]);
+    $stale = clone $channel;
+    $channel->update(['external_account' => 'replacement']);
+
+    expect(fn() => app(SaveChannelCredentials::class)->run($stale, ['access_token' => 'late']))->toThrow(RuntimeException::class);
+    expect($channel->refresh()->credentials)->toBe(['access_token' => 'active']);
+});

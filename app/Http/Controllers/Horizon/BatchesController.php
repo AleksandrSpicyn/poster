@@ -24,7 +24,7 @@ class BatchesController extends HorizonController
         $before = $request->filled('before_id') ? (string) $request->string('before_id') : null;
 
         try {
-            return ['batches' => $request->query('query')
+            return ['batches' => $request->filled('query')
                 ? $this->search->search((string) $request->string('query'), $before)
                 : $this->batches->get(50, $before)];
         } catch (QueryException) {

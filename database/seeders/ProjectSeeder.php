@@ -18,6 +18,7 @@ class ProjectSeeder extends Seeder
         #[Config('services.instagram.client_id')] ?string $instagramClientId,
         #[Config('services.instagram.client_secret')] ?string $instagramClientSecret,
         #[Config('services.instagram.token')] ?string $instagramToken,
+        #[Config('services.instagram.channel_id')] ?string $instagramAccount,
         #[Config('services.tiktok.client_id')] ?string $tiktokClientId,
         #[Config('services.tiktok.client_secret')] ?string $tiktokClientSecret,
     ): void {
@@ -37,7 +38,7 @@ class ProjectSeeder extends Seeder
                 'client_secret' => $youtubeClientSecret,
             ],
         );
-        $project->channels()->syncWithoutDetaching([$channel->id]);
+        $channelIds = [$channel->id];
 
         $channel = Channel::query()->firstOrCreate(
             [
@@ -48,13 +49,13 @@ class ProjectSeeder extends Seeder
                 'name' => 'AI Fakes X',
                 'client_id' => $instagramClientId,
                 'client_secret' => $instagramClientSecret,
-                'credentials' => [
+                'credentials' => filled($instagramToken) && filled($instagramAccount) ? [
                     'access_token' => $instagramToken,
-                    'channel_id' => '17841402123695030',
-                ],
+                    'channel_id' => $instagramAccount,
+                ] : null,
             ],
         );
-        $project->channels()->syncWithoutDetaching([$channel->id]);
+        $channelIds[] = $channel->id;
 
         $channel = Channel::query()->firstOrCreate(
             [
@@ -67,7 +68,7 @@ class ProjectSeeder extends Seeder
                 'client_secret' => $tiktokClientSecret,
             ],
         );
-        $project->channels()->syncWithoutDetaching([$channel->id]);
+        $project->channels()->syncWithoutDetaching([...$channelIds, $channel->id]);
     }
 
     private function prompt(): string

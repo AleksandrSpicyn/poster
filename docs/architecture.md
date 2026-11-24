@@ -99,7 +99,7 @@ Tasks заранее загружают `channel` либо `project`/`media` д�
 Проекты и каналы сейчас не принадлежат User: списки общие для допущенных
 пользователей, пользовательского tenant scope в модели данных нет.
 `HandleInertiaRequests` задаёт shared props, `app.ts` разрешает имя страницы в Vue,
-`ssr.ts` служит отдельной SSR-точкой. `HandleAppearance`, Blade и `useAppearance`
+`ssr.ts` служит отдельной SSR-точкой. `HandleInertiaRequests`, Blade и `useAppearance`
 согласуют тему через cookie/localStorage; sidebar хранит состояние в cookie.
 
 `Project.is_active` по умолчанию включён, включая существующие проекты.
@@ -160,7 +160,7 @@ Tasks заранее загружают `channel` либо `project`/`media` д�
    сборка требует `video_url`, `audio_url` и `generated=false` для любого драйвера.
    Lock живёт 3720 секунд, timeout job — 3600 секунд. `BuildVideo` одним способом
    сопоставляет видеопоток первого источника и аудиопоток второго в FFmpeg;
-   `SaveGeneratedVideo` прикрепляет файл через Media Library и ставит `generated=true`.
+   `SaveGeneratedVideo` прикрепляет файл через Media Library до транзакции готовности. `SaveVideoAction` повторно проверяет резерв под блокировкой дубля и фиксирует `generated=true` вместе со списанием.
 6. `VideoBuilt → VideoBuiltListener → PublisherFactory` отправляет готовый ролик
    каналам проекта. YouTube загружает локальный файл порциями и сохраняет Post.
    Instagram создаёт контейнер, а через пять минут `PublishInstagramJob`

@@ -9,6 +9,7 @@ use App\Models\Chat;
 use App\Models\ClippingConnection;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /** @extends EloquentRepository<User> */
@@ -40,6 +41,14 @@ readonly class UserRepository extends EloquentRepository
             || Channel::query()->where('owner_id', $owner->id)->exists()
             || ClippingConnection::query()->where('owner_id', $owner->id)->exists()
             || Chat::query()->where('owner_id', $owner->id)->exists();
+    }
+
+    public function hasRetainedHistory(User $user): bool
+    {
+        return DB::table('billing_accounts')->where('owner_id', $user->id)->exists()
+            || DB::table('publication_requests')->where('created_by', $user->id)->exists()
+            || DB::table('video_upscale_operations')->where('initiator_id', $user->id)->exists()
+            || DB::table('series_assemblies')->where('accepted_by', $user->id)->exists();
     }
 
     public function isVerified(int $id): bool

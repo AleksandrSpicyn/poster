@@ -37,15 +37,16 @@ readonly class CompleteChannelAuthorization
         $pending = $this->session->pull('channel_oauth.' . hash('sha256', $data->state));
         $channel = $this->channels->findOrFail($channel->id);
 
+        $fingerprint = ChannelOAuth::fingerprint($channel);
+
         if ($channel->owner_id !== $actor->id || ! is_array($pending) || ($pending['channel_id'] ?? null) !== $channel->id || ($pending['user_id'] ?? null) !== $actor->id
             || ! is_int($pending['expires_at'] ?? null) || $pending['expires_at'] < now()->timestamp
             || ($pending['provider'] ?? null) !== $provider?->value
-            || ($pending['fingerprint'] ?? null) !== $this->oauth->fingerprint($channel)
+            || ($pending['fingerprint'] ?? null) !== $fingerprint
             || $data->error !== null || $data->code === null) {
             throw new RuntimeException('Invalid or cancelled authorization.');
         }
 
-        $fingerprint = $this->oauth->fingerprint($channel);
         $credentials = $this->oauth->exchange($channel, $data->code, $provider instanceof ChannelType ? ChannelOAuth::redirectUri($provider) : route('channels.callback', $channel));
         $identity = $channel->type === ChannelType::INSTAGRAM ? $credentials['account_name'] : $credentials['channel_id'];
 
@@ -56,7 +57,7 @@ readonly class CompleteChannelAuthorization
         DB::transaction(function () use ($channel, $actor, $fingerprint, $credentials): void {
             $current = $this->channels->findLockedOrFail($channel->id);
 
-            if ($current->owner_id !== $actor->id || $fingerprint !== $this->oauth->fingerprint($current)) {
+            if ($current->owner_id !== $actor->id || $fingerprint !== ChannelOAuth::fingerprint($current)) {
                 throw new RuntimeException('Application settings changed during authorization.');
             }
 

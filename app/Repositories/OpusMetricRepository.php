@@ -10,8 +10,8 @@ use App\Models\Channel;
 use App\Models\OpusClipMetric;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
@@ -19,23 +19,26 @@ final readonly class OpusMetricRepository
 {
     public function __construct(private ClippingSyncRunRepository $syncRuns) {}
 
-    /** @return Collection<int, OpusClipMetric> */
-    public function observations(Project $project, string $start, string $end): Collection
+    /** @return Collection<int, object{platform: string, game: ?string, clip_title: string, growth: int|float|string|null, views: int|float|string|null}> */
+    public function topViewGrowth(Project $project, string $start, string $end): Collection
     {
-        return OpusClipMetric::query()
+        $views = "NULLIF(opus_clip_metrics.metrics ->> '$.views', 'null') + 0";
+        $paired = DB::table('opus_clip_metrics')
             ->join('opus_clips', 'opus_clips.id', '=', 'opus_clip_metrics.opus_clip_id')
             ->join('opus_sources', 'opus_sources.id', '=', 'opus_clips.opus_source_id')
             ->where('opus_sources.project_id', $project->id)->whereIn('observed_on', [$start, $end])
-            ->get([
-                'opus_clip_metrics.opus_clip_id',
-                'platform',
-                'media_id',
-                'observed_on',
-                'metrics',
-                'opus_sources.game as clip_game',
-                'opus_clips.title as clip_title',
-                'opus_clips.clip_id',
-            ]);
+            ->groupBy('platform', 'media_id', 'opus_clips.id', 'opus_clips.clip_id', 'opus_clips.title', 'opus_sources.game')
+            ->select('platform', 'media_id', 'opus_clips.id as clip_key', 'opus_sources.game')
+            ->selectRaw('coalesce(opus_clips.title, opus_clips.clip_id) as clip_title')
+            ->selectRaw("max(case when observed_on = ? then $views end) as baseline", [$start])
+            ->selectRaw("max(case when observed_on = ? then $views end) as views", [$end]);
+
+        $ranked = DB::query()->fromSub($paired, 'pairs')->select('pairs.*')->selectRaw('views - baseline as growth')
+            ->selectRaw('row_number() over (partition by platform order by views - baseline desc, clip_key, media_id) as position');
+
+        /** @var Collection<int, object{platform: string, game: ?string, clip_title: string, growth: int|float|string|null, views: int|float|string|null}> */
+        return DB::query()->fromSub($ranked, 'ranked')->where('position', '<=', 10)
+            ->orderBy('platform')->orderBy('position')->get(['platform', 'game', 'clip_title', 'growth', 'views']);
     }
 
     /** @return LazyCollection<int, OpusClipMetric> */

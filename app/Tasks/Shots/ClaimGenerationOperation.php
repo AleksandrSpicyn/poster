@@ -61,7 +61,7 @@ class ClaimGenerationOperation
                         'next_check_at' => null,
                     ]);
 
-                    $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+                    $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::RELEASED);
 
                     return null;
                 }
@@ -78,7 +78,7 @@ class ClaimGenerationOperation
                         'next_check_at' => null,
                     ]);
 
-                    $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+                    $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::RELEASED);
 
                     return null;
                 }

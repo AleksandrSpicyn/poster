@@ -86,8 +86,7 @@ final readonly class StartBillingCheckoutAction
         $due = $product->isMonthly() ? ($account->renews_at ?? null) : null;
         $order = $this->checkout->createCheckoutOrder($owner, $product, $data, $revision, $due, $now);
         $attempt = $this->payments->prepare($owner, $order, fn(): MerchantData => $merchant);
-        $returnUrl = rtrim(config()->string('app.url'), '/') . route('billing.orders.show', ['order' => $order], false);
-        $this->checkout->scheduleCheckout($attempt, $returnUrl, $now);
+        $this->payments->scheduleCheckout($attempt, $order, $now);
 
         return $order;
     }

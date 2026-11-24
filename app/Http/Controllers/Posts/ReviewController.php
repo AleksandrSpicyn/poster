@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Posts;
 
-use App\Actions\Episodes\ResolveEpisodePublicationAction;
-use App\Enums\PublicationStatus;
+use App\Actions\Publications\GetPublicationReviewAction;
 use App\Http\Resources\ProjectCardResource;
 use App\Models\PublicationRequest;
 use App\Models\User;
@@ -15,19 +14,18 @@ use Inertia\Response;
 
 class ReviewController
 {
-    public function __invoke(PublicationRequest $publication, #[CurrentUser] User $owner, ResolveEpisodePublicationAction $action): Response
+    public function __invoke(PublicationRequest $publication, #[CurrentUser] User $owner, GetPublicationReviewAction $action): Response
     {
-        $context = $action->review($publication, $owner);
-        abort_unless($context->request->status === PublicationStatus::SUBMISSION_UNKNOWN && $context->channel->canVerifyPublication(), 404);
+        $context = $action->run($publication, $owner);
 
         return inertia('Posts/Review', [
-            'id' => $publication->id,
-            'title' => $publication->payload['title'],
+            'id' => $context->request->id,
+            'title' => $context->request->payload['title'],
             'channel' => $context->channel->name,
             'platform' => $context->channel->type->label(),
             'project' => Arr::only(ProjectCardResource::make($context->project)->resolve(), ['name', 'cover']),
             'assemblyNumber' => $context->assemblyNumber,
-            'submittedAt' => $publication->submitted_at?->toISOString(),
+            'submittedAt' => $context->request->submitted_at?->toISOString(),
         ]);
     }
 }

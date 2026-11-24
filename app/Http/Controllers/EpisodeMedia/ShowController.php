@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\EpisodeMedia;
 
 use App\Actions\Episodes\GetEpisodeMediaAction;
+use App\Http\Controllers\Controller;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class ShowController
+class ShowController extends Controller
 {
     /**
      * Приватный просмотр дубля или сборки эпизода
@@ -27,6 +28,6 @@ class ShowController
      */
     public function __invoke(Media $media, GetEpisodeMediaAction $action): BinaryFileResponse
     {
-        return response()->file($action->run($media), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'])->setPrivate();
+        return $this->privateFile($action->run($media));
     }
 }

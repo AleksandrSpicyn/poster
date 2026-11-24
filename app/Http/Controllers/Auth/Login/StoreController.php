@@ -6,9 +6,10 @@ namespace App\Http\Controllers\Auth\Login;
 
 use App\Actions\Auth\LoginAction;
 use App\Data\LoginData;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends Controller
 {
     /**
      * Вход по email и паролю
@@ -31,6 +32,6 @@ class StoreController
     {
         $action->run($data);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $this->intendedDashboard();
     }
 }

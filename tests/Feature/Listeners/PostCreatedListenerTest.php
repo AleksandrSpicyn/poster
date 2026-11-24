@@ -36,7 +36,20 @@ test('смена владельца чата после постановки в 
     $notification = new PostCreatedNotification($post);
     expect($notification->shouldSend($chat))->toBeTrue();
 
-    $chat->forceFill(['owner_id' => null])->save();
+    Chat::query()->whereKey($chat->id)->update(['owner_id' => null]);
 
-    expect($notification->shouldSend($chat->refresh()))->toBeFalse();
+    expect($notification->shouldSend($chat))->toBeFalse();
+});
+
+test('уведомление из очереди без владельца пропускает доставку', function (): void {
+    $owner = workspaceOwner();
+    $post = Post::factory()->recycle($owner)->create();
+    $chat = Chat::query()->forceCreate(['chat_id' => 'historical-chat', 'owner_id' => $owner->id]);
+    $payload = new PostCreatedNotification($post)->__serialize();
+    unset($payload["\0" . PostCreatedNotification::class . "\0ownerId"]);
+    $notification = new ReflectionClass(PostCreatedNotification::class)->newInstanceWithoutConstructor();
+
+    $notification->__unserialize($payload);
+
+    expect($notification->shouldSend($chat))->toBeFalse();
 });

@@ -83,14 +83,6 @@ final readonly class BillingCheckoutRepository
         ]);
     }
 
-    public function scheduleCheckout(string $attempt, string $returnUrl, CarbonImmutable $now): void
-    {
-        DB::table('billing_payments')->where('id', $attempt)->update([
-            'checkout_return_url' => $returnUrl,
-            'next_check_at' => $now,
-        ]);
-    }
-
     /** @return list<string> */
     public function due(): array
     {
@@ -111,9 +103,14 @@ final readonly class BillingCheckoutRepository
 
     public function claim(string $id): ?CheckoutAttemptData
     {
-        return DB::transaction(function () use ($id): ?CheckoutAttemptData {
-            /** @var int $owner */
-            $owner = DB::table('billing_orders as o')->join('billing_payments as p', 'p.order_id', '=', 'o.id')->where('p.id', $id)->value('o.owner_id');
+        /** @var ?int $owner */
+        $owner = DB::table('billing_orders as o')->join('billing_payments as p', 'p.order_id', '=', 'o.id')->where('p.id', $id)->value('o.owner_id');
+
+        if ($owner === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($id, $owner): ?CheckoutAttemptData {
             /** @var object{sales_enabled: bool, automatic_payments_enabled: bool, renewal_consent: bool, consent_revision: int, renews_at: ?string, calendar_anchor_at: ?string, payment_method_id: ?string, payment_method_provider: ?string, payment_method_shop: ?string, payment_method_test_mode: ?bool, current_product: ?string, next_product: ?string}|null $account */
             $account = DB::table('billing_accounts')->where('owner_id', $owner)->lockForUpdate()->first();
             /** @var CheckoutRow|null $row */

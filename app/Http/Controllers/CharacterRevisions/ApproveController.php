@@ -6,6 +6,7 @@ namespace App\Http\Controllers\CharacterRevisions;
 
 use App\Actions\Characters\ApproveCharacterRevisionAction;
 use App\Data\ExpectedVersionData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Project;
@@ -14,7 +15,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class ApproveController
+class ApproveController extends CharacterController
 {
     /**
      * Утверждение версии внешности и набора референсов
@@ -40,10 +41,6 @@ class ApproveController
     {
         $action->run($revision, $user, $data->lock_version);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

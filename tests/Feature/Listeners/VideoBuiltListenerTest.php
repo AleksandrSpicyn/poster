@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 
 use function Tests\Support\workspaceOwner;
 
-test('готовый ролик запускает публикацию во всех каналах проекта', function (): void {
+test('готовый ролик запускает публикацию в поддерживаемых каналах проекта', function (): void {
     Storage::fake('local');
     Bus::fake();
 
@@ -30,6 +30,12 @@ test('готовый ролик запускает публикацию во в�
             'type' => ChannelType::INSTAGRAM,
             'credentials' => ['access_token' => 'test-token', 'channel_id' => 'ig-1'],
         ]);
+
+    Channel::factory()->for($project)->create([
+        'owner_id' => $project->owner_id,
+        'type' => ChannelType::VK,
+        'credentials' => ['access_token' => 'test-token'],
+    ]);
 
     $prompt = Prompt::factory()->recycle(workspaceOwner())
         ->for($project)

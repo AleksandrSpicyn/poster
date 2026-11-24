@@ -12,7 +12,7 @@ use App\Exceptions\ClippingProviderException;
 use App\Models\ClippingConnection;
 use App\Repositories\ClippingConnectionRepository;
 use Closure;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -63,10 +63,10 @@ final readonly class CheckClippingAccessAction
         if (isset($sample)) {
             $result['source'] = $sample->id;
             $result['sample'] = $sample->title ?? 'Проект без названия';
-            $result['clips'] = $this->probe(fn(): \Illuminate\Support\Collection => $reader instanceof ClippingResourceReader ? $reader->clipMetadata($sample->id) : $reader->clips($sample->id));
+            $result['clips'] = $this->probe(fn(): Collection => $reader instanceof ClippingResourceReader ? $reader->clipMetadata($sample->id) : $reader->clips($sample->id));
 
             if ($reader instanceof ClippingResourceReader) {
-                $result['publications'] = $this->probe(fn(): \Illuminate\Support\Collection => $reader->clipPublications($sample->id));
+                $result['publications'] = $this->probe(fn(): Collection => $reader->clipPublications($sample->id));
             }
         }
 

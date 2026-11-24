@@ -11,8 +11,10 @@ use App\Data\OpusClip\OpusSourceData;
 use App\Models\ClippingConnection;
 use App\Repositories\ClippingAccountRepository;
 use App\Repositories\ClippingConnectionRepository;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use stdClass;
 
 final readonly class GetClippingSourcesAction
 {
@@ -27,26 +29,7 @@ final readonly class GetClippingSourcesAction
 
         $search = trim($selection->search ?? '');
 
-        try {
-            $sources = $connection->import_projects && $reader instanceof ClippingReader
-                ? collect($this->readers->sources($reader, $connection))
-                    ->filter(static fn(OpusSourceData $source): bool => $search === '' || mb_stripos($source->title ?? '', $search) !== false)
-                    ->values()
-                : collect();
-        } catch (RuntimeException) {
-            throw ValidationException::withMessages(['connection' => 'Не удалось получить проекты. Проверьте ключ и доступность провайдера.']);
-        }
-
-        $accounts = [];
-        $accountError = null;
-
-        if ($readsAccounts) {
-            try {
-                $accounts = $reader->accounts();
-            } catch (RuntimeException) {
-                $accountError = 'Провайдер не вернул список аккаунтов.';
-            }
-        }
+        $accounts = fn(): array => once(fn(): array => $this->providerAccounts($readsAccounts ? $reader : null));
 
         return [
             'search' => $search,
@@ -55,8 +38,8 @@ final readonly class GetClippingSourcesAction
                 'name',
                 'driver',
             ]),
-            'sources' => $sources,
-            'sourceBindings' => $this->connections->mappedSources($connection),
+            'sources' => fn(): array => $this->matchingSources($connection, $reader, $search),
+            'sourceBindings' => fn(): Collection => $this->connections->mappedSources($connection),
             'previous' => $preview?->only([
                 'id',
                 'external_id',
@@ -65,13 +48,45 @@ final readonly class GetClippingSourcesAction
                 'clip_count',
                 'imported_at',
             ]),
-            'channels' => $readsAccounts ? $this->accounts->channels($connection) : [],
-            'mappings' => (object) ($readsAccounts ? $this->accounts->mappings($connection) : []),
-            'accounts' => $accounts,
+            'channels' => fn(): Collection|array => $readsAccounts ? $this->accounts->channels($connection) : [],
+            'mappings' => fn(): stdClass => (object) ($readsAccounts ? $this->accounts->mappings($connection) : []),
+            'accounts' => fn(): array => $accounts()['accounts'],
             'importProjects' => $connection->import_projects,
             'importAccounts' => $connection->import_accounts,
             'readsAccounts' => $readsAccounts,
-            'accountError' => $accountError,
+            'accountError' => fn(): ?string => $accounts()['error'],
         ];
+    }
+
+    /** @return list<OpusSourceData> */
+    private function matchingSources(ClippingConnection $connection, ?ClippingReader $reader, string $search): array
+    {
+        if (! $connection->import_projects || ! $reader instanceof ClippingReader) {
+            return [];
+        }
+
+        $matches = [];
+
+        try {
+            foreach ($this->readers->sources($reader, $connection) as $source) {
+                if ($search === '' || mb_stripos($source->title ?? '', $search) !== false) {
+                    $matches[] = $source;
+                }
+            }
+        } catch (RuntimeException) {
+            throw ValidationException::withMessages(['connection' => 'Не удалось получить проекты. Проверьте ключ и доступность провайдера.']);
+        }
+
+        return $matches;
+    }
+
+    /** @return array{accounts: list<array{id: string, platform: string, external_id: string, name: string}>, error: ?string} */
+    private function providerAccounts(?ClippingReader $reader): array
+    {
+        try {
+            return ['accounts' => $reader?->accounts() ?? [], 'error' => null];
+        } catch (RuntimeException) {
+            return ['accounts' => [], 'error' => 'Провайдер не вернул список аккаунтов.'];
+        }
     }
 }

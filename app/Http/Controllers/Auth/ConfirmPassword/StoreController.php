@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Auth\ConfirmPassword;
 
 use App\Actions\Auth\ConfirmPasswordAction;
 use App\Data\ConfirmPasswordData;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends Controller
 {
     /**
      * Подтверждение пароля сессии
@@ -32,6 +33,6 @@ class StoreController
     {
         $action->run($user, $data);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $this->intendedDashboard();
     }
 }

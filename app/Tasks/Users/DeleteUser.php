@@ -12,15 +12,18 @@ class DeleteUser
 {
     public function __construct(private readonly UserRepository $users) {}
 
-    public function ensureCanDelete(User $user): void
+    public function run(User $user): void
     {
+        $user = $this->users->findLockedOrFail($user->id);
+
         if ($this->users->ownsWorkspaceData($user)) {
             throw ValidationException::withMessages(['password' => 'Перед удалением передайте свои проекты, каналы и уведомления.']);
         }
-    }
 
-    public function run(User $user): void
-    {
+        if ($this->users->hasRetainedHistory($user)) {
+            throw ValidationException::withMessages(['password' => 'Удаление недоступно: с аккаунтом связаны записи биллинга или история выпуска.']);
+        }
+
         $this->users->delete($user);
     }
 }

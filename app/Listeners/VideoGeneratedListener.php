@@ -20,6 +20,6 @@ class VideoGeneratedListener
             return;
         }
 
-        SaveVideoJob::dispatch($event->getPrompt());
+        SaveVideoJob::dispatch($event->getPrompt())->afterCommit();
     }
 }

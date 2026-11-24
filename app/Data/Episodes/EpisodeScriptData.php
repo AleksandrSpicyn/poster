@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\Episodes;
 
+use App\Support\DistinctModelIdRule;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
@@ -23,13 +24,9 @@ class EpisodeScriptData extends Data
         #[Max(1000)] public ?string $public_caption = null,
     ) {}
 
-    /** @return array<string, list<string>> */
+    /** @return array<string, DistinctModelIdRule> */
     public static function rules(): array
     {
-        return ['character_revision_ids.*' => [
-            'integer',
-            'min:1',
-            'distinct',
-        ]];
+        return ['character_revision_ids.*' => new DistinctModelIdRule()];
     }
 }

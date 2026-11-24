@@ -13,7 +13,7 @@ createInertiaApp<SharedData>({
     resolve: resolvePage,
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
-            .use(installAppearance, props.initialPage.props.appearanceValues)
+            .use(installAppearance, props.initialPage.props.appearanceValues, props.initialPage.props.appearance)
             .use(plugin)
             .use(ZiggyVue)
             .mount(el);

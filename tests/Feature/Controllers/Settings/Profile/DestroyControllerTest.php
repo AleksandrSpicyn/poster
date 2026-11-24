@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Models\User;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertAuthenticatedAs;
 use function Pest\Laravel\assertGuest;
 use function Pest\Laravel\delete;
 use function Pest\Laravel\deleteJson;
+use function Tests\Support\billingOwner;
 
 test('удаление профиля завершает сессию и удаляет пользователя', /** @throws Exception */ function (): void {
     $user = User::factory()->create();
@@ -55,3 +57,15 @@ test('невалидный пароль не удаляет аккаунт', fun
 
     expect($user->fresh())->not->toBeNull();
 })->with(['отсутствует' => null, 'массив' => [['invalid']]]);
+
+test('биллинговый аккаунт сохраняет профиль и активную сессию', function (): void {
+    $user = billingOwner();
+
+    actingAs($user)
+        ->deleteJson(route('profile.destroy'), ['password' => 'password'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('password');
+
+    assertAuthenticatedAs($user);
+    expect($user->fresh())->not->toBeNull();
+});

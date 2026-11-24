@@ -15,6 +15,7 @@ use App\Http\Resources\PublicationRequestResource;
 use App\Models\Channel;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Database\Eloquent\Collection;
 use Inertia\Response;
 
 class ListController
@@ -108,16 +109,11 @@ class ListController
      */
     public function __invoke(#[CurrentUser] User $owner, GetPostsListData $data, GetPostsListAction $getPostsList): Response
     {
-        $posts = $getPostsList->run(
-            $owner,
-            $data,
-        );
-
-        $channels = $getPostsList->channels($owner);
+        $channels = fn() => once(fn(): Collection => $getPostsList->channels($owner));
 
         return inertia('Posts', [
-            'verifiableChannels' => $channels->filter(fn(Channel $channel): bool => $channel->canVerifyPublication())->values()->modelKeys(),
-            'destinations' => fn() => $channels->filter(fn(Channel $channel): bool => $channel->canSendTiktokInboxVideo() || $channel->canDirectPostTiktok())->values()->map(fn(Channel $channel): array => [
+            'verifiableChannels' => fn() => $channels()->filter(fn(Channel $channel): bool => $channel->canVerifyPublication())->values()->modelKeys(),
+            'destinations' => fn() => $channels()->filter(fn(Channel $channel): bool => $channel->canSendTiktokInboxVideo() || $channel->canDirectPostTiktok())->values()->map(fn(Channel $channel): array => [
                 'id' => $channel->id,
                 'name' => $channel->name,
                 'inbox' => $channel->canSendTiktokInboxVideo(),
@@ -127,7 +123,7 @@ class ListController
             'periodDays' => $data->days,
             'search' => $data->search ?? '',
             'requests' => fn() => PublicationRequestResource::collection($getPostsList->recent($owner))->resolve(),
-            'posts' => PostResource::collection($posts),
+            'posts' => fn() => PostResource::collection($getPostsList->run($owner, $data)),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,
             'filters' => (object) $data->only('type', 'sort')->toArray(),

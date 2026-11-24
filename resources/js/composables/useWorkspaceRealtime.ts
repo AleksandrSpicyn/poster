@@ -1,6 +1,6 @@
 import { useRoute } from '@/composables/useRoute';
 import { csrfHeaders } from '@/lib/api/csrf';
-import type { SharedData } from '@/types';
+import type { WorkspacePageProps } from '@/types';
 import { router, usePage } from '@inertiajs/vue3';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
@@ -48,7 +48,7 @@ const affectedProps: Record<string, string[]> = {
 };
 
 export function useWorkspaceRealtime() {
-    const page = usePage<SharedData>();
+    const page = usePage<WorkspacePageProps>();
     const route = useRoute();
     const connected = ref(false);
     const enabled = page.props.realtime.enabled;
@@ -56,7 +56,7 @@ export function useWorkspaceRealtime() {
     let echo: Echo<'reverb'> | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let fallback: ReturnType<typeof setInterval> | undefined;
-    let busy = false;
+    const activeVisits = new Set<string>();
     const pending = new Set<string>();
     let disposed = false;
     const unsubscribe: (() => void)[] = [];
@@ -71,7 +71,7 @@ export function useWorkspaceRealtime() {
         if (!pending.size) return;
         clearTimeout(timer);
         timer = setTimeout(() => {
-            if (busy || document.hidden || disposed) return;
+            if (activeVisits.size || document.hidden || disposed) return;
             const only = currentProps().filter((prop) => pending.has(prop));
             pending.clear();
             if (only.length) {
@@ -101,12 +101,12 @@ export function useWorkspaceRealtime() {
 
     onMounted(() => {
         unsubscribe.push(
-            router.on('start', () => {
-                busy = true;
+            router.on('start', ({ detail }) => {
+                activeVisits.add(detail.visit.id);
             }),
-            router.on('finish', () => {
-                busy = false;
-                if (pending.size) queueRefresh([]);
+            router.on('finish', ({ detail }) => {
+                activeVisits.delete(detail.visit.id);
+                if (!activeVisits.size && pending.size) queueRefresh([]);
             }),
         );
         document.addEventListener('visibilitychange', visible);

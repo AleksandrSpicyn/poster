@@ -85,6 +85,8 @@ final readonly class QuoteGenerationAction
             throw ValidationException::withMessages(['revision_id' => 'Версия сценария изменилась. Обновите страницу.']);
         }
 
-        return $this->quotes->calculate($series, $revision);
+        $quote = $this->quotes->calculate($series, $revision);
+
+        return [...$quote->reservationSnapshot(), 'revision_id' => $quote->revisionId];
     }
 }

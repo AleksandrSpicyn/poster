@@ -51,3 +51,30 @@ export function platformShares(publications: PublicationTimeline[], metric: Coun
     const total = [...sums.values()].reduce((s, n) => s + Math.max(n, 0), 0);
     return [...sums].map(([key, value]) => ({ key, value, pct: total ? (100 * Math.max(value, 0)) / total : 0 })).sort((a, b) => b.value - a.value);
 }
+
+type ObservationInterval = PublicationTimeline['intervals'][number];
+
+export function spansMultipleDays(interval: ObservationInterval) {
+    return Date.parse(interval.to) - Date.parse(interval.from) > 86_400_000;
+}
+
+interface PublicationDay {
+    date: string;
+    value: number | null;
+    interval?: ObservationInterval;
+}
+
+export function publicationDays(dates: string[], publication?: PublicationTimeline): PublicationDay[] {
+    const intervals = new Map<string, ObservationInterval>();
+    for (const interval of publication?.intervals ?? []) {
+        if (!intervals.has(interval.to)) intervals.set(interval.to, interval);
+    }
+    return dates.map((date) => ({ date, value: publication?.snapshots[date] ?? null, interval: intervals.get(date) }));
+}
+
+export function observationLabel({ value, interval }: PublicationDay) {
+    if (value === null) return 'Нет наблюдения';
+    if (!interval) return amount(value) + ' · первое наблюдение';
+    const period = spansMultipleDays(interval) ? ' за ' + rangeLabel(interval.from, interval.to) : '';
+    return amount(value) + ' · прирост' + period + ' ' + signed(interval.change);
+}

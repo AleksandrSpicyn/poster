@@ -9,14 +9,13 @@ use App\Data\VideoCapabilitiesData;
 use App\Data\VideoGenerationRequestData;
 use App\Data\VideoResultData;
 use App\Enums\ContentType;
-use App\Enums\HttpMethod;
 use App\Enums\VideoAudioSource;
 use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
 use App\Support\Integrations\Payload;
-use GuzzleHttp\RequestOptions;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -42,7 +41,7 @@ readonly class Hailuo extends AsyncVideoGenerator
             throw new InvalidArgumentException('Hailuo 1080P only supports six-second videos.');
         }
 
-        return $this->submit(fn(): Response => $this->request('video_generation', parameters: [
+        return $this->submit(fn(): Response => $this->client()->post('video_generation', [
             'model' => $request->model,
             'first_frame_image' => $request->firstFrameUrl,
             'prompt' => $request->prompt,
@@ -78,7 +77,7 @@ readonly class Hailuo extends AsyncVideoGenerator
      */
     protected function poll(string $id): ?VideoResultData
     {
-        $response = $this->request('query/video_generation/?task_id=' . rawurlencode($id), HttpMethod::GET);
+        $response = $this->client()->get('query/video_generation/', ['task_id' => $id]);
 
         if (in_array($response->json('status'), ['Fail', 'failed'], true)) {
             throw new VideoGeneratingException('Hailuo video generation failed.');
@@ -90,7 +89,7 @@ readonly class Hailuo extends AsyncVideoGenerator
             return null;
         }
 
-        $url = $this->get(Payload::string($fileId, 'file_id'));
+        $url = $this->downloadUrl(Payload::string($fileId, 'file_id'));
 
         if (! $url) {
             throw new VideoGeneratingException('Hailuo completed video has no download URL.');
@@ -112,39 +111,22 @@ readonly class Hailuo extends AsyncVideoGenerator
     /**
      * @throws ConnectionException
      */
-    public function get(string $fileId): ?string
+    private function downloadUrl(string $fileId): ?string
     {
-        $url = $this->request("files/retrieve?GroupId=$this->groupId&file_id=$fileId", HttpMethod::GET)->json('file.download_url');
+        $url = $this->client()->get('files/retrieve', ['GroupId' => $this->groupId, 'file_id' => $fileId])->json('file.download_url');
 
         return $url === null ? null : Payload::string($url, 'file.download_url');
     }
 
-    /**
-     * @param array<string, mixed> $parameters
-     * @throws ConnectionException
-     */
-    private function request(string $url, HttpMethod $method = HttpMethod::POST, array $parameters = []): Response
+    private function client(): PendingRequest
     {
-        $response = Http::withToken($this->token)
+        return Http::baseUrl($this->baseUrl)
+            ->withToken($this->token)
             ->connectTimeout(10)
             ->timeout(60)
-            ->withHeaders([
-                'Content-Type' => ContentType::JSON->value,
-            ])
-            ->send(
-                $method->value,
-                "$this->baseUrl/$url",
-                $parameters !== []
-                    ? [RequestOptions::JSON => $parameters]
-                    : [],
-            );
-
-        if ($response->failed()) {
-            Log::error('Hailuo API Error', ['status' => $response->status()]);
-
-            $response->throw();
-        }
-
-        return $response;
+            ->withHeaders(['Content-Type' => ContentType::JSON->value])
+            ->throw(static function (Response $response): void {
+                Log::error('Hailuo API Error', ['status' => $response->status()]);
+            });
     }
 }

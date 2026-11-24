@@ -27,3 +27,17 @@ test('назначает только подтверждённую полную 
         ->and($card->refresh()->owner_id)->toBe($owner->id)
         ->and($card->opus_source_id)->toBe($source->id);
 });
+
+test('отклоняет частично числовой ID без назначения владельца', function (bool $invalidOwner): void {
+    $owner = User::factory()->create();
+    $project = Project::factory()->create(['owner_id' => null]);
+    $arguments = [
+        'user' => $invalidOwner ? $owner->id . 'x' : $owner->id,
+        '--project' => [$invalidOwner ? $project->id : $project->id . 'x'],
+    ];
+
+    $result = Artisan::call('workspace:assign', $arguments);
+
+    expect($result)->not->toBe(0)
+        ->and($project->refresh()->owner_id)->toBeNull();
+})->with([true, false]);

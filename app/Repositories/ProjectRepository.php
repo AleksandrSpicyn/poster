@@ -13,7 +13,6 @@ use App\Models\Prompt;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
@@ -79,8 +78,12 @@ readonly class ProjectRepository extends EloquentRepository
             'media',
             'coverFrame',
             'channels' => fn(BelongsToMany $channels) => $channels->where('channels.owner_id', $owner->id),
-            'series' => fn(HasMany $series) => $series->withCount(['episodes', 'episodes as accepted_episodes_count' => fn(Builder $episodes) => $episodes->whereNotNull('accepted_assembly_id')]),
-        ])->withCount('prompts', 'readyPrompts')->findOrFail($id);
+        ])->withCount([
+            'prompts',
+            'readyPrompts',
+            'episodes',
+            'episodes as accepted_episodes_count' => fn(Builder $episodes) => $episodes->whereNotNull('accepted_assembly_id'),
+        ])->findOrFail($id);
     }
 
     /** @return list<array{id: int, name: string}> */

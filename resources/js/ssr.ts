@@ -17,7 +17,7 @@ createServer((page) =>
         resolve: resolvePage,
         setup({ App, props, plugin }) {
             return createSSRApp({ render: () => h(App, props) })
-                .use(installAppearance, props.initialPage.props.appearanceValues)
+                .use(installAppearance, props.initialPage.props.appearanceValues, props.initialPage.props.appearance)
                 .use(plugin)
                 .use(ZiggyVue, { ...props.initialPage.props.ziggy, location: new URL(props.initialPage.props.ziggy.location) });
         },

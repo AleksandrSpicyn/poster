@@ -14,7 +14,12 @@ class SeriesAssemblyFactory extends Factory
 {
     public function definition(): array
     {
-        return ['series_id' => Series::factory(), 'number' => 1, 'status' => AssemblyStatus::DRAFT,
-            'manifest' => [], 'manifest_hash' => hash('sha256', '[]')];
+        return [
+            'series_id' => Series::factory(),
+            'number' => 1,
+            'status' => AssemblyStatus::DRAFT,
+            'manifest' => [],
+            'manifest_hash' => hash('sha256', '[]'),
+        ];
     }
 }

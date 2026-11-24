@@ -30,7 +30,7 @@ export function useNavigation() {
             { title: 'Подписка', href: route('billing.show', undefined, false), icon: CreditCard },
             { title: 'Источники', href: route('clipping.index', undefined, false), icon: Scissors },
         ];
-        const url = new URL(page.url, 'http://poster.local');
+        const url = new URL(page.url, page.props.ziggy.url);
         const path = url.pathname;
         const seriesForm =
             page.component === 'Projects/Form' && (page.props.project?.content_mode === 'series' || url.searchParams.get('format') === 'series');

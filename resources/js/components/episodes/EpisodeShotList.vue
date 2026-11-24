@@ -11,7 +11,7 @@ const props = defineProps<{
     archived: boolean;
     projectEnabled: boolean;
     requestKey: string;
-    readySourcesFor: (id: number) => ContinuationSource[];
+    readySourcesFor: (scenePosition: number, shotPosition: number) => ContinuationSource[];
 }>();
 const shots = computed(() => props.revision.scenes.flatMap((scene) => scene.shots));
 const selectedShotId = computed(() => (props.detail === null ? null : shots.value[props.detail]?.id));
@@ -48,7 +48,7 @@ const shotNumbers = computed(() => new Map(shots.value.map((shot, index) => [sho
                 :archived="archived"
                 :project-enabled="projectEnabled"
                 :request-key="requestKey"
-                :source-options="readySourcesFor(shot.id)"
+                :source-options="readySourcesFor(scene.position, shot.position)"
             />
         </section>
     </section>

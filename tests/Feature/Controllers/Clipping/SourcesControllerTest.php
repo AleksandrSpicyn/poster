@@ -84,3 +84,21 @@ test('фильтрует внешние проекты по имени в выб
 
     Http::assertSentCount(2);
 });
+
+test('обновление списка проектов не запрашивает аккаунты площадки', function (): void {
+    $owner = User::factory()->create();
+    $connection = ClippingConnection::factory()->create(['owner_id' => $owner->id]);
+    Http::fake([
+        '*/clip-projects*' => Http::response(['list' => []]),
+        '*/social-accounts*' => Http::response(['data' => []]),
+    ]);
+
+    actingAs($owner)
+        ->get(route('clipping.sources', $connection))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->reloadOnly('sources', fn(Assert $partial): Assert => $partial
+                ->has('sources', 0)
+                ->missing('accounts')));
+
+    Http::assertSentCount(3);
+});

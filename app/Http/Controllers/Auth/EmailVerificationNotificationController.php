@@ -31,6 +31,6 @@ class EmailVerificationNotificationController extends Controller
             return $this->withStatus(back(), 'verification-link-sent');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $this->intendedDashboard();
     }
 }

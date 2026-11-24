@@ -20,10 +20,14 @@ class HorizonBatchRepository extends DatabaseBatchRepository
     /** @return array<int, Batch> */
     public function search(string $term, ?string $before): array
     {
-        $pattern = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $term) . '%';
+        $pattern = '%' . strtr($term, [
+            '!' => '!!',
+            '%' => '!%',
+            '_' => '!_',
+        ]) . '%';
 
         return $this->connection->table($this->table)
-            ->where(fn(Builder $query) => $query->where('name', 'like', $pattern)->orWhere('id', 'like', $pattern))
+            ->whereRaw("(name LIKE ? ESCAPE '!' OR id LIKE ? ESCAPE '!')", [$pattern, $pattern])
             ->when($before !== null, fn(Builder $query) => $query->where('id', '<', $before))
             ->orderByDesc('id')
             ->limit(50)

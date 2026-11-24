@@ -64,8 +64,13 @@ readonly class MakeShortSubAction
                 $prompt = $this->createPrompt->run($project, $idea);
 
                 if ($run instanceof ProductionRun) {
-                    $this->budget->attachShort($run, $prompt->id);
-                    $this->updateRun->run($run, ProductionStatus::RUNNING, ProductionStage::SCREENPLAY, attributes: ['prompt_id' => $prompt->id]);
+                    $current = $this->updateRun->run($run, ProductionStatus::RUNNING, ProductionStage::SCREENPLAY, attributes: ['prompt_id' => $prompt->id]);
+
+                    if ($current->prompt_id !== $prompt->id) {
+                        throw ValidationException::withMessages(['generation' => 'Состояние запуска изменилось во время подготовки идеи.']);
+                    }
+
+                    $this->budget->attachShort($current, $prompt->id);
                 }
 
                 return $prompt;

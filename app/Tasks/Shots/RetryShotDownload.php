@@ -60,7 +60,7 @@ class RetryShotDownload
                 ],
             ]);
 
-            $this->usage->setStatus([$prompt->id], ReservationStatus::HELD);
+            $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::HELD);
 
             return $operation;
         });

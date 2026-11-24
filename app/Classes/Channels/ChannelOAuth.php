@@ -39,7 +39,7 @@ readonly class ChannelOAuth
         return $type === ChannelType::TIKTOK ? route('channels.tiktok-redirect') : route('channels.provider-callback', $type);
     }
 
-    public function fingerprint(Channel $channel): string
+    public static function fingerprint(Channel $channel): string
     {
         return Snapshot::hash([
             $channel->id,
@@ -51,9 +51,8 @@ readonly class ChannelOAuth
         ]);
     }
 
-    public function authorizationUrl(Channel $channel, string $state): string
+    public function authorizationUrl(Channel $channel, ?string $state, string $redirectUri): string
     {
-        $redirectUri = self::redirectUri($channel->type);
         $key = $channel->type === ChannelType::TIKTOK ? 'client_key' : 'client_id';
         $params = [
             $key => Payload::string($channel->oauthClientId(), 'client_id'),

@@ -11,7 +11,6 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
-use Inertia\Response;
 
 class CallbackController
 {
@@ -36,10 +35,10 @@ class CallbackController
      */
     public function __invoke(Channel $channel, OAuthCallbackData $data, #[CurrentUser] User $user, CompleteChannelAuthorizationAction $action): RedirectResponse
     {
-        $error = $action->run($channel, $user, $data);
+        $result = $action->run($channel, $user, $data);
 
-        if ($error !== null) {
-            return to_route('channels.edit', $channel)->withErrors(['oauth' => $error]);
+        if ($result->error !== null) {
+            return to_route('channels.edit', $channel)->withErrors(['oauth' => $result->error]);
         }
 
         Inertia::flash('success', 'Account connected.');

@@ -48,27 +48,22 @@ final readonly class ProductionBudget
         }
 
         $quote = $this->quotes->calculate($series, $revision);
-        ['seconds' => $seconds, 'shots' => $shots, 'video' => $video] = $quote;
-        $id = $budget->id ?? $this->budgets->createReservation($project, $run, $key, [
-            'seconds' => $seconds,
-            'shots' => $shots,
-            'video' => $video,
-        ], null);
+        $id = $budget->id ?? $this->budgets->createReservation($project, $run, $key, $quote->reservationSnapshot(), null);
 
-        if ($budget === null && $seconds > 0) {
-            $this->credits->reserve($owner, $id, $key, null, null, $seconds);
+        if ($budget === null && $quote->seconds > 0) {
+            $this->credits->reserve($owner, $id, $key, null, null, $quote->seconds);
         }
 
         if ($revision === null) {
             return;
         }
 
-        foreach ($shots as $shot => $duration) {
+        foreach ($quote->shots as $shot => $duration) {
             $shotKey = 'episode-shot:' . $run->id . ':' . $shot;
             $child = $this->budgets->createReservation($project, $run, $shotKey, [
                 'seconds' => $duration,
                 'shot_id' => $shot,
-                'video' => [...$video, 'duration' => $duration],
+                'video' => [...$quote->video, 'duration' => $duration],
             ], $revision->id);
             $this->credits->assign($owner, $id, $child, $shot, $duration);
         }

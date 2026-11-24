@@ -31,9 +31,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->scopeBindings()->group(function (): void {
     Route::post('projects/{project}/production-runs', ProductionRuns\StoreController::class)
         ->whereNumber('project')->name('production_runs.store');
-    Route::post('production-runs/{production_run}/stop', StopController::class)
-        ->whereNumber('production_run')->name('production_runs.stop');
-    Route::post('production-runs/{production_run}/resume', ResumeController::class)->whereNumber('production_run')->name('production_runs.resume');
+    Route::prefix('production-runs/{production_run}')->whereNumber('production_run')->name('production_runs.')->group(function (): void {
+        Route::post('stop', StopController::class)->name('stop');
+        Route::post('resume', ResumeController::class)->name('resume');
+    });
+
     Route::get('series', IndexController::class)->name('series.index');
     Route::get('character-references/{revision}/media/{media}', ShowController::class)
         ->whereNumber(['revision', 'media'])
@@ -79,10 +81,11 @@ Route::get('series-exports/{assembly}/media/{media}', ExportController::class)
     ->whereNumber(['assembly', 'media'])->scopeBindings()->middleware(['signed', VerifyExportOwner::class])->name('series_assemblies.export');
 
 Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->group(function (): void {
-    Route::get('series/{series}/assemblies/create', SeriesAssemblies\CreateController::class)
-        ->whereNumber('series')->name('series_assemblies.create');
-    Route::post('series/{series}/assemblies', SeriesAssemblies\StoreController::class)
-        ->whereNumber('series')->name('series_assemblies.store');
+    Route::prefix('series/{series}/assemblies')->whereNumber('series')->name('series_assemblies.')->group(function (): void {
+        Route::get('create', SeriesAssemblies\CreateController::class)->name('create');
+        Route::post('', SeriesAssemblies\StoreController::class)->name('store');
+    });
+
     Route::prefix('series-assemblies/{assembly}')->whereNumber('assembly')->name('series_assemblies.')->group(function (): void {
         Route::get('', SeriesAssemblies\ShowController::class)->name('show');
         Route::put('boundaries/{boundary}', BoundaryReviewController::class)->whereNumber('boundary')->name('boundaries.update');

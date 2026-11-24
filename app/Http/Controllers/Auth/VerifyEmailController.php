@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\VerifyEmailAction;
 use App\Data\VerifyEmailData;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class VerifyEmailController
+class VerifyEmailController extends Controller
 {
     /**
      * Подтверждение email по ссылке
@@ -34,6 +35,6 @@ class VerifyEmailController
     {
         $action->run($user);
 
-        return redirect()->intended(route('dashboard', absolute: false) . '?verified=1');
+        return $this->intendedDashboard(['verified' => 1]);
     }
 }

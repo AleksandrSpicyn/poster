@@ -53,6 +53,7 @@ test('ошибка проверки прямой публикации сохра
     ]);
     Http::fakeSequence('*/creator_info/query/')
         ->pushStatus(503)
+        ->push(tiktokCreatorResponse())
         ->push(tiktokCreatorResponse());
 
     actingAs($owner)
@@ -69,7 +70,8 @@ test('ошибка проверки прямой публикации сохра
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('inbox', $inbox)
             ->where('creator.nickname', 'Alpha')
-            ->where('directUnavailable', false));
+            ->where('directUnavailable', false)
+            ->reloadOnly('videos', fn(Assert $updated): Assert => $updated->has('videos.data', 0)->missing('creator')));
 
     Http::assertSentCount(2);
 })->with([true, false]);

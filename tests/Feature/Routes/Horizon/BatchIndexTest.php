@@ -33,3 +33,26 @@ test('ищет пакеты задач одним запросом', function (i
 
     expect($reads)->toHaveCount(1);
 })->with([1, 10, 100, 1000]);
+
+test('поиск пакетов воспринимает символы фильтра буквально', function (string $term): void {
+    $actor = serialOperator();
+
+    foreach (['совпадение' . $term, 'посторонний'] as $index => $name) {
+        DB::table('job_batches')->insert([
+            'id' => 'batch-' . ($index + 1),
+            'name' => $name,
+            'total_jobs' => 1,
+            'pending_jobs' => 0,
+            'failed_jobs' => 0,
+            'failed_job_ids' => '[]',
+            'options' => serialize([]),
+            'created_at' => now()->timestamp,
+        ]);
+    }
+
+    actingAs($actor)
+        ->getJson(route('horizon.jobs-batches.index', ['query' => $term]))
+        ->assertOk()
+        ->assertJsonCount(1, 'batches')
+        ->assertJsonPath('batches.0.id', 'batch-1');
+})->with(['%', '_', '!', '0']);

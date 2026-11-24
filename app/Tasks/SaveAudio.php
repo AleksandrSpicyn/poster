@@ -8,6 +8,7 @@ use App\Classes\Generators\AudioGenerator\SunoUnofficial\Data\TaskData;
 use App\Events\AudioGenerated;
 use App\Models\Prompt;
 use App\Repositories\PromptRepository;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -26,22 +27,24 @@ class SaveAudio
             return;
         }
 
-        $prompt = $this->prompts->forAudioTask($taskId);
+        DB::transaction(function () use ($taskId, $task): void {
+            $prompt = $this->prompts->lockForAudioTask($taskId);
 
-        if (! $prompt instanceof Prompt) {
-            Log::info("Cannot find Audio by ID: $taskId");
+            if (! $prompt instanceof Prompt) {
+                Log::info("Cannot find Audio by ID: $taskId");
 
-            return;
-        }
+                return;
+            }
 
-        if ($prompt->audio_url === $task->audioUrl) {
-            return;
-        }
+            if ($prompt->audio_url === $task->audioUrl) {
+                return;
+            }
 
-        $this->prompts->update($prompt, [
-            'audio_url' => $task->audioUrl,
-        ]);
+            $this->prompts->update($prompt, [
+                'audio_url' => $task->audioUrl,
+            ]);
 
-        event(new AudioGenerated($prompt));
+            event(new AudioGenerated($prompt));
+        }, 3);
     }
 }

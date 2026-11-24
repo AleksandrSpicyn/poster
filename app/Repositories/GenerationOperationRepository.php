@@ -107,13 +107,7 @@ readonly class GenerationOperationRepository extends EloquentRepository
 
     public function hasUnresolvedForPrompt(Prompt $latest): bool
     {
-        return $latest->generationOperations()->whereIn('status', [
-            GenerationOperationStatus::PLANNED->value,
-            GenerationOperationStatus::SUBMITTING->value,
-            GenerationOperationStatus::SUBMITTED->value,
-            GenerationOperationStatus::RUNNING->value,
-            GenerationOperationStatus::SUBMISSION_UNKNOWN->value,
-        ])->exists();
+        return $latest->generationOperations()->whereIn('status', array_column(GenerationOperationStatus::active(), 'value'))->exists();
     }
 
     /** @param array<string, mixed> $snapshot */

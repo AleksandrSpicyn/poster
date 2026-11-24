@@ -8,6 +8,7 @@ use App\Actions\Publications\GetTiktokPublicationFormAction;
 use App\Data\PageData;
 use App\Http\Resources\TiktokVideoResource;
 use App\Models\Channel;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Response;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -20,7 +21,7 @@ class TiktokCreateController
         return inertia('Posts/Tiktok', [
             'channelId' => $channel->id,
             ...$form,
-            'videos' => $form['videos']->through(
+            'videos' => fn(): LengthAwarePaginator => $form['videos']()->through(
                 fn(Media $media): array => TiktokVideoResource::make($media)->resolve(),
             ),
         ]);

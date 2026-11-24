@@ -6,12 +6,13 @@ namespace App\Http\Controllers\CharacterRevisions;
 
 use App\Actions\Characters\CreateCharacterRevisionAction;
 use App\Data\Characters\CreateCharacterRevisionData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends CharacterController
 {
     /**
      * Создание черновой версии персонажа
@@ -41,10 +42,6 @@ class StoreController
     {
         $action->run($character, $data);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

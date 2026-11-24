@@ -10,6 +10,7 @@ use App\Tasks\Auth\InvalidateSession;
 use App\Tasks\Users\DeleteUser;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Завершает вход, удаляет текущую учётную запись и инвалидирует сессию.
@@ -25,9 +26,8 @@ readonly class DeleteProfileAction
 
     public function run(User $user): void
     {
-        $this->deleteUser->ensureCanDelete($user);
+        DB::transaction(fn() => $this->deleteUser->run($user));
         $this->guard->logout();
-        $this->deleteUser->run($user);
         $this->invalidateSession->run();
     }
 }

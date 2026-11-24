@@ -26,13 +26,19 @@ final readonly class RequestVideoUpscaleAction
     {
         $provider = $this->drivers->primary();
         $capabilities = $this->drivers->make($provider)->capabilities();
-        $snapshot = $assembly instanceof EpisodeAssembly && ! empty($assembly->manifest['shots'])
-            ? $assembly->manifest
-            : $this->media->sourceSnapshot($assembly);
+        $renderedSource = null;
+
+        if ($assembly instanceof EpisodeAssembly && ! empty($assembly->manifest['shots'])) {
+            $snapshot = $assembly->manifest;
+        } else {
+            $renderedSource = $this->media->sourceSnapshot($assembly);
+            $snapshot = $renderedSource;
+        }
+
         $duration = is_int($snapshot['duration_ms'] ?? null) ? $snapshot['duration_ms'] : EpisodeAssemblyPlanData::fromManifest($snapshot)->durationMs;
 
         if ($duration > $capabilities->maxDurationMs) {
-            $snapshot = $this->media->sourceSnapshot($assembly);
+            $snapshot = $renderedSource ?? $this->media->sourceSnapshot($assembly);
             $duration = $snapshot['duration_ms'];
             $snapshot['part_count'] = (int) ceil($duration / $capabilities->maxDurationMs);
 

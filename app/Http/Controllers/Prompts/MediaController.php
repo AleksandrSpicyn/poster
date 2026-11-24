@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Prompts;
 
 use App\Actions\Prompts\GetPromptMediaAction;
+use App\Http\Controllers\Controller;
 use App\Models\Prompt;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class MediaController
+class MediaController extends Controller
 {
     public function __invoke(Prompt $prompt, Media $media, GetPromptMediaAction $action): BinaryFileResponse
     {
-        return response()->file($action->run($prompt, $media), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'])->setPrivate();
+        return $this->privateFile($action->run($prompt, $media));
     }
 }

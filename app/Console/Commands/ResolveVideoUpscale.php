@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Classes\Media\Upscale\VideoUpscalerFactory;
+use App\Console\ModelId;
 use App\Data\Upscale\UpscaleReceiptData;
 use App\Enums\UpscaleOperationStatus;
 use App\Jobs\AdvanceVideoUpscaleJob;
 use App\Repositories\VideoUpscaleOperationRepository;
+use DomainException;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +22,14 @@ class ResolveVideoUpscale extends Command
 
     public function handle(VideoUpscaleOperationRepository $operations, VideoUpscalerFactory $drivers): int
     {
-        $id = (int) $this->argument('operation');
+        try {
+            $id = ModelId::parse($this->argument('operation'));
+        } catch (DomainException $error) {
+            $this->error($error->getMessage());
+
+            return self::FAILURE;
+        }
+
         $operation = $operations->findOrFail($id);
         $amount = $this->option('actual-usd');
         $requestId = $this->option('request-id');

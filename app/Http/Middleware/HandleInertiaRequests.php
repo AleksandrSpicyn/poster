@@ -32,16 +32,6 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
-    /**
      * Define the props that are shared by default.
      *
      * @see https://inertiajs.com/shared-data
@@ -50,27 +40,27 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        /** @var string $quote Inspiring stores quote strings. */
-        $quote = Inspiring::quotes()->random();
-        $message = str($quote)->beforeLast(' - ')->toString();
-        $author = str($quote)->afterLast(' - ')->toString();
+        $user = $request->user();
+        $cookie = $request->cookie('appearance');
+        $appearance = is_string($cookie) ? Appearance::tryFrom($cookie) : null;
 
         return [
             ...parent::share($request),
             'name' => $this->appName,
+            'appearance' => ($appearance ?? Appearance::SYSTEM)->value,
             'appearanceValues' => array_column(Appearance::cases(), 'value', 'name'),
-            'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'quote' => $this->quote(...),
             ...($request->routeIs('pricing', 'contacts') ? [] : [
-                'balance' => fn(): ?GenerationBalanceData => $request->user() === null ? null : $this->billing->balance($request->user()->id),
+                'balance' => fn(): ?GenerationBalanceData => $user === null ? null : $this->billing->balance($user->id),
             ]),
             'auth' => [
-                'user' => $request->user(),
-                'can_view_logs' => $request->user() !== null && Gate::forUser($request->user())->allows('viewLogViewer'),
-                'can_view_queues' => $request->user() !== null && Gate::forUser($request->user())->allows('viewHorizon'),
-                'can_manage_channels' => $request->user() !== null && Gate::forUser($request->user())->allows('manageChannels'),
-                'can_manage_series' => $request->user() !== null && Gate::forUser($request->user())->allows('manageSeries'),
+                'user' => $user,
+                'can_view_logs' => $user !== null && Gate::forUser($user)->allows('viewLogViewer'),
+                'can_view_queues' => $user !== null && Gate::forUser($user)->allows('viewHorizon'),
+                'can_manage_channels' => $user !== null && Gate::forUser($user)->allows('manageChannels'),
+                'can_manage_series' => $user !== null && Gate::forUser($user)->allows('manageSeries'),
             ],
-            'ziggy' => [
+            'ziggy' => fn(): array => [
                 ...new Ziggy()->toArray(),
                 'location' => $request->url(),
             ],
@@ -80,6 +70,18 @@ class HandleInertiaRequests extends Middleware
                 'key' => config('broadcasting.connections.reverb.key'),
             ],
             'contentScheduleEnabled' => (bool) config('production.schedule_enabled'),
+        ];
+    }
+
+    /** @return array{message: string, author: string} */
+    private function quote(): array
+    {
+        /** @var string $quote */
+        $quote = Inspiring::quotes()->random();
+
+        return [
+            'message' => trim(str($quote)->beforeLast(' - ')->toString()),
+            'author' => trim(str($quote)->afterLast(' - ')->toString()),
         ];
     }
 }

@@ -66,6 +66,8 @@ final readonly class YoutubeOAuth
             'mine' => 'true',
             'maxResults' => 50,
         ];
+        $seen = [];
+
         do {
             $profile = Http::withToken($token)->timeout(20)->get(config()->string('services.youtube.api_url') . '/channels', $query)->throw();
             $items = $profile->json('items');
@@ -90,6 +92,11 @@ final readonly class YoutubeOAuth
                 throw new ChannelAuthorizationException('YouTube did not return the assigned channel for this login. In the Google account chooser, select the YouTube channel or Brand Account that owns it.');
             }
 
+            if (isset($seen[$next])) {
+                throw new ChannelAuthorizationException('YouTube returned a repeated page of channels. Reconnect the channel to try again.');
+            }
+
+            $seen[$next] = true;
             $query['pageToken'] = $next;
         } while (true);
     }

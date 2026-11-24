@@ -14,6 +14,7 @@ use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -152,6 +153,27 @@ test('показывает исходную принятую сборку сох
 
     actingAs($context['user'])->get($route)
         ->assertInertia(fn(Assert $page): Assert => $page->where('memoryAssembly', null));
+});
+
+test('обновление баланса редактора не загружает сцены и дубли', function (): void {
+    $context = episodeHttpFixture();
+    $episode = $context['episode'];
+    $response = actingAs($context['user'])->get(route('episodes.show', [$episode->series_id, $episode]));
+
+    DB::enableQueryLog();
+
+    try {
+        $response->assertInertia(fn(Assert $page): Assert => $page
+            ->reloadOnly('balance', fn(Assert $partial): Assert => $partial
+                ->has('balance.available')
+                ->missing('episode')));
+        $queries = DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
+
+    expect(collect($queries)->pluck('query')->implode(' '))->not->toMatch('/from [`"](scenes|shots|prompts)[`"]/i');
 });
 
 test('история хранит заявки одного канала по всем версиям в порядке создания', function (): void {

@@ -97,3 +97,30 @@ test('временный отказ продления разрешает оди
     assertDatabaseCount('billing_payments', $expected);
     assertDatabaseCount('generation_grants', 0);
 })->with([['insufficient_funds', 2], ['card_expired', 1]]);
+
+test('письмо о новом тарифе учитывает сумму согласия', function (bool $currentPrice): void {
+    $owner = billingOwner();
+    $due = now('UTC')->addDay()->startOfSecond();
+    DB::table('billing_accounts')->where('owner_id', $owner->id)->update([
+        'current_product' => 'author',
+        'renews_at' => $due,
+        'payment_method_id' => 'saved-card',
+        'automatic_payments_enabled' => true,
+        'renewal_consent' => true,
+    ]);
+    DB::table('billing_consents')->insert([
+        'owner_id' => $owner->id,
+        'actor_id' => $owner->id,
+        'revision' => 0,
+        'action' => 'enable',
+        'product_code' => 'author',
+        'amount_kopecks' => $currentPrice ? BillingProduct::AUTHOR->amountKopecks() : 1,
+        'terms_version' => BillingProduct::CATALOG_VERSION,
+        'created_at' => now('UTC'),
+    ]);
+    Notification::fake();
+
+    consoleCommand('billing:process-periods')->assertSuccessful();
+
+    Notification::assertSentTo($owner, BillingRenewalReminder::class, fn(BillingRenewalReminder $notice): bool => $notice->automatic === $currentPrice);
+})->with(['действующая сумма' => true, 'прежняя сумма' => false]);

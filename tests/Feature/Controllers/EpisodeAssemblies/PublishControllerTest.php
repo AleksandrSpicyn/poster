@@ -129,7 +129,15 @@ test('два канала ждут общего слота и повторный
         Bus::assertNothingDispatched();
 
         Carbon::setTestNow($release);
-        expect(app(ReconcilePublicationsAction::class)->run())->toBe(2);
+        $reconcile = app(ReconcilePublicationsAction::class);
+        expect($reconcile->run(1))->toBe(1);
+        Carbon::setTestNow($release->copy()->addMinute());
+        expect($reconcile->run(1))->toBe(1);
+
+        foreach ($requests as $request) {
+            Bus::assertDispatched(PublishEpisodeJob::class, fn(PublishEpisodeJob $job): bool => $job->requestId === $request->id);
+        }
+
         Bus::assertDispatchedTimes(PublishEpisodeJob::class, 2);
         Http::assertNothingSent();
     } finally {

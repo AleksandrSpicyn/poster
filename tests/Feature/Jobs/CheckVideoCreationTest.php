@@ -206,3 +206,18 @@ test('сериализованная старая задача сохраняе�
     Http::assertSentCount(1);
     Event::assertDispatched(VideoGenerated::class);
 });
+
+test('поздний ответ не меняет текущую генерацию', function (bool $alreadyFinished): void {
+    Event::fake([VideoGenerated::class]);
+    $prompt = Prompt::factory()->create(['video_id' => 'video-first']);
+    Http::fake(function () use ($prompt, $alreadyFinished) {
+        Prompt::query()->findOrFail($prompt->id)->update($alreadyFinished ? ['video_url' => 'winner.mp4'] : ['video_id' => 'video-next']);
+
+        return Http::response(['id' => 'video-first', 'status' => 'SUCCEEDED', 'output' => ['late.mp4']]);
+    });
+
+    app()->call([new CheckVideoCreation($prompt, true), 'handle']);
+
+    expect($prompt->refresh()->video_url)->toBe($alreadyFinished ? 'winner.mp4' : null);
+    Event::assertNotDispatched(VideoGenerated::class);
+})->with(['результат уже сохранён' => true, 'попытка заменена' => false]);

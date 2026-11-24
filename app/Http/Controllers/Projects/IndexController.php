@@ -45,10 +45,10 @@ class IndexController
             'information' => $information instanceof Project ? [
                 'project' => ProjectResource::make($information)->resolve(),
                 'owner' => $owner->name,
-                'episodes' => $information->series->sum('episodes_count'),
-                'accepted' => $information->series->sum('accepted_episodes_count'),
+                'episodes' => $information->episodes_count,
+                'accepted' => $information->accepted_episodes_count,
             ] : null,
-            'projects' => ProjectResource::collection($action->run($owner, $data)),
+            'projects' => fn() => ProjectResource::collection($action->run($owner, $data)),
             'filters' => [
                 'search' => $data->search ?? '',
                 'sort' => ($data->sort ?? SortDirection::DESC)->value,

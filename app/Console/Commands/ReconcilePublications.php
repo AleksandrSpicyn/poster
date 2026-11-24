@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Publications\ReconcilePublicationsAction;
-use Illuminate\Console\Command;
+use App\Console\ReconcileCommand;
 
-class ReconcilePublications extends Command
+class ReconcilePublications extends ReconcileCommand
 {
     protected $signature = 'app:reconcile-publications {--limit=50 : Maximum number of pending requests}';
 
@@ -15,16 +15,6 @@ class ReconcilePublications extends Command
 
     public function handle(ReconcilePublicationsAction $action): int
     {
-        $limit = filter_var($this->option('limit'), FILTER_VALIDATE_INT);
-
-        if ($limit === false || $limit < 1 || $limit > 100) {
-            $this->error('The limit must be between 1 and 100.');
-
-            return self::FAILURE;
-        }
-
-        $this->info('Queued requests: ' . $action->run($limit));
-
-        return self::SUCCESS;
+        return $this->runBatch($action->run(...), 'Queued requests');
     }
 }

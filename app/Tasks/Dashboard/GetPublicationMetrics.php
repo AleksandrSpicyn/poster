@@ -44,21 +44,9 @@ final readonly class GetPublicationMetrics
         }
 
         $publications = [];
-        $daily = [];
         $updated = null;
 
-        $first = $start->addDay();
-        $sparse = $first->diffInDays($end) > 366;
-
-        if ($sparse) {
-            $daily = [$first->toDateString() => null, $end->toDateString() => null];
-        } else {
-            for ($date = $first; $date <= $end; $date = $date->addDay()) {
-                $daily[$date->toDateString()] = null;
-            }
-        }
-
-        $summaries = array_fill_keys(array_column(PublicationCounter::cases(), 'value'), null);
+        $summaries = array_fill_keys(PublicationCounter::values(), null);
         $sources = [
             $this->metrics->forDashboard($owner, $filters, $start->toDateString(), $end->toDateString(), $selected),
             $this->observations->period($owner, $filters, $start->toDateString(), $end->toDateString(), $selected),
@@ -124,7 +112,7 @@ final readonly class GetPublicationMetrics
                 }
 
                 if ($counter === $filters->metric->value) {
-                    $publications[$key]->snapshots = $snapshots;
+                    $publications[$key]->setSnapshots($snapshots);
                 }
 
                 if (array_key_exists($counter, $summaries) && count($snapshots) >= 2) {
@@ -133,43 +121,7 @@ final readonly class GetPublicationMetrics
             }
         }
 
-        foreach ($publications as $publication) {
-            $previous = null;
-
-            foreach ($publication->snapshots as $date => $value) {
-                if ($sparse && $date >= $first->toDateString()) {
-                    $observed = CarbonImmutable::parse($date, 'UTC');
-
-                    foreach ([
-                        $observed->subDay(),
-                        $observed,
-                        $observed->addDay(),
-                    ] as $boundary) {
-                        if ($boundary >= $first && $boundary <= $end) {
-                            $daily[$boundary->toDateString()] ??= null;
-                        }
-                    }
-                }
-
-                if ($previous !== null) {
-                    $change = $value - $publication->snapshots[$previous];
-                    $publication->intervals[] = [
-                        'from' => $previous,
-                        'to' => $date,
-                        'change' => $change,
-                    ];
-                    $publication->change = ($publication->change ?? 0) + $change;
-
-                    if (CarbonImmutable::parse($previous, 'UTC')->addDay()->toDateString() === $date) {
-                        $daily[$date] = ($daily[$date] ?? 0) + $change;
-                    }
-                }
-
-                $previous = $date;
-            }
-        }
-
-        ksort($daily);
+        $daily = $this->dailyChanges($publications, $start->addDay(), $end);
         $statuses = $this->observations->coverage($owner, $filters)->keyBy('channel_id');
         $channelOptions = [];
         $coverage = [];
@@ -229,5 +181,56 @@ final readonly class GetPublicationMetrics
             'is_clipping' => $project->isClippingProject(),
             'content_mode' => $project->content_mode->value,
         ])->all()), $channelOptions, $totals, $production);
+    }
+
+    /**
+     * @param array<string, PublicationTimelineData> $publications
+     * @return array<string, int|float|null>
+     */
+    private function dailyChanges(array $publications, CarbonImmutable $first, CarbonImmutable $end): array
+    {
+        $daily = [];
+        $sparse = $first->diffInDays($end) > 366;
+
+        if ($sparse) {
+            $daily = [$first->toDateString() => null, $end->toDateString() => null];
+        } else {
+            for ($date = $first; $date <= $end; $date = $date->addDay()) {
+                $daily[$date->toDateString()] = null;
+            }
+        }
+
+        foreach ($publications as $publication) {
+            if ($sparse) {
+                foreach (array_keys($publication->snapshots) as $date) {
+                    if ($date < $first->toDateString()) {
+                        continue;
+                    }
+
+                    $observed = CarbonImmutable::parse($date, 'UTC');
+
+                    foreach ([
+                        $observed->subDay(),
+                        $observed,
+                        $observed->addDay(),
+                    ] as $boundary) {
+                        if ($boundary >= $first && $boundary <= $end) {
+                            $daily[$boundary->toDateString()] ??= null;
+                        }
+                    }
+                }
+            }
+
+            foreach ($publication->intervals as $interval) {
+                if (CarbonImmutable::parse($interval['from'], 'UTC')->addDay()->toDateString() === $interval['to']) {
+                    $date = $interval['to'];
+                    $daily[$date] = ($daily[$date] ?? 0) + $interval['change'];
+                }
+            }
+        }
+
+        ksort($daily);
+
+        return $daily;
     }
 }

@@ -14,9 +14,10 @@ use App\Models\OpusClip;
 use App\Models\OpusSource;
 use App\Models\Project;
 use App\Traits\Repositories\MatchesProviderIdentifiers;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Validation\ValidationException;
@@ -41,8 +42,8 @@ final readonly class OpusClipRepository extends EloquentRepository
             ->where(fn($query) => $query->where('clipping_connections.import_projects', false)->orWhere('clipping_connections.uses_server_key', false))->exists();
     }
 
-    /** @param iterable<ImportedClipData> $clips */
-    public function import(OpusSourceData $source, iterable $clips): Project
+    /** @param Collection<int, ImportedClipData> $clips */
+    public function import(OpusSourceData $source, Collection $clips): Project
     {
         return DB::transaction(function () use ($source, $clips): Project {
             $project = Project::query()->where('clipping_workspace', Project::OPUS_CLIP_WORKSPACE)->lockForUpdate()->first();
@@ -73,8 +74,8 @@ final readonly class OpusClipRepository extends EloquentRepository
         }, attempts: 3);
     }
 
-    /** @param iterable<ImportedClipData> $clips */
-    public function refreshSource(ClippingConnection $connection, int $sourceId, string $externalId, iterable $clips, ?string $expectedCheckpoint = null, ?string $nextCheckpoint = null): bool
+    /** @param Collection<int, ImportedClipData> $clips */
+    public function refreshSource(ClippingConnection $connection, int $sourceId, string $externalId, Collection $clips, ?string $expectedCheckpoint = null, ?string $nextCheckpoint = null): bool
     {
         return DB::transaction(function () use ($connection, $sourceId, $externalId, $clips, $expectedCheckpoint, $nextCheckpoint): bool {
             if (! ClippingConnection::query()->whereKey($connection->id)->where('owner_id', $connection->owner_id)
@@ -164,8 +165,8 @@ final readonly class OpusClipRepository extends EloquentRepository
         return $project;
     }
 
-    /** @param iterable<ImportedClipData> $clips */
-    private function storeClips(Project $project, OpusSourceData $source, iterable $clips, ?int $connectionId, bool $legacyCards, ?string $nextCheckpoint = null): void
+    /** @param Collection<int, ImportedClipData> $clips */
+    private function storeClips(Project $project, OpusSourceData $source, Collection $clips, ?int $connectionId, bool $legacyCards, ?string $nextCheckpoint = null): void
     {
         $origin = $project->opusSources()->firstOrNew(['external_id' => $source->id, 'clipping_connection_id' => $connectionId]);
         $oldName = $this->sourceProjectName($origin);
@@ -201,17 +202,11 @@ final readonly class OpusClipRepository extends EloquentRepository
             Project::query()->where('opus_source_id', $origin->id)->where('owner_id', $project->owner_id)->where('name', $oldName)->update(['name' => $name]);
         }
 
-        $items = LazyCollection::make(static function () use ($clips) {
-            foreach ($clips as $clip) {
-                yield $clip;
-            }
-        });
-
         $received = 0;
         $added = 0;
         $publications = 0;
 
-        foreach ($items->chunk(100) as $page) {
+        foreach ($clips->lazy()->chunk(100) as $page) {
             $matches = $this->matchImportIds($origin, array_values($page->map(fn(ImportedClipData $clip): string => $clip->id)->all()));
             $merged = [];
             $rows = [];
@@ -290,9 +285,9 @@ final readonly class OpusClipRepository extends EloquentRepository
      * Match provider IDs using the unique index's collation, including aliases within the same page.
      *
      * @param list<string> $ids
-     * @return Collection<array-key, OpusClip>
+     * @return EloquentCollection<array-key, OpusClip>
      */
-    private function matchImportIds(OpusSource $source, array $ids): Collection
+    private function matchImportIds(OpusSource $source, array $ids): EloquentCollection
     {
         $input = $this->providerIdentifiers('opus_clips', 'clip_id', $ids);
 

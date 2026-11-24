@@ -36,16 +36,15 @@ class ProviderCallbackController
      */
     public function __invoke(ChannelType $provider, OAuthCallbackData $data, #[CurrentUser] User $user, CompleteChannelAuthorizationAction $action): RedirectResponse
     {
-        $channel = $action->pendingChannel($provider, $user, $data);
+        $result = $action->run($provider, $user, $data);
+        $channel = $result->channel;
 
         if (! $channel instanceof Channel) {
-            return to_route('channels.index')->withErrors(['oauth' => 'Срок подтверждения истёк. Откройте канал и повторите подключение.']);
+            return to_route('channels.index')->withErrors(['oauth' => $result->error]);
         }
 
-        $error = $action->run($channel, $user, $data, $provider);
-
-        if ($error !== null) {
-            return to_route('channels.edit', $channel)->withErrors(['oauth' => $error]);
+        if ($result->error !== null) {
+            return to_route('channels.edit', $channel)->withErrors(['oauth' => $result->error]);
         }
 
         Inertia::flash('success', 'Аккаунт подключён.');

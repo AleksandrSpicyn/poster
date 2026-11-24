@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { getInitials } from '@/lib/getInitials';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-import type { SharedData } from '@/types';
+import type { WorkspacePageProps } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AccountBalance from './AccountBalance.vue';
 import UserMenuContent from './UserMenuContent.vue';
 
-const page = usePage<SharedData>();
+const page = usePage<WorkspacePageProps>();
 const user = computed(() => page.props.auth.user);
 const { setOpenMobile } = useSidebar();
 </script>

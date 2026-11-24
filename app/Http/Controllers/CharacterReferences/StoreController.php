@@ -6,13 +6,14 @@ namespace App\Http\Controllers\CharacterReferences;
 
 use App\Actions\Characters\UploadCharacterReferenceAction;
 use App\Data\Characters\CharacterReferenceData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends CharacterController
 {
     /**
      * Загрузка приватного референса версии персонажа
@@ -41,10 +42,6 @@ class StoreController
     {
         $action->run($revision, $data);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

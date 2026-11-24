@@ -2,7 +2,7 @@
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import type { SharedData } from '@/types';
+import type { WorkspacePageProps } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { CircleCheck, LoaderCircle } from '@lucide/vue';
 import { useFormApi } from '@/lib/api/useFormApi';
@@ -11,7 +11,7 @@ import { useRoute } from '@/composables/useRoute';
 const submitForm = useFormApi();
 
 const route = useRoute();
-const page = usePage<SharedData>();
+const page = usePage<WorkspacePageProps>();
 
 defineProps<{
     status?: string;

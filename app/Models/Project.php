@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Support\Carbon;
@@ -44,6 +45,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, Series> $series
  * @property-read Series|null $seriesDefinition
+ * @property-read int|null $episodes_count
+ * @property-read int|null $accepted_episodes_count
  * @property-read int|null $channels_count
  * @property-read Collection<int, Prompt> $prompts
  * @property-read Collection<int, ProductionRun> $productionRuns
@@ -162,6 +165,12 @@ class Project extends Model implements HasMedia
     public function series(): HasMany
     {
         return $this->hasMany(Series::class);
+    }
+
+    /** @return HasManyThrough<Episode, Series, $this> */
+    public function episodes(): HasManyThrough
+    {
+        return $this->hasManyThrough(Episode::class, Series::class);
     }
 
     /** @return HasOne<Series, $this> */

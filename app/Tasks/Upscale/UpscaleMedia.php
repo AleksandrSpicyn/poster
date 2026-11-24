@@ -10,6 +10,7 @@ use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
 use App\Models\SeriesAssembly;
 use App\Models\VideoUpscaleOperation;
+use App\Repositories\MediaRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -20,9 +21,24 @@ use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-final class UpscaleMedia
+final readonly class UpscaleMedia
 {
     private const int MAX_BYTES = 500_000_000;
+
+    public function __construct(private MediaRepository $files) {}
+
+    public function verifiedFile(EpisodeAssembly|SeriesAssembly|Prompt $source, VideoUpscaleOperation $operation, string $collection): ?Media
+    {
+        foreach ($this->files->upscaleFiles($source, $operation->id, $collection) as $file) {
+            $checksum = $file->getCustomProperty('checksum');
+
+            if (is_string($checksum) && is_file($file->getPath()) && hash_file('sha256', $file->getPath()) === $checksum) {
+                return $file;
+            }
+        }
+
+        return null;
+    }
 
     private function directory(VideoUpscaleOperation $operation): string
     {
@@ -74,7 +90,10 @@ final class UpscaleMedia
             $this->convert([...$trim, '-i', $built->path, ...$limit, '-map', '0:a:0', '-c:a', is_int($start) ? 'aac' : 'copy', $audio]);
             $this->convert([...$trim, '-i', $built->path, '-map', '0:v:0', '-vf', 'scale=486:864:force_original_aspect_ratio=decrease,pad=486:864:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=0.042,fps=24', '-frames:v',
                 (string) max(1, round($operation->durationMs() / 1000 * 24)), '-c:v', 'libx264', '-threads', '2', '-movflags', '+faststart', $input]);
-            File::move($audio, $directory . '/audio.m4a');
+
+            if (! File::move($audio, $directory . '/audio.m4a')) {
+                throw new RuntimeException('Could not stage the original audio.');
+            }
 
             return $this->attach($assembly, $operation, $input, EpisodeAssembly::UPSCALE_INPUT);
         } finally {
@@ -90,11 +109,12 @@ final class UpscaleMedia
 
         try {
             $list = [];
+            $files = $this->files->upscalePartResults($source, $operation);
 
             foreach ($parts as $index => $part) {
-                $file = $source->getMedia(EpisodeAssembly::UPSCALED)->firstWhere('id', $part->result_media_id);
+                $file = $files->get($part->result_media_id);
 
-                if ($file === null || hash_file('sha256', $file->getPath()) !== $part->result_sha256) {
+                if ($file === null || ! is_file($file->getPath()) || hash_file('sha256', $file->getPath()) !== $part->result_sha256) {
                     throw new RuntimeException('Upscaled part is unavailable.');
                 }
 
@@ -162,8 +182,14 @@ final class UpscaleMedia
 
     private function attach(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation, string $file, string $collection): Media
     {
+        $checksum = hash_file('sha256', $file);
+
+        if ($checksum === false) {
+            throw new RuntimeException('Could not verify the exported file.');
+        }
+
         return $assembly->addMedia($file)->withCustomProperties([
-            'upscale_operation_id' => $operation->id, 'checksum' => hash_file('sha256', $file),
+            'upscale_operation_id' => $operation->id, 'checksum' => $checksum,
         ])->toMediaCollection($collection, 'local');
     }
 

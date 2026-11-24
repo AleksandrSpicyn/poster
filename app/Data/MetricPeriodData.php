@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-use App\Classes\Channels\ChannelIdRule;
 use App\Enums\ChannelType;
 use App\Enums\ProjectContentMode;
 use App\Enums\PublicationCounter;
+use App\Support\DistinctModelIdRule;
 use Spatie\LaravelData\Attributes\Validation\AfterOrEqual;
 use Spatie\LaravelData\Attributes\Validation\BeforeOrEqual;
 use Spatie\LaravelData\Attributes\Validation\DateFormat;
@@ -38,9 +38,9 @@ final class MetricPeriodData extends Data
         #[Min(1)] public ?int $channel = null,
     ) {}
 
-    /** @return array<string, ChannelIdRule> */
+    /** @return array<string, DistinctModelIdRule> */
     public static function rules(): array
     {
-        return ['exclude_channels.*' => new ChannelIdRule()];
+        return ['exclude_channels.*' => new DistinctModelIdRule()];
     }
 }

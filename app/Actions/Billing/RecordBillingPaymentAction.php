@@ -28,8 +28,9 @@ final readonly class RecordBillingPaymentAction
             throw new UnexpectedValueException('Ответ провайдера расходится с заказом.');
         }
 
-        DB::transaction(function () use ($request, $result, $attempt, $restore): void {
-            $owner = $this->settlements->ownerForOrder($request->orderId);
+        $owner = $this->settlements->ownerForOrder($request->orderId);
+
+        DB::transaction(function () use ($owner, $request, $result, $attempt, $restore): void {
             $account = $this->settlements->lockAccount($owner);
             $order = $this->settlements->lockOrder($request->orderId);
             $active = $this->checkout->lockOpenAttempt($request->attemptId);

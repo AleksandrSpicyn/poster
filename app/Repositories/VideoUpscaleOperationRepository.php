@@ -21,6 +21,7 @@ use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
 use App\Models\VideoUpscaleOperation;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -55,17 +56,24 @@ readonly class VideoUpscaleOperationRepository extends EloquentRepository
         $operation->save();
     }
 
-    public function recordMedia(VideoUpscaleOperation $operation, Media $media, string $checksum, bool $result): void
+    /** @return Collection<int, VideoUpscaleOperation> */
+    public function parts(VideoUpscaleOperation $operation): Collection
     {
-        if ($result) {
-            $operation->result_media_id = $media->id;
-            $operation->result_sha256 = $checksum;
-            $operation->status = UpscaleOperationStatus::READY;
-        } else {
-            $operation->source_media_id = $media->id;
-            $operation->source_sha256 = $checksum;
-        }
+        return $operation->parts()->get();
+    }
 
+    public function recordInput(VideoUpscaleOperation $operation, Media $media, string $checksum): void
+    {
+        $operation->source_media_id = $media->id;
+        $operation->source_sha256 = $checksum;
+        $operation->save();
+    }
+
+    public function completeWithResult(VideoUpscaleOperation $operation, Media $media, string $checksum): void
+    {
+        $operation->result_media_id = $media->id;
+        $operation->result_sha256 = $checksum;
+        $operation->status = UpscaleOperationStatus::READY;
         $operation->save();
     }
 
@@ -80,6 +88,7 @@ readonly class VideoUpscaleOperationRepository extends EloquentRepository
     public function claim(VideoUpscaleOperation $operation, EpisodeAssembly|SeriesAssembly|Prompt $assembly): bool
     {
         return DB::transaction(function () use ($operation, $assembly): bool {
+            $this->users->findLockedOrFail($operation->initiator_id);
             $project = match (true) {
                 $assembly instanceof EpisodeAssembly => $this->assemblies->lockPublishingContext($assembly)->project,
                 $assembly instanceof SeriesAssembly => $assembly->series->project()->lockForUpdate()->firstOrFail(),
@@ -91,7 +100,6 @@ readonly class VideoUpscaleOperationRepository extends EloquentRepository
                 return false;
             }
 
-            $this->users->findLockedOrFail($operation->initiator_id);
             $spent = $this->query()->where('initiator_id', $project->owner_id)
                 ->whereNotIn('status', [UpscaleOperationStatus::PENDING, UpscaleOperationStatus::CANCELLED])
                 ->selectRaw('COALESCE(SUM(COALESCE(actual_cost_e8, estimated_cost_e8)), 0) as spent')->value('spent');
@@ -110,7 +118,7 @@ readonly class VideoUpscaleOperationRepository extends EloquentRepository
             $this->mark($locked, UpscaleOperationStatus::SUBMITTING);
 
             return true;
-        });
+        }, 3);
     }
 
     private function eligible(EpisodeAssembly|SeriesAssembly|Prompt $assembly, int $ownerId): bool

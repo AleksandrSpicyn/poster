@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Classes\OpusClip;
 
 use App\Exceptions\ClippingProviderException;
-use Carbon\Carbon;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -34,10 +35,7 @@ final readonly class OpusClipApi
         }
 
         if (! $response->successful()) {
-            $header = $response->header('Retry-After');
-            $delay = is_numeric($header) ? (int) $header : ((Carbon::parse($header)->getTimestamp() ?: Carbon::now()->getTimestamp() + 60) - Carbon::now()->getTimestamp());
-
-            throw new ClippingProviderException($endpoint, $response->status(), max(1, $delay));
+            throw new ClippingProviderException($endpoint, $response->status(), $this->retryDelay($response->header('Retry-After')));
         }
 
         $rows = match ($endpoint) {
@@ -57,5 +55,16 @@ final readonly class OpusClipApi
 
             return $row;
         }, $rows);
+    }
+
+    private function retryDelay(string $header): int
+    {
+        if (ctype_digit($header)) {
+            return max(1, (int) $header);
+        }
+
+        $date = DateTimeImmutable::createFromFormat(DateTimeImmutable::RFC7231, $header, new DateTimeZone('UTC'));
+
+        return $date === false ? 60 : max(1, $date->getTimestamp() - now()->getTimestamp());
     }
 }

@@ -4,6 +4,7 @@ import LandingHomeLink from '@/components/LandingHomeLink.vue';
 import LandingHeader from '@/components/LandingHeader.vue';
 import { useRoute } from '@/composables/useRoute';
 import { money } from '@/lib/billing';
+import { formatCount } from '@/lib/formatCount';
 import type { Offer } from '@/types/billing';
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -12,13 +13,6 @@ const props = defineProps<{ catalog: Offer[] }>();
 const route = useRoute();
 const takeLength = 15;
 const capacity = computed(() => Math.ceil(Math.max(0, ...props.catalog.map((offer) => offer.seconds)) / takeLength));
-const plural = new Intl.PluralRules('ru');
-const takeForms = { one: 'дубль', few: 'дубля', many: 'дублей', other: 'дубля', zero: 'дублей', two: 'дубля' };
-
-function takes(seconds: number) {
-    const count = seconds / takeLength;
-    return `${count} ${takeForms[plural.select(count)]}`;
-}
 </script>
 <template>
     <div class="pricing-view">
@@ -42,7 +36,7 @@ function takes(seconds: number) {
                         <i v-for="slot in capacity" :key="slot" :class="{ on: slot <= offer.seconds / takeLength }" />
                     </div>
                     <p class="quota">{{ offer.seconds }} с генерации</p>
-                    <p class="equiv">{{ takes(offer.seconds) }} по {{ takeLength }} с</p>
+                    <p class="equiv">{{ formatCount(offer.seconds / takeLength, 'дубль', 'дубля', 'дублей') }} по {{ takeLength }} с</p>
                     <p class="terms">
                         {{
                             offer.monthly

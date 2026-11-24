@@ -28,4 +28,27 @@ final class PublicationTimelineData extends Data
         public string $key = '',
         public int|float|null $watchMinutesChange = null,
     ) {}
+
+    /** @param array<string, int|float> $snapshots Observations sorted by date. */
+    public function setSnapshots(array $snapshots): void
+    {
+        $this->snapshots = $snapshots;
+        $this->intervals = [];
+        $this->change = null;
+        $previous = null;
+
+        foreach ($snapshots as $date => $value) {
+            if ($previous !== null) {
+                $change = $value - $snapshots[$previous];
+                $this->intervals[] = [
+                    'from' => $previous,
+                    'to' => $date,
+                    'change' => $change,
+                ];
+                $this->change = ($this->change ?? 0) + $change;
+            }
+
+            $previous = $date;
+        }
+    }
 }

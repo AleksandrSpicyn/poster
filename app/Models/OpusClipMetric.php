@@ -15,8 +15,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $platform
  * @property string $media_id
  * @property-read string $account Selected account from the dashboard query.
- * @property-read string|null $clip_game
- * @property-read string $clip_id
  * @property-read string|null $clip_title Selected clip title from the dashboard query.
  * @property-read OpusClip $clip
  */

@@ -41,11 +41,11 @@ test('прекращает обновление после смены подкл
     expect($source->refresh()->last_synced_at)->toBeNull();
 });
 
-test('пауза при отзыве доступа сохраняет историю источника', function (): void {
+test('пауза при отзыве доступа сохраняет историю источника', function (string $retryAfter): void {
     $connection = ClippingConnection::factory()->create();
     $project = Project::factory()->create(['owner_id' => $connection->owner_id, 'clipping_connection_id' => $connection->id]);
     $source = OpusSource::factory()->for($project)->create(['clipping_connection_id' => $connection->id, 'external_id' => 'game']);
-    Http::fake(['*/clip-projects*' => Http::response([]), '*/exportable-clips*' => Http::response([], 403)]);
+    Http::fake(['*/clip-projects*' => Http::response([]), '*/exportable-clips*' => Http::response([], 403, ['Retry-After' => $retryAfter])]);
 
     consoleCommand('clipping:refresh')->assertSuccessful();
     consoleCommand('clipping:refresh')->assertSuccessful();
@@ -53,7 +53,7 @@ test('пауза при отзыве доступа сохраняет исто�
     Http::assertSentCount(3);
     expect($source->refresh()->sync_paused_at)->not->toBeNull()
         ->and($source->sync_error)->toBe('HTTP 403');
-});
+})->with(['not-a-date', '']);
 
 test('после лимита продолжает с публикаций и сохраняет принятые клипы', function (): void {
     $connection = ClippingConnection::factory()->create();

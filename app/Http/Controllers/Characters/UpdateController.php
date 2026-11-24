@@ -6,12 +6,13 @@ namespace App\Http\Controllers\Characters;
 
 use App\Actions\Characters\SaveCharacterAction;
 use App\Data\Characters\CharacterData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class UpdateController
+class UpdateController extends CharacterController
 {
     /**
      * Изменение имени персонажа
@@ -37,10 +38,6 @@ class UpdateController
     {
         $action->run($series, $data, $character);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

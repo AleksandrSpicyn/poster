@@ -25,6 +25,6 @@ class LogoutController
     {
         $action->run();
 
-        return redirect('/');
+        return to_route('home');
     }
 }

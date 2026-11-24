@@ -6,7 +6,7 @@ import { computed } from 'vue';
 
 const props = defineProps<ProjectFormProps>();
 const page = usePage();
-const format = computed(() => new URL(page.url, 'http://poster.local').searchParams.get('format') ?? '');
+const format = computed(() => new URL(page.url, page.props.ziggy.url).searchParams.get('format') ?? '');
 </script>
 
 <template>

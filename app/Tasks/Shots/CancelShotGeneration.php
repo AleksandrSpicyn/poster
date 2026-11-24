@@ -25,7 +25,7 @@ class CancelShotGeneration
             $prompt = $this->prompts->findLockedOrFail($prompt->id);
 
             $stopped = $this->operations->cancelActive($this->operations->lockForPrompt($prompt));
-            $this->usage->setStatus($stopped, ReservationStatus::RELEASED);
+            $this->usage->transitionTakeReservations($stopped, ReservationStatus::RELEASED);
         });
     }
 }

@@ -7,7 +7,8 @@ namespace App\Actions\Settings;
 use App\Actions\Auth\SendEmailVerificationAction;
 use App\Data\UpdateProfileData;
 use App\Models\User;
-use App\Tasks\Users\SaveUser;
+use App\Repositories\UserRepository;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Сохраняет профиль и сбрасывает подтверждение email при смене адреса,
@@ -15,20 +16,25 @@ use App\Tasks\Users\SaveUser;
  */
 readonly class UpdateProfileAction
 {
-    public function __construct(private SaveUser $saveUser, private SendEmailVerificationAction $verification) {}
+    public function __construct(private UserRepository $users, private SendEmailVerificationAction $verification) {}
 
     public function run(User $user, UpdateProfileData $data): bool
     {
-        $user->fill(['name' => $data->name, 'email' => $data->email]);
+        $changed = DB::transaction(function () use ($user, $data): ?User {
+            $profile = $this->users->findLockedOrFail($user->id);
+            $profile->fill(['name' => $data->name, 'email' => $data->email]);
 
-        $emailChanged = $user->isDirty('email');
+            $emailChanged = $profile->isDirty('email');
 
-        if ($emailChanged) {
-            $user->email_verified_at = null;
-        }
+            if ($emailChanged) {
+                $profile->email_verified_at = null;
+            }
 
-        $this->saveUser->run($user);
+            $this->users->save($profile);
 
-        return $emailChanged && $this->verification->run($user);
+            return $emailChanged ? $profile : null;
+        });
+
+        return $changed !== null && $this->verification->run($changed);
     }
 }

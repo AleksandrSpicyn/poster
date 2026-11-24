@@ -8,7 +8,6 @@ use App\Classes\Publications\PublicationReference;
 use App\Classes\Story\Snapshot;
 use App\Data\PostData;
 use App\Data\Publications\PreparedPublicationData;
-use App\Data\Publications\PublicationResolutionData;
 use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\PublicationRequest;
@@ -72,11 +71,6 @@ readonly class ResolveEpisodePublicationAction
                 $video->seriesAssemblyId,
             ));
         });
-    }
-
-    public function review(PublicationRequest $request, User $actor): PublicationResolutionData
-    {
-        return $this->load->context($request, $actor);
     }
 
     private function channelFingerprint(Channel $channel): string

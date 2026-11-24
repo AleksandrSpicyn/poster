@@ -6,13 +6,12 @@ namespace App\Repositories;
 
 use App\Classes\Billing\FiscalProfile;
 use App\Data\Billing\MerchantData;
+use App\Data\Billing\RenewalReminderData;
 use App\Enums\BillingProduct;
 use App\Models\User;
-use App\Notifications\BillingRenewalReminder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Throwable;
 
 final readonly class BillingRenewalRepository
 {
@@ -31,43 +30,55 @@ final readonly class BillingRenewalRepository
             }, 'owner_id');
     }
 
-    public function deliverReminders(): void
+    /** @return list<int> */
+    public function pendingReminderIds(): array
     {
-        $events = DB::table('billing_events')->where('kind', 'renewal.reminder')->where('status', 'pending')->orderBy('id')->limit(100)->get([
-            'id',
-            'owner_id',
-            'payload',
-        ]);
+        /** @var list<int> */
+        return DB::table('billing_events')->where('kind', 'renewal.reminder')->where('status', 'pending')
+            ->orderBy('id')->limit(100)->pluck('id')->all();
+    }
 
-        /** @var object{id: int, owner_id: int, payload: string} $event */
-        foreach ($events as $event) {
-            $row = DB::table('billing_events')->where('id', $event->id);
+    public function claimReminder(int $id): ?RenewalReminderData
+    {
+        return DB::transaction(function () use ($id): ?RenewalReminderData {
+            $event = DB::table('billing_events')->where('id', $id)->where('kind', 'renewal.reminder')->where('status', 'pending');
 
-            if ((clone $row)->where('status', 'pending')->update(['status' => 'sending', 'updated_at' => now('UTC')]) !== 1) {
-                continue;
+            /** @var object{owner_id: int, payload: string}|null $row */
+            $row = (clone $event)->lockForUpdate()->first(['owner_id', 'payload']);
+
+            if ($row === null) {
+                return null;
             }
 
             /** @var array{due: string} $snapshot */
-            $snapshot = json_decode($event->payload, true, flags: JSON_THROW_ON_ERROR);
-            $user = User::query()->whereNotNull('email_verified_at')->find($event->owner_id);
-            /** @var object{renews_at: ?string, next_product: ?string, current_product: ?string, automatic_payments_enabled: bool, renewal_consent: bool, payment_method_id: ?string}|null $account */
-            $account = DB::table('billing_accounts')->where('owner_id', $event->owner_id)->where('sales_enabled', true)->first();
+            $snapshot = json_decode($row->payload, true, flags: JSON_THROW_ON_ERROR);
+            $user = User::query()->whereNotNull('email_verified_at')->find($row->owner_id);
+            /** @var object{renews_at: ?string, next_product: ?string, current_product: ?string, automatic_payments_enabled: bool, renewal_consent: bool, payment_method_id: ?string, consent_revision: int}|null $account */
+            $account = DB::table('billing_accounts')->where('owner_id', $row->owner_id)->where('sales_enabled', true)->first();
             $product = BillingProduct::tryFrom($account->next_product ?? $account->current_product ?? '');
 
             if ($user === null || $account === null || $product === null || $account->renews_at !== $snapshot['due'] || $snapshot['due'] <= now('UTC')->toDateTimeString()) {
-                $row->update(['status' => 'cancelled', 'updated_at' => now('UTC')]);
+                $event->update(['status' => 'cancelled', 'updated_at' => now('UTC')]);
 
-                continue;
+                return null;
             }
 
-            try {
-                $user->notifyNow(new BillingRenewalReminder($snapshot['due'], $product, $account->automatic_payments_enabled && $account->renewal_consent && $account->payment_method_id !== null));
-                $row->update(['status' => 'processed', 'updated_at' => now('UTC')]);
-            } catch (Throwable $error) {
-                report($error);
-                $row->update(['status' => 'unknown', 'updated_at' => now('UTC')]);
-            }
-        }
+            $automatic = $account->automatic_payments_enabled && $account->renewal_consent && $account->payment_method_id !== null
+                && $this->workspace->hasMandate($row->owner_id, $account->consent_revision, $product);
+            $event->update(['status' => 'sending', 'updated_at' => now('UTC')]);
+
+            return new RenewalReminderData($user, $snapshot['due'], $product, $automatic);
+        });
+    }
+
+    public function markReminderUnconfirmed(int $id): void
+    {
+        DB::table('billing_events')->where('id', $id)->where('status', 'sending')->update(['status' => 'unknown', 'updated_at' => now('UTC')]);
+    }
+
+    public function markReminderDelivered(int $id): void
+    {
+        DB::table('billing_events')->where('id', $id)->where('status', 'sending')->update(['status' => 'processed', 'updated_at' => now('UTC')]);
     }
 
     private function processOwner(int $owner): void
@@ -154,7 +165,7 @@ final readonly class BillingRenewalRepository
             }
 
             $id = $this->payments->prepare($owner, $order, fn(): MerchantData => new MerchantData($account->payment_method_provider, $account->payment_method_shop, (bool) $account->payment_method_test_mode));
-            DB::table('billing_payments')->where('id', $id)->update(['checkout_return_url' => rtrim(config()->string('app.url'), '/') . route('billing.orders.show', $order, false), 'next_check_at' => $at]);
+            $this->payments->scheduleCheckout($id, $order, $at);
         }, 3);
     }
 }

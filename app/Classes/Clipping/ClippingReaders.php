@@ -7,6 +7,7 @@ namespace App\Classes\Clipping;
 use App\Data\OpusClip\OpusSourceData;
 use App\Models\ClippingConnection;
 use Illuminate\Container\Attributes\Config;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 final readonly class ClippingReaders
@@ -43,6 +44,11 @@ final readonly class ClippingReaders
         foreach ($sources as $source) {
             yield $source;
         }
+    }
+
+    public function findSource(ClippingReader $reader, ClippingConnection $connection, string $externalId): ?OpusSourceData
+    {
+        return Arr::first($this->sources($reader, $connection), static fn(OpusSourceData $source): bool => $source->id === $externalId);
     }
 
     public function forConnection(ClippingConnection $connection): ClippingReader

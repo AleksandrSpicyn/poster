@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\Channel;
-use App\Models\Chat;
-use App\Models\Project;
+use App\Repositories\WorkspaceOwnershipRepository;
 use Illuminate\Console\Command;
 
 class ReportWorkspaceOwnership extends Command
@@ -15,13 +13,13 @@ class ReportWorkspaceOwnership extends Command
 
     protected $description = 'List unassigned records and channel memberships requiring owner confirmation';
 
-    public function handle(): int
+    public function handle(WorkspaceOwnershipRepository $ownership): int
     {
-        foreach (Project::query()->whereNull('owner_id')->lazyById() as $project) {
+        foreach ($ownership->unassignedProjects() as $project) {
             $this->line("Unassigned project {$project->id}");
         }
 
-        foreach (Channel::query()->with('projects:id,owner_id')->lazyById() as $channel) {
+        foreach ($ownership->channelsWithProjectOwners() as $channel) {
             if ($channel->owner_id === null) {
                 $this->line("Unassigned channel {$channel->id}");
             }
@@ -33,18 +31,11 @@ class ReportWorkspaceOwnership extends Command
             }
         }
 
-        $cards = Project::query()->join('opus_sources', 'opus_sources.id', '=', 'projects.opus_source_id')
-            ->join('projects as origins', 'origins.id', '=', 'opus_sources.project_id')
-            ->where(fn($query) => $query->whereNull('projects.owner_id')->orWhereNull('origins.owner_id')->orWhereColumn('projects.owner_id', '!=', 'origins.owner_id'))
-            ->select('projects.id', 'projects.opus_source_id', 'origins.id as origin_id')
-            ->toBase()->lazyById(column: 'projects.id', alias: 'id');
-
-        /** @var object{id: int, opus_source_id: int, origin_id: int} $card */
-        foreach ($cards as $card) {
+        foreach ($ownership->cardsWithConflictingOwner() as $card) {
             $this->line("Review OpusClip source {$card->opus_source_id} / project {$card->origin_id} / card {$card->id}");
         }
 
-        foreach (Chat::query()->whereNull('owner_id')->lazyById() as $chat) {
+        foreach ($ownership->unassignedChats() as $chat) {
             $this->line("Unassigned notification chat {$chat->id}");
         }
 

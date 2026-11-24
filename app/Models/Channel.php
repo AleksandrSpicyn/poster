@@ -109,10 +109,14 @@ class Channel extends Model
 
     public function hasTiktokScope(string $permission): bool
     {
-        $scope = $this->credentials['scope'] ?? null;
+        if (! $this->is_active || $this->type !== ChannelType::TIKTOK) {
+            return false;
+        }
 
-        return $this->is_active && $this->type === ChannelType::TIKTOK && filled($this->credentials['access_token'] ?? null)
-            && is_string($scope) && in_array($permission, explode(',', $scope), true);
+        $credentials = $this->credentials;
+        $scope = $credentials['scope'] ?? null;
+
+        return filled($credentials['access_token'] ?? null) && is_string($scope) && in_array($permission, explode(',', $scope), true);
     }
 
     public function oauthClientId(): ?string

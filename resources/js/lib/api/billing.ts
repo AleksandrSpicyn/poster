@@ -46,7 +46,7 @@ function isShot(value: unknown): value is ShotUsage {
 }
 
 async function readBillingResponse(response: Response, error: string): Promise<Record<string, unknown>> {
-    const result = await readJsonObject(response).catch(() => undefined);
+    const result = await readJsonObject(response);
     if (!result) throw new Error(error);
     if (!response.ok) throw new Error(typeof result.message === 'string' ? result.message : error);
     return result;

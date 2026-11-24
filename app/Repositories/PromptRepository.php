@@ -77,9 +77,17 @@ readonly class PromptRepository extends EloquentRepository
         return Prompt::query()->whereRelation('project', 'owner_id', $owner->id)->whereNull('shot_id')->with('project', 'media')->latest()->latest('id')->limit(6)->get();
     }
 
-    public function forAudioTask(string $taskId): ?Prompt
+    public function lockPendingVideoAttempt(Prompt $polled): ?Prompt
     {
-        return Prompt::query()->firstWhere('audio_id', $taskId);
+        return Prompt::query()->whereKey($polled->id)
+            ->whereNull('shot_id')->where('video_url', $polled->video_url)
+            ->where('video_id', $polled->video_id)->where('video_provider', $polled->video_provider)
+            ->lockForUpdate()->first();
+    }
+
+    public function lockForAudioTask(string $taskId): ?Prompt
+    {
+        return Prompt::query()->lockForUpdate()->firstWhere('audio_id', $taskId);
     }
 
     /**

@@ -34,19 +34,20 @@ readonly class SubmitEpisodePublicationAction
             $result = $this->send->run($context->channel, $context->video);
 
             if ($result->containerId !== null) {
-                $this->update->run($request, PublicationStatus::PROCESSING, $result->containerId);
-                FinishEpisodePublicationJob::dispatch($request->id)->delay(now()->addMinutes(5))->afterCommit();
+                if ($this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::PROCESSING, $result->containerId)) {
+                    FinishEpisodePublicationJob::dispatch($request->id)->delay(now()->addMinutes(5))->afterCommit();
+                }
 
                 return;
             }
 
             if (! $result->accepted) {
-                $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The provider did not confirm publication. Verify its outcome before trying again.');
+                $this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The provider did not confirm publication. Verify its outcome before trying again.');
             }
         } catch (PublicationRejectedException $exception) {
-            $this->update->run($request, PublicationStatus::FAILED, error: $exception->getMessage());
+            $this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {
-            $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The publication outcome is unknown. Inspect the provider receipt before any retry.');
+            $this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The publication outcome is unknown. Inspect the provider receipt before any retry.');
             report($exception);
         }
     }

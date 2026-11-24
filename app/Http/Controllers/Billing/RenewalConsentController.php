@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Billing;
 
-use App\Actions\Billing\UpdateBillingPreferencesAction;
+use App\Actions\Billing\UpdateRenewalConsentAction;
 use App\Data\Billing\RenewalConsentData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -23,9 +23,9 @@ final class RenewalConsentController
      * @bodyParam product string required Выбранный тариф. Example: author
      * @response 302
      */
-    public function __invoke(#[CurrentUser] User $owner, RenewalConsentData $data, UpdateBillingPreferencesAction $action): RedirectResponse
+    public function __invoke(#[CurrentUser] User $owner, RenewalConsentData $data, UpdateRenewalConsentAction $action): RedirectResponse
     {
-        $action->renewalConsent($owner, $data);
+        $action->run($owner->id, $data);
 
         return to_route('billing.show');
     }

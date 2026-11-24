@@ -101,13 +101,8 @@ class ListController
      */
     public function __invoke(#[CurrentUser] User $owner, GetPromptsListData $data, GetPromptsListAction $getPromptsList): Response
     {
-        $prompts = $getPromptsList->run(
-            $owner,
-            $data,
-        );
-
         return inertia('Prompts', [
-            'prompts' => PromptResource::collection($prompts),
+            'prompts' => fn() => PromptResource::collection($getPromptsList->run($owner, $data)),
             'projects' => fn(): array => $getPromptsList->projects($owner),
             'sortDirections' => SortDirection::labels(),
             'defaultSort' => SortDirection::DESC->value,

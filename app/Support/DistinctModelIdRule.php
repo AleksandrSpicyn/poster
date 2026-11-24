@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Classes\Channels;
+namespace App\Support;
 
 use Spatie\LaravelData\Attributes\Validation\Rule;
 
-final class ChannelIdRule extends Rule
+final class DistinctModelIdRule extends Rule
 {
     public function __construct()
     {

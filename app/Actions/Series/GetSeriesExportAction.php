@@ -12,8 +12,8 @@ readonly class GetSeriesExportAction
 {
     public function __construct(private GetSeriesExport $get) {}
 
-    public function run(SeriesAssembly $assembly, Media $media, bool $preview = false): string
+    public function run(SeriesAssembly $assembly, Media $media, bool $preview = false, ?string $checksum = null): string
     {
-        return $this->get->run($assembly, $media, $preview);
+        return $this->get->run($assembly, $media, $preview, $checksum);
     }
 }

@@ -6,7 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Chat;
 use App\Models\Post;
-use App\Models\User;
+use App\Repositories\ChatRepository;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -37,9 +37,7 @@ class PostCreatedNotification extends Notification implements ShouldQueue
 
     public function shouldSend(Chat $notifiable): bool
     {
-        return $this->ownerId !== null && $notifiable->owner_id === $this->ownerId
-            && User::query()->whereKey($this->ownerId)->whereNotNull('email_verified_at')->exists()
-            && $this->post->channel()->where('owner_id', $this->ownerId)->exists();
+        return isset($this->ownerId) && app(ChatRepository::class)->canReceivePost($notifiable, $this->post, $this->ownerId);
     }
 
     public function toTelegram(): TelegramMessage

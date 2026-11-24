@@ -65,7 +65,7 @@ class UpdateGenerationOperation
             ]);
 
             if ($status === GenerationOperationStatus::FAILED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
-                $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+                $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::RELEASED);
             }
 
             if ($status !== GenerationOperationStatus::SUCCEEDED) {
@@ -74,13 +74,13 @@ class UpdateGenerationOperation
 
             if ($operation->stage === GenerationOperationStage::DOWNLOAD) {
                 $this->prompts->update($prompt, ['generated' => ! $cancelled]);
-                $this->usage->setStatus([$prompt->id], $cancelled ? ReservationStatus::RELEASED : ReservationStatus::CONSUMED);
+                $this->usage->transitionTakeReservations([$prompt->id], $cancelled ? ReservationStatus::RELEASED : ReservationStatus::CONSUMED);
 
                 return null;
             }
 
             if ($operation->stage === GenerationOperationStage::IMAGE && $cancelled) {
-                $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+                $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::RELEASED);
 
                 return null;
             }

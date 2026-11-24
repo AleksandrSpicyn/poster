@@ -1,6 +1,6 @@
 @use('App\Enums\Appearance')
 <!DOCTYPE html>
-<html lang="ru" @class(['dark' => ($appearance ?? Appearance::SYSTEM->value) === Appearance::DARK->value])>
+<html lang="ru" @class(['dark' => ($page['props']['appearance'] ?? Appearance::SYSTEM->value) === Appearance::DARK->value])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,7 @@
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {
-                const appearance = @json($appearance ?? Appearance::SYSTEM->value);
+                const appearance = @json($page['props']['appearance'] ?? Appearance::SYSTEM->value);
 
                 if (appearance === @json(Appearance::SYSTEM->value)) {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;

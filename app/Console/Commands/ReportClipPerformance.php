@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\ChannelType;
-use App\Models\OpusClipMetric;
 use App\Models\Project;
 use App\Repositories\OpusMetricRepository;
 use App\Repositories\OpusWorkspaceRepository;
@@ -38,31 +37,25 @@ class ReportClipPerformance extends Command
         $today = now('UTC');
         $start = $today->copy()->subDays($days)->toDateString();
         $end = $today->toDateString();
-        $key = static fn(OpusClipMetric $row): string => $row->opus_clip_id . ':' . $row->platform . ':' . $row->media_id;
-        $records = $observations->observations($project, $start, $end);
-        $current = $records->where('observed_on', $end);
-        $baseline = $records->where('observed_on', $start)->keyBy($key);
+        $ranked = $observations->topViewGrowth($project, $start, $end)->groupBy('platform');
         $this->info("Observed view growth, $start to $end (UTC)");
 
         $platforms = [ChannelType::YOUTUBE, ChannelType::INSTAGRAM];
 
-        if ($current->contains('platform', ChannelType::TIKTOK->value) || $baseline->contains('platform', ChannelType::TIKTOK->value)) {
+        if ($ranked->has(ChannelType::TIKTOK->value)) {
             $platforms[] = ChannelType::TIKTOK;
         }
 
         foreach ($platforms as $platform) {
             $rows = [];
 
-            foreach ($current->where('platform', $platform->value) as $row) {
-                $previous = $baseline->get($key($row))?->metrics['views'] ?? null;
-                $views = $row->metrics['views'] ?? null;
-
-                if ($previous !== null && $views !== null) {
+            foreach ($ranked->get($platform->value) ?? [] as $row) {
+                if ($row->growth !== null) {
                     $rows[] = [
-                        $row->clip_game ?? 'Unassigned',
-                        $row->clip_title ?? $row->clip_id,
-                        $views - $previous,
-                        $views,
+                        $row->game ?? 'Unassigned',
+                        $row->clip_title,
+                        $row->growth,
+                        $row->views,
                     ];
                 }
             }
@@ -80,7 +73,7 @@ class ReportClipPerformance extends Command
                 'Clip',
                 'View change',
                 'Total views',
-            ], collect($rows)->sortByDesc(2)->take(10)->values()->all());
+            ], $rows);
         }
 
         return self::SUCCESS;

@@ -76,7 +76,8 @@ test('FFmpeg собирает видео со звуком и сохраняет
         ->media()
         ->firstOrFail();
 
-    expect(is_file($media->getPath()))->toBeTrue();
+    expect(is_file($media->getPath()))->toBeTrue()
+        ->and(Storage::disk('local')->allFiles('final'))->toBe([]);
 
     $probe = Process::run(['ffprobe', '-v', 'quiet', '-show_streams', '-of', 'json', $media->getPath()])->throw();
     /** @var array{streams: list<array{codec_type: string}>} $streams */
@@ -172,7 +173,41 @@ test('файл без реальной аудиодорожки не стано�
 
     expect(fn() => app(SaveVideoAction::class)->run($prompt))->toThrow(EncodingException::class);
 
+    expect(Storage::disk('local')->allFiles('final'))->toBe([]);
+
     expect($prompt->refresh()->generated)->toBeFalse();
     expect($prompt->media()->count())->toBe(0);
+    Event::assertNotDispatched(VideoBuilt::class);
+});
+
+test('повторная задача завершает ранее прикреплённый ролик без исходников', function (): void {
+    $disk = Storage::disk('local');
+    $disk->put('attached.mp4', 'previously assembled');
+
+    $prompt = Prompt::factory()->create([
+        'video_url' => $disk->path('expired-video.mp4'),
+        'audio_url' => $disk->path('expired-audio.mp3'),
+    ]);
+    $media = $prompt->addMedia($disk->path('attached.mp4'))->toMediaCollection();
+
+    new SaveVideoJob($prompt)->handle(app(SaveVideoAction::class));
+    new SaveVideoJob($prompt)->handle(app(SaveVideoAction::class));
+
+    expect($prompt->refresh()->generated)->toBeTrue()
+        ->and($prompt->media()->sole()->id)->toBe($media->id);
+    Event::assertDispatchedTimes(VideoBuilt::class, 1);
+});
+
+test('не выдаёт частично записанный файл при восстановлении сборки', function (): void {
+    $disk = Storage::disk('local');
+    $disk->put('attached.mp4', 'previously assembled');
+
+    $prompt = Prompt::factory()->create(['video_url' => 'video', 'audio_url' => 'audio']);
+    $media = $prompt->addMedia($disk->path('attached.mp4'))->toMediaCollection();
+    file_put_contents($media->getPath(), 'partial');
+
+    expect(fn() => new SaveVideoJob($prompt)->handle(app(SaveVideoAction::class)))->toThrow(RuntimeException::class);
+
+    expect($prompt->refresh()->generated)->toBeFalse();
     Event::assertNotDispatched(VideoBuilt::class);
 });

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Classes\Tiktok\TiktokClient;
+use App\Classes\Channels\ChannelOAuth;
 use App\Enums\ChannelType;
 use App\Support\Integrations\Payload;
 use App\Tasks\Channels\LoadChannel;
@@ -23,7 +23,7 @@ class AuthorizeTiktok extends Command
     protected $description = 'Authenticate with TikTok to retrieve access token';
 
     /** @throws ConnectionException */
-    public function handle(LoadChannel $load, SaveChannelCredentials $save, TiktokClient $tiktok): int
+    public function handle(LoadChannel $load, SaveChannelCredentials $save, ChannelOAuth $oauth): int
     {
         $channel = $load->run($this->argument('channel_id'));
 
@@ -33,15 +33,8 @@ class AuthorizeTiktok extends Command
             return self::FAILURE;
         }
 
-        $scopes = $tiktok->scopes();
-
-        $authUrl = 'https://www.tiktok.com/v2/auth/authorize?' . http_build_query([
-            'client_key' => $channel->oauthClientId(),
-            'scope' => implode(',', $scopes),
-            'response_type' => 'code',
-            'redirect_uri' => route('home'),
-            'state' => csrf_token(), // optional
-        ]);
+        $redirectUri = route('home');
+        $authUrl = $oauth->authorizationUrl($channel, csrf_token(), $redirectUri);
 
         $this->info('Open this URL to authenticate TikTok:');
         $this->line($authUrl);
@@ -49,7 +42,7 @@ class AuthorizeTiktok extends Command
         $code = $this->ask('Paste the returned ?code=');
 
         try {
-            $data = $tiktok->exchange($channel, Payload::string($code, 'code'), route('home'));
+            $data = $oauth->exchange($channel, Payload::string($code, 'code'), $redirectUri);
 
             if ($channel->external_account !== null && $channel->external_account !== $data['open_id']) {
                 throw new RuntimeException('The account does not match the configured identity.');

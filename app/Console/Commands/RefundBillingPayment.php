@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Billing\SyncBillingRefundAction;
+use App\Console\ModelId;
 use App\Repositories\BillingRefundRepository;
 use DomainException;
 use Illuminate\Console\Command;
@@ -30,7 +31,7 @@ final class RefundBillingPayment extends Command
                     throw new DomainException('Укажите целые копейки и количество корректируемых секунд.');
                 }
 
-                $refunds->open($id, (string) $this->option('payment'), (int) $this->option('operator'), $amount, $seconds, (string) $this->option('reason'));
+                $refunds->open($id, (string) $this->option('payment'), ModelId::parse($this->option('operator')), $amount, $seconds, (string) $this->option('reason'));
             }
 
             $status = $sync->run($id, is_string($external) ? $external : null);

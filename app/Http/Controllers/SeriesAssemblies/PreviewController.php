@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\SeriesAssemblies;
 
 use App\Actions\Series\GetSeriesExportAction;
+use App\Http\Controllers\Controller;
 use App\Models\SeriesAssembly;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class PreviewController
+class PreviewController extends Controller
 {
     /**
      * Приватный просмотр итогового монтажа
@@ -24,6 +25,6 @@ class PreviewController
      */
     public function __invoke(SeriesAssembly $assembly, Media $media, GetSeriesExportAction $action): BinaryFileResponse
     {
-        return response()->file($action->run($assembly, $media, true), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'])->setPrivate();
+        return $this->privateFile($action->run($assembly, $media, true));
     }
 }

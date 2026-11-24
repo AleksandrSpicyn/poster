@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Console\ModelId;
 use App\Enums\GenerationAccountingMode;
 use App\Repositories\BillingAccountingRepository;
 use DomainException;
@@ -18,9 +19,9 @@ final class ConfigureBillingPilot extends Command
     public function handle(BillingAccountingRepository $accounts): int
     {
         $mode = $this->option('mode');
-        $owner = (int) $this->argument('owner');
 
         try {
+            $owner = ModelId::parse($this->argument('owner'));
             $accounting = is_string($mode) ? GenerationAccountingMode::tryFrom($mode) : null;
 
             if ($mode !== null && $accounting === null) {

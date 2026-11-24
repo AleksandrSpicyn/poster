@@ -7,6 +7,7 @@ use App\Models\Prompt;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -175,4 +176,23 @@ test('фильтр генераций использует только прое
     get(route('prompts', ['project' => $other->id]))
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page->where('prompts.meta.total', 0));
+});
+
+test('ссылка на прикреплённый ролик появляется после завершения сборки', function (): void {
+    Storage::fake('local');
+    $owner = workspaceOwner();
+    $prompt = Prompt::factory()->recycle($owner)->create();
+    $media = $prompt->addMediaFromString('video')->usingFileName('short.mp4')->toMediaCollection('default', 'local');
+    actingAs($owner);
+
+    get(route('prompts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page->where('prompts.data.0.url', ''));
+
+    $prompt->update(['generated' => true]);
+
+    get(route('prompts'))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('prompts.data.0.url', route('prompts.media', ['prompt' => $prompt, 'media' => $media])));
 });

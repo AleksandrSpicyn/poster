@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\Production;
 
-use App\Classes\Channels\ChannelIdRule;
+use App\Support\DistinctModelIdRule;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Attributes\Validation\Required;
@@ -19,9 +19,9 @@ class StartProductionData extends Data
         #[Max(20)] public ?array $channel_ids = null,
     ) {}
 
-    /** @return array<string, ChannelIdRule> */
+    /** @return array<string, DistinctModelIdRule> */
     public static function rules(): array
     {
-        return ['channel_ids.*' => new ChannelIdRule()];
+        return ['channel_ids.*' => new DistinctModelIdRule()];
     }
 }

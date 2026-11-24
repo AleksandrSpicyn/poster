@@ -17,10 +17,15 @@ export function useListFilters(
     const keys = Object.keys(filters) as (keyof ListFilters)[];
     const loading = ref(false);
     const error = ref('');
+    let latestVisit = 0;
 
     watch([() => page.url.split('#')[0], ...keys.map((key) => () => committed.value[key])], () => Object.assign(filters, committed.value));
 
     function refresh() {
+        const visit = ++latestVisit;
+        function setError(message: string) {
+            if (visit === latestVisit) error.value = message;
+        }
         router.get(
             route(name, routeParameters?.()),
             { ...filters },
@@ -32,12 +37,12 @@ export function useListFilters(
                     error.value = '';
                 },
                 onFinish: () => {
-                    loading.value = false;
+                    if (visit === latestVisit) loading.value = false;
                 },
                 onError: (errors) => {
-                    error.value = Object.values(errors).join(' ');
+                    setError(Object.values(errors).join(' '));
                 },
-                ...listRequestErrors(error),
+                ...listRequestErrors(setError),
             },
         );
     }

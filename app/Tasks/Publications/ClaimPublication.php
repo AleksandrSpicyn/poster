@@ -40,6 +40,11 @@ class ClaimPublication
     {
         return DB::transaction(function () use ($request, $container): bool {
             $context = $request->prompt_id === null ? $this->publications->lockClaimContext($request) : null;
+
+            if ($request->prompt_id === null && ! $context instanceof PublicationClaimData) {
+                return false;
+            }
+
             $request = $context->request ?? $this->publications->findLockedOrFail($request->id);
             $expected = $container ? PublicationStatus::PROCESSING : PublicationStatus::PLANNED;
 

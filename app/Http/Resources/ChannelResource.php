@@ -14,6 +14,8 @@ class ChannelResource extends JsonResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
+        $credentials = $this->credentials;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -23,10 +25,10 @@ class ChannelResource extends JsonResource
             'tiktok_inbox' => $this->canSendTiktokInboxVideo(),
             'tiktok_direct' => $this->canDirectPostTiktok(),
             'tiktok_statistics' => $this->hasTiktokScope('video.list'),
-            'connected' => filled($this->credentials['access_token'] ?? null),
-            'permission_labels' => $this->permissionLabels(),
-            'account_name' => is_string($this->credentials['account_name'] ?? null) ? $this->credentials['account_name'] : null,
-            'expires_at' => is_string($this->credentials['expires_at'] ?? null) ? $this->credentials['expires_at'] : null,
+            'connected' => filled($credentials['access_token'] ?? null),
+            'permission_labels' => $this->permissionLabels($credentials['granted_scopes'] ?? null),
+            'account_name' => is_string($credentials['account_name'] ?? null) ? $credentials['account_name'] : null,
+            'expires_at' => is_string($credentials['expires_at'] ?? null) ? $credentials['expires_at'] : null,
             'client_id' => $this->client_id,
             'has_client_secret' => filled($this->client_secret),
             'oauth_configured' => filled($this->oauthClientId()) && filled($this->oauthClientSecret()),
@@ -41,10 +43,8 @@ class ChannelResource extends JsonResource
     }
 
     /** @return list<string>|null */
-    private function permissionLabels(): ?array
+    private function permissionLabels(mixed $scopes): ?array
     {
-        $scopes = $this->credentials['granted_scopes'] ?? null;
-
         if (! is_array($scopes)) {
             return null;
         }

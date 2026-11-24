@@ -14,6 +14,11 @@ class ClippingConnectionFactory extends Factory
 {
     public function definition(): array
     {
-        return ['owner_id' => User::factory(), 'name' => fake()->word(), 'driver' => ClippingDriver::OPUS_CLIP->value, 'api_key' => fake()->uuid()];
+        return [
+            'owner_id' => User::factory(),
+            'name' => fake()->word(),
+            'driver' => ClippingDriver::OPUS_CLIP->value,
+            'api_key' => fake()->uuid(),
+        ];
     }
 }

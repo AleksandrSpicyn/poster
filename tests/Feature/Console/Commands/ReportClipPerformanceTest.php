@@ -35,3 +35,30 @@ test('сравнивает просмотры одной публикации н
 
     expect($reads)->toHaveCount(1);
 });
+
+test('выводит десять наибольших изменений включая отрицательные', function (): void {
+    $project = Project::factory()->create(['clipping_workspace' => Project::OPUS_CLIP_WORKSPACE]);
+    $source = OpusSource::factory()->for($project)->create(['game' => 'Demo']);
+    $expected = [];
+
+    foreach (range(0, 11) as $index) {
+        $clip = OpusClip::factory()->for($source, 'source')->create(['title' => "Clip $index"]);
+
+        foreach ([7 => 12, 0 => $index] as $days => $views) {
+            $clip->latestMetrics()->create([
+                'platform' => 'tiktok',
+                'media_id' => (string) $index,
+                'observed_on' => now('UTC')->subDays($days)->toDateString(),
+                'metrics' => ['views' => $views],
+            ]);
+        }
+
+        if ($index >= 2) {
+            $expected[] = ['Demo', "Clip $index", $index - 12, $index];
+        }
+    }
+
+    consoleCommand('opus:performance')
+        ->expectsTable(['Game', 'Clip', 'View change', 'Total views'], array_reverse($expected))
+        ->assertSuccessful();
+});

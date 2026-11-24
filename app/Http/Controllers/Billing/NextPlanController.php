@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Billing;
 
-use App\Actions\Billing\UpdateBillingPreferencesAction;
+use App\Actions\Billing\SelectNextBillingPlanAction;
 use App\Data\Billing\NextBillingPlanData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -21,9 +21,9 @@ final class NextPlanController
      * @bodyParam product string Следующий месячный тариф или null для отмены. Example: studio
      * @response 302
      */
-    public function __invoke(#[CurrentUser] User $owner, NextBillingPlanData $data, UpdateBillingPreferencesAction $action): RedirectResponse
+    public function __invoke(#[CurrentUser] User $owner, NextBillingPlanData $data, SelectNextBillingPlanAction $action): RedirectResponse
     {
-        $action->nextPlan($owner, $data);
+        $action->run($owner->id, $data);
 
         return to_route('billing.show');
     }

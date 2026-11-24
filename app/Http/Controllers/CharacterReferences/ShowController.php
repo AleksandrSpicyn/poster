@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\CharacterReferences;
 
 use App\Actions\Characters\GetCharacterReferenceAction;
+use App\Http\Controllers\Controller;
 use App\Models\CharacterRevision;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class ShowController
+class ShowController extends Controller
 {
     /**
      * Просмотр приватного изображения-референса
@@ -29,9 +30,6 @@ class ShowController
      */
     public function __invoke(CharacterRevision $revision, Media $media, GetCharacterReferenceAction $action): BinaryFileResponse
     {
-        return response()->file($action->run($revision, $media), [
-            'Cache-Control' => 'private, no-store',
-            'X-Content-Type-Options' => 'nosniff',
-        ])->setPrivate();
+        return $this->privateFile($action->run($revision, $media));
     }
 }

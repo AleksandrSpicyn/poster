@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\ChannelType;
 use App\Support\Integrations\Payload;
 use App\Tasks\Channels\LoadChannel;
 use App\Tasks\Channels\SaveChannelCredentials;
@@ -24,6 +25,12 @@ class AuthorizeYoutube extends Command
     public function handle(Client $client, LoadChannel $load, SaveChannelCredentials $save): int
     {
         $channel = $load->run($this->argument('channel_id'));
+
+        if ($channel->type !== ChannelType::YOUTUBE) {
+            $this->error('Choose a YouTube channel.');
+
+            return self::FAILURE;
+        }
 
         $client->setClientId(Payload::string($channel->oauthClientId(), 'client_id'));
         $client->setClientSecret(Payload::string($channel->oauthClientSecret(), 'client_secret'));

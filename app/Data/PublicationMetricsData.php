@@ -59,18 +59,22 @@ final class PublicationMetricsData extends Data
         $daily = array_fill_keys(array_keys($this->daily), null);
         $timelines = $this->observedPublications();
 
-        foreach (array_keys($daily) as $date) {
-            $values = [];
+        $counts = [];
+        $sums = [];
 
-            foreach ($timelines as $publication) {
-                if (! isset($publication->snapshots[$date])) {
-                    continue 2;
-                }
-
-                $values[] = $publication->snapshots[$date];
+        foreach ($timelines as $publication) {
+            foreach (array_intersect_key($publication->snapshots, $daily) as $date => $value) {
+                $counts[$date] = ($counts[$date] ?? 0) + 1;
+                $sums[$date] = ($sums[$date] ?? 0) + $value;
             }
+        }
 
-            $daily[$date] = $values === [] ? null : array_sum($values);
+        $expected = count($timelines);
+
+        foreach ($counts as $date => $count) {
+            if ($count === $expected) {
+                $daily[$date] = $sums[$date];
+            }
         }
 
         return $daily;

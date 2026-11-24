@@ -13,8 +13,6 @@ class Vk extends AbstractPublisher
 {
     public function publish(): bool
     {
-        // TODO: Implement publish() method.
-
         return false;
     }
 }

@@ -60,10 +60,20 @@ test('меню показывает доступные секунды тольк
         ]);
     }
 
-    actingAs($owner)
-        ->get(route('dashboard'))
-        ->assertInertia(fn(Assert $page): Assert => $page->where('balance.available', 30)
+    $response = actingAs($owner)->get(route('dashboard'));
+
+    DB::enableQueryLog();
+
+    try {
+        $response->assertInertia(fn(Assert $page): Assert => $page->where('balance.available', 30)
             ->reloadOnly('balance', fn(Assert $updated): Assert => $updated->where('balance.available', 30)->missing('stats')));
+        $queries = DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
+
+    expect(collect($queries)->pluck('query')->implode(' '))->not->toMatch('/from [`"](prompts|posts)[`"]/i');
 });
 
 test('обзор показывает данные за выбранный период', function (int $days): void {

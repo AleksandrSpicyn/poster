@@ -4,7 +4,7 @@ import type { Config } from 'ziggy-js';
 import type { Balance } from './billing';
 
 export interface Auth {
-    user: User;
+    user: User | null;
     can_view_logs: boolean;
     can_view_queues: boolean;
     can_manage_series: boolean;
@@ -39,9 +39,14 @@ export interface SharedData extends PageProps {
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
     balance?: Balance | null;
+    appearance: Appearance;
     appearanceValues: AppearanceValues;
     realtime: { enabled: boolean; key: string | null };
     contentScheduleEnabled: boolean;
+}
+
+export interface WorkspacePageProps extends SharedData {
+    auth: Auth & { user: User };
 }
 
 export interface User {

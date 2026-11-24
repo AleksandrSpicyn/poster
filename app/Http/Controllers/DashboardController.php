@@ -88,14 +88,9 @@ class DashboardController
 
         return inertia('Dashboard', [
             'analytics' => fn(): PublicationMetricsData => $analytics->run($owner, $period, includeProduction: true),
-            'stats' => [
-                'prompts' => $dashboard->promptCount,
-                'pending' => $dashboard->pendingCount,
-                'ready' => $dashboard->readyCount,
-                'posts' => $dashboard->postCount,
-            ],
-            'recentPrompts' => PromptResource::collection($dashboard->recentPrompts),
-            'recentPosts' => PostResource::collection($dashboard->recentPosts),
+            'stats' => $dashboard->stats,
+            'recentPrompts' => fn() => PromptResource::collection(($dashboard->recentPrompts)()),
+            'recentPosts' => fn() => PostResource::collection(($dashboard->recentPosts)()),
         ]);
     }
 }

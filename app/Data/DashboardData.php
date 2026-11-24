@@ -6,22 +6,16 @@ namespace App\Data;
 
 use App\Models\Post;
 use App\Models\Prompt;
+use Closure;
 use Illuminate\Database\Eloquent\Collection;
-use Spatie\LaravelData\Data;
 
 /** Подготовленные счётчики и ограниченные выборки для обзора кабинета. */
-class DashboardData extends Data
+final readonly class DashboardData
 {
     /**
-     * @param Collection<int, Prompt> $recentPrompts
-     * @param Collection<int, Post> $recentPosts
+     * @param Closure(): DashboardStatsData $stats
+     * @param Closure(): Collection<int, Prompt> $recentPrompts
+     * @param Closure(): Collection<int, Post> $recentPosts
      */
-    public function __construct(
-        public int $promptCount,
-        public int $pendingCount,
-        public int $readyCount,
-        public int $postCount,
-        public Collection $recentPrompts,
-        public Collection $recentPosts,
-    ) {}
+    public function __construct(public Closure $stats, public Closure $recentPrompts, public Closure $recentPosts) {}
 }

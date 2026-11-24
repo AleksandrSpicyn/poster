@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Classes\Billing\PilotShotQuote;
 use App\Enums\GenerationAccountingMode;
+use App\Enums\GenerationOperationStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Project;
 use App\Models\Prompt;
@@ -89,35 +90,37 @@ final readonly class GenerationReservationRepository
     }
 
     /** @param list<int> $takeIds */
-    public function setStatus(array $takeIds, ReservationStatus $to): void
+    public function transitionTakeReservations(array $takeIds, ReservationStatus $to): void
     {
-        if ($takeIds !== []) {
-            $from = $to === ReservationStatus::HELD ? ReservationStatus::RELEASED : ReservationStatus::HELD;
-            /** @var Collection<int, object{id: int, owner_id: int, prompt_id: int, quote_snapshot: string}> $reservations */
-            $reservations = DB::table('generation_reservations')->whereIn('prompt_id', $takeIds)->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)
-                ->where('status', $from->value)->orderBy('owner_id')->orderBy('id')->get();
+        if ($takeIds === []) {
+            return;
+        }
 
-            foreach ($reservations as $reservation) {
-                DB::table('billing_accounts')->where('owner_id', $reservation->owner_id)->lockForUpdate()->firstOrFail();
-                $changed = DB::table('generation_reservations')->where('id', $reservation->id)->where('status', $from->value)
-                    ->update(['status' => $to->value, 'updated_at' => now('UTC')]);
+        $from = $to === ReservationStatus::HELD ? ReservationStatus::RELEASED : ReservationStatus::HELD;
+        /** @var Collection<int, object{id: int, owner_id: int, prompt_id: int, quote_snapshot: string}> $reservations */
+        $reservations = DB::table('generation_reservations')->whereIn('prompt_id', $takeIds)->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)
+            ->where('status', $from->value)->orderBy('owner_id')->orderBy('id')->get();
 
-                if ($changed === 0) {
-                    continue;
-                }
+        foreach ($reservations as $reservation) {
+            DB::table('billing_accounts')->where('owner_id', $reservation->owner_id)->lockForUpdate()->firstOrFail();
+            $changed = DB::table('generation_reservations')->where('id', $reservation->id)->where('status', $from->value)
+                ->update(['status' => $to->value, 'updated_at' => now('UTC')]);
 
-                if ($to === ReservationStatus::HELD) {
-                    /** @var array{shot_id: int, seconds: int} $quote */
-                    $quote = json_decode($reservation->quote_snapshot, true, flags: JSON_THROW_ON_ERROR);
-                    $this->credits->reserve($reservation->owner_id, $reservation->id, 'retry:' . Str::uuid(), $quote['shot_id'], $reservation->prompt_id, $quote['seconds']);
-                } else {
-                    $this->credits->settle($reservation->owner_id, $reservation->id, $to);
-                }
+            if ($changed === 0) {
+                continue;
             }
 
-            DB::table('generation_reservations')->whereIn('prompt_id', $takeIds)->where('intent_key', 'like', 'shot-take:%')->where('accounting_mode', GenerationAccountingMode::SHADOW->value)
-                ->where('status', $from->value)->update(['status' => $to->value, 'updated_at' => now('UTC')]);
+            if ($to === ReservationStatus::HELD) {
+                /** @var array{shot_id: ?int, seconds: int} $quote */
+                $quote = json_decode($reservation->quote_snapshot, true, flags: JSON_THROW_ON_ERROR);
+                $this->credits->reserve($reservation->owner_id, $reservation->id, 'retry:' . Str::uuid(), $quote['shot_id'], $reservation->prompt_id, $quote['seconds']);
+            } else {
+                $this->credits->settle($reservation->owner_id, $reservation->id, $to);
+            }
         }
+
+        DB::table('generation_reservations')->whereIn('prompt_id', $takeIds)->where('intent_key', 'like', 'shot-take:%')->where('accounting_mode', GenerationAccountingMode::SHADOW->value)
+            ->where('status', $from->value)->update(['status' => $to->value, 'updated_at' => now('UTC')]);
     }
 
     public function releaseUndeliverable(int $promptId, int $operator, string $reason): void
@@ -133,8 +136,10 @@ final readonly class GenerationReservationRepository
                 throw new DomainException('Проверьте существование работы и прикреплённый файл.');
             }
 
+            $paidReservation = DB::table('generation_reservations')->where('prompt_id', $promptId)->where('accounting_mode', GenerationAccountingMode::ENFORCED->value);
+            DB::table('billing_accounts')->whereIn('owner_id', (clone $paidReservation)->select('owner_id'))->orderBy('owner_id')->lockForUpdate()->get(['owner_id']);
             /** @var object{id: int, owner_id: int, production_run_id: ?int, status: string}|null $reservation */
-            $reservation = DB::table('generation_reservations')->where('prompt_id', $promptId)->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)->lockForUpdate()->first();
+            $reservation = $paidReservation->lockForUpdate()->first();
 
             if ($reservation === null) {
                 throw new DomainException('Платный резерв не найден.');
@@ -146,19 +151,13 @@ final readonly class GenerationReservationRepository
 
             $running = $prompt->shot_id === null
                 ? DB::table('production_runs')->where('id', $reservation->production_run_id)->whereNotIn('status', ['needs_attention', 'stopped'])->exists()
-                : DB::table('generation_operations')->where('prompt_id', $promptId)->whereIn('status', [
-                    'planned',
-                    'submitting',
-                    'submitted',
-                    'running',
-                    'submission_unknown',
-                ])->exists();
+                : DB::table('generation_operations')->where('prompt_id', $promptId)->whereIn('status', array_column(GenerationOperationStatus::active(), 'value'))->exists();
 
             if ($running || $reservation->status !== 'held') {
                 throw new DomainException('Сначала завершите обработку или разберите неизвестную внешнюю отправку.');
             }
 
-            $this->setStatus([$promptId], ReservationStatus::RELEASED);
+            $this->transitionTakeReservations([$promptId], ReservationStatus::RELEASED);
             DB::table('billing_events')->insert([
                 'owner_id' => $reservation->owner_id,
                 'event_key' => 'hold.released.' . Str::uuid(),

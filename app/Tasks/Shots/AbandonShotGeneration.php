@@ -69,7 +69,7 @@ class AbandonShotGeneration
                     'accept_unknown_outcome' => true,
                 ],
             ]);
-            $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+            $this->usage->transitionTakeReservations([$prompt->id], ReservationStatus::RELEASED);
 
             return $operation;
         });

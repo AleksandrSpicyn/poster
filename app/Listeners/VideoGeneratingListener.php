@@ -21,6 +21,6 @@ class VideoGeneratingListener
             $event->getPrompt(),
             $event->getAlternative(),
             $this->generators->make($event->getProvider())->pollingAttempts(),
-        );
+        )->afterCommit();
     }
 }

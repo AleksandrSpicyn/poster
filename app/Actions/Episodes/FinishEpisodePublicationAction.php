@@ -31,13 +31,13 @@ readonly class FinishEpisodePublicationAction
 
         try {
             $context = $this->prepare->run($request);
-            $this->publish->run($context->channel, $context->video, $request->container_id ?? '');
+            $this->publish->run($context->channel, $context->video, $context->request->container_id ?? '');
         } catch (PublicationProcessingException $exception) {
-            $this->update->run($request, $exception->inbox ? PublicationStatus::INBOX : PublicationStatus::PROCESSING, error: $exception->getMessage());
+            $this->update->run($request, PublicationStatus::PUBLISHING_CONTAINER, $exception->inbox ? PublicationStatus::INBOX : PublicationStatus::PROCESSING, error: $exception->getMessage());
         } catch (PublicationRejectedException $exception) {
-            $this->update->run($request, PublicationStatus::FAILED, error: $exception->getMessage());
+            $this->update->run($request, PublicationStatus::PUBLISHING_CONTAINER, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {
-            $this->update->run($request, PublicationStatus::SUBMISSION_UNKNOWN, error: 'Publishing the prepared container was not confirmed. Verify its outcome before retrying.');
+            $this->update->run($request, PublicationStatus::PUBLISHING_CONTAINER, PublicationStatus::SUBMISSION_UNKNOWN, error: 'Publishing the prepared container was not confirmed. Verify its outcome before retrying.');
             report($exception);
         }
     }

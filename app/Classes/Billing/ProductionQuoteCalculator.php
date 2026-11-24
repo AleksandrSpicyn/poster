@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Classes\Billing;
 
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
+use App\Data\Billing\ProductionQuoteData;
 use App\Enums\SeriesAudioMode;
 use App\Models\EpisodeRevision;
 use App\Models\Series;
@@ -16,8 +17,7 @@ final readonly class ProductionQuoteCalculator
 {
     public function __construct(private VideoGeneratorFactory $generators, private GeneralSettings $settings, private ProductionBudgetRepository $budgets) {}
 
-    /** @return array{seconds: int, shots: array<int, int>, video: array<string, mixed>, revision_id: ?int} */
-    public function calculate(?Series $series, ?EpisodeRevision $revision): array
+    public function calculate(?Series $series, ?EpisodeRevision $revision): ProductionQuoteData
     {
         $duration = $series instanceof Series ? $series->specification['shot_duration_seconds'] ?? 15 : ($this->settings->duration);
         $audio = $series->specification['audio_mode'] ?? SeriesAudioMode::NATIVE->value;
@@ -43,12 +43,7 @@ final readonly class ProductionQuoteCalculator
             throw ValidationException::withMessages(['balance' => 'Проверьте длительность эпизода.']);
         }
 
-        return [
-            'seconds' => $seconds,
-            'shots' => $shots,
-            'video' => $video,
-            'revision_id' => $revision?->id,
-        ];
+        return new ProductionQuoteData($seconds, $shots, $video, $revision?->id);
     }
 
     /**

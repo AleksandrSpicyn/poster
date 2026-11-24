@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Classes\Clipping\ArchivedClippingReader;
 use App\Classes\Clipping\ClippingReaders;
 use App\Classes\Clipping\ClippingResourceReader;
+use App\Data\OpusClip\OpusSourceData;
 use App\Exceptions\ClippingProviderException;
 use App\Models\ClippingConnection;
 use App\Models\OpusSource;
@@ -62,7 +63,7 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
         try {
             $reader = $readers->forConnection($connection);
 
-            if ($reader instanceof ArchivedClippingReader && ! collect($readers->sources($reader, $connection))->contains('id', $this->externalId)) {
+            if ($reader instanceof ArchivedClippingReader && ! $readers->findSource($reader, $connection, $this->externalId) instanceof OpusSourceData) {
                 return;
             }
 

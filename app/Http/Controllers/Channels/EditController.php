@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\GetChannelFormAction;
-use App\Classes\Channels\ChannelOAuth;
-use App\Enums\ChannelType;
 use App\Http\Resources\ChannelResource;
 use App\Models\Channel;
 use App\Models\User;
@@ -32,11 +30,13 @@ class EditController
      */
     public function __invoke(#[CurrentUser] User $owner, Channel $channel, GetChannelFormAction $action): Response
     {
+        $form = $action->run($owner, $channel);
+
         return inertia('Channels/Form', [
-            'channel' => ChannelResource::make($action->run($owner, $channel))->resolve(),
-            'requestedScopes' => $channel->type === ChannelType::TIKTOK ? $action->requestedScopes($channel) : [],
+            'channel' => ChannelResource::make($form->channel)->resolve(),
+            'requestedScopes' => $form->requestedScopes,
             'channelTypes' => [$channel->type->value => $channel->type->label()],
-            'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null,
+            'callbackUrl' => $form->callbackUrl,
         ]);
     }
 }

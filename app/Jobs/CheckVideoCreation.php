@@ -15,8 +15,7 @@ use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationPendingException;
 use App\Models\Prompt;
 use App\Repositories\GenerationReservationRepository;
-use App\Tasks\Prompts\RefreshPrompt;
-use App\Tasks\Prompts\UpdatePrompt;
+use App\Repositories\PromptRepository;
 use App\Tasks\ReadVideoGenerationResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,9 +41,9 @@ class CheckVideoCreation implements ShouldQueue
         $this->tries = max(1, $maxAttempts);
     }
 
-    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt, RefreshPrompt $refresh, ReadVideoGenerationResult $read, GenerationReservationRepository $reservations): void
+    public function handle(VideoGeneratorFactory $generators, PromptRepository $prompts, ReadVideoGenerationResult $read, GenerationReservationRepository $reservations): void
     {
-        $refresh->run($this->prompt);
+        $prompts->refresh($this->prompt);
 
         if ($this->prompt->shot_id !== null || $this->prompt->video_url || ! $this->prompt->video_id) {
             return;
@@ -71,12 +70,19 @@ class CheckVideoCreation implements ShouldQueue
                 throw new VideoGeneratingException('The standalone video is missing its requested embedded audio.');
             }
 
-            $updatePrompt->run($this->prompt, array_filter([
-                'video_url' => $result->videoUrl,
-                'audio_url' => $result->audioUrl,
-            ], static fn(?string $value): bool => $value !== null));
+            DB::transaction(function () use ($prompts, $result): void {
+                $current = $prompts->lockPendingVideoAttempt($this->prompt);
 
-            event(new VideoGenerated($this->prompt));
+                if (! $current instanceof Prompt) {
+                    return;
+                }
+
+                $prompts->update($current, [
+                    'video_url' => $result->videoUrl,
+                    ...($result->audioUrl === null ? [] : ['audio_url' => $result->audioUrl]),
+                ]);
+                event(new VideoGenerated($current));
+            });
         } catch (VideoGenerationPendingException) {
             $this->release(60);
         } catch (VideoGeneratingException $e) {
@@ -85,7 +91,11 @@ class CheckVideoCreation implements ShouldQueue
                 VideoReceiptStatus::CANCELLED,
                 VideoReceiptStatus::EXPIRED,
             ], true)) {
-                DB::transaction(fn() => $reservations->setStatus([$this->prompt->id], ReservationStatus::RELEASED), 3);
+                DB::transaction(function () use ($prompts, $reservations): void {
+                    if ($prompts->lockPendingVideoAttempt($this->prompt) instanceof Prompt) {
+                        $reservations->transitionTakeReservations([$this->prompt->id], ReservationStatus::RELEASED);
+                    }
+                }, 3);
             }
 
             $this->fail($e);

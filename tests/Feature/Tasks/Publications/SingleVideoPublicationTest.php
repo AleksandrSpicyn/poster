@@ -18,6 +18,7 @@ use App\Tasks\Publications\CreatePublicationRequest;
 use App\Tasks\Publications\CreateSeriesPublication;
 use App\Tasks\Series\AcceptSeriesAssembly;
 use App\Tasks\Series\SaveSeriesAssembly;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -49,6 +50,12 @@ test('повтор публикации закрепляет один итого
     readyPublicationExport($assembly, $context['user']);
     $data = new PublishEpisodeData([$context['channel']->id]);
     $request = app(CreateSeriesPublication::class)->run($assembly, $data, $context['user'])->sole();
+
+    $beforeReassignment = clone $request;
+    $request->update(['production_run_id' => $context['run']->id]);
+
+    expect(app(ClaimPublication::class)->run($beforeReassignment))->toBeFalse();
+    expect($request->refresh()->status)->toBe(PublicationStatus::PLANNED);
 
     $duplicate = app(CreateSeriesPublication::class)->run($assembly, $data, $context['user'])->sole();
     $claimed = app(ClaimPublication::class)->run($request);
@@ -85,16 +92,23 @@ test('единый файл публикуется в два канала по �
     $requests = app(CreateSeriesPublication::class)->run($assembly, new PublishEpisodeData([$context['channel']->id, $second->id]), $context['user']);
 
     foreach ($requests as $request) {
+        $beforeSubmission = clone $request;
         app(SubmitEpisodePublicationAction::class)->run($request);
         app(SubmitEpisodePublicationAction::class)->run($request);
-        app(FinishEpisodePublicationAction::class)->run($request);
-        app(FinishEpisodePublicationAction::class)->run($request);
+        app(FinishEpisodePublicationAction::class)->run($beforeSubmission);
+        app(FinishEpisodePublicationAction::class)->run($beforeSubmission);
     }
 
     expect(Post::query()->count())->toBe(2);
     expect(Post::query()->where('series_assembly_id', $assembly->id)->count())->toBe(2);
     expect(Post::query()->whereNotNull('episode_assembly_id')->count())->toBe(0);
     expect($requests->map(fn($request) => $request->refresh()->status)->unique()->all())->toBe([PublicationStatus::PUBLISHED]);
+
+    foreach (['a', 'b'] as $suffix) {
+        Http::assertSent(fn(Request $outgoing): bool => str_ends_with($outgoing->url(), "/final-$suffix/media_publish")
+            && $outgoing['creation_id'] === "container-$suffix");
+    }
+
     Http::assertSentCount(6);
     Queue::assertPushed(FinishEpisodePublicationJob::class, 2);
     Event::assertDispatchedTimes(PostCreated::class, 2);

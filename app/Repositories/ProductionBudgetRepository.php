@@ -176,8 +176,16 @@ final readonly class ProductionBudgetRepository
     public function shortPreparationFailed(ProductionRun $run, bool $retryable): void
     {
         DB::transaction(function () use ($run, $retryable): void {
+            $reservation = DB::table('generation_reservations')->where('production_run_id', $run->id)->where('intent_key', 'short:' . $run->id);
+            $owner = $reservation->value('owner_id');
+
+            if ($owner === null) {
+                return;
+            }
+
+            DB::table('billing_accounts')->where('owner_id', $owner)->lockForUpdate()->firstOrFail();
             /** @var object{id: int, owner_id: int, prompt_id: ?int}|null $budget */
-            $budget = DB::table('generation_reservations')->where('intent_key', 'short:' . $run->id)->where('status', 'held')->lockForUpdate()->first();
+            $budget = $reservation->where('status', ReservationStatus::HELD->value)->lockForUpdate()->first();
 
             if ($budget === null) {
                 return;
@@ -191,7 +199,6 @@ final readonly class ProductionBudgetRepository
                 return;
             }
 
-            DB::table('billing_accounts')->where('owner_id', $budget->owner_id)->lockForUpdate()->firstOrFail();
             $this->credits->settle($budget->owner_id, $budget->id, ReservationStatus::RELEASED);
             DB::table('generation_reservations')->where('id', $budget->id)->update(['status' => 'released', 'updated_at' => now('UTC')]);
         }, 3);
@@ -201,12 +208,16 @@ final readonly class ProductionBudgetRepository
     {
         /** @var Collection<int, object{id: int, owner_id: int}> $reservations */
         $reservations = DB::table('generation_reservations')->where('production_run_id', $run->id)->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)
-            ->whereNull('prompt_id')->where('status', 'held')->orderBy('id')->lockForUpdate()->get(['id', 'owner_id']);
+            ->whereNull('prompt_id')->where('status', ReservationStatus::HELD->value)->orderBy('owner_id')->orderBy('id')->get(['id', 'owner_id']);
 
         foreach ($reservations as $reservation) {
             DB::table('billing_accounts')->where('owner_id', $reservation->owner_id)->lockForUpdate()->firstOrFail();
-            $this->credits->settle($reservation->owner_id, $reservation->id, ReservationStatus::RELEASED);
-            DB::table('generation_reservations')->where('id', $reservation->id)->update(['status' => 'released', 'updated_at' => now('UTC')]);
+            $released = DB::table('generation_reservations')->where('id', $reservation->id)->whereNull('prompt_id')
+                ->where('status', ReservationStatus::HELD->value)->update(['status' => ReservationStatus::RELEASED->value, 'updated_at' => now('UTC')]);
+
+            if ($released > 0) {
+                $this->credits->settle($reservation->owner_id, $reservation->id, ReservationStatus::RELEASED);
+            }
         }
     }
 }

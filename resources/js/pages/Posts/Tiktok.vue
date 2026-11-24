@@ -21,6 +21,7 @@ const page = usePage();
 const { form, consentChanged } = useTiktokPublicationForm(props);
 const rechecking = ref(false);
 function retryCreator() {
+    if (rechecking.value) return;
     rechecking.value = true;
     router.reload({
         only: ['creator', 'directUnavailable', 'inbox', 'account', 'accountId'],
@@ -40,7 +41,11 @@ watch(directDetails, (open) => {
 const title = computed(() =>
     finalReceipt.value ? 'Результат отправки' : directDetails.value ? 'Прямая публикация в TikTok' : 'Публикация в TikTok',
 );
-const { refreshingReceipt, receiptError, refreshReceipt } = useTiktokReceiptRefresh();
+const { refreshingReceipt, receiptError, refreshReceipt } = useTiktokReceiptRefresh([
+    () => form.media_id,
+    () => props.channelId,
+    () => props.accountId,
+]);
 const project = computed(() => {
     if (video.value) return video.value.project;
     if (props.videos.next_page_url || props.videos.prev_page_url) return null;
@@ -95,7 +100,6 @@ const privacyLabels: Record<string, string> = {
 watch(
     () => form.media_id,
     () => {
-        receiptError.value = '';
         duration.value = 0;
         durationError.value = false;
     },
@@ -217,8 +221,11 @@ function submit() {
                     />
                     <section v-if="tab === 'Статус'" class="studio-panel grid gap-4" aria-live="polite">
                         <h2>Статус отправки</h2>
-                        <strong>{{ video?.receipt ? statusLabels[video.receipt.status] : 'Видео ещё не отправлено' }}</strong>
-                        <Button variant="outline" @click="router.reload({ only: ['videos'] })">Проверить статус</Button>
+                        <strong>{{
+                            video?.receipt ? (statusLabels[video.receipt.status] ?? video.receipt.status) : 'Видео ещё не отправлено'
+                        }}</strong>
+                        <Button variant="outline" :disabled="refreshingReceipt" @click="refreshReceipt">Проверить статус</Button>
+                        <p v-if="receiptError" role="alert">{{ receiptError }}</p>
                     </section>
                     <form v-else id="tiktok-delivery-form" class="studio-panel grid min-w-0 content-start gap-4" @submit.prevent="submit">
                         <h2 v-if="directDetails">Аккаунт · {{ creator?.nickname ?? account }}</h2>

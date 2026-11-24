@@ -5,36 +5,55 @@ declare(strict_types=1);
 namespace App\Actions\Projects;
 
 use App\Data\GetPromptsListData;
-use App\Data\Projects\ProjectWorkspaceData;
+use App\Data\OpusClip\GamingTrendReport;
+use App\Data\Series\SeriesWorkspaceData;
+use App\Models\OpusClip;
 use App\Models\Project;
+use App\Models\Prompt;
 use App\Models\User;
 use App\Tasks\OpusClip\GetOpusClips;
 use App\Tasks\Projects\GetProject;
 use App\Tasks\Prompts\GetPromptsList;
 use App\Tasks\Series\GetSeries;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 
 readonly class GetProjectAction
 {
     public function __construct(private GetProject $getProject, private GetPromptsList $getPrompts, private GetSeries $getSeries, private GetOpusClips $getClips) {}
 
-    public function run(User $owner, Project $project, GetPromptsListData $filters): ProjectWorkspaceData
+    public function run(Project $project): Project
     {
-        $project = $this->getProject->run($project);
+        return $this->getProject->run($project);
+    }
+
+    /** @return LengthAwarePaginator<int, Prompt> */
+    public function prompts(User $owner, Project $project, GetPromptsListData $filters): LengthAwarePaginator
+    {
+        return $this->getPrompts->run($owner, $filters, $project);
+    }
+
+    public function series(User $owner, Project $project, int $page): ?SeriesWorkspaceData
+    {
         $series = Gate::forUser($owner)->allows('manageSeries') ? $project->seriesDefinition : null;
-        $details = $series === null ? null : $this->getSeries->run($series, $filters->page ?? 1);
 
-        $canReadClips = $project->isClippingProject() && Gate::forUser($owner)->allows('manageChannels');
+        return $series === null ? null : $this->getSeries->run($series, $page);
+    }
 
-        return new ProjectWorkspaceData(
-            project: $project,
-            prompts: $this->getPrompts->run($owner, $filters, $project),
-            series: $details->series ?? null,
-            characters: $details->characters ?? null,
-            episodes: $details->episodes ?? new Collection(),
-            clips: $canReadClips ? $this->getClips->run($project, $filters) : null,
-            trends: $canReadClips ? $this->getClips->trends($project) : [],
-        );
+    /** @return LengthAwarePaginator<int, OpusClip>|null */
+    public function clips(User $owner, Project $project, GetPromptsListData $filters): ?LengthAwarePaginator
+    {
+        return $this->canReadClips($owner, $project) ? $this->getClips->run($project, $filters) : null;
+    }
+
+    /** @return list<GamingTrendReport> */
+    public function trends(User $owner, Project $project): array
+    {
+        return $this->canReadClips($owner, $project) ? $this->getClips->trends($project) : [];
+    }
+
+    private function canReadClips(User $owner, Project $project): bool
+    {
+        return $project->isClippingProject() && Gate::forUser($owner)->allows('manageChannels');
     }
 }

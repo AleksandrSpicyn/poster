@@ -8,6 +8,7 @@ use App\Data\Billing\MerchantData;
 use App\Data\Billing\StoredPaymentData;
 use App\Enums\PaymentStatus;
 use Closure;
+use DateTimeInterface;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,14 @@ class BillingPaymentRepository
 
             return $id;
         }, 3);
+    }
+
+    public function scheduleCheckout(string $attempt, int $order, DateTimeInterface $now): void
+    {
+        DB::table('billing_payments')->where('id', $attempt)->update([
+            'checkout_return_url' => rtrim(config()->string('app.url'), '/') . route('billing.orders.show', ['order' => $order], false),
+            'next_check_at' => $now,
+        ]);
     }
 
     public function find(string $attemptId): ?StoredPaymentData

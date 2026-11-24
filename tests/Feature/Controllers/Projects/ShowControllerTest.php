@@ -14,6 +14,7 @@ use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -201,4 +202,23 @@ test('активные клипы включают только записи с 
 
     get(route('projects.show', ['project' => $workspace, 'active' => 0]))
         ->assertInertia(fn(Assert $page): Assert => $page->where('opusClips.meta.total', 2));
+});
+
+test('обновление списка генераций пропускает рабочую область сериала', function (): void {
+    $context = serialCharacterContext();
+    $response = actingAs(workspaceOwner())->get(route('projects.show', $context['project']));
+    DB::enableQueryLog();
+
+    try {
+        $response->assertInertia(fn(Assert $page): Assert => $page
+            ->reloadOnly('prompts', fn(Assert $partial): Assert => $partial
+                ->has('prompts.data')
+                ->missing('series')));
+        $queries = DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
+
+    expect(collect($queries)->pluck('query')->implode(' '))->not->toMatch('/from [`"](characters|episodes|generation_operations)[`"]/i');
 });

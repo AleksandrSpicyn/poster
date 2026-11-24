@@ -1,5 +1,5 @@
 import { useFormApi } from '@/lib/api/useFormApi';
-import type { SharedData } from '@/types';
+import type { WorkspacePageProps } from '@/types';
 import type { EpisodeWorkspaceProps } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -24,18 +24,19 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
             (assembly) => assembly.episode_revision_id === revision.value?.id && assembly.status !== 'failed' && !!assembly.selection?.length,
         ),
     );
-    const serverSelection = computed(() =>
-        shots.value.map((shot, index) => {
-            const saved = savedAssembly.value?.selection?.find((item) => item.shot_id === shot.id);
+    const serverSelection = computed(() => {
+        const savedByShot = new Map(savedAssembly.value?.selection?.map((item) => [item.shot_id, item]));
+        return shots.value.map((shot, index) => {
+            const saved = savedByShot.get(shot.id);
             return {
                 prompt_id: saved?.prompt_id ?? readyTakes.value[index][0]?.id ?? 0,
                 trim_start_ms: saved?.trim_start_ms ?? 0,
                 trim_end_ms: saved?.trim_end_ms ?? shot.duration_ms,
             };
-        }),
-    );
+        });
+    });
     const assemblyForm = useForm({ shots: copy(serverSelection.value) });
-    const ownerId = usePage<SharedData>().props.auth.user.id;
+    const ownerId = usePage<WorkspacePageProps>().props.auth.user.id;
     const draftKey = computed(() => `poster:montage:${ownerId}:${props.episode.id}:${revision.value?.id}`);
     const base = ref(copy(serverSelection.value));
     const restored = ref(false);
@@ -176,7 +177,6 @@ export function useEpisodeMontage(props: EpisodeWorkspaceProps) {
         saveError,
         stale,
         difference,
-        savedAssembly,
         resetSelection,
         keepSelection,
     };

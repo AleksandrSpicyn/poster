@@ -8,19 +8,19 @@ interface ThemePreference {
 
 const themePreference: InjectionKey<ThemePreference> = Symbol('themePreference');
 
-function storedPreference(values: AppearanceValues): Appearance {
+function storedPreference(values: AppearanceValues, fallback: Appearance): Appearance {
     try {
         const stored = localStorage.getItem('appearance');
-        if (stored === values.DARK || stored === values.LIGHT) return stored;
+        if (stored === values.DARK || stored === values.LIGHT || stored === values.SYSTEM) return stored;
     } catch {
         // Storage can be unavailable in a restricted browsing context.
     }
-    return values.SYSTEM;
+    return fallback;
 }
 
-export function installAppearance(app: App, values: AppearanceValues) {
+export function installAppearance(app: App, values: AppearanceValues, initial: Appearance = values.SYSTEM) {
     const browser = typeof window !== 'undefined';
-    const appearance = ref<Appearance>(browser ? storedPreference(values) : values.SYSTEM);
+    const appearance = ref<Appearance>(browser ? storedPreference(values, initial) : initial);
     const system = browser ? window.matchMedia('(prefers-color-scheme: dark)') : undefined;
     function apply() {
         if (system)
@@ -33,7 +33,7 @@ export function installAppearance(app: App, values: AppearanceValues) {
     apply();
     function syncPreference(event: StorageEvent) {
         if (event.key !== 'appearance' && event.key !== null) return;
-        appearance.value = storedPreference(values);
+        appearance.value = storedPreference(values, values.SYSTEM);
         apply();
     }
     if (browser) {

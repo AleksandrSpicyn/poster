@@ -17,7 +17,7 @@ const props = withDefaults(
     },
 );
 
-const delegatedProps = reactiveOmit(props, 'inset', 'variant');
+const delegatedProps = reactiveOmit(props, 'class', 'inset', 'variant');
 
 const forwardedProps = useForwardProps(delegatedProps);
 </script>

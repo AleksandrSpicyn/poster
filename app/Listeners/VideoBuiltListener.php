@@ -29,7 +29,7 @@ readonly class VideoBuiltListener
 
         $operation = $this->upscale->run($prompt, $project->owner, new RequestVideoUpscaleData(UpscaleExport::FULL_HD));
 
-        $project->channels->filter(fn(Channel $channel): bool => $channel->type !== ChannelType::TIKTOK && $channel->owner_id === $project->owner_id && $channel->is_active && filled($channel->credentials['access_token'] ?? null))->each(function (Channel $channel) use ($prompt, $operation): void {
+        $project->channels->filter(fn(Channel $channel): bool => $channel->type !== ChannelType::TIKTOK && $channel->owner_id === $project->owner_id && $channel->canReceiveProduction())->each(function (Channel $channel) use ($prompt, $operation): void {
             $request = $this->requests->forShort($prompt, $channel, $operation->initiator_id, operationId: $operation->id);
 
             if ($request->wasRecentlyCreated) {

@@ -4,7 +4,7 @@ import { useRoute } from '@/composables/useRoute';
 import { billingDate, money, operationLabel, orderStatus } from '@/lib/billing';
 import type { BillingOrder, BillingWorkspace } from '@/types/billing';
 import { Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 const props = defineProps<{
     order: BillingOrder;
     label: string;
@@ -15,14 +15,21 @@ const props = defineProps<{
 const route = useRoute();
 const waiting = computed(() => props.order.status === 'open' && ['created', 'pending', 'unknown'].includes(props.order.payment_status ?? ''));
 const cancelled = computed(() => props.order.status === 'cancelled' || props.order.payment_status === 'cancelled');
-let timer: ReturnType<typeof setInterval>;
+let stopPolling: (() => void) | undefined;
 onMounted(() => {
-    timer = setInterval(() => {
-        if (waiting.value && document.visibilityState === 'visible')
-            router.reload({ only: ['order', 'confirmationUrl', 'receipts', 'refunds', 'pendingOrder'] });
-    }, 15000);
+    const poll = router.poll(
+        15000,
+        { only: ['order', 'confirmationUrl', 'receipts', 'refunds', 'pendingOrder'] },
+        {
+            autoStart: false,
+            background: 'pause',
+            mode: 'rest',
+        },
+    );
+    watch(waiting, (pending) => (pending ? poll.start() : poll.stop()), { immediate: true });
+    stopPolling = poll.destroy;
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => stopPolling?.());
 </script>
 <template>
     <div class="grid gap-4 lg:grid-cols-2">

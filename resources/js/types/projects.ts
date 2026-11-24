@@ -1,4 +1,4 @@
-import type { ChannelType, SharedData } from '@/types';
+import type { ChannelType, WorkspacePageProps } from '@/types';
 import type { ManagedChannel } from '@/types/channels';
 import type { PaginatedResource, PromptSummary } from '@/types/content';
 import type { ProductionRun } from '@/types/production';
@@ -33,14 +33,14 @@ export interface ProjectChannel {
     posts_count: number;
 }
 
-export interface ProjectsPageProps extends SharedData {
+export interface ProjectsPageProps extends WorkspacePageProps {
     projects: PaginatedResource<ProjectSummary>;
     information: { project: ProjectSummary & { channels: ProjectChannel[] }; owner: string; episodes: number; accepted: number } | null;
     filters: { search: string; sort: string; active?: boolean; archived?: boolean; clipping?: boolean };
     sortDirections: Record<string, string>;
 }
 
-export interface ProjectPageProps extends SharedData {
+export interface ProjectPageProps extends WorkspacePageProps {
     gamingTrends: {
         game: string;
         entries: { title: string; channel: string; views: string; views_per_day?: number | null; url: string }[];
@@ -73,7 +73,7 @@ export interface ProjectSchedule {
     timezone: string;
 }
 
-export interface ProjectFormProps extends SharedData {
+export interface ProjectFormProps extends WorkspacePageProps {
     castCharacters?: CharacterSummary[];
     scheduleSettings?: ProjectSchedule & { configured: boolean; next: string | null; timezones: string[] };
     project:

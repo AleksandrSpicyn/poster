@@ -56,7 +56,7 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const page = usePage();
-const connectionId = ref(Number(new URL(page.url, 'http://poster.local').searchParams.get('connection')) || 0);
+const connectionId = ref(Number(new URL(page.url, page.props.ziggy.url).searchParams.get('connection')) || 0);
 const hash = ref('');
 const refreshPending = ref(false);
 const refreshError = ref('');
@@ -114,7 +114,7 @@ function refresh() {
                 document.getElementById('history-refresh')?.focus();
             }
         },
-        ...listRequestErrors(refreshError),
+        ...listRequestErrors((message) => (refreshError.value = message)),
         onFinish: () => {
             refreshPending.value = false;
         },

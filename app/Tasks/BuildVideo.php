@@ -6,6 +6,7 @@ namespace App\Tasks;
 
 use App\Models\Prompt;
 use App\Settings\GeneralSettings;
+use Closure;
 use FFMpeg\Format\Video\X264;
 use Illuminate\Container\Attributes\Storage;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -15,17 +16,17 @@ use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 /**
  * Собирает ролик из видео- и аудиоисточников независимо от их провайдера.
- * Возвращает локальный путь для передачи в Media Library.
+ * Временный файл доступен получателю до завершения callback.
  */
 readonly class BuildVideo
 {
     public function __construct(
         private GeneralSettings $settings,
-        #[Storage('public')] private FilesystemAdapter $disk,
+        #[Storage('local')] private FilesystemAdapter $disk,
     ) {}
 
-    /** TODO Watermark */
-    public function run(Prompt $prompt): string
+    /** @param Closure(string): void $attach */
+    public function run(Prompt $prompt, Closure $attach): void
     {
         $outputFile = 'final/short_' . Str::uuid() . '.mp4';
 
@@ -38,11 +39,15 @@ readonly class BuildVideo
         $exporter = FFMpeg::openUrl([$prompt->video_url, $prompt->audio_url])->export();
         $exporter->addFormatOutputMapping(
             $format,
-            Media::make('public', $outputFile),
+            Media::make('local', $outputFile),
             ['0:v', '1:a'],
         );
-        $exporter->save($outputFile);
 
-        return $this->disk->path($outputFile);
+        try {
+            $exporter->save($outputFile);
+            $attach($this->disk->path($outputFile));
+        } finally {
+            $this->disk->delete($outputFile);
+        }
     }
 }

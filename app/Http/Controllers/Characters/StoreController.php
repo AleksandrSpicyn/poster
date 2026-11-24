@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Characters;
 
 use App\Actions\Characters\SaveCharacterAction;
 use App\Data\Characters\CharacterData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends CharacterController
 {
     /**
      * Создание постоянного персонажа
@@ -34,10 +35,6 @@ class StoreController
     {
         $character = $action->run($series, $data);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

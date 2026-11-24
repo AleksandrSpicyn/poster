@@ -33,6 +33,6 @@ class DestroyController
     {
         $action->run($user);
 
-        return redirect('/');
+        return to_route('home');
     }
 }

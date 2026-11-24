@@ -20,7 +20,7 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const page = usePage();
-const production = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'production');
+const production = computed(() => new URL(page.url, page.props.ziggy.url).searchParams.get('section') === 'production');
 
 const episodePlanComplete = computed(() => {
     const latest = props.episodes[0];

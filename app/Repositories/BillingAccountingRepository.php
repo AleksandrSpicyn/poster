@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Enums\GenerationAccountingMode;
+use App\Enums\GenerationOperationStatus;
 use App\Enums\ProductionStatus;
 use DomainException;
 use Illuminate\Support\Collection;
@@ -60,13 +61,7 @@ final class BillingAccountingRepository
             if ($mode instanceof GenerationAccountingMode && $mode->value !== ($account->accounting_mode ?? GenerationAccountingMode::LEGACY->value)) {
                 $busy = DB::table('production_runs')->whereIn('project_id', $projectIds)->whereIn('status', ProductionStatus::blockingValues())->exists()
                     || DB::table('generation_operations as op')->join('prompts as p', 'p.id', '=', 'op.prompt_id')->whereIn('p.project_id', $projectIds)
-                        ->whereIn('op.status', [
-                            'planned',
-                            'submitting',
-                            'submitted',
-                            'running',
-                            'submission_unknown',
-                        ])->exists()
+                        ->whereIn('op.status', array_column(GenerationOperationStatus::active(), 'value'))->exists()
                     || DB::table('generation_reservations')->where('owner_id', $owner)->where('status', 'held')->exists();
 
                 if ($busy) {

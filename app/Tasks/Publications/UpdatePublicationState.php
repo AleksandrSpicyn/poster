@@ -13,12 +13,16 @@ class UpdatePublicationState
 {
     public function __construct(private readonly PublicationRequestRepository $publications) {}
 
-    public function run(PublicationRequest $request, PublicationStatus $status, ?string $containerId = null, ?string $error = null): void
+    public function run(PublicationRequest $request, PublicationStatus $expected, PublicationStatus $status, ?string $containerId = null, ?string $error = null): bool
     {
-        $updated = $this->publications->updateUnpublished($request, $status, $containerId, $error);
+        $updated = $this->publications->transitionClaim($request, $expected, $status, $containerId, $error);
 
-        if ($updated > 0) {
-            WorkspaceUpdated::forResource($request);
+        if ($updated === 0) {
+            return false;
         }
+
+        WorkspaceUpdated::forResource($request);
+
+        return true;
     }
 }

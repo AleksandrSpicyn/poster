@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Console\ModelId;
 use App\Repositories\BillingOperatorRepository;
 use App\Repositories\GenerationReservationRepository;
 use DomainException;
@@ -19,9 +20,9 @@ final class ResolveBillingHold extends Command
     public function handle(GenerationReservationRepository $usage, BillingOperatorRepository $operators): int
     {
         try {
-            $operator = (int) $this->option('operator');
+            $operator = ModelId::parse($this->option('operator'));
             $operators->authorize($operator);
-            $usage->releaseUndeliverable((int) $this->argument('prompt'), $operator, trim((string) $this->option('reason')));
+            $usage->releaseUndeliverable(ModelId::parse($this->argument('prompt')), $operator, trim((string) $this->option('reason')));
         } catch (DomainException|ValidationException $error) {
             $this->error($error->getMessage());
 

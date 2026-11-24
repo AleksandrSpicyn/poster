@@ -30,11 +30,8 @@ export function useEpisodeSources(props: EpisodeWorkspaceProps) {
             ),
         ) ?? []),
     ]);
-    function readySourcesFor(shotId: number) {
-        const scene = revision.value?.scenes.find((item) => item.shots.some((shot) => shot.id === shotId));
-        const shot = scene?.shots.find((item) => item.id === shotId);
-        if (!scene || !shot) return [];
-        return continuationSources.value.filter((source) => source.kind === 'take' && sourcePrecedes(source, scene.position, shot.position));
+    function readySourcesFor(scenePosition: number, shotPosition: number) {
+        return continuationSources.value.filter((source) => source.kind === 'take' && sourcePrecedes(source, scenePosition, shotPosition));
     }
     return { continuationSources, readySourcesFor };
 }

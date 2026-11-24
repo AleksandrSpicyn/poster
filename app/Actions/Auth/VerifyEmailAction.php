@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Tasks\Users\VerifyUserEmail;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Меняет статус email и отправляет Verified только при первом подтверждении.
@@ -19,12 +20,10 @@ readonly class VerifyEmailAction
 
     public function run(User $user): void
     {
-        if ($user->hasVerifiedEmail()) {
-            return;
-        }
+        $verified = DB::transaction(fn(): ?User => $this->verifyUserEmail->run($user));
 
-        if ($this->verifyUserEmail->run($user)) {
-            $this->events->dispatch(new Verified($user));
+        if ($verified !== null) {
+            $this->events->dispatch(new Verified($verified));
         }
     }
 }

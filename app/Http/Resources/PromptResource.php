@@ -24,14 +24,17 @@ class PromptResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $media = $this->generated ? $this->getFirstMedia() : null;
+        $stage = $this->stage();
+
         return [
             'id' => $this->id,
             'title' => $this->prompt,
-            'url' => $this->getFirstMedia() instanceof Media ? route('prompts.media', ['prompt' => $this->id, 'media' => $this->getFirstMedia()->id]) : '',
+            'url' => $media instanceof Media ? route('prompts.media', ['prompt' => $this->id, 'media' => $media->id]) : '',
             'project' => $this->project?->name,
             'generated' => $this->generated,
-            'stage' => $this->stage()->value,
-            'stage_label' => $this->stage()->label(),
+            'stage' => $stage->value,
+            'stage_label' => $stage->label(),
             'created_at' => $this->created_at?->toFormattedDateString(),
         ];
     }

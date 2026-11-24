@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Episodes;
 
 use App\Actions\Episodes\GetEpisodeAction;
+use App\Data\Episodes\EpisodeWorkspaceData;
 use App\Enums\TransitionMode;
 use App\Http\Resources\CharacterRevisionResource;
 use App\Http\Resources\EpisodeAssemblyResource;
@@ -39,26 +40,26 @@ class ShowController
      */
     public function __invoke(Series $series, Episode $episode, GetEpisodeAction $action): Response
     {
-        $details = $action->run($episode);
+        $details = fn(): EpisodeWorkspaceData => once(fn(): EpisodeWorkspaceData => $action->run($episode));
 
         return inertia('Episodes/Show', [
-            'series' => SeriesResource::make($series)->resolve(),
-            'project' => ProjectResource::make($details->episode->series?->project)->resolve(),
-            'episode' => EpisodeResource::make($details->episode)->resolve(),
-            'characters' => CharacterRevisionResource::collection($details->characters)->resolve(),
-            'assemblies' => EpisodeAssemblyResource::collection($details->assemblies)->resolve(),
-            'publications' => PublicationRequestResource::collection($details->publications)->resolve(),
-            'channels' => ProjectChannelResource::collection($details->channels)->resolve(),
-            'screenplay' => $details->script?->toArray(),
+            'series' => fn(): array => SeriesResource::make($details()->episode->series)->resolve(),
+            'project' => fn(): array => ProjectResource::make($details()->episode->series?->project)->resolve(),
+            'episode' => fn(): array => EpisodeResource::make($details()->episode)->resolve(),
+            'characters' => fn(): array => CharacterRevisionResource::collection($details()->characters)->resolve(),
+            'assemblies' => fn(): array => EpisodeAssemblyResource::collection($details()->assemblies)->resolve(),
+            'publications' => fn(): array => PublicationRequestResource::collection($details()->publications)->resolve(),
+            'channels' => fn(): array => ProjectChannelResource::collection($details()->channels)->resolve(),
+            'screenplay' => fn(): ?array => $details()->script?->toArray(),
             'requestKey' => (string) Str::uuid(),
             'transitionModes' => TransitionMode::labels(),
-            'memoryAssembly' => $details->episode->currentRevision?->sourceAssembly === null
+            'memoryAssembly' => fn(): ?array => $details()->episode->currentRevision?->sourceAssembly === null
                 ? null
-                : EpisodeAssemblyResource::make($details->episode->currentRevision->sourceAssembly)->resolve(),
-            'predecessorNumber' => $details->episode->predecessor?->number,
-            'sourceAssembly' => $details->episode->predecessor?->acceptedAssembly === null
+                : EpisodeAssemblyResource::make($details()->episode->currentRevision->sourceAssembly)->resolve(),
+            'predecessorNumber' => fn(): ?int => $details()->episode->predecessor?->number,
+            'sourceAssembly' => fn(): ?array => $details()->episode->predecessor?->acceptedAssembly === null
                 ? null
-                : EpisodeAssemblyResource::make($details->episode->predecessor->acceptedAssembly)->resolve(),
+                : EpisodeAssemblyResource::make($details()->episode->predecessor->acceptedAssembly)->resolve(),
         ]);
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Series;
 
 use App\Actions\Series\GetSeriesAction;
-use App\Data\Series\SeriesCharactersListData;
+use App\Data\PageData;
 use App\Http\Resources\CharacterResource;
 use App\Http\Resources\EpisodeSummaryResource;
 use App\Http\Resources\ProjectResource;
@@ -33,7 +33,7 @@ class ShowController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, Series $series, SeriesCharactersListData $data, GetSeriesAction $action): Response
+    public function __invoke(Project $project, Series $series, PageData $data, GetSeriesAction $action): Response
     {
         $details = $action->run($series, $data->page);
 

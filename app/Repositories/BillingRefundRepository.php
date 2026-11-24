@@ -25,16 +25,16 @@ final readonly class BillingRefundRepository
             throw new DomainException('Проверьте ключ операции, сумму, секунды и основание возврата.');
         }
 
-        DB::transaction(function () use ($id, $payment, $operator, $amount, $seconds, $reason): void {
-            $this->operators->authorize($operator);
-            /** @var object{owner_id: int, order_id: int, provider: string, shop: string, test_mode: bool, amount_kopecks: int, currency: string}|null $paid */
-            $paid = DB::table('billing_payments as p')->join('billing_orders as o', 'o.id', '=', 'p.order_id')->where('p.id', $payment)
-                ->where('p.status', 'succeeded')->whereNotNull('p.external_id')->first(['p.*', 'o.owner_id']);
+        $this->operators->authorize($operator);
+        /** @var object{owner_id: int, order_id: int, provider: string, shop: string, test_mode: bool, amount_kopecks: int, currency: string}|null $paid */
+        $paid = DB::table('billing_payments as p')->join('billing_orders as o', 'o.id', '=', 'p.order_id')->where('p.id', $payment)
+            ->where('p.status', 'succeeded')->whereNotNull('p.external_id')->first(['p.*', 'o.owner_id']);
 
-            if ($paid === null) {
-                throw new DomainException('Подтверждённый платёж не найден.');
-            }
+        if ($paid === null) {
+            throw new DomainException('Подтверждённый платёж не найден.');
+        }
 
+        DB::transaction(function () use ($paid, $id, $payment, $operator, $amount, $seconds, $reason): void {
             DB::table('billing_accounts')->where('owner_id', $paid->owner_id)->lockForUpdate()->firstOrFail();
             $prior = DB::table('billing_refunds')->where('id', $id)->lockForUpdate()->first();
 
@@ -162,16 +162,17 @@ final readonly class BillingRefundRepository
             throw new UnexpectedValueException('Данные возврата расходятся с локальной операцией.');
         }
 
-        DB::transaction(function () use ($attempt, $result): void {
-            /** @var object{owner_id: int, order_id: int, payment_id: string, payment_amount: int, period_ends_at: ?string} $order */
-            $order = DB::table('billing_refunds as r')->join('billing_payments as p', 'p.id', '=', 'r.payment_id')->join('billing_orders as o', 'o.id', '=', 'p.order_id')
-                ->where('r.id', $attempt->id)->firstOrFail([
-                    'o.owner_id',
-                    'p.order_id',
-                    'r.payment_id',
-                    'p.amount_kopecks as payment_amount',
-                    'o.period_ends_at',
-                ]);
+        /** @var object{owner_id: int, order_id: int, payment_id: string, payment_amount: int, period_ends_at: ?string} $order */
+        $order = DB::table('billing_refunds as r')->join('billing_payments as p', 'p.id', '=', 'r.payment_id')->join('billing_orders as o', 'o.id', '=', 'p.order_id')
+            ->where('r.id', $attempt->id)->firstOrFail([
+                'o.owner_id',
+                'p.order_id',
+                'r.payment_id',
+                'p.amount_kopecks as payment_amount',
+                'o.period_ends_at',
+            ]);
+
+        DB::transaction(function () use ($order, $attempt, $result): void {
             $account = DB::table('billing_accounts')->where('owner_id', $order->owner_id)->lockForUpdate()->firstOrFail();
             /** @var object{status: string, external_id: ?string, adjustment_seconds: int} $refund */
             $refund = DB::table('billing_refunds')->where('id', $attempt->id)->lockForUpdate()->firstOrFail();
@@ -212,8 +213,9 @@ final readonly class BillingRefundRepository
                 $total = DB::table('billing_refunds')->where('payment_id', $order->payment_id)->where('status', 'succeeded')->sum('amount_kopecks');
                 $full = (int) $total === $order->payment_amount;
                 $excess = DB::table('billing_events')->where('event_key', 'payment.excess.' . $order->payment_id);
+                $isExcess = $excess->exists();
 
-                if ($excess->exists()) {
+                if ($isExcess) {
                     if ($full) {
                         $excess->update(['status' => 'processed', 'updated_at' => $at]);
                     }
@@ -225,7 +227,7 @@ final readonly class BillingRefundRepository
 
                 DB::table('billing_orders')->where('id', $order->order_id)->update(['status' => $full ? 'refunded' : 'partially_refunded', 'updated_at' => $at]);
 
-                if ($full && ! $excess->exists() && $order->period_ends_at !== null && $account->renews_at === $order->period_ends_at) {
+                if ($full && ! $isExcess && $order->period_ends_at !== null && $account->renews_at === $order->period_ends_at) {
                     DB::table('billing_accounts')->where('owner_id', $order->owner_id)->update([
                         'renewal_consent' => false,
                         'current_product' => null,

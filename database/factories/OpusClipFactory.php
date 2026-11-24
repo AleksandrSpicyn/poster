@@ -14,6 +14,11 @@ class OpusClipFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        return ['opus_source_id' => OpusSource::factory(), 'clip_id' => fake()->uuid(), 'title' => fake()->sentence(), 'publications' => []];
+        return [
+            'opus_source_id' => OpusSource::factory(),
+            'clip_id' => fake()->uuid(),
+            'title' => fake()->sentence(),
+            'publications' => [],
+        ];
     }
 }

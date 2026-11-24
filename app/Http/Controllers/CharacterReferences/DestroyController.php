@@ -6,6 +6,7 @@ namespace App\Http\Controllers\CharacterReferences;
 
 use App\Actions\Characters\RemoveCharacterReferenceAction;
 use App\Data\ExpectedVersionData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Project;
@@ -13,7 +14,7 @@ use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class DestroyController
+class DestroyController extends CharacterController
 {
     /**
      * Удаление референса из черновика
@@ -40,10 +41,6 @@ class DestroyController
     {
         $action->run($revision, $media, $data->lock_version);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

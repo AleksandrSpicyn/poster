@@ -15,11 +15,13 @@ trait EnumTrait
     /** @return array<string, string> */
     public static function labels(): array
     {
-        return array_column(
-            array_map(static fn($case): array => ['key' => $case->value, 'label' => $case->label()], self::cases()),
-            'label',
-            'key',
-        );
+        $labels = [];
+
+        foreach (self::cases() as $case) {
+            $labels[$case->value] = $case->label();
+        }
+
+        return $labels;
     }
 
     public function label(): string

@@ -53,14 +53,14 @@ class StopProductionRun
                 'error_message' => $message,
             ]);
 
-            $this->budget->releaseUnused($run);
-
             if ($run->series_id !== null) {
                 $prompts = $this->prompts->lockEpisodeTakes($run);
 
                 $stopped = $this->operations->cancelActive($prompts->flatMap(fn(Prompt $prompt) => $prompt->generationOperations));
-                $this->usage->setStatus($stopped, ReservationStatus::RELEASED);
+                $this->usage->transitionTakeReservations($stopped, ReservationStatus::RELEASED);
             }
+
+            $this->budget->releaseUnused($run);
 
             if ($run->episode_assembly_id !== null || $run->series_assembly_id !== null) {
                 $this->publications->failPendingProduction($run);

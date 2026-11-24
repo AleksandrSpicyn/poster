@@ -6,6 +6,7 @@ namespace App\Actions\Clipping;
 
 use App\Classes\Clipping\ClippingReaders;
 use App\Data\ClippingImportData;
+use App\Data\OpusClip\OpusSourceData;
 use App\Models\ClippingConnection;
 use App\Models\ClippingImport;
 use App\Models\Project;
@@ -49,21 +50,15 @@ final readonly class PreviewClippingImportAction
         }
 
         try {
-            if ($connection->import_projects) {
-                foreach ($this->readers->sources($reader, $connection) as $candidate) {
-                    if ($candidate->id === $data->external_id) {
-                        $source = $candidate;
-                        $clips = $reader->clips($source->id);
-
-                        break;
-                    }
-                }
-            }
+            $source = $connection->import_projects
+                ? $this->readers->findSource($reader, $connection, $data->external_id)
+                : null;
+            $clips = $source instanceof OpusSourceData ? $reader->clips($source->id) : null;
         } catch (RuntimeException) {
             throw ValidationException::withMessages(['external_id' => 'Провайдер не вернул данные для предпросмотра. Повторите попытку.']);
         }
 
-        if ($connection->import_projects && ! isset($source)) {
+        if ($connection->import_projects && ! $source instanceof OpusSourceData) {
             throw ValidationException::withMessages(['external_id' => 'Источник недоступен этому подключению.']);
         }
 
@@ -81,6 +76,6 @@ final readonly class PreviewClippingImportAction
             }
         }
 
-        return $this->connections->preview($connection, $source ?? null, $data, $clips ?? null, $selected, $unmapped);
+        return $this->connections->preview($connection, $source, $data, $clips, $selected, $unmapped);
     }
 }

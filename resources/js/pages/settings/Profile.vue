@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import type { BreadcrumbItem, SharedData, User } from '@/types';
+import type { BreadcrumbItem, WorkspacePageProps } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, ref } from 'vue';
 import { useFormApi } from '@/lib/api/useFormApi';
@@ -32,8 +32,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const page = usePage<SharedData>();
-const user = computed(() => page.props.auth.user as User);
+const page = usePage<WorkspacePageProps>();
+const user = computed(() => page.props.auth.user);
 
 const form = useForm({
     name: user.value.name,

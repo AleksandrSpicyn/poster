@@ -181,7 +181,7 @@ test('TikTok отправляет один черновик и ждёт публ
     $request->update(['scheduled_at' => now()]);
 
     app(SubmitEpisodePublicationAction::class)->run($request);
-    app(FinishEpisodePublicationAction::class)->run($request->refresh());
+    app(FinishEpisodePublicationAction::class)->run($request);
 
     expect($request->refresh()->status)->toBe(PublicationStatus::INBOX)
         ->and($request->container_id)->toBe('receipt')
@@ -193,4 +193,27 @@ test('TikTok отправляет один черновик и ждёт публ
     expect(Post::query()->sole()->external_id)->toBe('123456')
         ->and($request->refresh()->status)->toBe(PublicationStatus::PUBLISHED);
     Http::assertSentCount(3);
+});
+
+test('поздний контейнер не возобновляет закрытую публикацию', function (): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    Queue::fake();
+    $request = app(RequestEpisodePublicationAction::class)
+        ->run($assembly, new PublishEpisodeData([$channel->id]), $user)
+        ->sole();
+    $request->update(['scheduled_at' => now()]);
+    Http::fake(['*/ig-episode/media' => function () use ($request) {
+        $request->update(['status' => PublicationStatus::FAILED, 'error_message' => 'Закрыто оператором']);
+
+        return Http::response(['id' => 'late-container']);
+    }]);
+
+    app(SubmitEpisodePublicationAction::class)->run($request);
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::FAILED)
+        ->and($request->error_message)->toBe('Закрыто оператором')
+        ->and($request->container_id)->toBeNull();
+    Queue::assertNotPushed(FinishEpisodePublicationJob::class);
+    Http::assertSentCount(1);
 });

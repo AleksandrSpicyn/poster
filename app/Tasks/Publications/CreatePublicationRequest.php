@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tasks\Publications;
 
+use App\Classes\Publications\EpisodeReleaseSchedule;
 use App\Data\Episodes\PublishEpisodeData;
 use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\AssemblyStatus;
@@ -32,6 +33,7 @@ class CreatePublicationRequest
 {
     public function __construct(
         private readonly EpisodeRepository $episodes,
+        private readonly EpisodeReleaseSchedule $schedule,
         private readonly VideoUpscaleOperationRepository $upscales,
         private readonly ProductionRunRepository $runs,
         private readonly EpisodeAssemblyRepository $assemblies,
@@ -84,7 +86,8 @@ class CreatePublicationRequest
                 throw ValidationException::withMessages(['channel_ids' => 'Choose supported channels belonging to this project.']);
             }
 
-            $scheduledAt = $this->publications->episodeReleaseTime($assembly, $series);
+            $scheduledAt = $this->publications->reservedEpisodeSlot($assembly)
+                ?? $this->schedule->nextAfter($this->publications->latestScheduledEpisodeSlot($series) ?? now());
 
             $description = $data->caption instanceof Optional
                 ? trim(($revision->public_caption ?? '') . "\n\n" . $series->name . ' · ' . $episode->number)

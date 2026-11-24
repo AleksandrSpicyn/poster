@@ -89,7 +89,7 @@ jobs:
           npm run check:frontend
           npm run build:ssr
           php artisan scribe:generate --no-interaction
-          bash -n deploy/*.sh
+          for script in deploy/*.sh; do bash -n "$script"; done
       - name: Package production dependencies and assets
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

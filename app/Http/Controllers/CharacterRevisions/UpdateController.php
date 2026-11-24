@@ -6,13 +6,14 @@ namespace App\Http\Controllers\CharacterRevisions;
 
 use App\Actions\Characters\SaveCharacterRevisionAction;
 use App\Data\Characters\CharacterRevisionData;
+use App\Http\Controllers\CharacterController;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Project;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class UpdateController
+class UpdateController extends CharacterController
 {
     /**
      * Изменение черновой версии персонажа
@@ -41,10 +42,6 @@ class UpdateController
     {
         $action->run($character, $data, $revision);
 
-        return to_route('characters.show', [
-            'project' => $project,
-            'series' => $series,
-            'character' => $character,
-        ]);
+        return $this->redirectToCharacter($project, $series, $character);
     }
 }

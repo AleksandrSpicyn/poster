@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Classes\Channels\ChannelOAuth;
+use App\Data\Channels\ChannelFormData;
+use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\User;
 use App\Tasks\Channels\GetChannels;
@@ -14,16 +16,14 @@ readonly class GetChannelFormAction
 {
     public function __construct(private GetChannels $task, private ChannelOAuth $oauth) {}
 
-    /** @return list<string> */
-    public function requestedScopes(Channel $channel): array
-    {
-        return $this->oauth->scopes($channel);
-    }
-
-    public function run(User $owner, Channel $channel): Channel
+    public function run(User $owner, Channel $channel): ChannelFormData
     {
         Gate::forUser($owner)->authorize('manageChannels');
 
-        return $this->task->form($channel);
+        return new ChannelFormData(
+            $this->task->form($channel),
+            $channel->type === ChannelType::TIKTOK ? $this->oauth->scopes($channel) : [],
+            in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null,
+        );
     }
 }

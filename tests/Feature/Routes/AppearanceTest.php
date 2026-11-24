@@ -38,7 +38,8 @@ test('оформление cookie применяется к HTML', function (str
 
     get(route('home'))
         ->assertOk()
-        ->assertSee('const appearance = "' . $theme . '";', escape: false);
+        ->assertSee('const appearance = "' . $theme . '";', escape: false)
+        ->assertInertia(fn(Assert $page): Assert => $page->where('appearance', $theme));
 })->with([
     'светлое' => ['light', 'light'],
     'тёмное' => ['dark', 'dark'],

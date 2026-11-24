@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Projects;
 
 use App\Actions\Projects\GetProjectAction;
 use App\Data\GetPromptsListData;
+use App\Data\Series\SeriesWorkspaceData;
 use App\Enums\SortDirection;
 use App\Http\Resources\CharacterResource;
 use App\Http\Resources\EpisodeSummaryResource;
@@ -14,9 +15,9 @@ use App\Http\Resources\ProjectResource;
 use App\Http\Resources\PromptResource;
 use App\Http\Resources\SeriesResource;
 use App\Models\Project;
-use App\Models\Series;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Response;
 
@@ -46,16 +47,21 @@ class ShowController
      */
     public function __invoke(#[CurrentUser] User $owner, Project $project, GetPromptsListData $filters, GetProjectAction $action): Response
     {
-        $data = $action->run($owner, $project, $filters);
+        $workspace = fn(): Project => once(fn(): Project => $action->run($project));
+        $series = fn(): ?SeriesWorkspaceData => once(fn(): ?SeriesWorkspaceData => $action->series($owner, $workspace(), $filters->page ?? 1));
 
         return inertia('Projects/Show', [
-            'project' => ProjectResource::make($data->project)->resolve(),
-            'gamingTrends' => $data->trends,
-            'opusClips' => $data->clips instanceof LengthAwarePaginator ? OpusClipResource::collection($data->clips) : null,
-            'prompts' => PromptResource::collection($data->prompts),
-            'series' => $data->series instanceof Series ? SeriesResource::make($data->series)->resolve() : null,
-            'characters' => $data->characters instanceof LengthAwarePaginator ? CharacterResource::collection($data->characters) : null,
-            'episodes' => EpisodeSummaryResource::collection($data->episodes)->resolve(),
+            'project' => fn(): array => ProjectResource::make($workspace())->resolve(),
+            'gamingTrends' => fn(): array => $action->trends($owner, $project),
+            'opusClips' => function () use ($action, $owner, $project, $filters): ?AnonymousResourceCollection {
+                $clips = $action->clips($owner, $project, $filters);
+
+                return $clips instanceof LengthAwarePaginator ? OpusClipResource::collection($clips) : null;
+            },
+            'prompts' => fn(): AnonymousResourceCollection => PromptResource::collection($action->prompts($owner, $project, $filters)),
+            'series' => fn(): ?array => $series() instanceof SeriesWorkspaceData ? SeriesResource::make($series()->series)->resolve() : null,
+            'characters' => fn(): ?AnonymousResourceCollection => $series() instanceof SeriesWorkspaceData ? CharacterResource::collection($series()->characters) : null,
+            'episodes' => fn(): array => EpisodeSummaryResource::collection($series()->episodes ?? [])->resolve(),
             'sortDirections' => SortDirection::labels(),
             'filters' => ['active' => $filters->active, 'sort' => ($filters->sort instanceof SortDirection ? $filters->sort : SortDirection::DESC)->value],
         ]);

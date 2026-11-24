@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { cn } from '@/lib/utils';
-import { useEventListener, useMediaQuery, useVModel } from '@vueuse/core';
+import { useEventListener, useMediaQuery } from '@vueuse/core';
 import { TooltipProvider } from 'reka-ui';
-import { computed, type HTMLAttributes, type Ref, ref, watch } from 'vue';
+import { computed, type HTMLAttributes, ref, watch } from 'vue';
 import {
     provideSidebarContext,
     SIDEBAR_COOKIE_MAX_AGE,
@@ -36,29 +36,23 @@ watch(isMobile, (mobile) => {
 
 const tablet = useMediaQuery('(min-width: 700px) and (max-width: 1099px)');
 const tabletOpen = ref(false);
-const desktopOpen = useVModel(props, 'open', emits, {
-    defaultValue: props.defaultOpen ?? false,
-    passive: (props.open === undefined) as false,
-}) as Ref<boolean>;
-
-const sidebarOpen = computed(() => (tablet.value ? tabletOpen.value : desktopOpen.value));
+const desktopOpen = ref(props.defaultOpen);
+const sidebarOpen = computed(() => (tablet.value ? tabletOpen.value : (props.open ?? desktopOpen.value)));
 
 function setOpen(value: boolean) {
     if (tablet.value) {
         tabletOpen.value = value;
         return;
     }
-    desktopOpen.value = value; // emits('update:open', value)
-
-    // This sets the cookie to keep the sidebar state.
-    document.cookie = `${SIDEBAR_COOKIE_NAME}=${sidebarOpen.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+    if (props.open === undefined) desktopOpen.value = value;
+    emits('update:open', value);
+    document.cookie = `${SIDEBAR_COOKIE_NAME}=${value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 }
 
 function setOpenMobile(value: boolean) {
     openMobile.value = value;
 }
 
-// Helper to toggle the sidebar.
 function toggleSidebar() {
     return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!sidebarOpen.value);
 }
@@ -70,8 +64,6 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     }
 });
 
-// We add a state so that we can do data-state="expanded" or "collapsed".
-// This makes it easier to style the sidebar with Tailwind classes.
 const state = computed(() => (sidebarOpen.value ? 'expanded' : 'collapsed'));
 
 provideSidebarContext({

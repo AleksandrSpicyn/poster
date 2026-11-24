@@ -21,9 +21,10 @@ use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
-use Cron\CronExpression;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -52,23 +53,31 @@ readonly class PublicationRequestRepository extends EloquentRepository
     }
 
     /** @return Collection<int, PublicationRequest> */
-    public function pending(int $limit): Collection
+    public function nextReconciliationBatch(int $limit): Collection
     {
-        return PublicationRequest::query()->where(function ($query): void {
-            $query->where('status', PublicationStatus::PLANNED)
-                ->where(fn($slot) => $slot->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now()))
-                ->orWhere(fn($processing) => $processing->whereIn('status', [PublicationStatus::PROCESSING, PublicationStatus::INBOX])
-                    ->whereNotNull('container_id')->where('submitted_at', '<=', now()->subMinutes(5)));
-        })->orderBy('id')->limit($limit)->get();
+        return DB::transaction(function () use ($limit): Collection {
+            $batch = PublicationRequest::query()->where(function (Builder $query): void {
+                $query->where('status', PublicationStatus::PLANNED)
+                    ->where(fn(Builder $slot) => $slot->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now()))
+                    ->orWhere(fn(Builder $processing) => $processing->whereIn('status', [PublicationStatus::PROCESSING, PublicationStatus::INBOX])
+                        ->whereNotNull('container_id')->where('submitted_at', '<=', now()->subMinutes(5)));
+            })->oldest('updated_at')->orderBy('id')->limit($limit)->lockForUpdate()->get();
+
+            if ($batch->isNotEmpty()) {
+                PublicationRequest::query()->whereKey($batch->modelKeys())->touch();
+            }
+
+            return $batch;
+        }, 3);
     }
 
-    public function updateUnpublished(PublicationRequest $request, PublicationStatus $status, ?string $containerId, ?string $error): int
+    public function transitionClaim(PublicationRequest $request, PublicationStatus $expected, PublicationStatus $status, ?string $containerId, ?string $error): int
     {
         return PublicationRequest::query()->whereKey($request->id)
-            ->where('status', '!=', PublicationStatus::PUBLISHED)
+            ->where('status', $expected)
             ->update([
                 'status' => $status,
-                'container_id' => $containerId ?? $request->container_id,
+                ...($containerId === null ? [] : ['container_id' => $containerId]),
                 'error_message' => $error,
             ]);
     }
@@ -81,35 +90,40 @@ readonly class PublicationRequestRepository extends EloquentRepository
     }
 
     /** Project и Series блокируются до Run и Request; вызывающий Task удерживает транзакцию. */
-    public function lockClaimContext(PublicationRequest $request): PublicationClaimData
+    public function lockClaimContext(PublicationRequest $request): ?PublicationClaimData
     {
         if (($request->episode_assembly_id === null) === ($request->series_assembly_id === null)) {
             throw new RuntimeException('A publication must have exactly one source.');
         }
 
+        $relation = $request->series_assembly_id !== null ? 'series.assemblies' : 'series.episodes.revisions.assemblies';
+        $assemblyId = $request->series_assembly_id ?? $request->episode_assembly_id;
+        $project = Project::query()
+            ->whereHas($relation, static fn(Builder $query): Builder => $query->whereKey($assemblyId))
+            ->lockForUpdate()
+            ->firstOrFail();
+
         if ($request->series_assembly_id !== null) {
             $assembly = SeriesAssembly::query()->findOrFail($request->series_assembly_id);
-            $series = Series::query()->findOrFail($assembly->series_id);
-            $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
-            $series = Series::query()->lockForUpdate()->findOrFail($series->id);
-            $productionRun = $request->production_run_id === null ? null : ProductionRun::query()->lockForUpdate()->find($request->production_run_id);
-            $request = PublicationRequest::query()->lockForUpdate()->findOrFail($request->id);
-
-            return new PublicationClaimData($assembly, null, $series, $project, $productionRun, $request, User::query()->find($request->created_by));
+            $seriesId = $assembly->series_id;
+            $episode = null;
+        } else {
+            $assembly = EpisodeAssembly::query()->findOrFail($request->episode_assembly_id);
+            $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
+            $episode = Episode::query()->findOrFail($revision->episode_id);
+            $seriesId = $episode->series_id;
         }
 
-        $assembly = EpisodeAssembly::query()->findOrFail($request->episode_assembly_id);
-        $revision = EpisodeRevision::query()->findOrFail($assembly->episode_revision_id);
-        $episode = Episode::query()->findOrFail($revision->episode_id);
-        $series = Series::query()->findOrFail($episode->series_id);
-        $project = Project::query()->lockForUpdate()->findOrFail($series->project_id);
-        $series = Series::query()->lockForUpdate()->findOrFail($episode->series_id);
-        $productionRun = $request->production_run_id !== null
-            ? ProductionRun::query()->lockForUpdate()->find($request->production_run_id) : null;
-        $request = PublicationRequest::query()->lockForUpdate()->findOrFail($request->id);
-        $user = User::query()->find($request->created_by);
+        $series = Series::query()->lockForUpdate()->findOrFail($seriesId);
+        $productionRun = $request->production_run_id === null ? null : ProductionRun::query()->lockForUpdate()->find($request->production_run_id);
+        $current = $this->findLockedOrFail($request->id);
 
-        return new PublicationClaimData($assembly, $episode, $series, $project, $productionRun, $request, $user);
+        if ($current->series_assembly_id !== $request->series_assembly_id || $current->episode_assembly_id !== $request->episode_assembly_id
+            || $current->production_run_id !== $request->production_run_id) {
+            return null;
+        }
+
+        return new PublicationClaimData($assembly, $episode, $series, $project, $productionRun, $current, User::query()->find($current->created_by));
     }
 
     public function resolutionContext(PublicationRequest $request, bool $lock): PublicationResolutionData
@@ -234,30 +248,16 @@ readonly class PublicationRequestRepository extends EloquentRepository
         return $requests;
     }
 
-    /** The caller holds the series lock while reserving a shared slot for every selected channel. */
-    public function episodeReleaseTime(EpisodeAssembly $assembly, Series $series): Carbon
+    public function reservedEpisodeSlot(EpisodeAssembly $assembly): ?Carbon
     {
-        $reserved = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereNotNull('scheduled_at')->lockForUpdate()->first();
+        return PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereNotNull('scheduled_at')
+            ->lockForUpdate()->first()?->scheduled_at;
+    }
 
-        if ($reserved?->scheduled_at !== null) {
-            return $reserved->scheduled_at;
-        }
-
-        $last = PublicationRequest::query()->whereHas('assembly.episodeRevision.episode', fn($episode) => $episode->where('series_id', $series->id))
-            ->where('scheduled_at', '>=', now())->orderByDesc('scheduled_at')->lockForUpdate()->first();
-        $after = $last->scheduled_at ?? now();
-        $timezone = config()->string('production.release_timezone');
-        $cron = new CronExpression(config()->string('production.release_cron'));
-        $slot = Carbon::instance($cron->getNextRunDate($after, timeZone: $timezone));
-        $window = config()->integer('production.release_window_minutes');
-
-        if ($window > 0) {
-            $next = $cron->getNextRunDate($slot, timeZone: $timezone);
-            $maxOffset = min($window, (int) $slot->diffInMinutes($next) - 1);
-            $slot->addMinutes(random_int(0, $maxOffset));
-        }
-
-        return $slot->setTimezone(config()->string('app.timezone'));
+    public function latestScheduledEpisodeSlot(Series $series): ?Carbon
+    {
+        return PublicationRequest::query()->whereHas('assembly.episodeRevision.episode', fn($episode) => $episode->where('series_id', $series->id))
+            ->where('scheduled_at', '>=', now())->orderByDesc('scheduled_at')->lockForUpdate()->first()?->scheduled_at;
     }
 
     /**

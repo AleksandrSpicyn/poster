@@ -335,9 +335,15 @@ final class BillingWorkspaceRepository
     }
 
     /** @return array{data: Collection<int, stdClass>, page: int, last: int} */
-    public function history(int $owner, bool $money, int $page, ?int $project): array
+    public function paymentHistory(int $owner, int $page): array
     {
-        $query = $money ? $this->orders($owner)->orderByDesc('o.id') : DB::table('generation_credit_entries as e')
+        return $this->paginateHistory($this->orders($owner)->orderByDesc('o.id'), $page);
+    }
+
+    /** @return array{data: Collection<int, stdClass>, page: int, last: int} */
+    public function secondsHistory(int $owner, int $page, ?int $project): array
+    {
+        $query = DB::table('generation_credit_entries as e')
             ->join('generation_grants as g', 'g.id', '=', 'e.grant_id')->join('billing_orders as o', 'o.id', '=', 'g.order_id')
             ->leftJoin('generation_reservation_parts as part', 'part.id', '=', 'e.part_id')
             ->leftJoin('generation_reservations as r', 'r.id', '=', 'part.reservation_id')
@@ -359,6 +365,13 @@ final class BillingWorkspaceRepository
                 'r.project_id',
                 'r.production_run_id',
             ]);
+
+        return $this->paginateHistory($query, $page);
+    }
+
+    /** @return array{data: Collection<int, stdClass>, page: int, last: int} */
+    private function paginateHistory(Builder $query, int $page): array
+    {
         $results = $query->paginate(15, page: $page);
 
         /** @var Collection<int, stdClass> $rows */

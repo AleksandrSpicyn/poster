@@ -11,11 +11,13 @@ use App\Models\CharacterRevision;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
 use App\Models\SeriesAssembly;
+use App\Models\VideoUpscaleOperation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\LazyCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** @extends EloquentRepository<Media> */
@@ -24,6 +26,26 @@ readonly class MediaRepository extends EloquentRepository
     protected function model(): string
     {
         return Media::class;
+    }
+
+    /** @return LazyCollection<int, Media> */
+    public function publicWorkspaceMedia(): LazyCollection
+    {
+        $types = array_map(static fn(string $class): string => new $class()->getMorphClass(), [
+            Prompt::class,
+            EpisodeAssembly::class,
+            SeriesAssembly::class,
+            CharacterRevision::class,
+        ]);
+
+        return Media::query()->whereIn('model_type', $types)->where('disk', 'public')->lazyById();
+    }
+
+    public function markPrivate(Media $media): void
+    {
+        $media->disk = 'local';
+        $media->conversions_disk = 'local';
+        $media->saveQuietly();
     }
 
     /** @return LengthAwarePaginator<int, Media> */
@@ -52,6 +74,22 @@ readonly class MediaRepository extends EloquentRepository
             ->latest('id')->paginate(20, page: $page);
     }
 
+    /** @return Collection<int, Media> */
+    public function upscaleFiles(EpisodeAssembly|SeriesAssembly|Prompt $source, int $operationId, string $collection): Collection
+    {
+        return $source->media()->where('collection_name', $collection)
+            ->where('custom_properties->upscale_operation_id', $operationId)
+            ->orderBy('order_column')->orderBy('id')->get();
+    }
+
+    /** @return Collection<int, Media> */
+    public function upscalePartResults(EpisodeAssembly|SeriesAssembly|Prompt $source, VideoUpscaleOperation $parent): Collection
+    {
+        return $source->media()->where('collection_name', EpisodeAssembly::UPSCALED)
+            ->whereIn('id', $parent->parts()->select('result_media_id')->toBase())
+            ->get()->keyBy('id');
+    }
+
     public function episodeExport(EpisodeAssembly|SeriesAssembly|Prompt $assembly, int $id, ?string $checksum = null): ?Media
     {
         $media = $assembly->media()->whereKey($id)->where('disk', 'local')
@@ -67,12 +105,17 @@ readonly class MediaRepository extends EloquentRepository
             return null;
         }
 
-        if ($media->collection_name === EpisodeAssembly::UPSCALED && ! $assembly->upscales()
-            ->whereNull('parent_id')->where('result_media_id', $id)->where('result_sha256', $actual)->where('status', UpscaleOperationStatus::READY)->exists()) {
+        if ($media->collection_name === EpisodeAssembly::UPSCALED && ! $this->hasReadyUpscale($assembly, $id, $actual)) {
             return null;
         }
 
         return $media;
+    }
+
+    public function hasReadyUpscale(EpisodeAssembly|SeriesAssembly|Prompt $source, int $mediaId, ?string $checksum = null): bool
+    {
+        return $source->upscales()->whereNull('parent_id')->where('result_media_id', $mediaId)->where('status', UpscaleOperationStatus::READY)
+            ->when($checksum !== null, fn(Builder $query) => $query->where('result_sha256', $checksum))->exists();
     }
 
     public function publishingVideo(Channel $channel, int $id): Media

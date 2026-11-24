@@ -122,6 +122,7 @@ return [
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'token' => env('INSTAGRAM_TOKEN'),
+        'channel_id' => env('INSTAGRAM_CHANNEL_ID'),
         'version' => 'v21.0',
     ],
 

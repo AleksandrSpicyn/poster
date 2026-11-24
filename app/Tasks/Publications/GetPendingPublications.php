@@ -23,6 +23,6 @@ class GetPendingPublications
             WorkspaceUpdated::forResource($resource);
         }
 
-        return $this->publications->pending($limit);
+        return $this->publications->nextReconciliationBatch($limit);
     }
 }

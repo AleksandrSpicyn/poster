@@ -42,7 +42,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 ]);
 const viewingClip = ref(false);
 
-const managing = computed(() => new URL(page.url, 'https://poster.invalid').searchParams.get('section') === 'management');
+const managing = computed(() => new URL(page.url, page.props.ziggy.url).searchParams.get('section') === 'management');
 </script>
 
 <template>
