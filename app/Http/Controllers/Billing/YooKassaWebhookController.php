@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Billing;
 
 use App\Actions\Billing\ReconcileBillingPaymentAction;
+use App\Actions\Billing\SyncBillingRefundAction;
 use App\Data\Billing\YooKassaNotificationData;
 use Illuminate\Http\Response;
 
 final class YooKassaWebhookController
 {
     /**
-     * Уведомление ЮKassa о платеже
+     * Уведомление ЮKassa о платеже или возврате
      *
      * Завершённые попытки и посторонние события подтверждаются пустым ответом.
      * Состояние отправленной попытки сверяется через API её магазина. При ошибке сверки возможна повторная доставка.
@@ -28,10 +29,14 @@ final class YooKassaWebhookController
      * @response 429
      * @response 500
      */
-    public function __invoke(YooKassaNotificationData $data, ReconcileBillingPaymentAction $action): Response
+    public function __invoke(YooKassaNotificationData $data, ReconcileBillingPaymentAction $action, SyncBillingRefundAction $refunds): Response
     {
         if ($data->attemptId !== null && $data->isPaymentNotification()) {
             $action->run($data->attemptId, $data->externalId, 'yookassa');
+        }
+
+        if ($data->event === 'refund.succeeded') {
+            $refunds->notification($data->externalId, $data->description);
         }
 
         return response('');

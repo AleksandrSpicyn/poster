@@ -8,12 +8,22 @@ import { billingDate, money } from '@/lib/billing';
 import type { BillingAccount, CreditSource, Offer } from '@/types/billing';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-const props = defineProps<{ account: BillingAccount | null; active?: CreditSource; catalog: Offer[] }>();
+const props = defineProps<{ account: BillingAccount | null; active?: CreditSource; catalogVersion: string; catalog: Offer[] }>();
 const route = useRoute();
 const submit = useFormApi();
 const editing = ref(false);
-const form = useForm({ product: props.account?.next_product ?? props.active?.product_code ?? null });
+const form = useForm({
+    catalog_version: props.catalogVersion,
+    amount_kopecks: 0,
+    product: props.account?.next_product ?? props.active?.product_code ?? null,
+});
 const card = useForm({});
+const renewal = useForm({ enabled: false, catalog_version: props.catalogVersion, product: '' });
+function setRenewal(enabled: boolean) {
+    renewal.enabled = enabled;
+    renewal.product = props.account?.next_product ?? props.account?.current_product ?? '';
+    submit(renewal, 'billing.subscription.renewal', { preserveScroll: true });
+}
 const next = computed(() => props.catalog.find((o) => o.code === props.account?.next_product));
 const selected = computed(() => props.catalog.find((o) => o.code === form.product));
 watch(
@@ -24,6 +34,7 @@ watch(
 );
 function save(product: string | null) {
     form.product = product;
+    form.amount_kopecks = props.catalog.find((offer) => offer.code === (product ?? props.account?.current_product))?.amount ?? 0;
     submit(form, 'billing.subscription.next_plan', {
         preserveScroll: true,
         onSuccess: () => {
@@ -36,13 +47,17 @@ function save(product: string | null) {
     <div class="grid gap-4 lg:col-span-2 lg:grid-cols-[1.18fr_1fr]">
         <section class="studio-panel">
             <h2>Продление</h2>
+            <p v-if="account?.retry_at && account.renewal_consent" class="mb-3 text-sm">
+                Платёж отклонён. Следующая попытка — {{ billingDate(account.retry_at) }}.
+            </p>
+            <p v-else-if="account?.reminder_due" class="mb-3 text-sm">Оплаченный месяц заканчивается {{ billingDate(account.renews_at) }}.</p>
             <p v-if="!active?.ends_at" class="text-sm">
                 {{ account?.renews_at ? 'Оплаченный период завершён.' : 'Нет активной месячной подписки.' }}
             </p>
             <dl v-else class="text-sm">
                 <div class="flex flex-wrap justify-between gap-2">
                     <dt>Способ продления</dt>
-                    <dd>Вручную</dd>
+                    <dd>{{ account?.renewal_consent && account.automatic_payments_enabled && account.has_card ? 'Автоматически' : 'Вручную' }}</dd>
                 </div>
                 <div class="studio-row mt-3">
                     <dt>Период до</dt>
@@ -54,6 +69,29 @@ function save(product: string | null) {
                 </div>
             </dl>
             <template v-if="active?.ends_at">
+                <ConfirmationDialog
+                    v-if="account?.has_card && account.automatic_payments_enabled"
+                    :heading="account.renewal_consent ? 'Отключить автопродление?' : 'Включить автопродление?'"
+                    :title="account.renewal_consent ? 'Следующий месяц оплачивается вручную' : 'Ежемесячная оплата с сохранённой карты'"
+                    :description="
+                        account.renewal_consent
+                            ? 'Оплаченный период и остатки сохранятся.'
+                            : 'Следующий платёж ' +
+                              money((next ?? catalog.find((p) => p.code === active?.product_code))?.amount ?? 0) +
+                              ' · ' +
+                              billingDate(active.ends_at)
+                    "
+                    :action="account.renewal_consent ? 'Отключить' : 'Включить'"
+                    :processing="renewal.processing"
+                    :error="Object.values(renewal.errors).join(' ')"
+                    @confirm="setRenewal(!account?.renewal_consent)"
+                >
+                    <template #trigger
+                        ><Button variant="outline">{{
+                            account.renewal_consent ? 'Отключить автопродление' : 'Включить автопродление'
+                        }}</Button></template
+                    >
+                </ConfirmationDialog>
                 <form v-if="editing" class="flex flex-col items-start gap-3" @submit.prevent="save(form.product)">
                     <label class="grid gap-1 text-sm"
                         >Тариф следующего месяца<select v-model="form.product" class="list-select">
@@ -63,7 +101,12 @@ function save(product: string | null) {
                         </select></label
                     >
                     <p v-if="selected" class="text-muted-foreground text-sm">
-                        После {{ billingDate(active.ends_at) }} можно будет вручную оплатить {{ money(selected.amount) }} за {{ selected.seconds }} с.
+                        Следующий период · {{ money(selected.amount) }} за {{ selected.seconds }} с.
+                        {{
+                            account?.renewal_consent && account.automatic_payments_enabled
+                                ? 'Эта сумма будет списана автоматически.'
+                                : 'Оплата вручную.'
+                        }}
                     </p>
                     <div class="flex flex-wrap gap-2">
                         <Button type="submit" :disabled="form.processing">Сохранить выбор</Button
@@ -92,10 +135,10 @@ function save(product: string | null) {
                 }}
             </p>
             <ConfirmationDialog
-                v-if="account?.has_card"
+                v-if="account?.has_card || account?.renewal_consent"
                 heading="Отвязать карту?"
                 title="Карта будет удалена из способов оплаты"
-                description="Оплаченные секунды останутся на балансе."
+                description="Будущие автоматические платежи будут отключены. Оплаченные секунды останутся на балансе."
                 action="Отвязать карту"
                 :processing="card.processing"
                 :error="Object.values(card.errors).join(' ')"

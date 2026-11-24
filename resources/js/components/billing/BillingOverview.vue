@@ -6,7 +6,7 @@ import { billingDate, money } from '@/lib/billing';
 import type { Balance, BillingAccount, CreditSource, Offer } from '@/types/billing';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
-const props = defineProps<{ catalog: Offer[]; balance: Balance; account: BillingAccount | null; sources: CreditSource[] }>();
+const props = defineProps<{ catalogVersion: string; catalog: Offer[]; balance: Balance; account: BillingAccount | null; sources: CreditSource[] }>();
 const route = useRoute();
 const active = computed(() => props.sources.find((s) => s.active && s.ends_at) ?? props.sources.find((s) => s.active && s.available_seconds > 0));
 const current = computed(() => props.catalog.find((o) => o.code === active.value?.product_code));
@@ -55,7 +55,7 @@ const metrics = computed(() => [
                 >История секунд →</Link
             >
         </section>
-        <BillingPreferences :account="account" :active="active" :catalog="catalog" />
+        <BillingPreferences :catalog-version="catalogVersion" :account="account" :active="active" :catalog="catalog" />
         <section v-if="sources.length" class="studio-panel lg:col-span-2">
             <h2>Пакеты секунд</h2>
             <div v-for="source in sources" :key="source.id" class="studio-row">

@@ -13,16 +13,16 @@ final readonly class ReconcileBillingPaymentAction
 {
     public function __construct(private BillingCheckoutRepository $checkout, private PaymentGatewayFactory $gateways) {}
 
-    public function run(string $attemptId, string $externalId, ?string $provider = null): ?PaymentStatus
+    public function run(string $attemptId, string $externalId, ?string $provider = null, bool $restore = false): ?PaymentStatus
     {
-        $attempt = $this->checkout->sentAttempt($attemptId, $externalId, $provider);
+        $attempt = $restore ? $this->checkout->settledAttempt($attemptId, $externalId) : $this->checkout->sentAttempt($attemptId, $externalId, $provider);
 
         if (! $attempt instanceof CheckoutAttemptData) {
             return null;
         }
 
         $payment = $this->gateways->payments($attempt->merchant)->findPayment($externalId);
-        $this->checkout->record($attempt, $payment);
+        $this->checkout->record($attempt, $payment, $restore);
 
         return $payment->status;
     }

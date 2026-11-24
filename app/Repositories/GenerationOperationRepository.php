@@ -45,15 +45,23 @@ readonly class GenerationOperationRepository extends EloquentRepository
         return $prompt->generationOperations()->with('prompt.project')->lockForUpdate()->get();
     }
 
-    /** @param iterable<GenerationOperation> $operations Locked operations with their workspace ownership loaded. */
-    public function cancelActive(iterable $operations): void
+    /**
+     * @param iterable<GenerationOperation> $operations Locked operations with their workspace ownership loaded.
+     * @return list<int> Takes stopped before submission.
+     */
+    public function cancelActive(iterable $operations): array
     {
         $changed = [];
         $planned = [];
+        $stoppedTakes = [];
         $submitted = [];
         $now = now();
 
         foreach ($operations as $operation) {
+            if ($operation->status === GenerationOperationStatus::FAILED && $operation->stage === GenerationOperationStage::DOWNLOAD) {
+                $stoppedTakes[] = $operation->prompt_id;
+            }
+
             if (! $operation->status->isActive()) {
                 continue;
             }
@@ -63,6 +71,7 @@ readonly class GenerationOperationRepository extends EloquentRepository
             if ($operation->status === GenerationOperationStatus::PLANNED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
                 $operation->status = GenerationOperationStatus::CANCELLED;
                 $planned[] = $operation->id;
+                $stoppedTakes[] = $operation->prompt_id;
             } elseif ($operation->isDirty('cancel_requested_at')) {
                 $submitted[] = $operation->id;
             } else {
@@ -83,6 +92,8 @@ readonly class GenerationOperationRepository extends EloquentRepository
         foreach ($changed as $operation) {
             WorkspaceUpdated::forResource($operation);
         }
+
+        return $stoppedTakes;
     }
 
     public function forRequestKey(string $requestKey): ?GenerationOperation

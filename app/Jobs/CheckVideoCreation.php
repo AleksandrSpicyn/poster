@@ -6,17 +6,21 @@ namespace App\Jobs;
 
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Data\VideoResultData;
+use App\Enums\ReservationStatus;
 use App\Enums\VideoAudioSource;
 use App\Enums\VideoProvider;
+use App\Enums\VideoReceiptStatus;
 use App\Events\VideoGenerated;
 use App\Exceptions\VideoGeneratingException;
 use App\Exceptions\VideoGenerationPendingException;
 use App\Models\Prompt;
+use App\Repositories\GenerationReservationRepository;
 use App\Tasks\Prompts\RefreshPrompt;
 use App\Tasks\Prompts\UpdatePrompt;
 use App\Tasks\ReadVideoGenerationResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -38,7 +42,7 @@ class CheckVideoCreation implements ShouldQueue
         $this->tries = max(1, $maxAttempts);
     }
 
-    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt, RefreshPrompt $refresh, ReadVideoGenerationResult $read): void
+    public function handle(VideoGeneratorFactory $generators, UpdatePrompt $updatePrompt, RefreshPrompt $refresh, ReadVideoGenerationResult $read, GenerationReservationRepository $reservations): void
     {
         $refresh->run($this->prompt);
 
@@ -49,12 +53,18 @@ class CheckVideoCreation implements ShouldQueue
         try {
             $provider = $this->prompt->video_provider ?? VideoProvider::fromLegacy($this->alternative);
             $generator = $generators->make($provider);
-            $result = $read->run($generator, $provider, $this->prompt->video_id, $this->prompt);
+            $seconds = $reservations->quotedSeconds($this->prompt->id);
+            $model = $seconds === null ? null : data_get($this->prompt->input_snapshot, 'video_request.model');
+            $result = $read->run($generator, $provider, $this->prompt->video_id, $this->prompt, is_string($model) ? $model : null);
 
             if (! $result instanceof VideoResultData) {
                 $this->release(60);
 
                 return;
+            }
+
+            if ($seconds !== null && $result->duration !== null && $result->duration !== $seconds) {
+                throw new VideoGeneratingException('Длительность результата расходится с платным заказом.');
             }
 
             if ($generator->audioSource() === VideoAudioSource::EMBEDDED && $result->audioUrl === null) {
@@ -69,6 +79,12 @@ class CheckVideoCreation implements ShouldQueue
             event(new VideoGenerated($this->prompt));
         } catch (VideoGenerationPendingException) {
             $this->release(60);
+        } catch (VideoGeneratingException $e) {
+            if (in_array($e->usage?->status, [VideoReceiptStatus::FAILED, VideoReceiptStatus::CANCELLED, VideoReceiptStatus::EXPIRED], true)) {
+                DB::transaction(fn() => $reservations->setStatus([$this->prompt->id], ReservationStatus::RELEASED), 3);
+            }
+
+            $this->fail($e);
         } catch (Throwable $e) {
             $this->fail($e);
         }

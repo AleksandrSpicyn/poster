@@ -8,6 +8,7 @@ use App\Models\GenerationOperation;
 use App\Models\Prompt;
 use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
+use App\Tasks\ValidateMeteredVideo;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
@@ -18,7 +19,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DownloadShotVideo
 {
-    public function __construct(private readonly PromptRepository $prompts) {}
+    public function __construct(private readonly PromptRepository $prompts, private readonly ValidateMeteredVideo $validate) {}
 
     public function run(GenerationOperation $operation): Media
     {
@@ -26,6 +27,8 @@ class DownloadShotVideo
         $existing = $prompt->getFirstMedia(Prompt::SHOT_VIDEO);
 
         if ($existing instanceof Media) {
+            $this->validate->run($prompt->id, $existing->getPath());
+
             return $existing;
         }
 
@@ -60,6 +63,8 @@ class DownloadShotVideo
             if (trim($probe->output()) !== 'video') {
                 throw new RuntimeException('The generated file has no readable video stream.');
             }
+
+            $this->validate->run($prompt->id, $path);
 
             return $prompt->addMedia($path)->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
         } finally {

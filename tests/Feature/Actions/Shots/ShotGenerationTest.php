@@ -12,6 +12,7 @@ use App\Actions\Shots\SubmitShotGenerationAction;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
 use App\Data\Series\SeriesCastData;
 use App\Data\Shots\ResolveShotGenerationData;
+use App\Enums\BillingProduct;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
 use App\Enums\TransitionMode;
@@ -34,17 +35,22 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia;
 
+use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\assertDatabaseMissing;
 use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
+use function Tests\Support\consoleCommand;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
 use function Tests\Support\workspaceOwner;
@@ -85,6 +91,7 @@ test('повтор запроса возвращает тот же дубль б
 
 test('завершённый дубль хранится приватно без публикации и повторной отправки', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     fakeSerialOpeningFrame();
     Http::fake([
@@ -106,6 +113,9 @@ test('завершённый дубль хранится приватно без
     app(SubmitShotGenerationAction::class)->run($download->id);
 
     expect($prompt->refresh()->generated)->toBeTrue();
+    assertDatabaseCount('generation_reservations', 1);
+    assertDatabaseHas('generation_reservations', ['owner_id' => $actor->id, 'prompt_id' => $prompt->id, 'request_hash' => $prompt->input_hash, 'status' => 'consumed']);
+    assertDatabaseCount('generation_credit_entries', 0);
     assertDatabaseHas('generation_provider_usage', ['operation_id' => $video->id, 'external_id' => 'remote-1', 'completion_tokens' => 324900, 'charge_e8' => null]);
     expect($prompt->getFirstMedia(Prompt::SHOT_VIDEO)?->disk)->toBe('local');
     expect($prompt->getFirstMedia(Prompt::SHOT_IMAGE)?->disk)->toBe('local');
@@ -123,6 +133,7 @@ test('завершённый дубль хранится приватно без
 
 test('неизвестный запуск не повторяется и блокирует новый платный дубль', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     fakeSerialOpeningFrame();
     Http::fake(['*contents/generations/tasks' => Http::failedConnection()]);
@@ -133,6 +144,7 @@ test('неизвестный запуск не повторяется и бло�
     app(SubmitShotGenerationAction::class)->run($video->id);
     app(SubmitShotGenerationAction::class)->run($video->id);
 
+    assertDatabaseHas('generation_reservations', ['prompt_id' => $prompt->id, 'status' => 'held']);
     expect($video->refresh()->status)->toBe(GenerationOperationStatus::SUBMISSION_UNKNOWN);
     expect(fn() => app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'unknown-2', newTake: true))->toThrow(ValidationException::class);
     Http::assertSentCount(1);
@@ -172,6 +184,7 @@ test('reconciler восстанавливает доставку и не пов�
 
 test('отмена запланированного дубля предотвращает генерацию', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     Http::fake();
     mock(ImageGenerator::class)->shouldNotReceive('generate');
@@ -181,6 +194,7 @@ test('отмена запланированного дубля предотвр�
     app(CancelShotGenerationAction::class)->run($prompt, $actor);
     app(SubmitShotGenerationAction::class)->run($operation->id);
 
+    assertDatabaseHas('generation_reservations', ['prompt_id' => $prompt->id, 'status' => 'released']);
     expect($operation->refresh()->status)->toBe(GenerationOperationStatus::CANCELLED);
     expect($prompt->refresh()->generated)->toBeFalse();
     Http::assertNothingSent();
@@ -253,6 +267,7 @@ function fakeSerialOpeningFrame(): void
 
 test('поздний результат отменённой задачи сохраняется без принятия дубля', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     fakeSerialOpeningFrame();
     Http::fake([
@@ -272,6 +287,7 @@ test('поздний результат отменённой задачи сох
     $download = $prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->firstOrFail();
     app(SubmitShotGenerationAction::class)->run($download->id);
 
+    assertDatabaseHas('generation_reservations', ['prompt_id' => $prompt->id, 'status' => 'released']);
     expect($download->refresh()->status)->toBe(GenerationOperationStatus::CANCELLED);
     expect($prompt->refresh()->generated)->toBeFalse();
     expect($prompt->getFirstMedia(Prompt::SHOT_VIDEO))->not->toBeNull();
@@ -281,6 +297,7 @@ test('поздний результат отменённой задачи сох
 
 test('сбой скачивания повторяет только загрузку готового результата', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     fakeSerialOpeningFrame();
     Http::fake([
@@ -298,9 +315,12 @@ test('сбой скачивания повторяет только загруз
 
     app(SubmitShotGenerationAction::class)->run($download->id);
     expect($download->refresh()->status)->toBe(GenerationOperationStatus::PLANNED);
+    assertDatabaseHas('generation_reservations', ['prompt_id' => $prompt->id, 'status' => 'held']);
     travel(61)->seconds();
     app(SubmitShotGenerationAction::class)->run($download->id);
 
+    assertDatabaseCount('generation_reservations', 1);
+    assertDatabaseHas('generation_reservations', ['prompt_id' => $prompt->id, 'status' => 'consumed']);
     expect($prompt->refresh()->generated)->toBeTrue();
     expect($download->refresh()->check_count)->toBe(2);
     Http::assertSentCount(4);
@@ -329,6 +349,7 @@ test('немой дубль фиксирует звук до очереди и �
     $series->update(['specification' => [...$series->specification, 'audio_mode' => 'silent']]);
 
     $revision->update(['context_snapshot' => [...$revision->context_snapshot, 'specification' => $series->specification]]);
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     Bus::fake();
     fakeSerialOpeningFrame();
     Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'silent-remote'])]);
@@ -340,6 +361,7 @@ test('немой дубль фиксирует звук до очереди и �
     $video = $prompt->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail();
     app(SubmitShotGenerationAction::class)->run($video->id);
 
+    assertDatabaseCount('generation_reservations', 0);
     expect(data_get($snapshot, 'audio_mode'))->toBe('silent');
     expect(data_get($snapshot, 'video.generate_audio'))->toBeFalse();
     expect($prompt->refresh()->input_snapshot)->toEqual($snapshot);
@@ -716,3 +738,60 @@ test('передаёт выбранный голос в реальный зап�
             && str_contains($text, 'Bright baritone with short pauses') === ($enabled && $lead !== 'other') && str_contains($text, 'calm and warm') && ! str_contains($text, 'Different voice for future episodes');
     });
 })->with([true, false])->with(['speaker', 'other', 'none']);
+
+test('восемь секунд купленного пакета списываются после доставки вертикального видео', function (): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $shot->update(['duration_ms' => 8000]);
+    config(['app.url' => 'https://poster.example', 'billing.merchants.sandbox.shop' => 'pilot', 'billing.merchants.sandbox.credentials.secret' => 'test']);
+    consoleCommand('billing:pilot', ['owner' => $actor->id, '--mode' => 'enforced', '--sales' => 'on'])->assertSuccessful();
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    $file = Storage::disk('local')->path('eight-seconds.mp4');
+    Process::timeout(30)->run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=size=720x1280:rate=5', '-f', 'lavfi', '-i', 'anullsrc',
+        '-t', '8', '-c:v', 'libx264', '-preset', 'ultrafast', '-threads', '1', '-c:a', 'aac', '-y', $file])->throw();
+    Http::fake([
+        '*contents/generations/tasks' => Http::response(['id' => 'paid-video']),
+        '*contents/generations/tasks/paid-video' => Http::response(['status' => 'succeeded', 'generate_audio' => true, 'duration' => 8, 'content' => ['video_url' => 'https://cdn.example.test/clip.mp4']]),
+        'https://cdn.example.test/clip.mp4' => Http::response(File::get($file)),
+        '*/me' => Http::response(['account_id' => 'pilot', 'test' => true]),
+        '*/payments*' => function (Request $request) {
+            if ($request->method() === 'POST') {
+                /** @var array{attempt_id: string, order_id: string} $meta */
+                $meta = $request->data()['metadata'];
+
+                return Http::response(['id' => $meta['attempt_id'], 'recipient' => ['account_id' => 'pilot'], 'test' => true, 'status' => 'pending', 'amount' => $request['amount'], 'metadata' => $meta]);
+            }
+
+            $id = basename($request->url());
+            /** @var object{order_id: int, amount_kopecks: int} $payment */
+            $payment = DB::table('billing_payments')->where('id', $id)->firstOrFail();
+
+            return Http::response(['id' => $id, 'recipient' => ['account_id' => 'pilot'], 'test' => true, 'status' => 'succeeded', 'paid' => true,
+                'amount' => ['currency' => 'RUB', 'value' => number_format($payment->amount_kopecks / 100, 2, '.', '')], 'metadata' => ['order_id' => (string) $payment->order_id, 'attempt_id' => $id]]);
+        },
+    ]);
+    $buy = function (string $product) use ($actor): void {
+        actingAs($actor)->post(route('billing.orders.store', $product), ['request_key' => (string) Str::uuid(), 'catalog_version' => BillingProduct::CATALOG_VERSION])->assertSessionHasNoErrors();
+        travel(61)->seconds();
+        consoleCommand('billing:sync-checkouts')->assertSuccessful();
+    };
+    $buy('one_off');
+    $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'paid-eight');
+    assertDatabaseHas('generation_grants', ['owner_id' => $actor->id, 'available_seconds' => 22, 'held_seconds' => 8]);
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->where('stage', GenerationOperationStage::IMAGE)->firstOrFail()->id);
+    $video = $prompt->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail();
+    app(SubmitShotGenerationAction::class)->run($video->id);
+    travel(61)->seconds();
+    app(CheckShotGenerationAction::class)->run($video->id);
+    expect([$video->refresh()->status->value, $video->error_code, $video->external_id])->toBe(['succeeded', null, 'paid-video']);
+    $delivery = $prompt->generationOperations()->where('stage', GenerationOperationStage::DOWNLOAD)->firstOrFail();
+    app(SubmitShotGenerationAction::class)->run($delivery->id);
+    app(SubmitShotGenerationAction::class)->run($delivery->id);
+
+    expect($prompt->refresh()->generated)->toBeTrue();
+    assertDatabaseHas('generation_grants', ['owner_id' => $actor->id, 'available_seconds' => 22, 'held_seconds' => 0, 'consumed_seconds' => 8]);
+    $buy('author');
+    actingAs($actor)->get(route('billing.show'))->assertInertia(fn(AssertableInertia $page): AssertableInertia => $page->where('balance.available', 142)->where('balance.consumed', 8)->has('sources', 2));
+    assertDatabaseHas('billing_accounts', ['owner_id' => $actor->id, 'renewal_consent' => false]);
+    consoleCommand('billing:audit')->assertSuccessful();
+});

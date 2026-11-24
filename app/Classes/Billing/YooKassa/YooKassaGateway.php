@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Classes\Billing\YooKassa;
 
 use App\Classes\Billing\PaymentGateway;
+use App\Classes\Billing\ReceiptGateway;
 use App\Classes\Billing\RefundGateway;
 use App\Data\Billing\MerchantData;
 use App\Data\Billing\PaymentRequestData;
 use App\Data\Billing\PaymentResultData;
+use App\Data\Billing\ReceiptRequestData;
+use App\Data\Billing\ReceiptResultData;
 use App\Data\Billing\RefundRequestData;
 use App\Data\Billing\RefundResultData;
 use App\Enums\PaymentStatus;
@@ -22,7 +25,7 @@ use RuntimeException;
 use SensitiveParameter;
 use UnexpectedValueException;
 
-final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
+final readonly class YooKassaGateway implements PaymentGateway, RefundGateway, ReceiptGateway
 {
     private string $secret;
 
@@ -44,7 +47,7 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
             'amount' => $this->amount($request->amountKopecks),
             'capture' => true,
             'description' => $request->description,
-            'confirmation' => ['type' => 'redirect', 'return_url' => $request->returnUrl],
+            ...($request->paymentMethodId === null ? ['confirmation' => ['type' => 'redirect', 'return_url' => $request->returnUrl]] : ['payment_method_id' => $request->paymentMethodId]),
             'metadata' => ['order_id' => (string) $request->orderId, 'attempt_id' => $request->attemptId],
             ...($request->savePaymentMethod ? ['save_payment_method' => true] : []),
         ]);
@@ -71,6 +74,7 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
     public function createRefund(RefundRequestData $request): RefundResultData
     {
         $response = $this->verifiedMerchant()->withHeader('Idempotence-Key', $request->idempotencyKey)->post('refunds', [
+            ...($request->reference === null ? [] : ['description' => $request->reference]),
             'payment_id' => $request->paymentId, 'amount' => $this->amount($request->amountKopecks),
         ]);
         $result = $this->refund($response);
@@ -84,13 +88,55 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
 
     public function findRefund(string $externalId): RefundResultData
     {
-        $result = $this->refund($this->client()->get('refunds/' . rawurlencode($externalId)));
+        $result = $this->refund($this->verifiedMerchant()->get('refunds/' . rawurlencode($externalId)));
 
         if ($result->externalId !== $externalId) {
             throw new UnexpectedValueException('Ответ относится к другому возврату.');
         }
 
         return $result;
+    }
+
+    public function createReceipt(ReceiptRequestData $request, string $key): ReceiptResultData
+    {
+        $type = $request->kind === 'refund' ? 'refund' : 'payment';
+        $amount = $this->amount($request->amountKopecks);
+        $response = $this->verifiedMerchant()->withHeader('Idempotence-Key', $key)->post('receipts', [
+            'type' => $type, $type . '_id' => $request->sourceId, 'send' => true, 'internet' => true,
+            'customer' => ['email' => $request->email],
+            'items' => [['description' => $request->description, 'quantity' => '1.000', 'amount' => $amount, 'vat_code' => $request->vat,
+                'payment_subject' => $request->subject, 'payment_mode' => $request->mode]],
+            'settlements' => [['type' => $request->kind === 'offset' ? 'prepayment' : 'cashless', 'amount' => $amount]],
+            ...($request->taxSystem === null ? [] : ['tax_system_code' => $request->taxSystem]),
+        ]);
+
+        return $this->receipt($request, $response);
+    }
+
+    public function findReceipt(ReceiptRequestData $request, string $id): ReceiptResultData
+    {
+        $result = $this->receipt($request, $this->verifiedMerchant()->get('receipts/' . rawurlencode($id)));
+
+        if ($result->externalId !== $id) {
+            throw new UnexpectedValueException('Ответ относится к другому чеку.');
+        }
+
+        return $result;
+    }
+
+    private function receipt(ReceiptRequestData $request, Response $response): ReceiptResultData
+    {
+        $this->assertSuccess($response);
+        $type = $request->kind === 'refund' ? 'refund' : 'payment';
+        $amount = $this->amount($request->amountKopecks);
+
+        if ($response->json('type') !== $type || $response->json($type . '_id') !== $request->sourceId || $response->json('settlements.0.amount.value') !== $amount['value']
+            || $response->json('settlements.0.amount.currency') !== 'RUB' || $response->json('settlements.0.type') !== ($request->kind === 'offset' ? 'prepayment' : 'cashless')
+            || $response->json('settlements.1') !== null) {
+            throw new UnexpectedValueException('Чек расходится с операцией.');
+        }
+
+        return new ReceiptResultData(Payload::string($response->json('id'), 'id'), $this->status($response));
     }
 
     private function verifiedMerchant(): PendingRequest
@@ -147,6 +193,7 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
             $savedMethod,
             $savedMethod !== null && is_string($lastFour) && preg_match('/\A[0-9]{4}\z/', $lastFour) === 1 ? $lastFour : null,
             is_string($capturedAt) ? CarbonImmutable::parse($capturedAt)->utc() : null,
+            is_string($reason = $response->json('cancellation_details.reason')) ? $reason : null,
         );
     }
 
@@ -154,7 +201,7 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
     {
         $this->assertSuccess($response);
 
-        return new RefundResultData(Payload::string($response->json('id'), 'id'), Payload::string($response->json('payment_id'), 'payment_id'), $this->status($response), $this->kopecks($response));
+        return new RefundResultData(Payload::string($response->json('id'), 'id'), Payload::string($response->json('payment_id'), 'payment_id'), $this->status($response), $this->kopecks($response), is_string($reference = $response->json('description')) ? $reference : null);
     }
 
     private function assertSuccess(Response $response): void

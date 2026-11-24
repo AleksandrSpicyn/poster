@@ -14,5 +14,7 @@ final class CheckoutData extends Data
     public function __construct(
         #[Uuid] public string $request_key,
         #[In(BillingProduct::CATALOG_VERSION)] public string $catalog_version,
+        public bool $auto_renew = false,
+        public bool $accept_offer = false,
     ) {}
 }

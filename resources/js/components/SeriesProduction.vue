@@ -105,6 +105,7 @@ const reviewHref = computed(() => {
     <section class="studio-panel run-panel">
         <h2>{{ title }}</h2>
         <GenerationUsage v-if="run" :id="run.id" :key="run.id" kind="run" />
+        <GenerationUsage v-else :id="projectId" :series-id="seriesId" kind="production" />
         <div
             class="run-notice"
             role="status"

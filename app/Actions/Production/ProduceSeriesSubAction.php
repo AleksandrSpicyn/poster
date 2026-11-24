@@ -7,10 +7,13 @@ namespace App\Actions\Production;
 use App\Enums\ProductionStage;
 use App\Models\ProductionRun;
 use App\Models\User;
+use App\Repositories\ProductionBudgetRepository;
+use Illuminate\Support\Facades\DB;
 
 readonly class ProduceSeriesSubAction
 {
     public function __construct(
+        private ProductionBudgetRepository $budget,
         private PlanSeriesProductionSubAction $plan,
         private BuildSeriesVideoSubAction $finalVideo,
         private ConfirmSeriesVideoSubAction $finalReview,
@@ -24,6 +27,10 @@ readonly class ProduceSeriesSubAction
 
     public function run(ProductionRun $run, User $actor): void
     {
+        if (in_array($run->stage, [ProductionStage::PLANNING, ProductionStage::PREPARING, ProductionStage::SCREENPLAY, ProductionStage::MEDIA], true)) {
+            DB::transaction(fn() => $this->budget->prepare($run->project, $run, $run->series), 3);
+        }
+
         match ($run->stage) {
             ProductionStage::PLANNING => $this->plan->run($run),
             ProductionStage::FINAL_MONTAGE => $this->finalVideo->run($run),

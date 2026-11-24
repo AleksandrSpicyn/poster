@@ -6,8 +6,10 @@ namespace App\Tasks\Shots;
 
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
+use App\Enums\ReservationStatus;
 use App\Models\GenerationOperation;
 use App\Repositories\GenerationOperationRepository;
+use App\Repositories\GenerationReservationRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\PromptRepository;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 class UpdateGenerationOperation
 {
     public function __construct(
+        private readonly GenerationReservationRepository $usage,
         private readonly GenerationOperationRepository $operations,
         private readonly PromptRepository $prompts,
         private readonly ProductionRunRepository $runs,
@@ -54,17 +57,24 @@ class UpdateGenerationOperation
                 'completed_at' => $completed ? now() : null,
                 'next_check_at' => in_array($status, [GenerationOperationStatus::PLANNED, GenerationOperationStatus::SUBMITTED, GenerationOperationStatus::RUNNING], true) ? now()->addMinute() : null]);
 
+            if ($status === GenerationOperationStatus::FAILED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
+                $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+            }
+
             if ($status !== GenerationOperationStatus::SUCCEEDED) {
                 return null;
             }
 
             if ($operation->stage === GenerationOperationStage::DOWNLOAD) {
                 $this->prompts->update($prompt, ['generated' => ! $cancelled]);
+                $this->usage->setStatus([$prompt->id], $cancelled ? ReservationStatus::RELEASED : ReservationStatus::CONSUMED);
 
                 return null;
             }
 
             if ($operation->stage === GenerationOperationStage::IMAGE && $cancelled) {
+                $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+
                 return null;
             }
 

@@ -43,13 +43,25 @@ export type CreditEntry = {
 export type History<T> = { data: T[]; page: number; last: number };
 export type BillingAccount = {
     has_card: number;
+    automatic_payments_enabled: boolean;
+    renewal_consent: boolean;
+    retry_at: string | null;
+    reminder_due: number;
     current_product: string | null;
     next_product: string | null;
     renews_at: string | null;
     payment_method_last_four: string | null;
 };
-export type Checkout = { request_key: string; catalog_version: string; blocked: string | null };
+export type Checkout = {
+    request_key: string;
+    catalog_version: string;
+    offer_url: string | null;
+    test_mode: boolean;
+    can_auto_renew: boolean;
+    blocked: string | null;
+};
 export type BillingWorkspace = {
+    catalogVersion: string;
     projectFilter: number | null;
     historyProjects: { id: number; name: string }[];
     section: BillingSection;

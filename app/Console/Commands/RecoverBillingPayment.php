@@ -12,9 +12,9 @@ use Throwable;
 
 final class RecoverBillingPayment extends Command
 {
-    protected $signature = 'billing:recover-payment {attempt : UUID локальной попытки} {external : ID платежа в исходном магазине}';
+    protected $signature = 'billing:recover-payment {attempt : UUID локальной попытки} {external : ID платежа в исходном магазине} {--restore : Восстановить отсутствующий пакет подтверждённого заказа}';
 
-    protected $description = 'Сверить отправленный тестовый платёж по ID из кабинета магазина и провести подтверждённый результат';
+    protected $description = 'Сверить отправленный платёж по ID из кабинета магазина и провести подтверждённый результат';
 
     public function handle(ReconcileBillingPaymentAction $action): int
     {
@@ -28,7 +28,7 @@ final class RecoverBillingPayment extends Command
         }
 
         try {
-            $status = $action->run($id, $external);
+            $status = $action->run($id, $external, restore: (bool) $this->option('restore'));
         } catch (Throwable $error) {
             report($error);
             $this->error('Сверка не завершена. Проверьте данные платежа и доступность исходного магазина.');

@@ -7,17 +7,19 @@ namespace App\Tasks\Shots;
 use App\Classes\Story\Snapshot;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
+use App\Enums\ReservationStatus;
 use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\User;
 use App\Repositories\GenerationOperationRepository;
+use App\Repositories\GenerationReservationRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ClaimGenerationOperation
 {
-    public function __construct(private readonly GenerationOperationRepository $operations, private readonly UserRepository $users) {}
+    public function __construct(private readonly GenerationOperationRepository $operations, private readonly UserRepository $users, private readonly GenerationReservationRepository $usage) {}
 
     public function run(int $operationId, bool $polling = false): ?GenerationOperation
     {
@@ -51,6 +53,8 @@ class ClaimGenerationOperation
                     $this->operations->update($operation, ['status' => GenerationOperationStatus::CANCELLED, 'cancel_requested_at' => now(),
                         'completed_at' => now(), 'next_check_at' => null]);
 
+                    $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
+
                     return null;
                 }
 
@@ -61,6 +65,8 @@ class ClaimGenerationOperation
                     || $prompt->input_hash !== Snapshot::hash($operation->request_snapshot)) {
                     $this->operations->update($operation, ['status' => GenerationOperationStatus::FAILED,
                         'error_code' => 'invalid_actor_or_snapshot', 'completed_at' => now(), 'next_check_at' => null]);
+
+                    $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
 
                     return null;
                 }

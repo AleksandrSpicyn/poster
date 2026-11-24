@@ -45,10 +45,12 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\StructuredAnonymousAgent;
 
+use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\mock;
 use function Pest\Laravel\travel;
 use function Pest\Laravel\travelTo;
 use function Tests\Support\acceptedEpisodePublication;
+use function Tests\Support\consoleCommand;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
@@ -168,6 +170,7 @@ test('проводит выпуск до публикации и продолж�
     Event::fake([PostCreated::class]);
     config(['services.video.provider' => 'seedance', 'services.seedance.api_key' => 'test']);
     $actor = serialOperator();
+    consoleCommand('billing:shadow-usage', ['owner' => $actor->id, '--enable' => true])->assertSuccessful();
     $project = Project::factory()->recycle(workspaceOwner())->create(['content_mode' => ProjectContentMode::SERIES]);
     $series = Series::factory()->recycle(workspaceOwner())->for($project)->create([
         'automation_enabled' => true, 'automation_user_id' => $actor->id, 'episode_limit' => 1,
@@ -247,6 +250,8 @@ test('проводит выпуск до публикации и продолж�
     $advance->run($run->id);
 
     expect($run->refresh()->status)->toBe(ProductionStatus::COMPLETED);
+    assertDatabaseHas('generation_reservations', ['owner_id' => $actor->id, 'prompt_id' => $prompt->id, 'production_run_id' => $run->id,
+        'accounting_mode' => 'shadow', 'status' => 'consumed', 'quote_snapshot->seconds' => 5]);
     expect($prompt->generationOperations()->pluck('production_run_id')->all())->toBe([$run->id, $run->id, $run->id]);
     expect($publication->refresh()->production_run_id)->toBe($run->id);
     expect($episode->refresh()->title)->toBe('The locked door');

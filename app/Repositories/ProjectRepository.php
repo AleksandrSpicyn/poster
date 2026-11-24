@@ -15,11 +15,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
 /** @extends EloquentRepository<Project> */
 readonly class ProjectRepository extends EloquentRepository
 {
+    public function lockForProduction(int $id): Project
+    {
+        return Project::query()->addSelect(['generation_accounting_mode' => DB::table('billing_accounts')->select('accounting_mode')->whereColumn('owner_id', 'projects.owner_id')])
+            ->lockForUpdate()->findOrFail($id);
+    }
+
     protected function model(): string
     {
         return Project::class;

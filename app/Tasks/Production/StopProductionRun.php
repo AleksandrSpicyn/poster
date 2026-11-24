@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Tasks\Production;
 
 use App\Enums\ProductionStatus;
+use App\Enums\ReservationStatus;
 use App\Models\ProductionRun;
 use App\Models\Prompt;
 use App\Repositories\GenerationOperationRepository;
+use App\Repositories\GenerationReservationRepository;
+use App\Repositories\ProductionBudgetRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\ProjectRepository;
 use App\Repositories\PromptRepository;
@@ -18,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 class StopProductionRun
 {
     public function __construct(
+        private readonly ProductionBudgetRepository $budget,
+        private readonly GenerationReservationRepository $usage,
         private readonly ProductionRunRepository $runs,
         private readonly ProjectRepository $projects,
         private readonly SeriesRepository $series,
@@ -43,10 +48,13 @@ class StopProductionRun
 
             $this->runs->update($run, ['status' => ProductionStatus::STOPPED, 'next_check_at' => null, 'completed_at' => now(), 'error_message' => $message]);
 
+            $this->budget->releaseUnused($run);
+
             if ($run->series_id !== null) {
                 $prompts = $this->prompts->lockEpisodeTakes($run);
 
-                $this->operations->cancelActive($prompts->flatMap(fn(Prompt $prompt) => $prompt->generationOperations));
+                $stopped = $this->operations->cancelActive($prompts->flatMap(fn(Prompt $prompt) => $prompt->generationOperations));
+                $this->usage->setStatus($stopped, ReservationStatus::RELEASED);
             }
 
             if ($run->episode_assembly_id !== null || $run->series_assembly_id !== null) {

@@ -12,6 +12,15 @@ final readonly class CheckoutAvailability
 {
     public function __construct(private BillingWorkspaceRepository $workspace, private PaymentGatewayFactory $gateways) {}
 
+    public function testMode(): bool
+    {
+        try {
+            return $this->gateways->defaultMerchant()->testMode;
+        } catch (LogicException) {
+            return true;
+        }
+    }
+
     public function blocked(int $owner, BillingProduct $product, bool $sales): ?string
     {
         if (! $product->isMonthly() && $this->workspace->hasPurchased($owner)) {
@@ -29,7 +38,11 @@ final readonly class CheckoutAvailability
         try {
             $merchant = $this->gateways->defaultMerchant();
 
-            if ($merchant->testMode) {
+            if ($this->workspace->hasOtherModePayment($owner, $merchant->testMode)) {
+                return 'Этот аккаунт использовался в другом платёжном контуре.';
+            }
+
+            if ($merchant->testMode || FiscalProfile::liveReady()) {
                 $this->gateways->payments($merchant);
 
                 return parse_url(config()->string('app.url'), PHP_URL_SCHEME) === 'https' ? null : 'Для возврата из магазина нужен публичный HTTPS-адрес кабинета.';

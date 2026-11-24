@@ -7,6 +7,8 @@ use App\Http\Controllers\Billing\DetachCardController as BillingDetachCardContro
 use App\Http\Controllers\Billing\HistoryController as BillingHistoryController;
 use App\Http\Controllers\Billing\NextPlanController as BillingNextPlanController;
 use App\Http\Controllers\Billing\OrderController as BillingOrderController;
+use App\Http\Controllers\Billing\QuoteController as BillingQuoteController;
+use App\Http\Controllers\Billing\RenewalConsentController;
 use App\Http\Controllers\Billing\RunUsageController as BillingRunUsageController;
 use App\Http\Controllers\Billing\ShotUsageController as BillingShotUsageController;
 use App\Http\Controllers\Billing\ShowController as BillingShowController;
@@ -49,7 +51,9 @@ Route::get('prompt-exports/{prompt}/media/{media}', MediaController::class)
 Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class])->group(function (): void {
     Route::get('prompts/{prompt}/media/{media}', MediaController::class)->scopeBindings()->name('prompts.media');
     Route::prefix('billing')->name('billing.')->group(function (): void {
+        Route::post('quotes', BillingQuoteController::class)->middleware('can:manageSeries')->name('quotes.store');
         Route::get('history', BillingHistoryController::class)->name('history');
+        Route::patch('subscription/renewal', RenewalConsentController::class)->name('subscription.renewal');
         Route::patch('subscription/next-plan', BillingNextPlanController::class)->name('subscription.next_plan');
         Route::delete('payment-method', BillingDetachCardController::class)->name('payment_method.destroy');
         Route::get('usage/shots/{shot}', BillingShotUsageController::class)->whereNumber('shot')->middleware('can:manageSeries')->name('usage.shot');

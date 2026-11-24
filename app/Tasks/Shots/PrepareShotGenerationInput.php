@@ -27,11 +27,8 @@ readonly class PrepareShotGenerationInput
         $revision = $scene->episodeRevision ?? throw new RuntimeException('Shot screenplay is missing.');
         $episode = $revision->episode ?? throw new RuntimeException('Shot episode is missing.');
         $series = $episode->series ?? throw new RuntimeException('Shot series is missing.');
-        $provider = $settings->provider;
-        $capabilities = $settings->capabilities;
         $duration = $settings->duration;
         $audioMode = $settings->audioMode;
-        $generateAudio = $settings->generateAudio;
         $hasDialogue = $shot->dialogue !== [];
         $sourceMediaId = $continuation->sourceMediaId;
         $sourceChecksum = $continuation->sourceChecksum;
@@ -124,9 +121,7 @@ TEXT;
             'source_prompt_id' => $sourcePromptId, 'source_assembly_id' => $sourceAssemblyId,
             'source_time_ms' => $shot->source_anchor['time_ms'] ?? null,
             'image_prompt' => $imagePrompt, 'video_prompt' => $videoPrompt,
-            'video' => ['provider' => $provider->value, 'model' => $capabilities->model, 'duration' => $duration,
-                'resolution' => $capabilities->defaultResolution, 'aspect_ratio' => $capabilities->defaultAspectRatio,
-                'generate_audio' => $generateAudio, 'return_last_frame' => $capabilities->supportsReturnLastFrame],
+            'video' => $settings->videoSnapshot(),
         ];
     }
 }

@@ -19,5 +19,6 @@ final readonly class PaymentResultData
         public ?string $savedMethodId,
         public ?string $lastFour,
         public ?CarbonImmutable $capturedAt = null,
+        public ?string $cancellationReason = null,
     ) {}
 }

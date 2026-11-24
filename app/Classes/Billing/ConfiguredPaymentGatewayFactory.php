@@ -13,7 +13,7 @@ final readonly class ConfiguredPaymentGatewayFactory implements PaymentGatewayFa
 {
     /**
      * @param array<string, array{provider: string, shop: string|null, test_mode: bool, credentials: array<string, mixed>}> $merchants
-     * @param array<string, array{payments: class-string<PaymentGateway>, refunds: class-string<RefundGateway>}> $drivers
+     * @param array<string, array{payments: class-string<PaymentGateway>, refunds: class-string<RefundGateway>, receipts?: class-string<ReceiptGateway>}> $drivers
      */
     public function __construct(
         private Container $container,
@@ -41,6 +41,18 @@ final readonly class ConfiguredPaymentGatewayFactory implements PaymentGatewayFa
 
         if (! $gateway instanceof PaymentGateway) {
             throw new LogicException('Зарегистрированный драйвер не реализует PaymentGateway.');
+        }
+
+        return $gateway;
+    }
+
+    public function receipts(MerchantData $merchant): ReceiptGateway
+    {
+        $driver = $this->drivers[$merchant->provider]['receipts'] ?? throw new LogicException('Драйвер чеков не зарегистрирован.');
+        $gateway = $this->container->make($driver, ['merchant' => $merchant, 'credentials' => $this->credentials($merchant)]);
+
+        if (! $gateway instanceof ReceiptGateway) {
+            throw new LogicException('Зарегистрированный драйвер не реализует ReceiptGateway.');
         }
 
         return $gateway;

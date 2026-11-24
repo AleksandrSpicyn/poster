@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tasks\Production;
 
+use App\Enums\GenerationAccountingMode;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesOutputMode;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
+use App\Repositories\ProductionBudgetRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\ProjectRepository;
 use App\Repositories\SeriesRepository;
@@ -20,6 +22,7 @@ use Illuminate\Validation\ValidationException;
 class CreateProductionRun
 {
     public function __construct(
+        private readonly ProductionBudgetRepository $budget,
         private readonly ProjectRepository $projects,
         private readonly SeriesRepository $series,
         private readonly ProductionRunRepository $runs,
@@ -40,7 +43,8 @@ class CreateProductionRun
     public function forTargets(Project $project, array $ids, User $actor, string $requestKey, bool $onlyFirstRun = false, bool $scheduled = false, ?array $channelIds = null): Collection
     {
         return DB::transaction(function () use ($project, $ids, $actor, $requestKey, $onlyFirstRun, $scheduled, $channelIds): Collection {
-            $project = $this->projects->findLockedOrFail($project->id);
+            $project = $this->projects->lockForProduction($project->id);
+            $metered = $project->getAttribute('generation_accounting_mode') === GenerationAccountingMode::ENFORCED->value;
 
             if (! $project->is_active || $project->isClippingProject() || $project->owner_id !== $actor->id) {
                 return new Collection();
@@ -57,8 +61,19 @@ class CreateProductionRun
             if ($ids === []) {
                 $key = hash('sha256', $project->id . ':short:' . $requestKey);
 
-                return new Collection([$this->runs->forRequestKey($key) ?? $this->runs->blockingForProject($project, null)
-                    ?? $this->runs->createQueued($project, null, $actor, $key)]);
+                $existing = $this->runs->forRequestKey($key) ?? $this->runs->blockingForProject($project, null);
+
+                if ($existing instanceof ProductionRun) {
+                    return new Collection([$existing]);
+                }
+
+                $run = $this->runs->createQueued($project, null, $actor, $key);
+
+                if ($metered) {
+                    $this->budget->prepare($project, $run, null);
+                }
+
+                return new Collection([$run]);
             }
 
             $targets = $this->series->lockProductionTargets($project, $ids, $onlyFirstRun);
@@ -85,6 +100,10 @@ class CreateProductionRun
 
             if ($pending !== []) {
                 foreach ($this->runs->createQueuedSeries($project, $actor, $pending, $channelIds) as $run) {
+                    if ($metered) {
+                        $this->budget->prepare($project, $run, $pending[$run->request_key]);
+                    }
+
                     $result[$run->series_id] = $run;
                 }
             }
@@ -92,7 +111,7 @@ class CreateProductionRun
             ksort($result);
 
             return new Collection(array_values($result));
-        });
+        }, 3);
     }
 
     private function isDue(Series $series, bool $onlyFirstRun, bool $manual): bool

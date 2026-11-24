@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Production\StartProductionAction;
+use App\Repositories\ProductionBudgetRepository;
 use App\Tasks\Projects\GetActiveProjects;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProduceContent extends Command
 {
@@ -15,7 +17,7 @@ class ProduceContent extends Command
 
     protected $description = 'Queue the next episode for series projects, or a standalone video for other projects';
 
-    public function handle(StartProductionAction $action, GetActiveProjects $getProjects): int
+    public function handle(StartProductionAction $action, GetActiveProjects $getProjects, ProductionBudgetRepository $budgets): int
     {
         $projectClock = (bool) $this->option('project-clock');
         $scheduled = $projectClock || $this->option('scheduled');
@@ -52,7 +54,22 @@ class ProduceContent extends Command
                 $requestKey = 'project-day:' . $local->format('Ymd');
             }
 
-            $count += $action->run($project, $requestKey)->count();
+            if ($scheduled && $budgets->isDeferred($project)) {
+                continue;
+            }
+
+            try {
+                $count += $action->run($project, $requestKey)->count();
+            } catch (ValidationException $error) {
+                $errors = $error->errors()['balance'] ?? null;
+                $reason = is_array($errors) ? ($errors[0] ?? null) : null;
+
+                if (! $scheduled || ! is_string($reason)) {
+                    throw $error;
+                }
+
+                $budgets->deferSchedule($project, $requestKey, $reason);
+            }
         }
 
         $this->info('Production requests: ' . $count);

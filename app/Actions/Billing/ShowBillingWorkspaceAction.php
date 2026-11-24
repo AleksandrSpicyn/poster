@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Billing;
 
 use App\Classes\Billing\CheckoutAvailability;
+use App\Classes\Billing\FiscalProfile;
 use App\Enums\BillingProduct;
 use App\Enums\BillingSection;
 use App\Repositories\BillingWorkspaceRepository;
@@ -26,7 +27,7 @@ final readonly class ShowBillingWorkspaceAction
         };
 
         return [
-            'section' => $section->value,
+            'section' => $section->value, 'catalogVersion' => BillingProduct::CATALOG_VERSION,
             'catalog' => collect(BillingProduct::cases())->map(fn(BillingProduct $product): array => [
                 'code' => $product->value, 'label' => $product->label(), 'seconds' => $product->seconds(),
                 'amount' => $product->amountKopecks(), 'monthly' => $product->isMonthly(),
@@ -40,6 +41,7 @@ final readonly class ShowBillingWorkspaceAction
             'selected' => $selected?->value,
             'checkout' => $selected instanceof BillingProduct ? [
                 'request_key' => (string) Str::uuid(), 'catalog_version' => BillingProduct::CATALOG_VERSION,
+                'offer_url' => FiscalProfile::offerUrl(), 'test_mode' => $this->availability->testMode(), 'can_auto_renew' => $selected->isMonthly() && (bool) ($account->automatic_payments_enabled ?? false),
                 'blocked' => $this->availability->blocked($owner, $selected, (bool) ($account->sales_enabled ?? false)),
             ] : null,
             'pendingOrder' => $this->workspace->pendingOrder($owner),

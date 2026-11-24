@@ -6,9 +6,11 @@ namespace App\Tasks\Shots;
 
 use App\Data\Shots\AbandonShotGenerationData;
 use App\Enums\GenerationOperationStatus;
+use App\Enums\ReservationStatus;
 use App\Models\GenerationOperation;
 use App\Models\User;
 use App\Repositories\GenerationOperationRepository;
+use App\Repositories\GenerationReservationRepository;
 use App\Repositories\PromptRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -19,6 +21,7 @@ use Illuminate\Validation\ValidationException;
 class AbandonShotGeneration
 {
     public function __construct(
+        private readonly GenerationReservationRepository $usage,
         private readonly PromptRepository $prompts,
         private readonly GenerationOperationRepository $operations,
         private readonly UserRepository $users,
@@ -65,6 +68,7 @@ class AbandonShotGeneration
                     'accept_unknown_outcome' => true,
                 ],
             ]);
+            $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);
 
             return $operation;
         });

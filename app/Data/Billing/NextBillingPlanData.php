@@ -11,5 +11,5 @@ use Spatie\LaravelData\Data;
 
 final class NextBillingPlanData extends Data
 {
-    public function __construct(#[Present, In(BillingProduct::AUTHOR->value, BillingProduct::STUDIO->value)] public ?BillingProduct $product) {}
+    public function __construct(#[Present, In(BillingProduct::AUTHOR->value, BillingProduct::STUDIO->value)] public ?BillingProduct $product, public ?string $catalog_version = null, public ?int $amount_kopecks = null) {}
 }

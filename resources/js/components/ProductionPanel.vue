@@ -39,6 +39,7 @@ const currentStage = computed(() => stages.value.findIndex(([stage]) => stage ==
             }}</span>
         </div>
         <GenerationUsage v-if="run" :id="run.id" :key="run.id" kind="run" />
+        <GenerationUsage v-else :id="projectId" kind="production" />
         <div v-if="run?.series_assembly_id" class="rounded-lg border p-3">
             <Link :href="route('series_assemblies.show', run.series_assembly_id)" class="text-primary underline underline-offset-4"
                 >Проверить полную версию и стыки</Link

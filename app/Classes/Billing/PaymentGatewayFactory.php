@@ -12,5 +12,7 @@ interface PaymentGatewayFactory
 
     public function payments(MerchantData $merchant): PaymentGateway;
 
+    public function receipts(MerchantData $merchant): ReceiptGateway;
+
     public function refunds(MerchantData $merchant): RefundGateway;
 }

@@ -17,6 +17,7 @@ final class YooKassaNotificationData extends Data
         #[Max(64)] public string $event,
         #[MapInputName('object.id'), Max(128)] public string $externalId,
         #[MapInputName('object.metadata.attempt_id'), Uuid] public ?string $attemptId = null,
+        #[MapInputName('object.description'), Max(255)] public ?string $description = null,
     ) {}
 
     public function isPaymentNotification(): bool

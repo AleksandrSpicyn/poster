@@ -58,6 +58,7 @@ const pageTitle = computed(() => (props.order ? 'Заказ №' + props.order.i
             <BillingCheckout v-else-if="offer && checkout" :key="offer.code" :offer="offer" :checkout="checkout" :pending-order="pendingOrder" />
             <BillingOverview
                 v-else-if="section === 'overview' && balance"
+                :catalog-version="catalogVersion"
                 :account="account"
                 :balance="balance"
                 :sources="sources"

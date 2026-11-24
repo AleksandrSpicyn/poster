@@ -12,9 +12,12 @@ use App\Events\AudioGenerating;
 use App\Events\ImageGenerated;
 use App\Events\PromptGenerated;
 use App\Events\VideoGenerating;
+use App\Exceptions\CodexBusyException;
+use App\Exceptions\VideoGenerationUncertainException;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Repositories\ProductionBudgetRepository;
 use App\Tasks\CreateAudio;
 use App\Tasks\CreateBasePrompt;
 use App\Tasks\CreateImage;
@@ -25,6 +28,7 @@ use App\Tasks\Prompts\CreatePrompt;
 use App\Tasks\Prompts\UpdatePrompt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Запускает конвейер для одного проекта и сохраняет идентификаторы внешних задач.
@@ -33,6 +37,7 @@ use Illuminate\Validation\ValidationException;
 readonly class MakeShortSubAction
 {
     public function __construct(
+        private ProductionBudgetRepository $budget,
         private CreateBasePrompt $createBasePrompt,
         private CreatePrompt $createPrompt,
         private UpdatePrompt $updatePrompt,
@@ -51,25 +56,39 @@ readonly class MakeShortSubAction
             throw ValidationException::withMessages(['project' => 'Series projects must produce episodes through automatic production.']);
         }
 
-        $idea = $this->createBasePrompt->run($project);
-        $prompt = DB::transaction(function () use ($project, $idea, $run): Prompt {
-            $prompt = $this->createPrompt->run($project, $idea);
+        $quote = $run instanceof ProductionRun ? $this->budget->claimShort($run) : null;
 
-            if ($run instanceof ProductionRun) {
-                $this->updateRun->run($run, ProductionStatus::RUNNING, ProductionStage::SCREENPLAY, attributes: ['prompt_id' => $prompt->id]);
+        try {
+            $idea = $this->createBasePrompt->run($project);
+            $prompt = DB::transaction(function () use ($project, $idea, $run): Prompt {
+                $prompt = $this->createPrompt->run($project, $idea);
+
+                if ($run instanceof ProductionRun) {
+                    $this->budget->attachShort($run, $prompt->id);
+                    $this->updateRun->run($run, ProductionStatus::RUNNING, ProductionStage::SCREENPLAY, attributes: ['prompt_id' => $prompt->id]);
+                }
+
+                return $prompt;
+            });
+            event(new PromptGenerated($prompt->prompt));
+
+            $this->assertActive->run($project, $run);
+            $imageUrl = $this->createImage->run($prompt->prompt);
+            $this->updatePrompt->run($prompt, ['image_url' => $imageUrl]);
+            event(new ImageGenerated($imageUrl));
+
+            $this->assertActive->run($project, $run);
+            $video = $this->createVideo->run($imageUrl, $prompt->prompt, $quote['video'] ?? null);
+        } catch (VideoGenerationUncertainException $error) {
+            throw $error;
+        } catch (Throwable $error) {
+            if ($quote !== null) {
+                $this->budget->shortPreparationFailed($run, $error instanceof CodexBusyException);
             }
 
-            return $prompt;
-        });
-        event(new PromptGenerated($prompt->prompt));
+            throw $error;
+        }
 
-        $this->assertActive->run($project, $run);
-        $imageUrl = $this->createImage->run($prompt->prompt);
-        $this->updatePrompt->run($prompt, ['image_url' => $imageUrl]);
-        event(new ImageGenerated($imageUrl));
-
-        $this->assertActive->run($project, $run);
-        $video = $this->createVideo->run($imageUrl, $prompt->prompt);
         $snapshot = ['video_request' => $video->request?->toArray()];
         $this->updatePrompt->run($prompt, [
             'video_id' => $video->id, 'video_provider' => $video->provider->value,

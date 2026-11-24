@@ -155,3 +155,35 @@ test('остановка продаж до отправки закрывает �
     assertDatabaseCount('generation_grants', 0);
     Http::assertNothingSent();
 });
+
+test('способ оплаты привязывается только после сверки согласия и подтверждения магазина', function (bool $consent, bool $saved, bool $withdraw): void {
+    $owner = billingOwner();
+    DB::table('billing_accounts')->where('owner_id', $owner->id)->update(['automatic_payments_enabled' => true]);
+    Http::fake(function (Request $request) use ($saved) {
+        if (str_ends_with($request->url(), '/me')) {
+            return Http::response(['account_id' => 'pilot', 'test' => true]);
+        }
+
+        /** @var object{id: string, order_id: int} $attempt */
+        $attempt = DB::table('billing_payments')->firstOrFail();
+
+        return Http::response(['id' => 'card-payment', 'recipient' => ['account_id' => 'pilot'], 'test' => true, 'amount' => ['currency' => 'RUB', 'value' => '990.00'],
+            'status' => $request->method() === 'POST' ? 'pending' : 'succeeded', 'paid' => true,
+            'payment_method' => ['saved' => $saved, 'id' => 'private-token', 'card' => ['last4' => '4242']],
+            'metadata' => ['attempt_id' => $attempt->id, 'order_id' => (string) $attempt->order_id]]);
+    });
+    actingAs($owner)->post(route('billing.orders.store', 'author'), [...checkoutIntent(), 'auto_renew' => $consent])->assertSessionHasNoErrors();
+
+    if ($withdraw) {
+        actingAs($owner)->delete(route('billing.payment_method.destroy'))->assertSessionHasNoErrors();
+    }
+
+    DB::table('billing_payments')->update(['next_check_at' => now('UTC')]);
+    consoleCommand('billing:sync-checkouts')->assertSuccessful();
+    $linked = $consent && $saved && ! $withdraw;
+
+    Http::assertSent(fn(Request $request): bool => $request->method() === 'POST' && ($request['save_payment_method'] ?? false) === $consent);
+    assertDatabaseHas('billing_accounts', ['renewal_consent' => $linked, 'payment_method_id' => $linked ? 'private-token' : null]);
+    assertDatabaseHas('generation_grants', ['owner_id' => $owner->id, 'available_seconds' => 120]);
+    actingAs($owner)->get(route('billing.show'))->assertInertia(fn(Assert $page): Assert => $page->missing('account.payment_method_id'));
+})->with([[false, true, false], [true, true, false], [true, false, false], [true, true, true]]);

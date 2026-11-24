@@ -11,6 +11,7 @@ use App\Models\ProductionRun;
 use App\Models\Prompt;
 use App\Models\Shot;
 use App\Repositories\GenerationOperationRepository;
+use App\Repositories\GenerationReservationRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\ProjectRepository;
 use App\Repositories\PromptRepository;
@@ -23,6 +24,7 @@ use Illuminate\Validation\ValidationException;
 class CreateShotGeneration
 {
     public function __construct(
+        private readonly GenerationReservationRepository $usage,
         private readonly ProjectRepository $projects,
         private readonly SeriesRepository $series,
         private readonly ShotRepository $shots,
@@ -104,6 +106,7 @@ class CreateShotGeneration
             $prompt->project()->associate($project);
 
             $this->prompts->save($prompt);
+            $this->usage->reserveTake($project, $prompt, $productionRun?->id);
             $this->operations->createImageOperation($prompt, $productionRun, $requestKey, $snapshot);
 
             return $this->prompts->withGenerationOperations($prompt);
