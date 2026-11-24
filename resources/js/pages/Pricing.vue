@@ -110,7 +110,7 @@ a:focus-visible {
 }
 .catalog {
     max-width: 1432px;
-    padding: 0 clamp(20px, 4vw, 64px);
+    padding-inline: clamp(20px, 4vw, 64px);
     margin: 0 auto;
 }
 .price-hero {
@@ -302,6 +302,12 @@ a:focus-visible {
 .pricing-info dd {
     margin: 0;
     color: #d3cddc;
+}
+@media (width > 1440px) {
+    .catalog {
+        max-width: 1780px;
+        padding-inline: var(--pad);
+    }
 }
 @media (max-width: 900px) {
     .catalog {

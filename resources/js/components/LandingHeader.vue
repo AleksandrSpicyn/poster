@@ -31,7 +31,7 @@ function homeSection(section: string) {
 </template>
 <style scoped>
 :global(html:has(.landing, .pricing-view)) {
-    scrollbar-gutter: stable;
+    overflow-y: scroll;
 }
 a:focus-visible {
     outline: 3px solid var(--lime);
