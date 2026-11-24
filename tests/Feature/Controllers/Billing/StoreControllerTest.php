@@ -14,6 +14,7 @@ use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Tests\Support\billingOwner;
 use function Tests\Support\consoleCommand;
+use function Tests\Support\interruptedCheckout;
 
 beforeEach(function (): void {
     config(['app.url' => 'https://poster.example', 'billing.merchants.sandbox.shop' => 'pilot', 'billing.merchants.sandbox.credentials.secret' => 'test-only']);
@@ -140,4 +141,17 @@ test('мгновенный успех проходит независимую п
     Http::assertSentCount(3);
     assertDatabaseCount('generation_grants', 0);
     assertDatabaseHas('billing_orders', ['status' => 'open']);
+});
+
+test('остановка продаж до отправки закрывает заказ без обращения в магазин', function (): void {
+    $fixture = interruptedCheckout();
+    DB::table('billing_payments')->where('id', $fixture['attempt'])->update(['sent_at' => null, 'status' => 'created', 'next_check_at' => now('UTC')]);
+    DB::table('billing_accounts')->update(['sales_enabled' => false]);
+
+    consoleCommand('billing:sync-checkouts')->assertSuccessful();
+
+    assertDatabaseHas('billing_payments', ['id' => $fixture['attempt'], 'reason' => 'sales_closed', 'status' => 'cancelled', 'sent_at' => null]);
+    assertDatabaseHas('billing_orders', ['id' => $fixture['order'], 'status' => 'cancelled']);
+    assertDatabaseCount('generation_grants', 0);
+    Http::assertNothingSent();
 });

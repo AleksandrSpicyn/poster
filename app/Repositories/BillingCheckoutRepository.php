@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use UnexpectedValueException;
 
+/** @phpstan-type CheckoutRow object{order_id: int, provider: string, shop: string, idempotency_key: string, amount_kopecks: int, checkout_return_url: string, external_id: ?string, sent_at: ?string} */
 final readonly class BillingCheckoutRepository
 {
     public function __construct(private BillingWorkspaceRepository $workspace, private BillingPaymentRepository $payments, private PaymentGatewayFactory $gateways, private CheckoutAvailability $availability) {}
@@ -89,7 +90,9 @@ final readonly class BillingCheckoutRepository
     public function claim(string $id): ?CheckoutAttemptData
     {
         return DB::transaction(function () use ($id): ?CheckoutAttemptData {
-            /** @var object{order_id: int, provider: string, shop: string, idempotency_key: string, amount_kopecks: int, checkout_return_url: string, external_id: ?string, sent_at: ?string}|null $row */
+            $owner = DB::table('billing_orders as o')->join('billing_payments as p', 'p.order_id', '=', 'o.id')->where('p.id', $id)->value('o.owner_id');
+            $account = DB::table('billing_accounts')->where('owner_id', $owner)->lockForUpdate()->first(['sales_enabled']);
+            /** @var CheckoutRow|null $row */
             $row = $this->openAttempts()->where('id', $id)->where('next_check_at', '<=', now('UTC'))->lockForUpdate()->first();
 
             if ($row === null) {
@@ -98,6 +101,14 @@ final readonly class BillingCheckoutRepository
 
             $at = now('UTC');
             $attempt = DB::table('billing_payments')->where('id', $id);
+
+            if ($row->sent_at === null && $row->external_id === null && ! ($account->sales_enabled ?? false)) {
+                $attempt->update(['status' => PaymentStatus::CANCELLED->value, 'reason' => 'sales_closed', 'next_check_at' => null, 'updated_at' => $at]);
+                DB::table('billing_orders')->where('id', $row->order_id)->update(['status' => 'cancelled', 'updated_at' => $at]);
+                DB::table('billing_events')->where('event_key', 'payment.prepared.' . $id)->update(['status' => 'processed', 'next_check_at' => null, 'updated_at' => $at]);
+
+                return null;
+            }
 
             // A lost creation response must be investigated before sending another charge.
             if ($row->external_id === null && $row->sent_at !== null) {
@@ -109,12 +120,28 @@ final readonly class BillingCheckoutRepository
             $attempt->update(['sent_at' => $row->sent_at ?? $at, 'next_check_at' => $at->copy()->addMinutes(2),
                 'status' => $row->external_id === null ? PaymentStatus::UNKNOWN->value : PaymentStatus::PENDING->value, 'updated_at' => $at]);
 
-            return new CheckoutAttemptData(
-                new MerchantData($row->provider, $row->shop, true),
-                new PaymentRequestData($row->order_id, $id, $row->idempotency_key, $row->amount_kopecks, 'Poster · заказ №' . $row->order_id, $row->checkout_return_url),
-                $row->external_id,
-            );
+            return $this->attempt($id, $row, $row->external_id);
         }, 3);
+    }
+
+    public function sentAttempt(string $id, string $externalId, ?string $provider): ?CheckoutAttemptData
+    {
+        /** @var CheckoutRow|null $row */
+        $row = $this->openAttempts()->where('id', $id)->whereNotNull('sent_at')->where('currency', 'RUB')
+            ->when($provider !== null, fn(Builder $query) => $query->where('provider', $provider))
+            ->where(fn(Builder $query) => $query->whereNull('external_id')->orWhere('external_id', $externalId))->first();
+
+        return $row === null ? null : $this->attempt($id, $row, $externalId);
+    }
+
+    /** @param CheckoutRow $row */
+    private function attempt(string $id, object $row, ?string $externalId): CheckoutAttemptData
+    {
+        return new CheckoutAttemptData(
+            new MerchantData($row->provider, $row->shop, true),
+            new PaymentRequestData($row->order_id, $id, $row->idempotency_key, $row->amount_kopecks, 'Poster · заказ №' . $row->order_id, $row->checkout_return_url),
+            $externalId,
+        );
     }
 
     public function record(CheckoutAttemptData $attempt, PaymentResultData $result): void
@@ -149,7 +176,7 @@ final readonly class BillingCheckoutRepository
             $finished = $paid || $status === PaymentStatus::CANCELLED;
             DB::table('billing_payments')->where('id', $request->attemptId)->update([
                 'status' => $status->value, 'external_id' => $result->externalId,
-                'confirmation_url' => $finished ? null : $result->confirmationUrl,
+                'confirmation_url' => $finished ? null : ($result->confirmationUrl ?? $active->confirmation_url),
                 'confirmed_at' => $finished ? $at : null, 'next_check_at' => $finished ? null : $at->addMinute(), 'updated_at' => $at,
             ]);
             DB::table('billing_events')->where('event_key', 'payment.prepared.' . $request->attemptId)
