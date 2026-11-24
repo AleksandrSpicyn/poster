@@ -13,12 +13,15 @@ use App\Models\Prompt;
 use App\Models\Series;
 use App\Models\Shot;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Tests\Support\billingOrder;
+use function Tests\Support\billingOwner;
 use function Tests\Support\workspaceOwner;
 
 test('гость перенаправляется на вход', function (): void {
@@ -35,11 +38,32 @@ test('пользователь видит кабинет', function (): void {
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('Dashboard')
+            ->where('balance.available', 0)
             ->where('auth.can_view_logs', false)
             ->where('auth.can_view_queues', false)
             ->where('stats', ['prompts' => 0, 'pending' => 0, 'ready' => 0, 'posts' => 0])
             ->has('recentPrompts.data', 0)
             ->has('recentPosts.data', 0));
+});
+
+test('меню показывает доступные секунды только своего владельца', function (): void {
+    $owner = billingOwner();
+    $other = billingOwner();
+    $now = now('UTC');
+
+    foreach ([[$owner, 30, null], [$owner, 9, $now->copy()->subMinute()], [$other, 100, null]] as [$user, $available, $end]) {
+        $order = billingOrder($user);
+        DB::table('generation_grants')->insert([
+            'owner_id' => $user->id, 'order_id' => $order, 'entitlement_key' => 'order.' . $order,
+            'starts_at' => $now->copy()->subDay(), 'ends_at' => $end,
+            'granted_seconds' => $available + 5, 'available_seconds' => $available, 'held_seconds' => 5,
+        ]);
+    }
+
+    actingAs($owner)
+        ->get(route('dashboard'))
+        ->assertInertia(fn(Assert $page): Assert => $page->where('balance.available', 30)
+            ->reloadOnly('balance', fn(Assert $updated): Assert => $updated->where('balance.available', 30)->missing('stats')));
 });
 
 test('обзор показывает данные за выбранный период', function (int $days): void {

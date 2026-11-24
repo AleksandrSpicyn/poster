@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Enums\ReservationStatus;
+use App\Events\WorkspaceUpdated;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -122,5 +123,6 @@ final class GenerationCreditRepository
             'kind' => $kind, 'reason' => $reason, 'event_key' => $event ?? (string) Str::uuid(),
             $from . '_delta' => -$seconds, $to . '_delta' => $seconds, 'created_at' => now('UTC'),
         ]);
+        WorkspaceUpdated::forBalance($owner);
     }
 }

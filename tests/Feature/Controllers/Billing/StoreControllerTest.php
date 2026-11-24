@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\BillingProduct;
+use App\Events\WorkspaceUpdated;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -71,6 +73,7 @@ test('покупка проводит одну оплату и одно начи
     Http::assertSentCount(2);
     assertDatabaseCount('generation_grants', 0);
 
+    Event::fake([WorkspaceUpdated::class]);
     DB::table('billing_payments')->update(['next_check_at' => now('UTC')->subMinute()]);
     consoleCommand('billing:sync-checkouts')->assertSuccessful();
     consoleCommand('billing:sync-checkouts')->assertSuccessful();
@@ -78,6 +81,8 @@ test('покупка проводит одну оплату и одно начи
     actingAs($owner)->post($url, checkoutIntent())->assertSessionHasErrors('checkout');
 
     Http::assertSentCount(3);
+    Event::assertDispatched(WorkspaceUpdated::class, fn(WorkspaceUpdated $event): bool => $event->broadcastWith()['resource'] === 'GenerationBalance'
+        && $event->broadcastOn()[0]->name === 'private-workspace.' . $owner->id);
     assertDatabaseCount('generation_credit_entries', 1);
     assertDatabaseHas('generation_grants', ['owner_id' => $owner->id, 'order_id' => $id, 'available_seconds' => $seconds]);
     assertDatabaseHas('billing_orders', ['id' => $id, 'status' => 'paid']);

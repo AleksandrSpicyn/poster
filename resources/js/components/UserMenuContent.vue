@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountBalance from '@/components/AccountBalance.vue';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useNavigation } from '@/composables/useNavigation';
 import type { User } from '@/types';
@@ -31,10 +32,18 @@ function close() {
             <DialogTitle class="text-xl font-bold">Меню пользователя</DialogTitle>
             <div class="mb-2 flex items-center gap-3 border-b pb-4">
                 <UserRound class="text-muted-foreground mt-0.5 size-5 shrink-0" aria-hidden="true" />
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                     <strong class="block break-words">{{ user.name }}</strong>
                     <DialogDescription class="text-muted-foreground mt-1 break-all">{{ user.email }}</DialogDescription>
                 </div>
+                <Link
+                    :href="route('billing.show')"
+                    class="bg-muted hover:bg-accent focus-visible:ring-ring flex min-h-11 shrink-0 items-center rounded-lg px-3 py-1.5 focus-visible:ring-2"
+                    @start="close"
+                >
+                    <span class="sr-only">Открыть подписку. </span>
+                    <AccountBalance class="flex-col items-end" />
+                </Link>
             </div>
             <nav aria-label="Настройки пользователя">
                 <Link

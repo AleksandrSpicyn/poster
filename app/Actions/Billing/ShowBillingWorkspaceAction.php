@@ -33,7 +33,6 @@ final readonly class ShowBillingWorkspaceAction
                 'amount' => $product->amountKopecks(), 'monthly' => $product->isMonthly(),
             ]),
             'account' => $account,
-            'balance' => $section === BillingSection::OVERVIEW ? $this->workspace->balance($owner) : null,
             'sources' => $section === BillingSection::OVERVIEW ? $this->workspace->sources($owner) : [],
             'history' => $history,
             'projectFilter' => $section === BillingSection::SECONDS ? $project : null,

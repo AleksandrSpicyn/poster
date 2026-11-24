@@ -14,6 +14,7 @@ use App\Data\Billing\PaymentRequestData;
 use App\Data\Billing\PaymentResultData;
 use App\Enums\BillingProduct;
 use App\Enums\PaymentStatus;
+use App\Events\WorkspaceUpdated;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -329,5 +330,6 @@ final readonly class BillingCheckoutRepository
         ]);
         DB::table('generation_credit_entries')->insert(['owner_id' => $owner, 'grant_id' => $grant, 'kind' => 'grant', 'event_key' => 'checkout.granted.' . $order,
             'granted_delta' => $seconds, 'available_delta' => $seconds, 'created_at' => $at]);
+        WorkspaceUpdated::forBalance($owner);
     }
 }

@@ -32,6 +32,11 @@ class WorkspaceUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
         }
     }
 
+    public static function forBalance(int $owner): void
+    {
+        self::dispatch($owner, 'GenerationBalance', $owner, (int) now()->format('Uu'));
+    }
+
     /** @return list<PrivateChannel> */
     public function broadcastOn(): array
     {

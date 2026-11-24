@@ -8,6 +8,7 @@ import { type InjectionKey, type Ref, onMounted, onUnmounted, provide, ref } fro
 export const workspaceSubscription: InjectionKey<Readonly<Ref<boolean>>> = Symbol('workspaceSubscription');
 
 const liveProps: Record<string, string[]> = {
+    'Billing/Workspace': ['sources', 'history'],
     PublicationAnalytics: ['analytics'],
     Dashboard: ['analytics', 'stats', 'recentPrompts', 'recentPosts'],
     'Projects/Index': ['projects'],
@@ -24,6 +25,7 @@ const liveProps: Record<string, string[]> = {
 };
 
 const affectedProps: Record<string, string[]> = {
+    GenerationBalance: ['balance', 'sources', 'history'],
     Project: ['parameters', 'projects', 'project', 'prompts', 'series', 'channels', 'destinations'],
     OpusClipMetric: ['analytics', 'opusClips'],
     PublicationObservation: ['analytics'],
@@ -58,14 +60,18 @@ export function useWorkspaceRealtime() {
     let disposed = false;
     const unsubscribe: (() => void)[] = [];
 
+    function currentProps() {
+        return ['balance', ...(liveProps[page.component] ?? [])];
+    }
+
     function queueRefresh(props: string[]) {
-        if (disposed || !liveProps[page.component]) return;
+        if (disposed) return;
         for (const prop of props) pending.add(prop);
         if (!pending.size) return;
         clearTimeout(timer);
         timer = setTimeout(() => {
             if (busy || document.hidden || disposed) return;
-            const only = (liveProps[page.component] ?? []).filter((prop) => pending.has(prop));
+            const only = currentProps().filter((prop) => pending.has(prop));
             pending.clear();
             if (only.length) {
                 router.reload({
@@ -85,7 +91,7 @@ export function useWorkspaceRealtime() {
     }
 
     function refresh() {
-        queueRefresh(liveProps[page.component] ?? []);
+        queueRefresh(currentProps());
     }
 
     function visible() {
@@ -140,7 +146,7 @@ export function useWorkspaceRealtime() {
                 const key = `${event.resource}.${event.id}`;
                 if (event.version <= (versions.get(key) ?? 0)) return;
                 versions.set(key, event.version);
-                queueRefresh((liveProps[page.component] ?? []).filter((prop) => affectedProps[event.resource]?.includes(prop)));
+                queueRefresh(currentProps().filter((prop) => affectedProps[event.resource]?.includes(prop)));
             })
             .subscribed(() => {
                 connected.value = true;

@@ -4,6 +4,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/c
 import type { SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import AccountBalance from './AccountBalance.vue';
 import UserMenuContent from './UserMenuContent.vue';
 
 const page = usePage<SharedData>();
@@ -21,8 +22,8 @@ const { setOpenMobile } = useSidebar();
                         >{{ getInitials(user.name) }}</span
                     >
                     <span class="flex flex-col gap-0.5 text-left group-data-[collapsible=icon]:hidden"
-                        ><strong>Моя студия</strong><small class="text-muted-foreground">Личный кабинет</small></span
-                    >
+                        ><strong>Моя студия</strong><AccountBalance class="items-baseline gap-1.5"
+                    /></span>
                     <span class="sr-only">Меню аккаунта</span>
                 </SidebarMenuButton>
             </UserMenuContent>

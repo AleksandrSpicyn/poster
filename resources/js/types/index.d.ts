@@ -1,6 +1,7 @@
 import type { PageProps } from '@inertiajs/core';
 import type { LucideIcon } from '@lucide/vue';
 import type { Config } from 'ziggy-js';
+import type { Balance } from './billing';
 
 export interface Auth {
     user: User;
@@ -37,6 +38,7 @@ export interface SharedData extends PageProps {
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    balance: Balance | null;
     appearanceValues: AppearanceValues;
     realtime: { enabled: boolean; key: string | null };
     contentScheduleEnabled: boolean;

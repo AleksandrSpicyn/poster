@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\Appearance;
+use App\Repositories\BillingWorkspaceRepository;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
+use stdClass;
 use Tighten\Ziggy\Ziggy;
 
 /**
@@ -18,7 +20,7 @@ use Tighten\Ziggy\Ziggy;
  */
 class HandleInertiaRequests extends Middleware
 {
-    public function __construct(#[Config('app.name')] private readonly string $appName) {}
+    public function __construct(#[Config('app.name')] private readonly string $appName, private readonly BillingWorkspaceRepository $billing) {}
 
     /**
      * The root template that's loaded on the first page visit.
@@ -58,6 +60,7 @@ class HandleInertiaRequests extends Middleware
             'name' => $this->appName,
             'appearanceValues' => array_column(Appearance::cases(), 'value', 'name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'balance' => fn(): ?stdClass => $request->user() === null ? null : $this->billing->balance($request->user()->id),
             'auth' => [
                 'user' => $request->user(),
                 'can_view_logs' => $request->user() !== null && Gate::forUser($request->user())->allows('viewLogViewer'),
