@@ -1,7 +1,7 @@
 import { useRoute } from '@/composables/useRoute';
 import type { NavItem, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Clapperboard, createLucideIcon, Film, GlobeLock, Handshake, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
+import { Clapperboard, createLucideIcon, CreditCard, Film, GlobeLock, Handshake, ListOrdered, Logs, Radio, Scissors, Send } from '@lucide/vue';
 import { computed } from 'vue';
 
 const StudioOverviewIcon = createLucideIcon({
@@ -27,6 +27,7 @@ export function useNavigation() {
             { title: 'Генерации', href: route('prompts', undefined, false), icon: Clapperboard },
             { title: 'Публикации', href: route('posts', undefined, false), icon: Send },
             ...(page.props.auth.can_manage_channels ? [{ title: 'Каналы', href: route('channels.index', undefined, false), icon: Radio }] : []),
+            { title: 'Подписка', href: route('billing.show', undefined, false), icon: CreditCard },
             { title: 'Источники', href: route('clipping.index', undefined, false), icon: Scissors },
         ];
         const url = new URL(page.url, 'http://poster.local');

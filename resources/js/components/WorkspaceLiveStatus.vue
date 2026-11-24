@@ -4,15 +4,10 @@ defineProps<{ connected: boolean; enabled: boolean }>();
 defineEmits<{ refresh: [] }>();
 </script>
 <template>
-    <button
-        type="button"
-        class="live-status"
-        aria-label="Обновить состояние студии"
-        :title="connected ? 'Связь активна' : 'Обновление каждые 30 секунд'"
-        @click="$emit('refresh')"
-    >
+    <button type="button" class="live-status" :title="connected ? 'Связь активна' : 'Обновление каждые 30 секунд'" @click="$emit('refresh')">
         <i :class="connected ? 'online' : ''" aria-hidden="true" />
         <span>{{ connected ? 'Связь активна' : enabled ? 'Восстанавливаем связь' : 'Обновление каждые 30 с' }}</span>
+        <span class="sr-only">Обновить состояние студии</span>
         <RefreshCw class="size-3.5 shrink-0" aria-hidden="true" />
     </button>
 </template>

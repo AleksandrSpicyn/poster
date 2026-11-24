@@ -1,0 +1,68 @@
+type BillingSection = 'overview' | 'plans' | 'payments' | 'seconds';
+export type Offer = { code: string; label: string; amount: number; seconds: number; monthly: boolean };
+export type CreditSource = {
+    amount_kopecks: number;
+    id: number;
+    product_code: string;
+    starts_at: string;
+    ends_at: string | null;
+    granted_seconds: number;
+    available_seconds: number;
+    held_seconds: number;
+    active: number;
+};
+export type Balance = { available: number; held: number; consumed: number; expired: number };
+export type BillingOrder = {
+    id: number;
+    product_code: string;
+    payment_status: string | null;
+    status: string;
+    amount_kopecks: number;
+    currency: string;
+    seconds: number;
+    created_at: string;
+    period_starts_at: string | null;
+    period_ends_at: string | null;
+};
+export type CreditEntry = {
+    id: number;
+    kind: string;
+    reason: string | null;
+    product_code: string;
+    created_at: string;
+    order_id: number;
+    available_delta: number;
+    held_delta: number;
+    consumed_delta: number;
+    expired_delta: number;
+    revoked_delta: number;
+    project_id: number | null;
+    production_run_id: number | null;
+    shot_id: number | null;
+};
+export type History<T> = { data: T[]; page: number; last: number };
+export type BillingAccount = {
+    has_card: number;
+    current_product: string | null;
+    next_product: string | null;
+    renews_at: string | null;
+    payment_method_last_four: string | null;
+};
+export type Checkout = { request_key: string; catalog_version: string; blocked: string | null };
+export type BillingWorkspace = {
+    projectFilter: number | null;
+    historyProjects: { id: number; name: string }[];
+    section: BillingSection;
+    catalog: Offer[];
+    account: BillingAccount | null;
+    balance: Balance | null;
+    sources: CreditSource[];
+    selected: string | null;
+    checkout: Checkout | null;
+    pendingOrder: number | null;
+    history: History<BillingOrder | CreditEntry> | null;
+    order: BillingOrder | null;
+    confirmationUrl: string | null;
+    refunds: { id: string; amount_kopecks: number; currency: string; status: string; created_at: string }[];
+    receipts: { id: number; kind: string; status: string }[];
+};

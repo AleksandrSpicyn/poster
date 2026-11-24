@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data\Billing;
 
 use App\Enums\PaymentStatus;
+use Carbon\CarbonImmutable;
 
 final readonly class PaymentResultData
 {
@@ -17,5 +18,6 @@ final readonly class PaymentResultData
         public ?string $confirmationUrl,
         public ?string $savedMethodId,
         public ?string $lastFour,
+        public ?CarbonImmutable $capturedAt = null,
     ) {}
 }

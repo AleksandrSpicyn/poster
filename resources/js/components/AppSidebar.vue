@@ -18,6 +18,7 @@ const groups = computed(() => [
     {
         title: 'Аккаунт',
         items: [
+            ...main.value.filter((item) => item.title === 'Подписка'),
             {
                 title: 'Настройки',
                 href: route('profile.edit'),

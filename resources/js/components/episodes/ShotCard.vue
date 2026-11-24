@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationUsage from '@/components/billing/GenerationUsage.vue';
 import { useFormApi } from '@/lib/api/useFormApi';
 import InputError from '@/components/InputError.vue';
 import ShotOperationControls from '@/components/episodes/ShotOperationControls.vue';
@@ -73,6 +74,7 @@ function stop(prompt: number) {
             <span class="text-muted-foreground text-xs">{{ shot.transition_mode_label }}</span>
         </div>
         <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ shot.action }}</p>
+        <GenerationUsage :id="shot.id" :key="shot.id" kind="shot" />
         <div v-if="approved && !archived && projectEnabled" class="take-generate flex flex-wrap items-end gap-3">
             <div v-if="shot.transition_mode !== 'new_scene'" class="grid gap-2">
                 <Label :for="'shot-source-' + shot.id">Продолжить от дубля</Label

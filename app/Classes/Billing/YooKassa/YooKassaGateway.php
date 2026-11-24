@@ -13,6 +13,7 @@ use App\Data\Billing\RefundRequestData;
 use App\Data\Billing\RefundResultData;
 use App\Enums\PaymentStatus;
 use App\Support\Integrations\Payload;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -134,6 +135,8 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
         $savedMethod = $response->json('payment_method.saved') === true ? Payload::string($response->json('payment_method.id'), 'payment_method.id') : null;
         $lastFour = $response->json('payment_method.card.last4');
 
+        $capturedAt = $response->json('captured_at');
+
         return new PaymentResultData(
             Payload::string($response->json('id'), 'id'),
             $status,
@@ -143,6 +146,7 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway
             $url,
             $savedMethod,
             $savedMethod !== null && is_string($lastFour) && preg_match('/\A[0-9]{4}\z/', $lastFour) === 1 ? $lastFour : null,
+            is_string($capturedAt) ? CarbonImmutable::parse($capturedAt)->utc() : null,
         );
     }
 

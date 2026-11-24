@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationUsage from '@/components/billing/GenerationUsage.vue';
 import { useProductionRunActions } from '@/composables/useProductionRunActions';
 import StopProductionDialog from '@/components/StopProductionDialog.vue';
 import InputError from '@/components/InputError.vue';
@@ -37,6 +38,7 @@ const currentStage = computed(() => stages.value.findIndex(([stage]) => stage ==
                 page.props.contentScheduleEnabled ? 'Расписание включено' : 'Расписание выключено'
             }}</span>
         </div>
+        <GenerationUsage v-if="run" :id="run.id" :key="run.id" kind="run" />
         <div v-if="run?.series_assembly_id" class="rounded-lg border p-3">
             <Link :href="route('series_assemblies.show', run.series_assembly_id)" class="text-primary underline underline-offset-4"
                 >Проверить полную версию и стыки</Link

@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('opus:metrics')->dailyAt('06:15')->timezone('Asia/Bangkok')->when($hasClippingWorkspace)->withoutOverlapping(120);
 
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
+        $schedule->command('billing:sync-checkouts')->everyMinute()->withoutOverlapping(30);
 
         $schedule->command('app:reconcile-episode-scripts --limit=50')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-shot-generations --limit=50')->everyMinute()->withoutOverlapping(5);

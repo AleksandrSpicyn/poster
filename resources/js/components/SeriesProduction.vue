@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationUsage from '@/components/billing/GenerationUsage.vue';
 import { useProductionRunActions } from '@/composables/useProductionRunActions';
 import StopProductionDialog from '@/components/StopProductionDialog.vue';
 import InputError from '@/components/InputError.vue';
@@ -103,6 +104,7 @@ const reviewHref = computed(() => {
 <template>
     <section class="studio-panel run-panel">
         <h2>{{ title }}</h2>
+        <GenerationUsage v-if="run" :id="run.id" :key="run.id" kind="run" />
         <div
             class="run-notice"
             role="status"

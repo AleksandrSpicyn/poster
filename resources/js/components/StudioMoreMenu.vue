@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useNavigation } from '@/composables/useNavigation';
 import { Link } from '@inertiajs/vue3';
-import { Activity, ChartNoAxesColumn, Film, Rows2, SlidersHorizontal } from '@lucide/vue';
+import { Activity, ChartNoAxesColumn, CreditCard, Film, Rows2, SlidersHorizontal } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from '@/composables/useRoute';
 
@@ -28,6 +28,7 @@ const links = computed(() => {
         { title: 'Генерации', description: 'Очередь и результаты', icon: Activity },
         { title: 'Каналы', description: 'Подключённые аккаунты', icon: ChartNoAxesColumn },
         { title: 'Источники', description: 'Импорт клипов', icon: Rows2 },
+        { title: 'Подписка', description: 'Тариф и баланс секунд', icon: CreditCard },
     ].flatMap((item) => {
         const link = main.value.find((link) => link.title === item.title);
         return link ? [{ ...item, href: link.href, active: link.isActive }] : [];
