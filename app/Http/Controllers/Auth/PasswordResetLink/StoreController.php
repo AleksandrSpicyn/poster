@@ -6,9 +6,10 @@ namespace App\Http\Controllers\Auth\PasswordResetLink;
 
 use App\Actions\Auth\SendPasswordResetLinkAction;
 use App\Data\PasswordResetLinkData;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends Controller
 {
     /**
      * Запрос ссылки восстановления
@@ -28,6 +29,6 @@ class StoreController
     {
         $action->run($data);
 
-        return back()->with('status', __('A reset link will be sent if the account exists.'));
+        return $this->withStatus(back(), __('A reset link will be sent if the account exists.'));
     }
 }

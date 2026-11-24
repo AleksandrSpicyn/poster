@@ -6,6 +6,7 @@ import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue';
 import PublicationCounters from '@/components/PublicationCounters.vue';
+import PublicationOverviewChart from '@/components/PublicationOverviewChart.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +16,6 @@ import {
     counterNames,
     dateLabel,
     metricPeriods,
-    observedCountersByDate,
     platformNames,
     rangeLabel,
     signed,
@@ -47,18 +47,6 @@ const metric = computed(() => filters.value.metric);
 const list = computed(() => rankedPublications(props.report.publications, metric.value));
 const bestPublications = computed(() => list.value.slice(0, 5));
 const showGrowth = ref(false);
-const chartTitles: Record<Counter, string> = {
-    views: 'Динамика просмотров',
-    likes: 'Динамика лайков',
-    shares: 'Динамика репостов',
-    comments: 'Динамика комментариев',
-};
-const chartPeriod = computed(() => period.value?.caption ?? interval.value);
-const chartTotal = computed(() => {
-    const growth = props.report.summaries[metric.value];
-    return showGrowth.value && growth !== null ? signed(growth) : amount(showGrowth.value ? null : props.report.totals[metric.value]);
-});
-const dailySnapshots = computed(() => observedCountersByDate(props.report));
 const scope = computed(() =>
     [
         project.value?.name ?? 'Все проекты',
@@ -134,25 +122,7 @@ const tabs: { name: string; view: View }[] = [
                 <PublicationCounters :items="dashboardCards" />
             </section>
             <div class="analytics-panels">
-                <section class="studio-panel chart-panel">
-                    <h2>{{ chartTitles[metric] }}</h2>
-                    <p class="secondary">{{ showGrowth ? 'Прирост' : names[metric] }} {{ chartPeriod }}</p>
-                    <strong class="chart-total">{{ chartTotal }}</strong>
-                    <PublicationMetricChart
-                        overview
-                        :values="showGrowth ? report.daily : dailySnapshots"
-                        :snapshots="!showGrowth"
-                        :label="showGrowth ? 'Прирост · ' + names[metric] : names[metric]"
-                    />
-                    <div class="analytics-tabs chart-modes" role="group" aria-label="Режим графика">
-                        <Button size="sm" :variant="showGrowth ? 'outline' : 'default'" :aria-pressed="!showGrowth" @click="showGrowth = false"
-                            >Наблюдения</Button
-                        >
-                        <Button size="sm" :variant="showGrowth ? 'default' : 'outline'" :aria-pressed="showGrowth" @click="showGrowth = true"
-                            >Прирост</Button
-                        >
-                    </div>
-                </section>
+                <PublicationOverviewChart v-model="showGrowth" :report="report" :chart-period="period?.caption ?? interval" />
                 <section class="studio-panel platforms-panel">
                     <h2>
                         <Link :href="url('coverage', {}, selected, true)">{{ names[metric] }} по площадкам</Link>
@@ -370,20 +340,6 @@ const tabs: { name: string; view: View }[] = [
 .counter-section .secondary {
     margin: 4px 0 10px;
 }
-.chart-modes {
-    margin: 10px 0;
-}
-.chart-modes [aria-pressed='true'] {
-    background: var(--accent);
-    color: var(--ring);
-    border: 1px solid var(--ring);
-}
-.chart-total {
-    display: block;
-    margin-top: 5px;
-    font: 700 28px/1.5 var(--font-mono);
-    font-variant-numeric: tabular-nums;
-}
 .analytics-panels {
     display: grid;
     grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
@@ -400,22 +356,12 @@ const tabs: { name: string; view: View }[] = [
     font-size: 20px;
     font-weight: 700;
 }
-.chart-panel > h2,
 .counter-section > h2 {
     font-family: var(--font-sans);
     line-height: 1.4;
-}
-.chart-panel > h2 {
-    margin-bottom: 12px;
-}
-.counter-section > h2 {
     margin-bottom: 0;
 }
-.chart-panel > .secondary {
-    font: 400 14px/1.5 var(--font-sans);
-}
-.platforms-panel,
-.chart-panel {
+.platforms-panel {
     padding: 16px 24px;
 }
 .platform-row {
@@ -646,8 +592,7 @@ const tabs: { name: string; view: View }[] = [
     .analytics-header {
         gap: 14px;
     }
-    .platforms-panel,
-    .chart-panel {
+    .platforms-panel {
         padding: 16px;
     }
     .report-row {

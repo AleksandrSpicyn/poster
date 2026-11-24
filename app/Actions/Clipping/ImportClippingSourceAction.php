@@ -7,6 +7,7 @@ namespace App\Actions\Clipping;
 use App\Models\ClippingConnection;
 use App\Models\Project;
 use App\Repositories\OpusClipRepository;
+use Illuminate\Support\Facades\DB;
 
 final readonly class ImportClippingSourceAction
 {
@@ -14,6 +15,6 @@ final readonly class ImportClippingSourceAction
 
     public function run(ClippingConnection $connection, int $preview): Project
     {
-        return $this->clips->confirm($connection, $preview);
+        return DB::transaction(fn(): Project => $this->clips->confirm($connection, $preview), attempts: 3);
     }
 }

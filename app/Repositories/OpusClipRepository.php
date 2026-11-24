@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Data\OpusClip\ImportedClipData;
 use App\Data\OpusClip\OpusSourceData;
 use App\Enums\ProductionStatus;
+use App\Enums\ProjectContentMode;
 use App\Models\ClippingConnection;
 use App\Models\ClippingImport;
 use App\Models\OpusClip;
@@ -102,67 +103,65 @@ final readonly class OpusClipRepository extends EloquentRepository
 
     public function confirm(ClippingConnection $connection, int $previewId): Project
     {
-        return DB::transaction(function () use ($connection, $previewId): Project {
-            $connection = ClippingConnection::query()->where('owner_id', $connection->owner_id)->lockForUpdate()->findOrFail($connection->id);
-            $preview = ClippingImport::query()->where('clipping_connection_id', $connection->id)->lockForUpdate()->findOrFail($previewId);
-            $projects = Project::query()->where('owner_id', $connection->owner_id)->lockForUpdate();
+        $connection = ClippingConnection::query()->where('owner_id', $connection->owner_id)->lockForUpdate()->findOrFail($connection->id);
+        $preview = ClippingImport::query()->where('clipping_connection_id', $connection->id)->lockForUpdate()->findOrFail($previewId);
+        $projects = Project::query()->where('owner_id', $connection->owner_id)->lockForUpdate();
 
-            if ($preview->imported_at !== null) {
-                return $projects->findOrFail($preview->project_id);
-            }
+        if ($preview->imported_at !== null) {
+            return $projects->findOrFail($preview->project_id);
+        }
 
-            if ($preview->scope_version !== $connection->scope_version) {
-                throw ValidationException::withMessages(['project_id' => 'Область импорта изменилась. Повторите предпросмотр.']);
-            }
+        if ($preview->scope_version !== $connection->scope_version) {
+            throw ValidationException::withMessages(['project_id' => 'Область импорта изменилась. Повторите предпросмотр.']);
+        }
 
-            if ($preview->external_id === null) {
-                $project = $projects->whereNull('opus_source_id')->where('content_mode', 'short')
-                    ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))->findOrFail($preview->project_id);
-                $this->accounts->attach($connection, $project, $preview);
-                $preview->imported_at = now();
-                $preview->save();
-
-                return $project;
-            }
-
-            if (ClippingImport::query()->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)
-                ->whereNotNull('imported_at')->where('id', '>', $previewId)->exists()) {
-                throw ValidationException::withMessages(['project_id' => 'Для этого источника уже подтверждён более новый предпросмотр.']);
-            }
-
-            $origin = OpusSource::query()->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)->first();
-
-            if ($origin !== null && $preview->project_id !== null && (int) $origin->project_id !== $preview->project_id) {
-                throw ValidationException::withMessages(['project_id' => 'Сопоставление изменилось. Повторите предпросмотр.']);
-            }
-
-            $projectId = $preview->project_id ?? $origin?->project_id;
-            $project = $projectId === null
-                ? new Project([
-                    'name' => $preview->source_name ?? $preview->game ?? $preview->external_id,
-                    'prompt' => '',
-                    'is_active' => false,
-                ])
-                : $projects->whereNull('opus_source_id')->where('content_mode', 'short')->findOrFail($projectId);
-
-            if ((($project->clipping_connection_id !== null || $project->clipping_workspace !== null) && $project->clipping_connection_id !== $connection->id)
-                || ($project->exists && $project->productionRuns()->whereIn('status', ProductionStatus::blockingValues())->exists())) {
-                throw ValidationException::withMessages(['project_id' => 'Проверьте подключение проекта и завершите активное производство.']);
-            }
-
-            $project->owner_id = $connection->owner_id;
-            $project->clipping_connection_id = $connection->id;
-            $project->save();
-
-            $items = collect($preview->clips)->map(static fn(array $clip): ImportedClipData => new ImportedClipData(...$clip));
-            $this->storeClips($project, new OpusSourceData($preview->external_id, $preview->source_name, $preview->game), $items, $connection->id, false);
+        if ($preview->external_id === null) {
+            $project = $projects->whereNull('opus_source_id')->where('content_mode', ProjectContentMode::SHORT->value)
+                ->where(fn($query) => $query->whereNull('clipping_connection_id')->orWhere('clipping_connection_id', $connection->id))->findOrFail($preview->project_id);
             $this->accounts->attach($connection, $project, $preview);
-            $preview->project_id = $project->id;
             $preview->imported_at = now();
             $preview->save();
 
             return $project;
-        }, attempts: 3);
+        }
+
+        if (ClippingImport::query()->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)
+            ->whereNotNull('imported_at')->where('id', '>', $previewId)->exists()) {
+            throw ValidationException::withMessages(['project_id' => 'Для этого источника уже подтверждён более новый предпросмотр.']);
+        }
+
+        $origin = OpusSource::query()->where('clipping_connection_id', $connection->id)->where('external_id', $preview->external_id)->first();
+
+        if ($origin !== null && $preview->project_id !== null && (int) $origin->project_id !== $preview->project_id) {
+            throw ValidationException::withMessages(['project_id' => 'Сопоставление изменилось. Повторите предпросмотр.']);
+        }
+
+        $projectId = $preview->project_id ?? $origin?->project_id;
+        $project = $projectId === null
+            ? new Project([
+                'name' => $preview->source_name ?? $preview->game ?? $preview->external_id,
+                'prompt' => '',
+                'is_active' => false,
+            ])
+            : $projects->whereNull('opus_source_id')->where('content_mode', ProjectContentMode::SHORT->value)->findOrFail($projectId);
+
+        if ((($project->clipping_connection_id !== null || $project->clipping_workspace !== null) && $project->clipping_connection_id !== $connection->id)
+            || ($project->exists && $project->productionRuns()->whereIn('status', ProductionStatus::blockingValues())->exists())) {
+            throw ValidationException::withMessages(['project_id' => 'Проверьте подключение проекта и завершите активное производство.']);
+        }
+
+        $project->owner_id = $connection->owner_id;
+        $project->clipping_connection_id = $connection->id;
+        $project->save();
+
+        $items = collect($preview->clips)->map(static fn(array $clip): ImportedClipData => new ImportedClipData(...$clip));
+        $this->storeClips($project, new OpusSourceData($preview->external_id, $preview->source_name, $preview->game), $items, $connection->id, false);
+        $this->accounts->attach($connection, $project, $preview);
+        $preview->project_id = $project->id;
+        $preview->imported_at = now();
+        $preview->save();
+
+        return $project;
     }
 
     /** @param iterable<ImportedClipData> $clips */

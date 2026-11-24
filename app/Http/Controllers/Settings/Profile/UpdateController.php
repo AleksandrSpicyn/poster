@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Settings\Profile;
 
 use App\Actions\Settings\UpdateProfileAction;
 use App\Data\UpdateProfileData;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class UpdateController
+class UpdateController extends Controller
 {
     /**
      * Изменение имени и email
@@ -33,7 +34,7 @@ class UpdateController
     public function __invoke(UpdateProfileData $data, #[CurrentUser] User $user, UpdateProfileAction $action): RedirectResponse
     {
         if ($action->run($user, $data)) {
-            return to_route('profile.edit')->with('status', 'verification-link-sent');
+            return $this->withStatus(to_route('profile.edit'), 'verification-link-sent');
         }
 
         return to_route('profile.edit');

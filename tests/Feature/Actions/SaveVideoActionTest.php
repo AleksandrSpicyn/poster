@@ -33,6 +33,7 @@ test('выключенный проект не собирает ожидающи
 
 beforeEach(/** @throws Exception */ function (): void {
     Storage::fake('public');
+    Storage::fake('local');
     Event::fake([VideoBuilt::class]);
     GeneralSettings::fake(['duration' => 1]);
 });

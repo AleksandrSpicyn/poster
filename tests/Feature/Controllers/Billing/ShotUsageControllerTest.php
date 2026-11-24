@@ -15,8 +15,15 @@ test('оценка кадра использует настройки генер
     $context = episodeHttpFixture();
     $shot = $context['shot'];
 
-    actingAs($context['user'])->getJson(route('billing.usage.shot', $shot))->assertOk()
-        ->assertJsonPath('estimate', intdiv($shot->duration_ms, 1000))->assertJsonPath('sources', []);
+    actingAs($context['user'])
+        ->getJson(route('billing.usage.shot', $shot))
+        ->assertOk()
+        ->assertExactJson([
+            'enforced' => false,
+            'estimate' => intdiv($shot->duration_ms, 1000),
+            'available' => 0,
+            'sources' => [],
+        ]);
 
     assertDatabaseCount('generation_reservations', 0);
     Http::assertNothingSent();

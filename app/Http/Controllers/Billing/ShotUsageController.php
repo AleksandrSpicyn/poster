@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Billing;
 
 use App\Actions\Billing\ShowShotUsageAction;
+use App\Http\Resources\GenerationUsageResource;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -23,6 +24,6 @@ final class ShotUsageController
      */
     public function __invoke(#[CurrentUser] User $owner, Shot $shot, ShowShotUsageAction $action): JsonResponse
     {
-        return response()->json($action->run($owner, $shot));
+        return new GenerationUsageResource($action->run($owner, $shot))->response();
     }
 }

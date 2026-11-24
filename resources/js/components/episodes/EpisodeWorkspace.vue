@@ -8,7 +8,7 @@ import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import EpisodeMemory from '@/components/episodes/EpisodeMemory.vue';
 import EpisodeOverview from '@/components/episodes/EpisodeOverview.vue';
 import EpisodeRelease from '@/components/episodes/EpisodeRelease.vue';
-import ShotCard from '@/components/episodes/ShotCard.vue';
+import EpisodeShotList from '@/components/episodes/EpisodeShotList.vue';
 import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -532,41 +532,18 @@ function refresh() {
                         <p v-if="panel === 'montage' && (revision?.status !== 'approved' || archived)" class="studio-panel">
                             Для нового монтажа нужен утверждённый сценарий активного сериала.
                         </p>
-                        <section v-show="!overview && panel === 'shots'" v-if="revision" class="space-y-5" aria-labelledby="episode-shots-title">
-                            <h2 id="episode-shots-title" class="text-lg font-semibold">Кадры и дубли</h2>
-                            <p v-if="revision.status !== 'approved'" class="text-muted-foreground text-sm">
-                                Утвердите сценарий, чтобы создавать кадры.
-                            </p>
-                            <section
-                                v-for="scene in revision.scenes"
-                                v-show="detail === null || scene.shots.some((item) => item.id === shots[detail ?? 0]?.id)"
-                                :key="scene.id"
-                                class="space-y-4"
-                            >
-                                <div>
-                                    <h3 class="font-semibold">{{ scene.position }}. {{ scene.title }}</h3>
-                                    <p class="text-muted-foreground mt-1 text-xs">
-                                        {{ scene.is_closed ? 'Сцена завершается' : 'Сцена продолжается' }}
-                                    </p>
-                                </div>
-                                <ShotCard
-                                    v-for="shot in scene.shots"
-                                    v-show="detail === null || shot.id === shots[detail]?.id"
-                                    :key="shot.id"
-                                    :shot="shot"
-                                    :selected-take-ids="acceptedTakeIds"
-                                    :scene-title="scene.title"
-                                    :number="shots.findIndex((item) => item.id === shot.id) + 1"
-                                    :params="params"
-                                    :revision-id="revision.id"
-                                    :approved="revision.status === 'approved'"
-                                    :archived="archived"
-                                    :project-enabled="project.is_active"
-                                    :request-key="requestKey"
-                                    :source-options="readySourcesFor(shot.id)"
-                                />
-                            </section>
-                        </section>
+                        <EpisodeShotList
+                            v-if="revision"
+                            v-show="!overview && panel === 'shots'"
+                            :revision="revision"
+                            :selected-take-ids="acceptedTakeIds"
+                            :detail="detail"
+                            :params="params"
+                            :archived="archived"
+                            :project-enabled="project.is_active"
+                            :request-key="requestKey"
+                            :ready-sources-for="readySourcesFor"
+                        />
                         <section v-if="panel === 'montage' && (stale || saveError || restored)" class="studio-panel space-y-3" role="status">
                             <h2>{{ stale ? 'Серверная версия изменилась' : saveError ? 'Сохранение не выполнено' : 'Черновик восстановлен' }}</h2>
                             <p v-if="stale && difference">

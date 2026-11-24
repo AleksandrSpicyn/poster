@@ -6,9 +6,11 @@ namespace App\Http\Controllers\Auth\NewPassword;
 
 use App\Actions\Auth\ResetPasswordAction;
 use App\Data\ResetPasswordData;
+use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends Controller
 {
     /**
      * Смена пароля по токену
@@ -29,8 +31,8 @@ class StoreController
      */
     public function __invoke(ResetPasswordData $data, ResetPasswordAction $action): RedirectResponse
     {
-        $status = $action->run($data);
+        $action->run($data);
 
-        return to_route('login')->with('status', __($status));
+        return $this->withStatus(to_route('login'), __(PasswordBroker::PASSWORD_RESET));
     }
 }

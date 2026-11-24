@@ -2,6 +2,7 @@ import type { ListFilters } from '@/types/content';
 import type { Page } from '@inertiajs/core';
 import type { route as namedRoute } from 'ziggy-js';
 import { isRecord } from '../isRecord';
+import { readJsonObject } from './json';
 
 export interface ProjectSearchPreview {
     total: number;
@@ -26,8 +27,8 @@ export async function fetchProjectSearchPreview(
     });
     if (!response.ok || !response.headers.has('X-Inertia')) return;
 
-    const payload: unknown = await response.json();
-    if (!isRecord(payload) || !isRecord(payload.props) || !isRecord(payload.props.projects)) return;
+    const payload = await readJsonObject(response);
+    if (!payload || !isRecord(payload.props) || !isRecord(payload.props.projects)) return;
     const { meta, data } = payload.props.projects;
     if (!isRecord(meta) || typeof meta.total !== 'number' || !Array.isArray(data)) return;
     const first: unknown = data[0];

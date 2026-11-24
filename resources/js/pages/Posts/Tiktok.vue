@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTiktokReceiptRefresh } from '@/composables/useTiktokReceiptRefresh';
-import { useHashNavigation } from '@/composables/useHashNavigation';
+import { tiktokPublicationTabs, useTiktokPublicationNavigation } from '@/composables/useTiktokPublicationNavigation';
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import Heading from '@/components/Heading.vue';
 import TiktokPublicationReceipt from '@/components/TiktokPublicationReceipt.vue';
@@ -10,7 +10,7 @@ import { useTiktokPublicationForm } from '@/composables/useTiktokPublicationForm
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 import { useFormApi } from '@/lib/api/useFormApi';
 import { useRoute } from '@/composables/useRoute';
 
@@ -29,46 +29,17 @@ function retryCreator() {
         },
     });
 }
-const directDetails = ref(false);
+const { tab, video, finalReceipt, directDetails, selectTab } = useTiktokPublicationNavigation(
+    toRef(() => props.videos.data),
+    toRef(form, 'media_id'),
+);
 watch(directDetails, (open) => {
     if (open) consentChanged.value = false;
 });
 
-const tabs = ['Предпросмотр', 'Параметры', 'Статус'] as const;
-const tab = ref<(typeof tabs)[number]>('Параметры');
-const video = computed(() => props.videos.data.find((item) => item.id === form.media_id));
-const finalReceipt = computed(() => {
-    const receipt = video.value?.receipt;
-    return tab.value === 'Статус' && (receipt?.status === 'inbox' || receipt?.status === 'published') ? receipt : null;
-});
 const title = computed(() =>
     finalReceipt.value ? 'Результат отправки' : directDetails.value ? 'Прямая публикация в TikTok' : 'Публикация в TikTok',
 );
-function selectTab(next: (typeof tabs)[number]) {
-    if (next === 'Статус' && video.value && ['inbox', 'published'].includes(video.value.receipt?.status ?? '')) {
-        window.history.replaceState(window.history.state, '', '#video-' + video.value.id + (tab.value === 'Предпросмотр' ? '-preview' : '-settings'));
-        window.location.hash = 'receipt-' + video.value.id;
-        return;
-    }
-    tab.value = next;
-}
-function restoreReceipt() {
-    const result = /^#receipt-(\d+)$/.exec(window.location.hash);
-    const selection = /^#video-(\d+)-(preview|settings)$/.exec(window.location.hash);
-    const id = result?.[1] ?? selection?.[1];
-    const item = props.videos.data.find((entry) => entry.id === Number(id));
-    if (!item) return;
-    form.media_id = item.id;
-    directDetails.value = false;
-    if (result && item.receipt && ['inbox', 'published'].includes(item.receipt.status)) {
-        tab.value = 'Статус';
-    } else if (selection) {
-        tab.value = selection[2] === 'preview' ? 'Предпросмотр' : 'Параметры';
-        void nextTick(() => document.getElementById('publication-status')?.focus());
-    }
-}
-useHashNavigation(restoreReceipt);
-
 const { refreshingReceipt, receiptError, refreshReceipt } = useTiktokReceiptRefresh();
 const project = computed(() => {
     if (video.value) return video.value.project;
@@ -202,7 +173,7 @@ function submit() {
             <template v-else-if="inbox || creator">
                 <nav v-if="video && !directDetails" aria-label="Разделы публикации" class="delivery-tabs flex flex-wrap gap-2">
                     <Button
-                        v-for="item in tabs"
+                        v-for="item in tiktokPublicationTabs"
                         :id="item === 'Статус' ? 'publication-status' : undefined"
                         :key="item"
                         :variant="tab === item ? 'secondary' : 'outline'"

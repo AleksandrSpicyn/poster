@@ -7,6 +7,7 @@ import { seriesSettingsSections } from '@/lib/seriesSettingsSections';
 import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue';
 import ProjectChannelFields from '@/components/projects/ProjectChannelFields.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
+import ProjectScheduleFields from '@/components/projects/ProjectScheduleFields.vue';
 import ProjectSeriesFields from '@/components/projects/ProjectSeriesFields.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -15,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
+import type { ProjectFormProps } from '@/types/projects';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { LoaderCircle, Save } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
@@ -42,23 +43,6 @@ const {
     clearDraft,
 } = useProjectSettingsDraft(props);
 const schedule = computed(() => form.schedule ?? props.scheduleSettings);
-function changeSchedule(patch: Partial<ProjectSchedule>) {
-    if (!schedule.value) return;
-    const { enabled, time, timezone } = schedule.value;
-    form.schedule = { enabled, time, timezone, ...patch };
-}
-const nextRunLabel = computed(() => {
-    const saved = props.scheduleSettings;
-    const current = schedule.value;
-    if (!saved || !current) return '';
-    if (!current.enabled) return 'Выключен';
-    if (saved.time !== current.time || saved.timezone !== current.timezone || saved.enabled !== current.enabled) return 'После сохранения';
-    return saved.next
-        ? new Intl.DateTimeFormat('ru', { timeZone: saved.timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(
-              new Date(saved.next),
-          )
-        : 'Не запланирован';
-});
 const isSeries = computed(() => form.content_mode === 'series');
 const section = ref('main');
 const detailSection = computed(() => ['channels', 'format', 'cast', 'plan', 'automation', 'deletion'].includes(section.value));
@@ -398,50 +382,15 @@ function submit() {
                         :audiences="audiences"
                         :audio-modes="audioModes"
                     />
-                    <fieldset
+                    <ProjectScheduleFields
                         v-if="project && schedule && (isSeries ? section === 'plan' : section === 'automation')"
-                        class="grid gap-4"
+                        :model-value="schedule"
+                        :saved="scheduleSettings"
                         :disabled="form.processing || conflict"
-                    >
-                        <legend v-if="isSeries" class="mb-3 font-semibold">Расписание производства</legend>
-                        <label class="flex items-center gap-3 rounded-lg border p-3">
-                            <input
-                                type="checkbox"
-                                :checked="schedule.enabled"
-                                @change="changeSchedule({ enabled: ($event.target as HTMLInputElement).checked })"
-                            />
-                            <span><strong class="block">Автоматический запуск</strong><small>По расписанию проекта</small></span>
-                        </label>
-                        <div class="grid gap-2">
-                            <Label for="project-start-time">Время запуска</Label>
-                            <Input
-                                id="project-start-time"
-                                type="time"
-                                required
-                                :aria-invalid="!!formErrors['schedule.time']"
-                                :aria-describedby="formErrors['schedule.time'] ? 'schedule-time-error' : undefined"
-                                :model-value="schedule.time"
-                                @update:model-value="changeSchedule({ time: String($event) })"
-                            />
-                            <InputError id="schedule-time-error" :message="formErrors['schedule.time']" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="project-timezone">Часовой пояс</Label>
-                            <select
-                                id="project-timezone"
-                                class="list-select"
-                                :aria-invalid="!!formErrors['schedule.timezone']"
-                                :aria-describedby="formErrors['schedule.timezone'] ? 'schedule-timezone-error' : undefined"
-                                :value="schedule.timezone"
-                                @change="changeSchedule({ timezone: ($event.target as HTMLSelectElement).value })"
-                            >
-                                <option v-for="timezone in scheduleSettings?.timezones" :key="timezone">{{ timezone }}</option></select
-                            ><InputError id="schedule-timezone-error" :message="formErrors['schedule.timezone']" />
-                        </div>
-                        <p class="flex justify-between gap-3">
-                            <span>Следующий запуск</span><output>{{ nextRunLabel }}</output>
-                        </p>
-                    </fieldset>
+                        :is-series="isSeries"
+                        :errors="formErrors"
+                        @update:model-value="form.schedule = $event"
+                    />
                     <ProjectChannelFields
                         v-if="auth.can_manage_channels && section === 'channels'"
                         v-model="form.channel_ids"
@@ -571,7 +520,7 @@ function submit() {
     outline: 2px solid var(--ring);
     outline-offset: 1px;
 }
-.schedule-editor #project-form fieldset > label {
+.schedule-editor #project-form :deep(fieldset > label) {
     border: 0;
     border-bottom: 1px solid var(--border);
     border-radius: 0;
@@ -657,22 +606,22 @@ function submit() {
         grid-column: 1;
     }
 }
-.schedule-editor fieldset input[type='checkbox'] {
+.schedule-editor :deep(fieldset input[type='checkbox']) {
     width: 20px;
     height: 20px;
     accent-color: var(--primary);
 }
-.schedule-editor fieldset :is(input[type='time'], select) {
+.schedule-editor :deep(fieldset :is(input[type='time'], select)) {
     height: 46px;
     background-color: var(--background);
     color: var(--foreground);
 }
-.schedule-editor fieldset > p {
+.schedule-editor :deep(fieldset > p) {
     justify-content: start;
     align-items: baseline;
     gap: 16px;
 }
-.schedule-editor fieldset > p span {
+.schedule-editor :deep(fieldset > p span) {
     width: 36%;
 }
 .schedule-editor #project-form > div:last-child {
@@ -685,11 +634,11 @@ function submit() {
     .schedule-editor #project-form {
         padding: 14px 16px 20px;
     }
-    .schedule-editor fieldset > p {
+    .schedule-editor :deep(fieldset > p) {
         flex-direction: column;
         gap: 0;
     }
-    .schedule-editor fieldset > p span {
+    .schedule-editor :deep(fieldset > p span) {
         width: auto;
     }
 }

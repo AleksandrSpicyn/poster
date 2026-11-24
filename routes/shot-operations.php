@@ -13,7 +13,9 @@ Route::prefix('series/{series}/episodes/{episode}/revisions/{revision}/scenes/{s
     ->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])
     ->scopeBindings()
     ->group(function (): void {
-        Route::post('operations/{operation}/resolve', ResolveController::class)->whereNumber('operation')->name('shots.resolve');
-        Route::post('operations/{operation}/abandon', AbandonController::class)->whereNumber('operation')->name('shots.abandon');
+        Route::prefix('operations/{operation}')->whereNumber('operation')->name('shots.')->group(function (): void {
+            Route::post('resolve', ResolveController::class)->name('resolve');
+            Route::post('abandon', AbandonController::class)->name('abandon');
+        });
         Route::post('download-retry', RetryDownloadController::class)->name('shots.download.retry');
     });

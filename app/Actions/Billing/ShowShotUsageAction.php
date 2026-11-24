@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\Billing;
 
 use App\Classes\Billing\PilotShotQuote;
+use App\Data\Billing\GenerationUsageData;
 use App\Enums\GenerationAccountingMode;
 use App\Models\Shot;
 use App\Models\User;
 use App\Repositories\BillingAccountingRepository;
 use App\Repositories\BillingWorkspaceRepository;
 use App\Tasks\Shots\PrepareShotVideoSettings;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
-use stdClass;
 
 final readonly class ShowShotUsageAction
 {
@@ -23,8 +22,7 @@ final readonly class ShowShotUsageAction
         private PrepareShotVideoSettings $settings,
     ) {}
 
-    /** @return array{enforced: bool, estimate: ?int, available: int, sources: Collection<int, stdClass>} */
-    public function run(User $owner, Shot $shot): array
+    public function run(User $owner, Shot $shot): GenerationUsageData
     {
         $estimate = null;
 
@@ -34,11 +32,11 @@ final readonly class ShowShotUsageAction
             // Incompatible historical settings have no pilot estimate.
         }
 
-        return [
-            'enforced' => $this->accounting->storedMode($owner->id) === GenerationAccountingMode::ENFORCED->value,
-            'estimate' => $estimate,
-            'available' => $this->workspace->balance($owner->id)->available,
-            'sources' => $this->workspace->usage($owner->id, $shot->id, null),
-        ];
+        return new GenerationUsageData(
+            enforced: $this->accounting->storedMode($owner->id) === GenerationAccountingMode::ENFORCED->value,
+            estimate: $estimate,
+            available: $this->workspace->balance($owner->id)->available,
+            sources: $this->workspace->usage($owner->id, $shot->id, null),
+        );
     }
 }

@@ -1,6 +1,7 @@
 import type { route as namedRoute } from 'ziggy-js';
 import { isRecord } from '../isRecord';
 import { csrfHeaders } from './csrf';
+import { readJsonObject } from './json';
 
 interface UsageSource {
     order_id: number;
@@ -45,13 +46,8 @@ function isShot(value: unknown): value is ShotUsage {
 }
 
 async function readBillingResponse(response: Response, error: string): Promise<Record<string, unknown>> {
-    let result: unknown;
-    try {
-        result = await response.json();
-    } catch {
-        throw new Error(error);
-    }
-    if (!isRecord(result)) throw new Error(error);
+    const result = await readJsonObject(response).catch(() => undefined);
+    if (!result) throw new Error(error);
     if (!response.ok) throw new Error(typeof result.message === 'string' ? result.message : error);
     return result;
 }

@@ -32,6 +32,7 @@ test('выключенный проект не отправляет видео �
 
 test('YouTube загружает файл и сохраняет публикацию', /** @throws Exception */ function (): void {
     Storage::fake('public');
+    Storage::fake('local');
     Event::fake([PostCreated::class]);
 
     Storage::disk('public')->put('clip.mp4', 'test-video-bytes');

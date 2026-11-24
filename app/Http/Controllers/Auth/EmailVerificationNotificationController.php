@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\SendEmailVerificationAction;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class EmailVerificationNotificationController
+class EmailVerificationNotificationController extends Controller
 {
     /**
      * Повторная отправка проверки email
@@ -27,7 +28,7 @@ class EmailVerificationNotificationController
     public function __invoke(#[CurrentUser] User $user, SendEmailVerificationAction $action): RedirectResponse
     {
         if ($action->run($user)) {
-            return back()->with('status', 'verification-link-sent');
+            return $this->withStatus(back(), 'verification-link-sent');
         }
 
         return redirect()->intended(route('dashboard', absolute: false));

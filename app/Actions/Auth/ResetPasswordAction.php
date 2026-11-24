@@ -21,7 +21,7 @@ readonly class ResetPasswordAction
 {
     public function __construct(private PasswordBroker $passwords, private SaveUser $saveUser, private Dispatcher $events) {}
 
-    public function run(ResetPasswordData $data): string
+    public function run(ResetPasswordData $data): void
     {
         /** @var string $status PasswordBroker returns a translation key. */
         $status = $this->passwords->reset([
@@ -37,7 +37,5 @@ readonly class ResetPasswordAction
         if ($status !== PasswordBroker::PASSWORD_RESET) {
             throw ValidationException::withMessages(['email' => [__($status)]]);
         }
-
-        return $status;
     }
 }

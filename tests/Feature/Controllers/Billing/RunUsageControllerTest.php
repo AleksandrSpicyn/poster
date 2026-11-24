@@ -27,6 +27,10 @@ test('запуск показывает собственные фактичес�
     $url = route('billing.usage.run', $run);
 
     actingAs(User::factory()->create())->getJson($url)->assertNotFound();
-    $response = actingAs($owner)->getJson($url)->assertOk()->assertJsonPath('sources.0.product_label', 'Автор');
+    $response = actingAs($owner)
+        ->getJson($url)
+        ->assertOk()
+        ->assertJsonPath('shots', [])
+        ->assertJsonPath('sources.0.product_label', 'Автор');
     expect($response->json('sources.0.held'))->toEqual(8);
 });

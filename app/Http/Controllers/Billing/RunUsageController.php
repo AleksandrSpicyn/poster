@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Billing;
 
 use App\Actions\Billing\ShowProductionRunUsageAction;
+use App\Http\Resources\GenerationUsageResource;
 use App\Models\ProductionRun;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -23,6 +24,6 @@ final class RunUsageController
      */
     public function __invoke(#[CurrentUser] User $owner, ProductionRun $productionRun, ShowProductionRunUsageAction $action): JsonResponse
     {
-        return response()->json($action->run($owner, $productionRun));
+        return new GenerationUsageResource($action->run($owner, $productionRun))->response();
     }
 }
