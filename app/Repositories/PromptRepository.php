@@ -13,6 +13,7 @@ use App\Models\GenerationOperation;
 use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -116,6 +117,11 @@ readonly class PromptRepository extends EloquentRepository
     public function forOperation(GenerationOperation $operation): Prompt
     {
         return $operation->prompt()->with('media')->firstOrFail();
+    }
+
+    public function forPublication(PublicationRequest $request): Prompt
+    {
+        return $request->prompt()->with('media')->firstOrFail();
     }
 
     public function withGenerationOperations(Prompt $prompt): Prompt

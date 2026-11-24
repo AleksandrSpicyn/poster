@@ -33,7 +33,11 @@ final readonly class BillingRenewalRepository
 
     public function deliverReminders(): void
     {
-        $events = DB::table('billing_events')->where('kind', 'renewal.reminder')->where('status', 'pending')->orderBy('id')->limit(100)->get(['id', 'owner_id', 'payload']);
+        $events = DB::table('billing_events')->where('kind', 'renewal.reminder')->where('status', 'pending')->orderBy('id')->limit(100)->get([
+            'id',
+            'owner_id',
+            'payload',
+        ]);
 
         /** @var object{id: int, owner_id: int, payload: string} $event */
         foreach ($events as $event) {
@@ -89,8 +93,15 @@ final readonly class BillingRenewalRepository
                 $key = 'renewal.reminder.' . $owner . '.' . $due;
 
                 if (! DB::table('billing_events')->where('event_key', $key)->exists()) {
-                    DB::table('billing_events')->insert(['owner_id' => $owner, 'event_key' => $key, 'kind' => 'renewal.reminder', 'status' => 'pending',
-                        'payload' => json_encode(['product' => $product->value, 'due' => $due], JSON_THROW_ON_ERROR), 'created_at' => $at, 'updated_at' => $at]);
+                    DB::table('billing_events')->insert([
+                        'owner_id' => $owner,
+                        'event_key' => $key,
+                        'kind' => 'renewal.reminder',
+                        'status' => 'pending',
+                        'payload' => json_encode(['product' => $product->value, 'due' => $due], JSON_THROW_ON_ERROR),
+                        'created_at' => $at,
+                        'updated_at' => $at,
+                    ]);
                 }
 
                 return;
@@ -115,12 +126,31 @@ final readonly class BillingRenewalRepository
                 }
 
                 $order = $existing->id;
-                DB::table('billing_orders')->where('id', $order)->update(['retry_at' => null, 'status' => 'open', 'updated_at' => $at]);
+                DB::table('billing_orders')->where('id', $order)->update([
+                    'retry_at' => null,
+                    'status' => 'open',
+                    'updated_at' => $at,
+                ]);
             } else {
-                $order = DB::table('billing_orders')->insertGetId(['owner_id' => $owner, 'purpose' => 'renewal', 'purchase_key' => $key, 'entitlement_key' => $key,
-                    'product_code' => $product->value, 'request_key' => (string) Str::uuid(), 'catalog_version' => BillingProduct::CATALOG_VERSION, 'fiscal_profile' => ($profile = FiscalProfile::configured()) === null ? null : json_encode($profile, JSON_THROW_ON_ERROR), 'receipt_email' => $user->email,
-                    'consent_revision' => $account->consent_revision, 'renewal_due_at' => $due, 'amount_kopecks' => $product->amountKopecks(), 'seconds' => $product->seconds(),
-                    'currency' => 'RUB', 'status' => 'open', 'created_at' => $at, 'updated_at' => $at]);
+                $order = DB::table('billing_orders')->insertGetId([
+                    'owner_id' => $owner,
+                    'purpose' => 'renewal',
+                    'purchase_key' => $key,
+                    'entitlement_key' => $key,
+                    'product_code' => $product->value,
+                    'request_key' => (string) Str::uuid(),
+                    'catalog_version' => BillingProduct::CATALOG_VERSION,
+                    'fiscal_profile' => ($profile = FiscalProfile::configured()) === null ? null : json_encode($profile, JSON_THROW_ON_ERROR),
+                    'receipt_email' => $user->email,
+                    'consent_revision' => $account->consent_revision,
+                    'renewal_due_at' => $due,
+                    'amount_kopecks' => $product->amountKopecks(),
+                    'seconds' => $product->seconds(),
+                    'currency' => 'RUB',
+                    'status' => 'open',
+                    'created_at' => $at,
+                    'updated_at' => $at,
+                ]);
             }
 
             $id = $this->payments->prepare($owner, $order, fn(): MerchantData => new MerchantData($account->payment_method_provider, $account->payment_method_shop, (bool) $account->payment_method_test_mode));

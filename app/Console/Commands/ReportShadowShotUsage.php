@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Repositories\GenerationReservationRepository;
+use App\Repositories\BillingAccountingRepository;
 use DomainException;
 use Illuminate\Console\Command;
 use stdClass;
@@ -15,7 +15,7 @@ final class ReportShadowShotUsage extends Command
 
     protected $description = 'Показать расчётные секунды дублей по владельцу';
 
-    public function handle(GenerationReservationRepository $usage): int
+    public function handle(BillingAccountingRepository $accounting): int
     {
         $owner = filter_var($this->argument('owner'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
@@ -27,7 +27,7 @@ final class ReportShadowShotUsage extends Command
 
         if ($this->option('enable') || $this->option('disable')) {
             try {
-                $usage->configure($owner, (bool) $this->option('enable'));
+                $accounting->configureShadowUsage($owner, (bool) $this->option('enable'));
             } catch (DomainException $exception) {
                 $this->error($exception->getMessage());
 
@@ -35,7 +35,7 @@ final class ReportShadowShotUsage extends Command
             }
         }
 
-        $mode = $usage->mode($owner);
+        $mode = $accounting->storedMode($owner);
 
         if ($mode === null) {
             $this->error('Владелец не найден.');
@@ -44,12 +44,20 @@ final class ReportShadowShotUsage extends Command
         }
 
         $this->info('Режим учёта: ' . $mode);
-        $rows = $usage->totals($owner);
+        $rows = $accounting->shadowTotals($owner);
 
         if ($rows->isEmpty()) {
             $this->info('Наблюдавшихся дублей пока нет.');
         } else {
-            $this->table(['Состояние', 'Дубли', 'Расчётные секунды'], $rows->map(fn(stdClass $row): array => [$row->status, $row->takes, $row->seconds])->all());
+            $this->table([
+                'Состояние',
+                'Дубли',
+                'Расчётные секунды',
+            ], $rows->map(fn(stdClass $row): array => [
+                $row->status,
+                $row->takes,
+                $row->seconds,
+            ])->all());
         }
 
         return self::SUCCESS;

@@ -38,7 +38,11 @@ final readonly class PublicationReference
                 return new self($match[1], ChannelType::YOUTUBE);
             }
 
-            if (in_array($host, ['youtube.com', 'www.youtube.com', 'm.youtube.com'], true)) {
+            if (in_array($host, [
+                'youtube.com',
+                'www.youtube.com',
+                'm.youtube.com',
+            ], true)) {
                 if (preg_match('~\A/(?:shorts|live|embed)/([A-Za-z0-9_-]{1,128})/?\z~', $path, $match)) {
                     return new self($match[1], ChannelType::YOUTUBE);
                 }

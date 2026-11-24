@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Posts;
 
 use App\Actions\Episodes\ResolveEpisodePublicationAction;
 use App\Enums\PublicationStatus;
-use App\Http\Resources\ProjectResource;
+use App\Http\Resources\ProjectCardResource;
 use App\Models\PublicationRequest;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -25,7 +25,7 @@ class ReviewController
             'title' => $publication->payload['title'],
             'channel' => $context->channel->name,
             'platform' => $context->channel->type->label(),
-            'project' => Arr::only(ProjectResource::make($context->project)->resolve(), ['name', 'cover']),
+            'project' => Arr::only(ProjectCardResource::make($context->project)->resolve(), ['name', 'cover']),
             'assemblyNumber' => $context->assemblyNumber,
             'submittedAt' => $publication->submitted_at?->toISOString(),
         ]);

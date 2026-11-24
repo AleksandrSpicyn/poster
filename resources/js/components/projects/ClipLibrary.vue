@@ -2,7 +2,7 @@
 import { useHashNavigation } from '@/composables/useHashNavigation';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import { Button } from '@/components/ui/button';
-import { platformNames } from '@/types/analytics';
+import { platformNames } from '@/lib/analytics';
 import type { ProjectPageProps } from '@/types/projects';
 import { ChartColumn, Clock, Film, Globe } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';

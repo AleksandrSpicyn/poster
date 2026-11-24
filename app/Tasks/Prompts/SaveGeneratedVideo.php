@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tasks\Prompts;
 
+use App\Classes\Billing\MeteredVideo;
 use App\Enums\ReservationStatus;
 use App\Models\Prompt;
 use App\Repositories\GenerationReservationRepository;
 use App\Repositories\PromptRepository;
-use App\Tasks\ValidateMeteredVideo;
 use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
@@ -20,7 +20,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class SaveGeneratedVideo
 {
-    public function __construct(private readonly PromptRepository $prompts, private readonly GenerationReservationRepository $usage, private readonly ValidateMeteredVideo $validate) {}
+    public function __construct(private readonly PromptRepository $prompts, private readonly GenerationReservationRepository $usage) {}
 
     /**
      * @throws FileDoesNotExist
@@ -29,7 +29,7 @@ class SaveGeneratedVideo
     public function run(Prompt $prompt, string $path): void
     {
         $existing = $prompt->getFirstMedia();
-        $this->validate->run($prompt->id, $existing?->getPath() ?? $path);
+        MeteredVideo::assertMatchesQuote($existing?->getPath() ?? $path, $this->usage->quotedSeconds($prompt->id));
 
         if (! $existing instanceof Media) {
             $prompt->addMedia($path)->toMediaCollection();

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { amount } from '@/types/analytics';
+import { amount } from '@/lib/analytics';
 defineProps<{ items: { id?: string; label: string; value: number | null; unit?: string; note?: string; description?: string; href?: string }[] }>();
 </script>
 <template>

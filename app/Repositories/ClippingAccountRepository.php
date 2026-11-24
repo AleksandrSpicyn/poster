@@ -30,7 +30,11 @@ final readonly class ClippingAccountRepository
      */
     public function channels(ClippingConnection $connection, ?array $ids = null): Collection
     {
-        return Channel::query()->where('owner_id', $connection->owner_id)->when($ids !== null, fn($query) => $query->whereKey($ids))->orderBy('name')->get(['id', 'name', 'type']);
+        return Channel::query()->where('owner_id', $connection->owner_id)->when($ids !== null, fn($query) => $query->whereKey($ids))->orderBy('name')->get([
+            'id',
+            'name',
+            'type',
+        ]);
     }
 
     /**
@@ -114,7 +118,11 @@ final readonly class ClippingAccountRepository
 
             $id = $mapping->channel_id ?? $account['channel_id'];
             $channel = $id === null
-                ? new Channel(['name' => $account['name'] ?: $account['external_id'], 'type' => $account['platform'], 'is_active' => false])
+                ? new Channel([
+                    'name' => $account['name'] ?: $account['external_id'],
+                    'type' => $account['platform'],
+                    'is_active' => false,
+                ])
                 : $channels->get($id);
 
             if ($channel === null || $channel->type->value !== $account['platform']) {
@@ -128,9 +136,13 @@ final readonly class ClippingAccountRepository
 
             if ($mapping === null) {
                 $mapping = new ClippingAccountMapping([
-                    'clipping_connection_id' => $connection->id, 'provider_account_id' => $account['id'],
-                    'external_id' => $account['external_id'], 'platform' => $account['platform'], 'channel_id' => $channel->id,
-                    'created_at' => now(), 'updated_at' => now(),
+                    'clipping_connection_id' => $connection->id,
+                    'provider_account_id' => $account['id'],
+                    'external_id' => $account['external_id'],
+                    'platform' => $account['platform'],
+                    'channel_id' => $channel->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
                 $created[$canonical] = $mapping;
                 $newMappings[] = $mapping->getAttributes();

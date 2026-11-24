@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Enums\GenerationCreditBucket;
 use App\Enums\ReservationStatus;
 use App\Events\WorkspaceUpdated;
 use Illuminate\Database\Query\Builder;
@@ -32,11 +33,18 @@ final class GenerationCreditRepository
         foreach ($grants as $grant) {
             $quantity = min($grant->available_seconds, $seconds);
             $part = DB::table('generation_reservation_parts')->insertGetId([
-                'owner_id' => $owner, 'reservation_id' => $reservation, 'take_key' => $key, 'grant_id' => $grant->id,
-                'shot_id' => $shot, 'prompt_id' => $prompt, 'seconds' => $quantity, 'status' => ReservationStatus::HELD->value,
-                'created_at' => $at, 'updated_at' => $at,
+                'owner_id' => $owner,
+                'reservation_id' => $reservation,
+                'take_key' => $key,
+                'grant_id' => $grant->id,
+                'shot_id' => $shot,
+                'prompt_id' => $prompt,
+                'seconds' => $quantity,
+                'status' => ReservationStatus::HELD->value,
+                'created_at' => $at,
+                'updated_at' => $at,
             ]);
-            $this->transfer($owner, $grant->id, $part, $quantity, 'available', 'held', 'reserve');
+            $this->transfer($owner, $grant->id, $part, $quantity, GenerationCreditBucket::AVAILABLE, GenerationCreditBucket::HELD, 'reserve');
             $seconds -= $quantity;
 
             if ($seconds === 0) {
@@ -54,14 +62,33 @@ final class GenerationCreditRepository
 
         foreach ($parts as $part) {
             $quantity = min($seconds, $part->seconds);
-            $child = DB::table('generation_reservation_parts')->insertGetId(['owner_id' => $owner, 'reservation_id' => $reservation, 'grant_id' => $part->grant_id,
-                'take_key' => 'shot:' . $shot, 'shot_id' => $shot, 'seconds' => $quantity, 'status' => 'held', 'created_at' => $at, 'updated_at' => $at]);
-            DB::table('generation_reservation_parts')->where('id', $part->id)->update(['seconds' => $part->seconds - $quantity, 'updated_at' => $at,
-                'status' => $part->seconds === $quantity ? 'allocated' : 'held']);
+            $child = DB::table('generation_reservation_parts')->insertGetId([
+                'owner_id' => $owner,
+                'reservation_id' => $reservation,
+                'grant_id' => $part->grant_id,
+                'take_key' => 'shot:' . $shot,
+                'shot_id' => $shot,
+                'seconds' => $quantity,
+                'status' => 'held',
+                'created_at' => $at,
+                'updated_at' => $at,
+            ]);
+            DB::table('generation_reservation_parts')->where('id', $part->id)->update([
+                'seconds' => $part->seconds - $quantity,
+                'updated_at' => $at,
+                'status' => $part->seconds === $quantity ? 'allocated' : 'held',
+            ]);
 
             foreach ([$part->id => -$quantity, $child => $quantity] as $id => $delta) {
-                DB::table('generation_credit_entries')->insert(['owner_id' => $owner, 'grant_id' => $part->grant_id, 'part_id' => $id,
-                    'kind' => 'allocate', 'held_delta' => $delta, 'event_key' => 'allocate.' . $child . '.' . $id, 'created_at' => $at]);
+                DB::table('generation_credit_entries')->insert([
+                    'owner_id' => $owner,
+                    'grant_id' => $part->grant_id,
+                    'part_id' => $id,
+                    'kind' => 'allocate',
+                    'held_delta' => $delta,
+                    'event_key' => 'allocate.' . $child . '.' . $id,
+                    'created_at' => $at,
+                ]);
             }
 
             $seconds -= $quantity;
@@ -78,12 +105,16 @@ final class GenerationCreditRepository
     {
         /** @var Collection<int, object{id: int, grant_id: int, seconds: int}> $parts */
         $parts = DB::table('generation_reservation_parts')->where('owner_id', $owner)->where('reservation_id', $reservation)
-            ->where('status', ReservationStatus::HELD->value)->orderBy('grant_id')->lockForUpdate()->get(['id', 'grant_id', 'seconds']);
+            ->where('status', ReservationStatus::HELD->value)->orderBy('grant_id')->lockForUpdate()->get([
+                'id',
+                'grant_id',
+                'seconds',
+            ]);
 
         foreach ($parts as $part) {
             $expired = DB::table('generation_grants')->where('id', $part->grant_id)->where('ends_at', '<=', now('UTC'))->exists();
-            $target = $to === ReservationStatus::CONSUMED ? 'consumed' : ($expired ? 'expired' : 'available');
-            $this->transfer($owner, $part->grant_id, $part->id, $part->seconds, 'held', $target, $to === ReservationStatus::CONSUMED ? 'consume' : 'release');
+            $target = $to === ReservationStatus::CONSUMED ? GenerationCreditBucket::CONSUMED : ($expired ? GenerationCreditBucket::EXPIRED : GenerationCreditBucket::AVAILABLE);
+            $this->transfer($owner, $part->grant_id, $part->id, $part->seconds, GenerationCreditBucket::HELD, $target, $to === ReservationStatus::CONSUMED ? 'consume' : 'release');
             DB::table('generation_reservation_parts')->where('id', $part->id)->update(['status' => $to->value, 'updated_at' => now('UTC')]);
         }
     }
@@ -104,7 +135,7 @@ final class GenerationCreditRepository
                             return 0;
                         }
 
-                        $this->transfer($row->owner_id, $row->id, null, $grant->available_seconds, 'available', 'expired', 'expire');
+                        $this->transfer($row->owner_id, $row->id, null, $grant->available_seconds, GenerationCreditBucket::AVAILABLE, GenerationCreditBucket::EXPIRED, 'expire');
 
                         return 1;
                     }, 3);
@@ -115,13 +146,19 @@ final class GenerationCreditRepository
     }
 
     /** The caller holds the owner and grant locks in the surrounding transaction. */
-    public function transfer(int $owner, int $grant, ?int $part, int $seconds, string $from, string $to, string $kind, ?string $event = null, ?string $reason = null): void
+    public function transfer(int $owner, int $grant, ?int $part, int $seconds, GenerationCreditBucket $from, GenerationCreditBucket $to, string $kind, ?string $event = null, ?string $reason = null): void
     {
-        DB::table('generation_grants')->where('id', $grant)->incrementEach([$from . '_seconds' => -$seconds, $to . '_seconds' => $seconds], ['updated_at' => now('UTC')]);
+        DB::table('generation_grants')->where('id', $grant)->incrementEach([$from->value . '_seconds' => -$seconds, $to->value . '_seconds' => $seconds], ['updated_at' => now('UTC')]);
         DB::table('generation_credit_entries')->insert([
-            'owner_id' => $owner, 'grant_id' => $grant, 'part_id' => $part,
-            'kind' => $kind, 'reason' => $reason, 'event_key' => $event ?? (string) Str::uuid(),
-            $from . '_delta' => -$seconds, $to . '_delta' => $seconds, 'created_at' => now('UTC'),
+            'owner_id' => $owner,
+            'grant_id' => $grant,
+            'part_id' => $part,
+            'kind' => $kind,
+            'reason' => $reason,
+            'event_key' => $event ?? (string) Str::uuid(),
+            $from->value . '_delta' => -$seconds,
+            $to->value . '_delta' => $seconds,
+            'created_at' => now('UTC'),
         ]);
         WorkspaceUpdated::forBalance($owner);
     }

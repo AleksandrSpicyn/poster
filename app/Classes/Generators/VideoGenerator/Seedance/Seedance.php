@@ -51,18 +51,34 @@ readonly class Seedance extends AsyncVideoGenerator
         $content = [['type' => 'text', 'text' => $request->prompt]];
 
         if ($request->mode === VideoInputMode::FIRST_FRAME) {
-            $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($request->firstFrameUrl ?? '')], 'role' => 'first_frame'];
+            $content[] = [
+                'type' => 'image_url',
+                'image_url' => ['url' => $this->imageSource($request->firstFrameUrl ?? '')],
+                'role' => 'first_frame',
+            ];
 
             if ($request->lastFrameUrl !== null) {
-                $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($request->lastFrameUrl)], 'role' => 'last_frame'];
+                $content[] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => $this->imageSource($request->lastFrameUrl)],
+                    'role' => 'last_frame',
+                ];
             }
         } else {
             foreach ($request->referenceImageUrls as $url) {
-                $content[] = ['type' => 'image_url', 'image_url' => ['url' => $this->imageSource($url)], 'role' => 'reference_image'];
+                $content[] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => $this->imageSource($url)],
+                    'role' => 'reference_image',
+                ];
             }
 
             if ($request->mode === VideoInputMode::EXTEND) {
-                $content[] = ['type' => 'video_url', 'video_url' => ['url' => $request->sourceVideoUrl], 'role' => 'reference_video'];
+                $content[] = [
+                    'type' => 'video_url',
+                    'video_url' => ['url' => $request->sourceVideoUrl],
+                    'role' => 'reference_video',
+                ];
             }
         }
 
@@ -101,7 +117,15 @@ readonly class Seedance extends AsyncVideoGenerator
             maxDuration: $model->maxDuration(),
             resolutions: array_values(collect(Resolution::cases())->filter($model->supports(...))->map(fn(Resolution $resolution): string => $resolution->value)->all()),
             defaultResolution: $this->resolution,
-            aspectRatios: ['adaptive', '9:16', '16:9', '1:1', '4:3', '3:4', '21:9'],
+            aspectRatios: [
+                'adaptive',
+                '9:16',
+                '16:9',
+                '1:1',
+                '4:3',
+                '3:4',
+                '21:9',
+            ],
             maxReferenceImages: $model->maxReferenceImages(),
             supportsLastFrame: true,
             supportsReturnLastFrame: true,

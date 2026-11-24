@@ -12,6 +12,7 @@ use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
 use App\Repositories\ChannelRepository;
 use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\PromptRepository;
 use App\Repositories\SeriesAssemblyRepository;
 use Illuminate\Support\Facades\URL;
 use RuntimeException;
@@ -22,6 +23,7 @@ class PrepareEpisodePublication
     public function __construct(
         private readonly EpisodeAssemblyRepository $assemblies,
         private readonly ChannelRepository $channels,
+        private readonly PromptRepository $prompts,
         private readonly SeriesAssemblyRepository $finalAssemblies,
     ) {}
 
@@ -30,17 +32,19 @@ class PrepareEpisodePublication
         $options = isset($request->payload['tiktok']) ? TiktokPublicationData::from($request->payload['tiktok']) : null;
 
         if ($request->prompt_id !== null) {
-            $prompt = $request->prompt()->firstOrFail();
+            $prompt = $this->prompts->forPublication($request);
             $media = $prompt->getFirstMedia();
 
-            if ($media === null || ($options instanceof TiktokPublicationData && $options->media_id !== $media->id) || ! is_file($media->getPath())) {
+            if (! $media instanceof Media || ($options instanceof TiktokPublicationData && $options->media_id !== $media->id) || ! is_file($media->getPath())) {
                 throw new RuntimeException('The short video file is unavailable.');
             }
 
             return new PreparedPublicationData($this->channels->forPublication($request), new PublishVideoData(
                 $media->getPath(),
                 URL::temporarySignedRoute('prompts.export', now()->addHours(2), [
-                    'prompt' => $prompt->id, 'media' => $media->id, 'owner' => $request->created_by,
+                    'prompt' => $prompt->id,
+                    'media' => $media->id,
+                    'owner' => $request->created_by,
                 ]),
                 $request->payload['title'],
                 $request->payload['description'],
@@ -61,7 +65,11 @@ class PrepareEpisodePublication
 
         return new PreparedPublicationData($this->channels->forPublication($request), new PublishVideoData(
             $media->getPath(),
-            URL::temporarySignedRoute($final ? 'series_assemblies.export' : 'episodes.export', now()->addHours(2), ['assembly' => $assembly->id, 'media' => $media->id, 'owner' => $request->created_by]),
+            URL::temporarySignedRoute($final ? 'series_assemblies.export' : 'episodes.export', now()->addHours(2), [
+                'assembly' => $assembly->id,
+                'media' => $media->id,
+                'owner' => $request->created_by,
+            ]),
             $request->payload['title'],
             $request->payload['description'],
             $final ? null : $assembly->id,

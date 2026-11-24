@@ -22,7 +22,8 @@ class GetEpisodeAssembliesForReconciliation
 
             foreach ($assemblies as $assembly) {
                 $this->assemblies->update($assembly, [
-                    'status' => AssemblyStatus::QUEUED, 'started_at' => null,
+                    'status' => AssemblyStatus::QUEUED,
+                    'started_at' => null,
                     'lock_version' => $assembly->lock_version + 1,
                 ]);
             }

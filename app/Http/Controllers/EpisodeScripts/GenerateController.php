@@ -6,13 +6,14 @@ namespace App\Http\Controllers\EpisodeScripts;
 
 use App\Actions\Episodes\RequestEpisodeScriptAction;
 use App\Data\Episodes\GenerateEpisodeScriptData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\Series;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class GenerateController
+class GenerateController extends EpisodeController
 {
     /**
      * Запрос сценария по заданию в очередь
@@ -38,6 +39,6 @@ class GenerateController
     {
         $action->run($episode, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

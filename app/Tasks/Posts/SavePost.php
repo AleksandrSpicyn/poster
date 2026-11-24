@@ -42,7 +42,11 @@ class SavePost
             $post = $this->posts->createPublished($dto);
 
             if ($request instanceof PublicationRequest) {
-                $this->publications->update($request, ['status' => PublicationStatus::PUBLISHED, 'published_at' => now(), 'error_message' => null]);
+                $this->publications->update($request, [
+                    'status' => PublicationStatus::PUBLISHED,
+                    'published_at' => now(),
+                    'error_message' => null,
+                ]);
             }
 
             DB::afterCommit(static fn() => event(new PostCreated($post)));

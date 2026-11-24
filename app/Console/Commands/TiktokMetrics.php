@@ -46,10 +46,24 @@ class TiktokMetrics extends Command
                         throw new RuntimeException('Invalid TikTok video.');
                     }
 
-                    $rows[] = array_map(static fn(string $key): string => is_scalar($video[$key] ?? null) ? (string) $video[$key] : '', ['id', 'title', 'view_count', 'like_count', 'comment_count', 'share_count']);
+                    $rows[] = array_map(static fn(string $key): string => is_scalar($video[$key] ?? null) ? (string) $video[$key] : '', [
+                        'id',
+                        'title',
+                        'view_count',
+                        'like_count',
+                        'comment_count',
+                        'share_count',
+                    ]);
                 }
 
-                $this->table(['Video ID', 'Title', 'Views', 'Likes', 'Comments', 'Shares'], $rows);
+                $this->table([
+                    'Video ID',
+                    'Title',
+                    'Views',
+                    'Likes',
+                    'Comments',
+                    'Shares',
+                ], $rows);
                 $more = $response->json('data.has_more') === true;
                 $cursor = $response->json('data.cursor');
 

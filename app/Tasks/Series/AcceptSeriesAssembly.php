@@ -44,9 +44,19 @@ readonly class AcceptSeriesAssembly
                 }
             }
 
-            $this->assemblies->update($assembly, ['status' => AssemblyStatus::ACCEPTED, 'accepted_at' => now(), 'accepted_by' => $actor->id,
-                'lock_version' => $assembly->lock_version + 1, 'review' => [...($assembly->review ?? []), 'boundaries_reviewed' => true, 'notes' => $data->review_notes,
-                    'manifest_hash' => $assembly->manifest_hash, 'video_checksum' => $media->getCustomProperty('checksum')]]);
+            $this->assemblies->update($assembly, [
+                'status' => AssemblyStatus::ACCEPTED,
+                'accepted_at' => now(),
+                'accepted_by' => $actor->id,
+                'lock_version' => $assembly->lock_version + 1,
+                'review' => [
+                    ...($assembly->review ?? []),
+                    'boundaries_reviewed' => true,
+                    'notes' => $data->review_notes,
+                    'manifest_hash' => $assembly->manifest_hash,
+                    'video_checksum' => $media->getCustomProperty('checksum'),
+                ],
+            ]);
             $this->series->update($series, ['final_assembly_id' => $assembly->id]);
 
             return $assembly;

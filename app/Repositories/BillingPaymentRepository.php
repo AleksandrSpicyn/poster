@@ -42,13 +42,27 @@ class BillingPaymentRepository
             $id = (string) Str::uuid();
             $at = now('UTC');
             DB::table('billing_payments')->insert([
-                'id' => $id, 'order_id' => $orderId, 'provider' => $merchant->provider, 'shop' => $merchant->shop, 'test_mode' => $merchant->testMode,
-                'amount_kopecks' => $order->amount_kopecks, 'currency' => $order->currency, 'idempotency_key' => (string) Str::uuid(),
-                'status' => PaymentStatus::CREATED->value, 'created_at' => $at, 'updated_at' => $at,
+                'id' => $id,
+                'order_id' => $orderId,
+                'provider' => $merchant->provider,
+                'shop' => $merchant->shop,
+                'test_mode' => $merchant->testMode,
+                'amount_kopecks' => $order->amount_kopecks,
+                'currency' => $order->currency,
+                'idempotency_key' => (string) Str::uuid(),
+                'status' => PaymentStatus::CREATED->value,
+                'created_at' => $at,
+                'updated_at' => $at,
             ]);
             DB::table('billing_events')->insert([
-                'owner_id' => $ownerId, 'event_key' => 'payment.prepared.' . $id, 'kind' => 'payment.prepared', 'status' => 'pending',
-                'payload' => json_encode(['attempt_id' => $id], JSON_THROW_ON_ERROR), 'next_check_at' => $at, 'created_at' => $at, 'updated_at' => $at,
+                'owner_id' => $ownerId,
+                'event_key' => 'payment.prepared.' . $id,
+                'kind' => 'payment.prepared',
+                'status' => 'pending',
+                'payload' => json_encode(['attempt_id' => $id], JSON_THROW_ON_ERROR),
+                'next_check_at' => $at,
+                'created_at' => $at,
+                'updated_at' => $at,
             ]);
 
             return $id;

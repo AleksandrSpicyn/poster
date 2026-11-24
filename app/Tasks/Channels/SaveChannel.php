@@ -31,7 +31,11 @@ readonly class SaveChannel
             throw ValidationException::withMessages(['type' => 'Choose YouTube, Instagram or TikTok.']);
         }
 
-        $channel->fill(['name' => $data->name, 'type' => $data->type, 'is_active' => $data->is_active ?? $channel->is_active]);
+        $channel->fill([
+            'name' => $data->name,
+            'type' => $data->type,
+            'is_active' => $data->is_active ?? $channel->is_active,
+        ]);
 
         $this->channels->save($channel);
 

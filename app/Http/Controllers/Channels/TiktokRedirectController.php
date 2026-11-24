@@ -14,7 +14,13 @@ class TiktokRedirectController
     {
         return to_route('channels.provider-callback', [
             'provider' => ChannelType::TIKTOK->value,
-            ...$request->only(['state', 'code', 'error', 'error_description', 'scopes']),
+            ...$request->only([
+                'state',
+                'code',
+                'error',
+                'error_description',
+                'scopes',
+            ]),
         ])->withHeaders(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
     }
 }

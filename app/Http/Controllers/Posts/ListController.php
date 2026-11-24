@@ -117,7 +117,12 @@ class ListController
 
         return inertia('Posts', [
             'verifiableChannels' => $channels->filter(fn(Channel $channel): bool => $channel->canVerifyPublication())->values()->modelKeys(),
-            'destinations' => fn() => $channels->filter(fn(Channel $channel): bool => $channel->canSendTiktokInboxVideo() || $channel->canDirectPostTiktok())->values()->map(fn(Channel $channel): array => ['id' => $channel->id, 'name' => $channel->name, 'inbox' => $channel->canSendTiktokInboxVideo(), 'direct' => $channel->canDirectPostTiktok()])->all(),
+            'destinations' => fn() => $channels->filter(fn(Channel $channel): bool => $channel->canSendTiktokInboxVideo() || $channel->canDirectPostTiktok())->values()->map(fn(Channel $channel): array => [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'inbox' => $channel->canSendTiktokInboxVideo(),
+                'direct' => $channel->canDirectPostTiktok(),
+            ])->all(),
             'activity' => fn() => PublicationActivityResource::collection($getPostsList->activity($owner, $data)),
             'periodDays' => $data->days,
             'search' => $data->search ?? '',

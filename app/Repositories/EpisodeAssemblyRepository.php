@@ -62,7 +62,12 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
     public function matchingManifest(EpisodeRevision $revision, string $hash): ?EpisodeAssembly
     {
         return $revision->assemblies()->where('manifest_hash', $hash)
-            ->whereIn('status', [AssemblyStatus::QUEUED, AssemblyStatus::BUILDING, AssemblyStatus::READY, AssemblyStatus::ACCEPTED])
+            ->whereIn('status', [
+                AssemblyStatus::QUEUED,
+                AssemblyStatus::BUILDING,
+                AssemblyStatus::READY,
+                AssemblyStatus::ACCEPTED,
+            ])
             ->first();
     }
 
@@ -71,7 +76,9 @@ readonly class EpisodeAssemblyRepository extends EloquentRepository
     {
         return $revision->assemblies()->chaperone('episodeRevision')->create([
             'number' => ($revision->assemblies()->orderByDesc('number')->first()->number ?? 0) + 1,
-            'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
+            'status' => AssemblyStatus::QUEUED,
+            'manifest' => $manifest,
+            'manifest_hash' => $hash,
             'continuity_snapshot' => [],
         ])->refresh();
     }

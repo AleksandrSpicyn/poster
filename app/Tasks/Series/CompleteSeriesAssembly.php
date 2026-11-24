@@ -31,8 +31,12 @@ readonly class CompleteSeriesAssembly
 
                 $media = $current->addMedia($video->path)->withCustomProperties(['checksum' => hash_file('sha256', $video->path)])
                     ->toMediaCollection(SeriesAssembly::VIDEO);
-                $this->assemblies->update($current, ['status' => AssemblyStatus::READY, 'duration_ms' => $video->durationMs,
-                    'completed_at' => now(), 'lock_version' => $current->lock_version + 1]);
+                $this->assemblies->update($current, [
+                    'status' => AssemblyStatus::READY,
+                    'duration_ms' => $video->durationMs,
+                    'completed_at' => now(),
+                    'lock_version' => $current->lock_version + 1,
+                ]);
             });
         } catch (Throwable $exception) {
             $media?->delete();

@@ -30,13 +30,18 @@ readonly class ProductionRunRepository extends EloquentRepository
     public function forProduction(int $id): ProductionRun
     {
         return ProductionRun::query()->with([
-            'actor', 'project.channels',
-            'series.automationUser', 'series.characters.currentRevision.media',
+            'actor',
+            'project.channels',
+            'series.automationUser',
+            'series.characters.currentRevision.media',
             'series.characters.revisions' => fn($query) => $query->with('media')->orderByDesc('number'),
             'series.episodes' => fn($query) => $query->orderByDesc('number')->limit(1),
             'episode.currentRevision.scenes.shots.prompts.operations',
             'episode.currentRevision.scenes.shots.prompts.media',
-            'seriesAssembly.media', 'assembly.media', 'assembly.publications', 'prompt.posts',
+            'seriesAssembly.media',
+            'assembly.media',
+            'assembly.publications',
+            'prompt.posts',
         ])->findOrFail($id);
     }
 
@@ -44,7 +49,11 @@ readonly class ProductionRunRepository extends EloquentRepository
     public function due(int $limit): Collection
     {
         return ProductionRun::query()
-            ->whereIn('status', [ProductionStatus::QUEUED, ProductionStatus::RUNNING, ProductionStatus::WAITING])
+            ->whereIn('status', [
+                ProductionStatus::QUEUED,
+                ProductionStatus::RUNNING,
+                ProductionStatus::WAITING,
+            ])
             ->where('next_check_at', '<=', now())->orderBy('id')->limit($limit)->get();
     }
 
@@ -56,8 +65,17 @@ readonly class ProductionRunRepository extends EloquentRepository
     public function hasUnresolvedEffects(ProductionRun $run): bool
     {
         return GenerationOperation::query()->whereHas('prompt.shot.scene.episodeRevision.episode', fn($query) => $query->where('series_id', $run->series_id))
-            ->whereIn('status', ['submission_unknown', 'submitting', 'submitted', 'running'])->exists()
-            || PublicationRequest::query()->where('production_run_id', $run->id)->whereIn('status', ['submission_unknown', 'submitting', 'publishing_container'])->exists();
+            ->whereIn('status', [
+                'submission_unknown',
+                'submitting',
+                'submitted',
+                'running',
+            ])->exists()
+            || PublicationRequest::query()->where('production_run_id', $run->id)->whereIn('status', [
+                'submission_unknown',
+                'submitting',
+                'publishing_container',
+            ])->exists();
     }
 
     public function forRequestKey(string $key): ?ProductionRun
@@ -157,7 +175,8 @@ readonly class ProductionRunRepository extends EloquentRepository
         $single = $series?->output_mode === SeriesOutputMode::SINGLE_VIDEO;
 
         if ($single) {
-            $snapshot = [...($snapshot ?? []),
+            $snapshot = [
+                ...($snapshot ?? []),
                 'output_mode' => $series->output_mode->value,
                 'episode_limit' => $snapshot['episode_limit'] ?? $series->episode_limit,
                 'specification_version' => $snapshot['specification_version'] ?? $series->specification_version,
@@ -167,10 +186,15 @@ readonly class ProductionRunRepository extends EloquentRepository
         }
 
         return [
-            'project_id' => $project->id, 'series_id' => $series?->id, 'actor_id' => $actor->id,
-            'request_key' => $key, 'status' => ProductionStatus::QUEUED,
+            'project_id' => $project->id,
+            'series_id' => $series?->id,
+            'actor_id' => $actor->id,
+            'request_key' => $key,
+            'status' => ProductionStatus::QUEUED,
             'stage' => $single ? ProductionStage::PLANNING : ProductionStage::PREPARING,
-            'input_snapshot' => $snapshot, 'stage_started_at' => now(), 'next_check_at' => now(),
+            'input_snapshot' => $snapshot,
+            'stage_started_at' => now(),
+            'next_check_at' => now(),
         ];
     }
 

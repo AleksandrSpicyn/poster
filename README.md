@@ -45,6 +45,7 @@ docker compose exec -T --user appuser app npm run typecheck
 
 ## Справка
 
+- [Карта пользовательских сценариев](docs/scenario-map.md)
 - [Архитектура приложения и обработка видео](docs/architecture.md)
 - [Развёртывание, очереди и восстановление](docs/deployment.md)
 - [Граф зависимостей](docs/project-graph.md)

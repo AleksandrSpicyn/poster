@@ -42,7 +42,8 @@ final readonly class PublicationObservationRepository
     {
         if ($channel->owner_id !== null) {
             ChannelMetricSync::query()->updateOrCreate(['channel_id' => $channel->id], [
-                'owner_id' => $channel->owner_id, 'status' => $status,
+                'owner_id' => $channel->owner_id,
+                'status' => $status,
                 ...($status === MetricCollectionStatus::COLLECTED ? ['last_success_at' => now()] : []),
             ]);
         }
@@ -127,7 +128,11 @@ final readonly class PublicationObservationRepository
             $keys = [];
 
             foreach (array_keys($metrics) as $id) {
-                $keys[$id] = hash('sha256', serialize([$channel->type->value, $account, $targets[$id]->mediaId]));
+                $keys[$id] = hash('sha256', serialize([
+                    $channel->type->value,
+                    $account,
+                    $targets[$id]->mediaId,
+                ]));
             }
 
             $existing = PublicationObservation::query()->where('owner_id', $channel->owner_id)->where('observed_on', $day)
@@ -151,8 +156,13 @@ final readonly class PublicationObservationRepository
                         continue;
                     }
 
-                    $links[] = ['owner_id' => $channel->owner_id, 'publication_key' => $key, 'source_type' => $origin->type,
-                        'source_id' => $origin->id, 'project_id' => $origin->projectId];
+                    $links[] = [
+                        'owner_id' => $channel->owner_id,
+                        'publication_key' => $key,
+                        'source_type' => $origin->type,
+                        'source_id' => $origin->id,
+                        'project_id' => $origin->projectId,
+                    ];
 
                     if ($origin->type === Post::class) {
                         $postId = $origin->id;
@@ -170,21 +180,52 @@ final readonly class PublicationObservationRepository
 
                 if ($linked) {
                     $identity = ['owner_id' => $channel->owner_id, 'publication_key' => $key];
-                    $identities[] = [...$identity, 'platform' => $channel->type->value, 'account' => $account, 'media_id' => $target->mediaId];
+                    $identities[] = [
+                        ...$identity,
+                        'platform' => $channel->type->value,
+                        'account' => $account,
+                        'media_id' => $target->mediaId,
+                    ];
                     $snapshot = $previous ?? new PublicationObservation();
-                    $snapshot->fill([...$identity, 'observed_on' => $day, 'channel_id' => $channel->id, 'title' => mb_substr($target->title, 0, 255),
-                        'post_id' => $postId, 'opus_clip_id' => $clipId, 'metrics' => $values]);
+                    $snapshot->fill([
+                        ...$identity,
+                        'observed_on' => $day,
+                        'channel_id' => $channel->id,
+                        'title' => mb_substr($target->title, 0, 255),
+                        'post_id' => $postId,
+                        'opus_clip_id' => $clipId,
+                        'metrics' => $values,
+                    ]);
 
                     if ($snapshot->isDirty()) {
-                        $rows[] = array_diff_key($snapshot->getAttributes(), array_flip(['id', 'created_at', 'updated_at']));
+                        $rows[] = array_diff_key($snapshot->getAttributes(), array_flip([
+                            'id',
+                            'created_at',
+                            'updated_at',
+                        ]));
                     }
                 }
             }
 
             if ($links !== []) {
                 DB::table('publication_metric_identities')->upsert($identities, ['owner_id', 'publication_key'], ['publication_key']);
-                DB::table('publication_metric_origins')->upsert($links, ['owner_id', 'publication_key', 'source_type', 'source_id'], ['project_id']);
-                PublicationObservation::query()->upsert($rows, ['owner_id', 'publication_key', 'observed_on'], ['post_id', 'opus_clip_id', 'title', 'metrics', 'channel_id']);
+                DB::table('publication_metric_origins')->upsert($links, [
+                    'owner_id',
+                    'publication_key',
+                    'source_type',
+                    'source_id',
+                ], ['project_id']);
+                PublicationObservation::query()->upsert($rows, [
+                    'owner_id',
+                    'publication_key',
+                    'observed_on',
+                ], [
+                    'post_id',
+                    'opus_clip_id',
+                    'title',
+                    'metrics',
+                    'channel_id',
+                ]);
             }
 
             $this->syncRuns->observations($newOrigins);

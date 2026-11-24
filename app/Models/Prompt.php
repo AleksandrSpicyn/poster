@@ -54,7 +54,11 @@ class Prompt extends Model implements HasMedia
 
     use InteractsWithMedia;
 
-    protected $casts = ['generated' => 'boolean', 'video_provider' => VideoProvider::class, 'input_snapshot' => 'array'];
+    protected $casts = [
+        'generated' => 'boolean',
+        'video_provider' => VideoProvider::class,
+        'input_snapshot' => 'array',
+    ];
 
     protected $fillable = [
         'prompt',

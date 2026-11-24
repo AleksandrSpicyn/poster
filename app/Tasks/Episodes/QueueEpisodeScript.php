@@ -52,7 +52,11 @@ class QueueEpisodeScript
                 'script_request_key' => $data->request_key,
                 'script_requested_by' => $actorId,
                 'script_generation_status' => ScriptGenerationStatus::QUEUED,
-                'script_request_payload' => ['brief' => $data->brief, 'context' => $context, 'expected_version' => $data->lock_version],
+                'script_request_payload' => [
+                    'brief' => $data->brief,
+                    'context' => $context,
+                    'expected_version' => $data->lock_version,
+                ],
                 'script_generation_error' => null,
                 'script_started_at' => null,
             ]);

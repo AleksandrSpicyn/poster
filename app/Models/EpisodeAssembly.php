@@ -89,8 +89,10 @@ class EpisodeAssembly extends Model implements HasMedia
             if (is_array($shot) && is_int($shot['shot_id'] ?? null) && is_int($shot['prompt_id'] ?? null)
                 && is_int($shot['trim_start_ms'] ?? null) && is_int($shot['trim_end_ms'] ?? null)) {
                 $selection[] = [
-                    'shot_id' => $shot['shot_id'], 'prompt_id' => $shot['prompt_id'],
-                    'trim_start_ms' => $shot['trim_start_ms'], 'trim_end_ms' => $shot['trim_end_ms'],
+                    'shot_id' => $shot['shot_id'],
+                    'prompt_id' => $shot['prompt_id'],
+                    'trim_start_ms' => $shot['trim_start_ms'],
+                    'trim_end_ms' => $shot['trim_end_ms'],
                 ];
             }
         }

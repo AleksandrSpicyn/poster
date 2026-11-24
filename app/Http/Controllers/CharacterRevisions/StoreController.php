@@ -41,6 +41,10 @@ class StoreController
     {
         $action->run($character, $data);
 
-        return to_route('characters.show', ['project' => $project, 'series' => $series, 'character' => $character]);
+        return to_route('characters.show', [
+            'project' => $project,
+            'series' => $series,
+            'character' => $character,
+        ]);
     }
 }

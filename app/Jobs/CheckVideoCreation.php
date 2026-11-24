@@ -80,7 +80,11 @@ class CheckVideoCreation implements ShouldQueue
         } catch (VideoGenerationPendingException) {
             $this->release(60);
         } catch (VideoGeneratingException $e) {
-            if (in_array($e->usage?->status, [VideoReceiptStatus::FAILED, VideoReceiptStatus::CANCELLED, VideoReceiptStatus::EXPIRED], true)) {
+            if (in_array($e->usage?->status, [
+                VideoReceiptStatus::FAILED,
+                VideoReceiptStatus::CANCELLED,
+                VideoReceiptStatus::EXPIRED,
+            ], true)) {
                 DB::transaction(fn() => $reservations->setStatus([$this->prompt->id], ReservationStatus::RELEASED), 3);
             }
 

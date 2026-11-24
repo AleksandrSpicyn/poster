@@ -97,7 +97,8 @@ class AcceptEpisode
                     'episode_number' => $episode->number,
                     'duration_ms' => $assembly->duration_ms,
                 ],
-                'accepted_at' => now(), 'accepted_by' => $actor->id,
+                'accepted_at' => now(),
+                'accepted_by' => $actor->id,
                 'lock_version' => $assembly->lock_version + 1,
             ]);
             $this->episodes->update($episode, [

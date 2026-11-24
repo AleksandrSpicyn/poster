@@ -38,7 +38,8 @@ readonly class ProjectRepository extends EloquentRepository
         $query = Project::query()->where('owner_id', $owner->id)->with('media', 'coverFrame')->withCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $owner->id), 'series',
+            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $owner->id),
+            'series',
             'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
         ]);
 
@@ -75,7 +76,8 @@ readonly class ProjectRepository extends EloquentRepository
     public function information(User $owner, int $id): Project
     {
         return Project::query()->where('owner_id', $owner->id)->with([
-            'media', 'coverFrame',
+            'media',
+            'coverFrame',
             'channels' => fn(BelongsToMany $channels) => $channels->where('channels.owner_id', $owner->id),
             'series' => fn(HasMany $series) => $series->withCount(['episodes', 'episodes as accepted_episodes_count' => fn(Builder $episodes) => $episodes->whereNotNull('accepted_assembly_id')]),
         ])->withCount('prompts', 'readyPrompts')->findOrFail($id);
@@ -97,7 +99,8 @@ readonly class ProjectRepository extends EloquentRepository
         $project->loadCount([
             'prompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
             'readyPrompts' => static fn(Builder $query) => $query->whereNull('shot_id'),
-            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $project->owner_id), 'series',
+            'channels' => static fn(Builder $query) => $query->where('channels.owner_id', $project->owner_id),
+            'series',
             'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
         ]);
         $project->setRelation('channels', $project
@@ -117,11 +120,18 @@ readonly class ProjectRepository extends EloquentRepository
 
     public function forSettings(Project $project): Project
     {
-        return $project->load(['seriesDefinition' => fn($query) => $query->withMax('episodes', 'number'), 'seriesDefinition.characters' => fn($query) => $query->whereNull('archived_at')
-            ->whereNotNull('current_revision_id')->with('currentRevision.media')->orderBy('name'), 'media', 'coverFrame'])->loadCount([
-                'prompts', 'channels', 'series',
-                'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
-            ]);
+        return $project->load([
+            'seriesDefinition' => fn($query) => $query->withMax('episodes', 'number'),
+            'seriesDefinition.characters' => fn($query) => $query->whereNull('archived_at')
+                ->whereNotNull('current_revision_id')->with('currentRevision.media')->orderBy('name'),
+            'media',
+            'coverFrame',
+        ])->loadCount([
+            'prompts',
+            'channels',
+            'series',
+            'productionRuns as blocking_runs_count' => static fn(Builder $query) => $query->whereIn('status', ProductionStatus::blockingValues()),
+        ]);
     }
 
     public function hasSeries(Project $project): bool

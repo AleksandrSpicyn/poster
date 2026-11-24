@@ -34,6 +34,11 @@ final class FiscalProfile
             return null;
         }
 
-        return ['vat' => $vat, 'subject' => $subject, 'mode' => $mode, 'tax_system' => $tax];
+        return [
+            'vat' => $vat,
+            'subject' => $subject,
+            'mode' => $mode,
+            'tax_system' => $tax,
+        ];
     }
 }

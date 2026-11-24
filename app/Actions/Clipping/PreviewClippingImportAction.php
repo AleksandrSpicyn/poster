@@ -73,7 +73,11 @@ final readonly class PreviewClippingImportAction
 
         foreach ($available as $account) {
             if (! isset($selectedIds[$account['id']])) {
-                $unmapped[] = ['id' => $account['id'], 'name' => $account['name'], 'platform' => $account['platform']];
+                $unmapped[] = [
+                    'id' => $account['id'],
+                    'name' => $account['name'],
+                    'platform' => $account['platform'],
+                ];
             }
         }
 

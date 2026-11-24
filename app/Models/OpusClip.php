@@ -26,7 +26,11 @@ class OpusClip extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['publications' => 'array', 'score' => 'float', 'duration_ms' => 'integer'];
+    protected $casts = [
+        'publications' => 'array',
+        'score' => 'float',
+        'duration_ms' => 'integer',
+    ];
 
     /** @return BelongsTo<OpusSource, $this> */
     public function source(): BelongsTo

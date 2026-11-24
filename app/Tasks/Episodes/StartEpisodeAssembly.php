@@ -55,8 +55,11 @@ class StartEpisodeAssembly
             }
 
             $this->assemblies->update($assembly, [
-                'status' => AssemblyStatus::BUILDING, 'started_at' => now(), 'completed_at' => null,
-                'error_message' => null, 'lock_version' => $assembly->lock_version + 1,
+                'status' => AssemblyStatus::BUILDING,
+                'started_at' => now(),
+                'completed_at' => null,
+                'error_message' => null,
+                'lock_version' => $assembly->lock_version + 1,
             ]);
 
             return $this->assemblies->refresh($assembly);

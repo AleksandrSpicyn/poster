@@ -28,8 +28,6 @@ use Throwable;
  */
 class Instagram extends AbstractPublisher implements StagedPublisher, VerifiablePublisher
 {
-    private const string GRAPH_URL = 'https://graph.instagram.com';
-
     public function publish(): bool
     {
         try {
@@ -131,7 +129,7 @@ class Instagram extends AbstractPublisher implements StagedPublisher, Verifiable
             ->baseUrl(
                 sprintf(
                     '%s/%s',
-                    self::GRAPH_URL,
+                    config()->string('services.instagram.graph_url'),
                     $id ?? Payload::string($this->channel->credentials['channel_id'] ?? null, 'channel_id'),
                 ),
             )

@@ -69,7 +69,11 @@ readonly class CodexReferenceFiles
             $image = @getimagesizefromstring($content);
 
             if (strlen($content) !== $size || $image === false
-                || ! in_array($image[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP], true)
+                || ! in_array($image[2], [
+                    IMAGETYPE_PNG,
+                    IMAGETYPE_JPEG,
+                    IMAGETYPE_WEBP,
+                ], true)
                 || $image[0] < 1 || $image[1] < 1
                 || $image[0] > self::MAX_REFERENCE_DIMENSION || $image[1] > self::MAX_REFERENCE_DIMENSION) {
                 throw new InvalidArgumentException('Codex references must be valid PNG, JPEG, or WebP images of at most 6000 pixels per dimension.');

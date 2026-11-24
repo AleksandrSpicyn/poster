@@ -44,15 +44,23 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
 
         foreach ($script->scenes as $position => $scene) {
             $scenes[] = [
-                'episode_revision_id' => $revision->id, 'position' => $position + 1, 'title' => $scene->title,
+                'episode_revision_id' => $revision->id,
+                'position' => $position + 1,
+                'title' => $scene->title,
                 'setting' => ['location' => $scene->location, 'time' => $scene->time],
-                'objective' => $scene->objective, 'initial_state' => ['description' => $scene->initial_state],
-                'expected_final_state' => ['description' => $scene->expected_final_state], 'is_closed' => $scene->is_closed,
+                'objective' => $scene->objective,
+                'initial_state' => ['description' => $scene->initial_state],
+                'expected_final_state' => ['description' => $scene->expected_final_state],
+                'is_closed' => $scene->is_closed,
             ];
         }
 
         Scene::query()->fillAndInsert($scenes);
-        $savedScenes = $revision->scenes()->chaperone('episodeRevision')->get(['id', 'position', 'episode_revision_id'])->keyBy('position');
+        $savedScenes = $revision->scenes()->chaperone('episodeRevision')->get([
+            'id',
+            'position',
+            'episode_revision_id',
+        ])->keyBy('position');
         $shots = [];
 
         foreach ($script->scenes as $position => $scene) {
@@ -60,12 +68,18 @@ readonly class EpisodeRevisionRepository extends EloquentRepository
 
             foreach ($scene->shots as $shotPosition => $shot) {
                 $shots[] = [
-                    'scene_id' => $saved->id, 'position' => $shotPosition + 1, 'duration_ms' => $shot->duration_ms,
-                    'title' => $shot->title, 'plan_type' => $shot->plan_type,
-                    'action' => $shot->action, 'camera' => ['description' => $shot->camera],
+                    'scene_id' => $saved->id,
+                    'position' => $shotPosition + 1,
+                    'duration_ms' => $shot->duration_ms,
+                    'title' => $shot->title,
+                    'plan_type' => $shot->plan_type,
+                    'action' => $shot->action,
+                    'camera' => ['description' => $shot->camera],
                     'dialogue' => collect($shot->dialogue)->map(fn($line): array => $line->toArray())->all(),
-                    'transition_mode' => $shot->transition_mode, 'source_prompt_id' => $shot->source_prompt_id,
-                    'source_assembly_id' => $shot->source_assembly_id, 'source_anchor' => ['time_ms' => $shot->source_time_ms],
+                    'transition_mode' => $shot->transition_mode,
+                    'source_prompt_id' => $shot->source_prompt_id,
+                    'source_assembly_id' => $shot->source_assembly_id,
+                    'source_anchor' => ['time_ms' => $shot->source_time_ms],
                 ];
             }
         }

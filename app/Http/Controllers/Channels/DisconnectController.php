@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\DisconnectChannelAction;
 use App\Models\Channel;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,9 +30,9 @@ class DisconnectController
      * @response 404
      * @response 422 {"message":"The given data was invalid.","errors":{}}
      */
-    public function __invoke(Channel $channel, DisconnectChannelAction $action): RedirectResponse
+    public function __invoke(#[CurrentUser] User $owner, Channel $channel, DisconnectChannelAction $action): RedirectResponse
     {
-        $action->run($channel);
+        $action->run($owner, $channel);
         Inertia::flash('success', 'Connection removed from Poster. You can also revoke access in your platform account.');
 
         return to_route('channels.edit', $channel);

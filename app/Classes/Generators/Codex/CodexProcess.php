@@ -81,7 +81,11 @@ readonly class CodexProcess
             }
 
             $result = Process::path($workspace)
-                ->env(['CODEX_HOME' => $home, 'OPENAI_API_KEY' => false, 'CODEX_API_KEY' => false])
+                ->env([
+                    'CODEX_HOME' => $home,
+                    'OPENAI_API_KEY' => false,
+                    'CODEX_API_KEY' => false,
+                ])
                 ->timeout($timeout)
                 ->input($prompt)
                 ->run($this->command($workspace, $model, $images, array_map(fn(ImageReferenceData $reference): string => $reference->path, $preparedReferences)));
@@ -117,18 +121,34 @@ readonly class CodexProcess
     private function command(string $workspace, ?string $model, bool $images, array $references): array
     {
         $command = [
-            $this->binary, 'exec', '--ignore-user-config', '--ignore-rules', '--skip-git-repo-check', '--ephemeral',
-            '--sandbox', $images ? 'workspace-write' : 'read-only',
-            '-c', 'forced_login_method="chatgpt"',
-            '-c', 'cli_auth_credentials_store="file"',
-            '-c', 'approval_policy="never"',
-            '-c', 'features.image_generation=' . ($images ? 'true' : 'false'),
-            '-c', 'features.shell_tool=false',
-            '-c', 'features.unified_exec=false',
-            '-c', 'web_search="disabled"',
-            '-c', 'shell_environment_policy.inherit="none"',
-            '--output-schema', $workspace . '/schema.json',
-            '--output-last-message', $workspace . '/result.json',
+            $this->binary,
+            'exec',
+            '--ignore-user-config',
+            '--ignore-rules',
+            '--skip-git-repo-check',
+            '--ephemeral',
+            '--sandbox',
+            $images ? 'workspace-write' : 'read-only',
+            '-c',
+            'forced_login_method="chatgpt"',
+            '-c',
+            'cli_auth_credentials_store="file"',
+            '-c',
+            'approval_policy="never"',
+            '-c',
+            'features.image_generation=' . ($images ? 'true' : 'false'),
+            '-c',
+            'features.shell_tool=false',
+            '-c',
+            'features.unified_exec=false',
+            '-c',
+            'web_search="disabled"',
+            '-c',
+            'shell_environment_policy.inherit="none"',
+            '--output-schema',
+            $workspace . '/schema.json',
+            '--output-last-message',
+            $workspace . '/result.json',
         ];
 
         if ($model !== null) {
@@ -141,6 +161,10 @@ readonly class CodexProcess
             $command[] = $reference;
         }
 
-        return [...$command, '--', '-'];
+        return [
+            ...$command,
+            '--',
+            '-',
+        ];
     }
 }

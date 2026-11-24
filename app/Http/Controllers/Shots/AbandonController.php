@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Shots;
 
 use App\Actions\Shots\AbandonShotGenerationAction;
 use App\Data\Shots\AbandonShotGenerationData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\GenerationOperation;
@@ -17,7 +18,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class AbandonController
+class AbandonController extends EpisodeController
 {
     /**
      * Закрыть неизвестный запуск по решению оператора
@@ -50,6 +51,6 @@ class AbandonController
     {
         $action->run($operation, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
+        return $this->redirectToEpisode($series, $episode)->withFragment('shots');
     }
 }

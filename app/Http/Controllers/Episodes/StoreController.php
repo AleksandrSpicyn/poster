@@ -6,10 +6,11 @@ namespace App\Http\Controllers\Episodes;
 
 use App\Actions\Episodes\CreateEpisodeAction;
 use App\Data\Episodes\CreateEpisodeData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends EpisodeController
 {
     /**
      * Создание очередного эпизода
@@ -32,6 +33,6 @@ class StoreController
     {
         $episode = $action->run($series, $data);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

@@ -60,7 +60,11 @@ final readonly class ClippingSyncRunRepository
 
         foreach ($origins as $key => $ids) {
             foreach ($runs->only($ids)->unique('opus_source_id') as $run) {
-                $rows[] = ['clipping_sync_run_id' => $run->run_id, 'opus_source_id' => $run->opus_source_id, 'observation_key' => $key];
+                $rows[] = [
+                    'clipping_sync_run_id' => $run->run_id,
+                    'opus_source_id' => $run->opus_source_id,
+                    'observation_key' => $key,
+                ];
             }
         }
 
@@ -71,6 +75,11 @@ final readonly class ClippingSyncRunRepository
 
     public static function observationKey(string $platform, string $account, string $mediaId, string $day): string
     {
-        return hash('sha256', serialize([$platform, $account, $mediaId, $day]));
+        return hash('sha256', serialize([
+            $platform,
+            $account,
+            $mediaId,
+            $day,
+        ]));
     }
 }

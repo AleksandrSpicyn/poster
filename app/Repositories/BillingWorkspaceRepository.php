@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Data\Billing\GenerationBalanceData;
 use App\Data\Billing\NextBillingPlanData;
 use App\Data\Billing\RenewalConsentData;
 use App\Enums\BillingProduct;
@@ -18,7 +19,15 @@ final class BillingWorkspaceRepository
 {
     public function account(int $owner): ?stdClass
     {
-        return DB::table('billing_accounts')->where('owner_id', $owner)->select(['sales_enabled', 'renewal_consent', 'automatic_payments_enabled', 'current_product', 'next_product', 'renews_at', 'payment_method_last_four'])
+        return DB::table('billing_accounts')->where('owner_id', $owner)->select([
+            'sales_enabled',
+            'renewal_consent',
+            'automatic_payments_enabled',
+            'current_product',
+            'next_product',
+            'renews_at',
+            'payment_method_last_four',
+        ])
             ->addSelect(['retry_at' => DB::table('billing_orders as o')->select('o.retry_at')->whereColumn('o.owner_id', 'billing_accounts.owner_id')->whereColumn('o.renewal_due_at', 'billing_accounts.renews_at')->whereNotNull('o.retry_at')->latest('o.id')->limit(1)])
             ->selectRaw('case when renews_at > ? and renews_at <= ? then 1 else 0 end as reminder_due', [now('UTC'), now('UTC')->addDays(3)])
             ->selectRaw('case when payment_method_id is null then 0 else 1 end as has_card')->first();
@@ -45,8 +54,16 @@ final class BillingWorkspaceRepository
 
                 $revision = $current->consent_revision + 1;
                 $account->update(['consent_revision' => $revision]);
-                DB::table('billing_consents')->insert(['owner_id' => $owner, 'actor_id' => $owner, 'revision' => $revision, 'action' => 'change_plan',
-                    'product_code' => $next->value, 'amount_kopecks' => $next->amountKopecks(), 'terms_version' => BillingProduct::CATALOG_VERSION, 'created_at' => now('UTC')]);
+                DB::table('billing_consents')->insert([
+                    'owner_id' => $owner,
+                    'actor_id' => $owner,
+                    'revision' => $revision,
+                    'action' => 'change_plan',
+                    'product_code' => $next->value,
+                    'amount_kopecks' => $next->amountKopecks(),
+                    'terms_version' => BillingProduct::CATALOG_VERSION,
+                    'created_at' => now('UTC'),
+                ]);
             }
 
             $account->update(['next_product' => $current->current_product === $product?->value ? null : $product?->value, 'updated_at' => now('UTC')]);
@@ -76,9 +93,21 @@ final class BillingWorkspaceRepository
             }
 
             $revision = $account->consent_revision + 1;
-            $accounts->update(['renewal_consent' => $data->enabled, 'consent_revision' => $revision, 'updated_at' => now('UTC')]);
-            DB::table('billing_consents')->insert(['owner_id' => $owner, 'actor_id' => $owner, 'revision' => $revision, 'action' => $data->enabled ? 'enable' : 'disable',
-                'terms_version' => $data->catalog_version, 'product_code' => $data->product->value, 'amount_kopecks' => $data->product->amountKopecks(), 'created_at' => now('UTC')]);
+            $accounts->update([
+                'renewal_consent' => $data->enabled,
+                'consent_revision' => $revision,
+                'updated_at' => now('UTC'),
+            ]);
+            DB::table('billing_consents')->insert([
+                'owner_id' => $owner,
+                'actor_id' => $owner,
+                'revision' => $revision,
+                'action' => $data->enabled ? 'enable' : 'disable',
+                'terms_version' => $data->catalog_version,
+                'product_code' => $data->product->value,
+                'amount_kopecks' => $data->product->amountKopecks(),
+                'created_at' => now('UTC'),
+            ]);
         }, 3);
     }
 
@@ -95,10 +124,24 @@ final class BillingWorkspaceRepository
 
             $now = now('UTC');
             $revision = $current->consent_revision + 1;
-            $account->update(['renewal_consent' => false, 'payment_method_id' => null, 'payment_method_last_four' => null, 'payment_method_provider' => null,
-                'payment_method_test_mode' => null, 'payment_method_shop' => null, 'consent_revision' => $revision, 'updated_at' => $now]);
-            DB::table('billing_consents')->insert(['owner_id' => $owner, 'actor_id' => $owner, 'revision' => $revision,
-                'action' => 'detach', 'terms_version' => BillingProduct::CATALOG_VERSION, 'created_at' => $now]);
+            $account->update([
+                'renewal_consent' => false,
+                'payment_method_id' => null,
+                'payment_method_last_four' => null,
+                'payment_method_provider' => null,
+                'payment_method_test_mode' => null,
+                'payment_method_shop' => null,
+                'consent_revision' => $revision,
+                'updated_at' => $now,
+            ]);
+            DB::table('billing_consents')->insert([
+                'owner_id' => $owner,
+                'actor_id' => $owner,
+                'revision' => $revision,
+                'action' => 'detach',
+                'terms_version' => BillingProduct::CATALOG_VERSION,
+                'created_at' => $now,
+            ]);
         }, 3);
     }
 
@@ -124,7 +167,12 @@ final class BillingWorkspaceRepository
     {
         /** @var Collection<int, object{intent_key: string, quote_snapshot: string, status: string, prompt_id: ?int}> $rows */
         $rows = DB::table('generation_reservations')->where('owner_id', $owner)->where('production_run_id', $run)
-            ->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)->orderBy('id')->get(['intent_key', 'quote_snapshot', 'status', 'prompt_id']);
+            ->where('accounting_mode', GenerationAccountingMode::ENFORCED->value)->orderBy('id')->get([
+                'intent_key',
+                'quote_snapshot',
+                'status',
+                'prompt_id',
+            ]);
         $estimate = null;
         $shots = [];
 
@@ -139,7 +187,12 @@ final class BillingWorkspaceRepository
             if (str_starts_with($row->intent_key, 'episode:') || str_starts_with($row->intent_key, 'short:')) {
                 $estimate = ($estimate ?? 0) + $quote['seconds'];
             } elseif (isset($quote['shot_id'])) {
-                $shots[] = ['shot_id' => $quote['shot_id'], 'prompt_id' => $row->prompt_id, 'seconds' => $quote['seconds'], 'status' => $row->status];
+                $shots[] = [
+                    'shot_id' => $quote['shot_id'],
+                    'prompt_id' => $row->prompt_id,
+                    'seconds' => $quote['seconds'],
+                    'status' => $row->status,
+                ];
             }
         }
 
@@ -149,13 +202,21 @@ final class BillingWorkspaceRepository
     public function hasOtherModePayment(int $owner, bool $test): bool
     {
         return DB::table('billing_payments as p')->join('billing_orders as o', 'o.id', '=', 'p.order_id')
-            ->where('o.owner_id', $owner)->where('p.test_mode', ! $test)->whereIn('p.status', ['succeeded', 'pending', 'unknown'])->exists();
+            ->where('o.owner_id', $owner)->where('p.test_mode', ! $test)->whereIn('p.status', [
+                'succeeded',
+                'pending',
+                'unknown',
+            ])->exists();
     }
 
     public function hasPurchased(int $owner): bool
     {
         return DB::table('generation_grants')->where('owner_id', $owner)->exists()
-            || DB::table('billing_orders')->where('owner_id', $owner)->whereIn('status', ['paid', 'succeeded', 'refunded'])->exists();
+            || DB::table('billing_orders')->where('owner_id', $owner)->whereIn('status', [
+                'paid',
+                'succeeded',
+                'refunded',
+            ])->exists();
     }
 
     public function activeMonth(int $owner): bool
@@ -173,10 +234,19 @@ final class BillingWorkspaceRepository
     public function sources(int $owner): Collection
     {
         return $this->grants($owner)->where(fn(Builder $query) => $query->whereNull('g.ends_at')->orWhere('g.ends_at', '>', now('UTC'))->orWhere('g.held_seconds', '>', 0))
-            ->orderByDesc('g.id')->selectRaw("case when o.status = 'refunded' or ends_at <= ? then 0 else 1 end as active", [now('UTC')])->addSelect(['g.id', 'o.product_code', 'o.amount_kopecks', 'g.starts_at', 'g.ends_at', 'g.granted_seconds', 'g.available_seconds', 'g.held_seconds'])->get();
+            ->orderByDesc('g.id')->selectRaw("case when o.status = 'refunded' or ends_at <= ? then 0 else 1 end as active", [now('UTC')])->addSelect([
+                'g.id',
+                'o.product_code',
+                'o.amount_kopecks',
+                'g.starts_at',
+                'g.ends_at',
+                'g.granted_seconds',
+                'g.available_seconds',
+                'g.held_seconds',
+            ])->get();
     }
 
-    public function balance(int $owner): stdClass
+    public function balance(int $owner): GenerationBalanceData
     {
         $at = now('UTC');
 
@@ -187,13 +257,28 @@ final class BillingWorkspaceRepository
             ->selectRaw('coalesce(sum(expired_seconds + case when ends_at <= ? then available_seconds else 0 end), 0) as expired', [$at])
             ->firstOrFail();
 
-        return (object) ['available' => (int) $row->available, 'held' => (int) $row->held, 'consumed' => (int) $row->consumed, 'expired' => (int) $row->expired];
+        return new GenerationBalanceData(
+            available: (int) $row->available,
+            held: (int) $row->held,
+            consumed: (int) $row->consumed,
+            expired: (int) $row->expired,
+        );
     }
 
     private function orders(int $owner): Builder
     {
         return DB::table('billing_orders as o')->where('o.owner_id', $owner)
-            ->select(['o.id', 'o.product_code', 'o.status', 'o.amount_kopecks', 'o.currency', 'o.seconds', 'o.created_at', 'o.period_starts_at', 'o.period_ends_at'])
+            ->select([
+                'o.id',
+                'o.product_code',
+                'o.status',
+                'o.amount_kopecks',
+                'o.currency',
+                'o.seconds',
+                'o.created_at',
+                'o.period_starts_at',
+                'o.period_ends_at',
+            ])
             ->addSelect(['payment_status' => DB::table('billing_payments')->select('status')->whereColumn('order_id', 'o.id')->orderByDesc('created_at')->orderByDesc('id')->limit(1)]);
     }
 
@@ -220,14 +305,24 @@ final class BillingWorkspaceRepository
     public function refunds(int $order): Collection
     {
         return DB::table('billing_refunds as r')->join('billing_payments as p', 'p.id', '=', 'r.payment_id')->where('p.order_id', $order)
-            ->orderByDesc('r.created_at')->get(['r.id', 'r.amount_kopecks', 'r.currency', 'r.status', 'r.created_at']);
+            ->orderByDesc('r.created_at')->get([
+                'r.id',
+                'r.amount_kopecks',
+                'r.currency',
+                'r.status',
+                'r.created_at',
+            ]);
     }
 
     /** @return Collection<int, stdClass> */
     public function receipts(int $order): Collection
     {
         return DB::table('billing_receipts as r')->join('billing_payments as p', 'p.id', '=', 'r.payment_id')->where('p.order_id', $order)
-            ->orderByDesc('r.id')->get(['r.id', 'r.kind', 'r.status']);
+            ->orderByDesc('r.id')->get([
+                'r.id',
+                'r.kind',
+                'r.status',
+            ]);
     }
 
     /** @return Collection<int, stdClass> */
@@ -248,13 +343,31 @@ final class BillingWorkspaceRepository
             ->leftJoin('generation_reservations as r', 'r.id', '=', 'part.reservation_id')
             ->when($project !== null, fn(Builder $q) => $q->where('r.project_id', $project))
             ->where('e.owner_id', $owner)->where(fn(Builder $q) => $q->whereNull('r.id')->orWhere('r.accounting_mode', '!=', GenerationAccountingMode::SHADOW->value))->orderByDesc('e.id')
-            ->select(['e.id', 'e.kind', 'e.reason', 'e.created_at', 'e.available_delta', 'e.held_delta', 'e.consumed_delta', 'e.expired_delta', 'e.revoked_delta',
-                'o.product_code', 'g.order_id', 'part.shot_id', 'r.project_id', 'r.production_run_id']);
+            ->select([
+                'e.id',
+                'e.kind',
+                'e.reason',
+                'e.created_at',
+                'e.available_delta',
+                'e.held_delta',
+                'e.consumed_delta',
+                'e.expired_delta',
+                'e.revoked_delta',
+                'o.product_code',
+                'g.order_id',
+                'part.shot_id',
+                'r.project_id',
+                'r.production_run_id',
+            ]);
         $results = $query->paginate(15, page: $page);
 
         /** @var Collection<int, stdClass> $rows */
         $rows = $results->getCollection();
 
-        return ['data' => $rows, 'page' => $results->currentPage(), 'last' => $results->lastPage()];
+        return [
+            'data' => $rows,
+            'page' => $results->currentPage(),
+            'last' => $results->lastPage(),
+        ];
     }
 }

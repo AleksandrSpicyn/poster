@@ -91,8 +91,10 @@ readonly class MakeShortSubAction
 
         $snapshot = ['video_request' => $video->request?->toArray()];
         $this->updatePrompt->run($prompt, [
-            'video_id' => $video->id, 'video_provider' => $video->provider->value,
-            'input_snapshot' => $snapshot, 'input_hash' => Snapshot::hash($snapshot),
+            'video_id' => $video->id,
+            'video_provider' => $video->provider->value,
+            'input_snapshot' => $snapshot,
+            'input_hash' => Snapshot::hash($snapshot),
         ]);
         event(new VideoGenerating($prompt));
 

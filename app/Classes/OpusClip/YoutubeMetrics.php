@@ -18,8 +18,9 @@ final readonly class YoutubeMetrics
     public function statistics(PendingRequest $http, string $account, array $references): Generator
     {
         foreach (array_chunk($references, 50) as $ids) {
-            $response = $http->get('https://www.googleapis.com/youtube/v3/videos', [
-                'part' => 'snippet,statistics', 'id' => implode(',', $ids),
+            $response = $http->get(config()->string('services.youtube.api_url') . '/videos', [
+                'part' => 'snippet,statistics',
+                'id' => implode(',', $ids),
                 'fields' => 'items(id,snippet/channelId,statistics(viewCount,likeCount,commentCount))',
             ])->throw();
 
@@ -32,7 +33,11 @@ final readonly class YoutubeMetrics
 
                 $metrics = [];
 
-                foreach (['viewCount' => 'views', 'likeCount' => 'likes', 'commentCount' => 'comments'] as $field => $name) {
+                foreach ([
+                    'viewCount' => 'views',
+                    'likeCount' => 'likes',
+                    'commentCount' => 'comments',
+                ] as $field => $name) {
                     $value = data_get($item, 'statistics.' . $field);
 
                     if (is_int($value) || (is_string($value) && ctype_digit($value))) {
@@ -52,10 +57,14 @@ final readonly class YoutubeMetrics
     public function read(PendingRequest $http, string $account, array $references): Generator
     {
         foreach (array_chunk($references, 100) as $ids) {
-            $report = $http->withoutRedirecting()->timeout(30)->get('https://youtubeanalytics.googleapis.com/v2/reports', [
-                'ids' => 'channel==' . $account, 'startDate' => '2005-01-01', 'endDate' => now('America/Los_Angeles')->toDateString(),
-                'metrics' => 'views,engagedViews,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,shares', 'dimensions' => 'video',
-                'filters' => 'video==' . implode(',', $ids), 'maxResults' => count($ids),
+            $report = $http->withoutRedirecting()->timeout(30)->get(config()->string('services.youtube.analytics_url') . '/reports', [
+                'ids' => 'channel==' . $account,
+                'startDate' => '2005-01-01',
+                'endDate' => now('America/Los_Angeles')->toDateString(),
+                'metrics' => 'views,engagedViews,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,shares',
+                'dimensions' => 'video',
+                'filters' => 'video==' . implode(',', $ids),
+                'maxResults' => count($ids),
             ])->throw();
             $headers = $report->json('columnHeaders');
 

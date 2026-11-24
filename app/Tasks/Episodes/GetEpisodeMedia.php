@@ -22,7 +22,11 @@ class GetEpisodeMedia
         $allowed = match ($media->model_type) {
             new Prompt()->getMorphClass() => in_array($media->collection_name, [Prompt::SHOT_IMAGE, Prompt::SHOT_VIDEO], true)
                 && $this->prompts->isShotTake($media->model_id),
-            new EpisodeAssembly()->getMorphClass() => in_array($media->collection_name, [EpisodeAssembly::VIDEO, EpisodeAssembly::CONTINUATION_FRAME, EpisodeAssembly::CONTINUATION_TAIL], true)
+            new EpisodeAssembly()->getMorphClass() => in_array($media->collection_name, [
+                EpisodeAssembly::VIDEO,
+                EpisodeAssembly::CONTINUATION_FRAME,
+                EpisodeAssembly::CONTINUATION_TAIL,
+            ], true)
                 && $this->assemblies->exists($media->model_id),
             default => false,
         };

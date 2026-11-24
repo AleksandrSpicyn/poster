@@ -8,29 +8,23 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { ProjectSummary } from '@/types/projects';
 import { Head, useForm } from '@inertiajs/vue3';
 import ImageFilePicker from '@/components/ImageFilePicker.vue';
-import { computed, onUnmounted, ref } from 'vue';
+import { useObjectUrl } from '@vueuse/core';
+import { computed, ref } from 'vue';
 import { useRoute } from '@/composables/useRoute';
 
 const { project } = defineProps<{ project: ProjectSummary }>();
 const submitForm = useFormApi();
 const route = useRoute();
 const form = useForm({ file: null as File | null, base_id: project.cover?.id ?? null, x: project.cover?.x ?? 50, y: project.cover?.y ?? 50 });
-const localImage = ref('');
+const localImage = useObjectUrl(() => form.file);
 const ratio = ref(1);
 const source = computed(() => localImage.value || project.cover?.url);
 const cropWidth = computed(() => Math.min(100, (100 * (16 / 9)) / ratio.value));
 const cropHeight = computed(() => Math.min(100, (100 * ratio.value) / (16 / 9)));
 const position = computed(() => form.x + '% ' + form.y + '%');
 
-function releasePreview() {
-    if (localImage.value) URL.revokeObjectURL(localImage.value);
-    localImage.value = '';
-}
-onUnmounted(releasePreview);
 function chooseFile(file: File) {
-    releasePreview();
     form.file = file;
-    localImage.value = URL.createObjectURL(file);
     form.x = form.y = 50;
     form.clearErrors();
 }

@@ -52,9 +52,26 @@ readonly class InspectEpisodeOutcome
                 $time = number_format(max(0, $duration - 100) * $index / ($count - 1) / 1000, 3, '.', '');
                 $path = $workspace . '/frame-' . $index . '.jpg';
                 $result = Process::timeout(30)->run([
-                    'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-                    '-ss', $time, '-i', $media->getPath(), '-frames:v', '1', '-vf', 'scale=384:-2',
-                    '-threads', '1', '-q:v', '3', $path,
+                    'ffmpeg',
+                    '-v',
+                    'error',
+                    '-nostdin',
+                    '-y',
+                    '-protocol_whitelist',
+                    'file,pipe',
+                    '-ss',
+                    $time,
+                    '-i',
+                    $media->getPath(),
+                    '-frames:v',
+                    '1',
+                    '-vf',
+                    'scale=384:-2',
+                    '-threads',
+                    '1',
+                    '-q:v',
+                    '3',
+                    $path,
                 ]);
 
                 if (! $result->successful() || ! File::isFile($path) || @getimagesize($path) === false) {

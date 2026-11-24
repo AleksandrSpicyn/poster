@@ -23,7 +23,16 @@ final readonly class TiktokClient
     /** @return list<string> */
     public function scopes(): array
     {
-        return config('services.tiktok.direct_post') ? ['user.info.basic', 'video.list', 'video.upload', 'video.publish'] : ['user.info.basic', 'video.list', 'video.upload'];
+        return config('services.tiktok.direct_post') ? [
+            'user.info.basic',
+            'video.list',
+            'video.upload',
+            'video.publish',
+        ] : [
+            'user.info.basic',
+            'video.list',
+            'video.upload',
+        ];
     }
 
     /**
@@ -32,7 +41,11 @@ final readonly class TiktokClient
      */
     public function exchange(Channel $channel, string $code, string $redirectUri, ?array $requiredScopes = null): array
     {
-        $tokens = $this->token($channel, ['grant_type' => 'authorization_code', 'code' => $code, 'redirect_uri' => $redirectUri]);
+        $tokens = $this->token($channel, [
+            'grant_type' => 'authorization_code',
+            'code' => $code,
+            'redirect_uri' => $redirectUri,
+        ]);
         $scope = Payload::string($tokens['scope'] ?? null, 'scope');
 
         if (array_diff($requiredScopes ?? ['user.info.basic'], explode(',', $scope)) !== []) {
@@ -45,7 +58,11 @@ final readonly class TiktokClient
             throw new ChannelAuthorizationException('TikTok не подтвердил аккаунт.');
         }
 
-        return [...$tokens, 'channel_id' => $tokens['open_id'], 'account_name' => Payload::string($this->data($profile, 'user.display_name'), 'display_name')];
+        return [
+            ...$tokens,
+            'channel_id' => $tokens['open_id'],
+            'account_name' => Payload::string($this->data($profile, 'user.display_name'), 'display_name'),
+        ];
     }
 
     /** @param array<string,string> $grant
@@ -53,8 +70,10 @@ final readonly class TiktokClient
      */
     private function token(Channel $channel, array $grant): array
     {
-        $response = Http::asForm()->withoutRedirecting()->timeout(20)->post('https://open.tiktokapis.com/v2/oauth/token/', [
-            ...$grant, 'client_key' => $channel->oauthClientId(), 'client_secret' => $channel->oauthClientSecret(),
+        $response = Http::asForm()->withoutRedirecting()->timeout(20)->post(config()->string('services.tiktok.api_url') . 'oauth/token/', [
+            ...$grant,
+            'client_key' => $channel->oauthClientId(),
+            'client_secret' => $channel->oauthClientSecret(),
         ]);
 
         if (! $response->successful()) {
@@ -67,10 +86,13 @@ final readonly class TiktokClient
             throw new RuntimeException('Invalid TikTok token expiry.');
         }
 
-        return ['access_token' => Payload::string($response->json('access_token'), 'access_token'),
+        return [
+            'access_token' => Payload::string($response->json('access_token'), 'access_token'),
             'refresh_token' => Payload::string($response->json('refresh_token'), 'refresh_token'),
-            'open_id' => Payload::string($response->json('open_id'), 'open_id'), 'scope' => $response->json('scope'),
-            'expires_at' => now()->addSeconds($expiry)->toIso8601String()];
+            'open_id' => Payload::string($response->json('open_id'), 'open_id'),
+            'scope' => $response->json('scope'),
+            'expires_at' => now()->addSeconds($expiry)->toIso8601String(),
+        ];
     }
 
     public function forChannel(Channel $channel, ?string $requiredScope = null): PendingRequest
@@ -117,7 +139,7 @@ final readonly class TiktokClient
 
     private function api(string $token): PendingRequest
     {
-        return Http::withToken($token)->withoutRedirecting()->timeout(30)->baseUrl('https://open.tiktokapis.com/v2/');
+        return Http::withToken($token)->withoutRedirecting()->timeout(30)->baseUrl(config()->string('services.tiktok.api_url'));
     }
 
     public function data(Response $response, string $field): mixed

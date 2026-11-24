@@ -32,9 +32,21 @@ readonly class MediaRepository extends EloquentRepository
 
         return $this->publishingQuery($channel)
             ->with(['model' => fn(MorphTo $source) => $source->morphWith([
-                Prompt::class => ['project.media', 'project.coverFrame', ...$receipts],
-                EpisodeAssembly::class => ['episodeRevision.episode.series.project.media', 'episodeRevision.episode.series.project.coverFrame', ...$receipts],
-                SeriesAssembly::class => ['series.project.media', 'series.project.coverFrame', ...$receipts],
+                Prompt::class => [
+                    'project.media',
+                    'project.coverFrame',
+                    ...$receipts,
+                ],
+                EpisodeAssembly::class => [
+                    'episodeRevision.episode.series.project.media',
+                    'episodeRevision.episode.series.project.coverFrame',
+                    ...$receipts,
+                ],
+                SeriesAssembly::class => [
+                    'series.project.media',
+                    'series.project.coverFrame',
+                    ...$receipts,
+                ],
             ])])
             ->latest('id')->paginate(20, page: $page);
     }
@@ -51,7 +63,11 @@ readonly class MediaRepository extends EloquentRepository
             ->whereHas('channels', fn(Builder $channels) => $channels->whereKey($channel->id));
 
         return Media::query()->where('mime_type', 'video/mp4')
-            ->whereHasMorph('model', [Prompt::class, EpisodeAssembly::class, SeriesAssembly::class], static function (Builder $query, string $type) use ($project): void {
+            ->whereHasMorph('model', [
+                Prompt::class,
+                EpisodeAssembly::class,
+                SeriesAssembly::class,
+            ], static function (Builder $query, string $type) use ($project): void {
                 match ($type) {
                     Prompt::class => $query->where('media.collection_name', 'default')->whereNull('shot_id')->where('generated', true)->whereHas('project', $project),
                     EpisodeAssembly::class => $query->where('media.collection_name', EpisodeAssembly::VIDEO)->where('status', AssemblyStatus::ACCEPTED)

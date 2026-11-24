@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useRoute } from '@/composables/useRoute';
 import { Button } from '@/components/ui/button';
-import { counterNames, metricPeriods, platformNames } from '@/types/analytics';
+import { counterNames, metricPeriods, platformNames } from '@/lib/analytics';
 import type { AnalyticsFilters, MetricsReport } from '@/types/analytics';
 
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();

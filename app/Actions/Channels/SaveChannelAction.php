@@ -17,7 +17,7 @@ readonly class SaveChannelAction
 
     public function run(User $owner, ChannelData $data, ?Channel $channel = null): Channel
     {
-        Gate::authorize('manageChannels');
+        Gate::forUser($owner)->authorize('manageChannels');
 
         return DB::transaction(fn(): Channel => $this->task->run($owner, $data, $channel));
     }

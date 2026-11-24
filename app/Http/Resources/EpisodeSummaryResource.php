@@ -15,7 +15,8 @@ class EpisodeSummaryResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id, 'delivery_channel_ids' => $this->delivery_channel_ids,
+            'id' => $this->id,
+            'delivery_channel_ids' => $this->delivery_channel_ids,
             'series_id' => $this->series_id,
             'number' => $this->number,
             'title' => $this->title,

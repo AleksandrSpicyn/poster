@@ -54,7 +54,12 @@ class Series extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id', 'output_mode', 'cycle_plan', 'cycle_paused_at', 'release_started_at', 'final_assembly_id',
+        'project_id',
+        'output_mode',
+        'cycle_plan',
+        'cycle_paused_at',
+        'release_started_at',
+        'final_assembly_id',
         'name',
         'specification',
         'cast_settings',
@@ -85,7 +90,11 @@ class Series extends Model
         'episode_limit' => 'integer',
     ];
 
-    protected $attributes = ['automation_enabled' => false, 'auto_publish' => true, 'output_mode' => 'episodes'];
+    protected $attributes = [
+        'automation_enabled' => false,
+        'auto_publish' => true,
+        'output_mode' => 'episodes',
+    ];
 
     /** @return BelongsTo<User, $this> */
     public function automationUser(): BelongsTo

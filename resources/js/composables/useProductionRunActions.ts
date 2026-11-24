@@ -6,7 +6,7 @@ export function useProductionRunActions() {
 
     const transition = useForm({});
 
-    function start(projectId: number, form: Pick<InertiaForm<{ request_key: string }>, 'submit' | 'request_key'>) {
+    function start(projectId: number, form: Pick<InertiaForm<{ request_key: string }>, 'submit' | 'processing' | 'request_key'>) {
         submitForm(form, ['production_runs.store', projectId], {
             preserveScroll: true,
             onSuccess: () => {

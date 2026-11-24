@@ -37,8 +37,12 @@ class SaveProject
             throw ValidationException::withMessages(['content_mode' => 'A project with series must keep the series content type.']);
         }
 
-        $project->fill(['name' => $data->name, 'prompt' => $data->prompt, 'content_mode' => $data->content_mode,
-            'is_active' => $data->is_active ?? $project->is_active]);
+        $project->fill([
+            'name' => $data->name,
+            'prompt' => $data->prompt,
+            'content_mode' => $data->content_mode,
+            'is_active' => $data->is_active ?? $project->is_active,
+        ]);
 
         if ($data->schedule instanceof ProjectScheduleData) {
             $project->schedule_enabled = $data->schedule->enabled;

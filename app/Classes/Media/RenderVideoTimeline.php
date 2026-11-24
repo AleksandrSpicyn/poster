@@ -28,7 +28,15 @@ class RenderVideoTimeline
         File::makeDirectory($workspace, 0700, true);
 
         try {
-            $command = ['ffmpeg', '-v', 'error', '-nostdin', '-y', '-filter_complex_threads', '1'];
+            $command = [
+                'ffmpeg',
+                '-v',
+                'error',
+                '-nostdin',
+                '-y',
+                '-filter_complex_threads',
+                '1',
+            ];
             $filters = [];
             $inputs = '';
 
@@ -37,11 +45,28 @@ class RenderVideoTimeline
                     throw new RuntimeException('The final timeline has an invalid source.');
                 }
 
-                $command = [...$command, '-protocol_whitelist', 'file,pipe', '-ss', sprintf('%.3f', $clip->startMs / 1000), '-i', $clip->path];
+                $command = [
+                    ...$command,
+                    '-protocol_whitelist',
+                    'file,pipe',
+                    '-ss',
+                    sprintf('%.3f', $clip->startMs / 1000),
+                    '-i',
+                    $clip->path,
+                ];
                 $seconds = sprintf('%.3f', $clip->durationMs / 1000);
                 $rate = $clip->durationMs < 100 ? 1000 : 24;
                 $filters[] = "[$index:v]fps=$rate,tpad=stop_mode=clone:stop_duration=0.05,trim=duration=$seconds,setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[v$index]";
-                $probeSource = Process::timeout(30)->run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', $clip->path]);
+                $probeSource = Process::timeout(30)->run([
+                    'ffprobe',
+                    '-v',
+                    'error',
+                    '-show_entries',
+                    'format=duration:stream=codec_type',
+                    '-of',
+                    'json',
+                    $clip->path,
+                ]);
                 $metadata = json_decode($probeSource->output(), true, flags: JSON_THROW_ON_ERROR);
                 $sourceDuration = data_get($metadata, 'format.duration');
 
@@ -65,16 +90,58 @@ class RenderVideoTimeline
             $filters[] = $inputs . 'concat=n=' . count($clips) . ':v=1:a=1[v][audio]';
             $filters[] = '[audio]apad,atrim=duration=' . sprintf('%.3f', $duration / 1000) . '[a]';
             $output = $workspace . '/video.mp4';
-            $command = [...$command, '-filter_complex', implode(';', $filters), '-map', '[v]', '-map', '[a]',
-                '-fps_mode', 'vfr', '-enc_time_base', '1:24000', '-video_track_timescale', '24000',
-                '-c:v', 'libx264', '-maxrate', '25M', '-bufsize', '50M', '-preset', 'veryfast', '-threads', '1', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $output];
+            $command = [
+                ...$command,
+                '-filter_complex',
+                implode(';', $filters),
+                '-map',
+                '[v]',
+                '-map',
+                '[a]',
+                '-fps_mode',
+                'vfr',
+                '-enc_time_base',
+                '1:24000',
+                '-video_track_timescale',
+                '24000',
+                '-c:v',
+                'libx264',
+                '-maxrate',
+                '25M',
+                '-bufsize',
+                '50M',
+                '-preset',
+                'veryfast',
+                '-threads',
+                '1',
+                '-pix_fmt',
+                'yuv420p',
+                '-c:a',
+                'aac',
+                '-ar',
+                '48000',
+                '-ac',
+                '2',
+                '-movflags',
+                '+faststart',
+                $output,
+            ];
             $result = Process::timeout(3300)->run($command);
 
             if (! $result->successful() || ! is_file($output)) {
                 throw new RuntimeException('The final video could not be rendered.');
             }
 
-            $probe = Process::timeout(30)->run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'json', $output]);
+            $probe = Process::timeout(30)->run([
+                'ffprobe',
+                '-v',
+                'error',
+                '-show_entries',
+                'format=duration',
+                '-of',
+                'json',
+                $output,
+            ]);
             $actual = data_get(json_decode($probe->output(), true, flags: JSON_THROW_ON_ERROR), 'format.duration');
 
             if (! $probe->successful() || ! is_numeric($actual) || abs((float) $actual * 1000 - $duration) > 100) {

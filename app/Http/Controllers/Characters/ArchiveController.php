@@ -36,6 +36,10 @@ class ArchiveController
     {
         $action->run($character, $data->lock_version);
 
-        return to_route('characters.show', ['project' => $project, 'series' => $series, 'character' => $character]);
+        return to_route('characters.show', [
+            'project' => $project,
+            'series' => $series,
+            'character' => $character,
+        ]);
     }
 }

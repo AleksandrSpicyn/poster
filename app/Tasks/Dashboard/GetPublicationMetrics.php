@@ -11,7 +11,7 @@ use App\Data\PublicationTimelineData;
 use App\Enums\ChannelType;
 use App\Enums\ProjectContentMode;
 use App\Enums\PublicationCounter;
-use App\Http\Resources\ProjectResource;
+use App\Http\Resources\ProjectCardResource;
 use App\Models\OpusClipMetric;
 use App\Models\Project;
 use App\Models\PublicationObservation;
@@ -74,7 +74,11 @@ final readonly class GetPublicationMetrics
                     continue;
                 }
 
-                $key = serialize([$row->platform, $row->account, $row->media_id]);
+                $key = serialize([
+                    $row->platform,
+                    $row->account,
+                    $row->media_id,
+                ]);
                 $title = $row instanceof OpusClipMetric ? ($row->clip_title ?? 'Публикация без названия') : $row->title;
                 $publications[$key] ??= new PublicationTimelineData($row->platform, $row->account, $row->media_id, $title, projectId: $row->report_project_id, channelName: $name, key: hash('sha256', $key));
                 $publication = $publications[$key];
@@ -82,7 +86,11 @@ final readonly class GetPublicationMetrics
 
                 if ($platform !== null) {
                     $postUrl = $row instanceof PublicationObservation ? $row->post_url : null;
-                    $publication->url = VideoReference::publicUrl($platform, $row->media_id, [$postUrl, $publication->url, ...array_column($row->clip_publications ?? [], 'url')]);
+                    $publication->url = VideoReference::publicUrl($platform, $row->media_id, [
+                        $postUrl,
+                        $publication->url,
+                        ...array_column($row->clip_publications ?? [], 'url'),
+                    ]);
                 }
 
                 $updated = max($updated, $row->updated_at?->toIso8601String());
@@ -132,7 +140,11 @@ final readonly class GetPublicationMetrics
                 if ($sparse && $date >= $first->toDateString()) {
                     $observed = CarbonImmutable::parse($date, 'UTC');
 
-                    foreach ([$observed->subDay(), $observed, $observed->addDay()] as $boundary) {
+                    foreach ([
+                        $observed->subDay(),
+                        $observed,
+                        $observed->addDay(),
+                    ] as $boundary) {
                         if ($boundary >= $first && $boundary <= $end) {
                             $daily[$boundary->toDateString()] ??= null;
                         }
@@ -141,7 +153,11 @@ final readonly class GetPublicationMetrics
 
                 if ($previous !== null) {
                     $change = $value - $publication->snapshots[$previous];
-                    $publication->intervals[] = ['from' => $previous, 'to' => $date, 'change' => $change];
+                    $publication->intervals[] = [
+                        'from' => $previous,
+                        'to' => $date,
+                        'change' => $change,
+                    ];
                     $publication->change = ($publication->change ?? 0) + $change;
 
                     if (CarbonImmutable::parse($previous, 'UTC')->addDay()->toDateString() === $date) {
@@ -160,7 +176,12 @@ final readonly class GetPublicationMetrics
 
         foreach ($channels as $channel) {
             $projectIds = array_values($channel->projects->map(static fn(Project $project): int => $project->id)->all());
-            $channelOptions[] = ['id' => $channel->id, 'name' => $channel->name, 'platform' => $channel->type->value, 'projects' => $projectIds];
+            $channelOptions[] = [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'platform' => $channel->type->value,
+                'projects' => $projectIds,
+            ];
 
             if (($selected !== null && $selected->id !== $channel->id) || ! $included->has($channel->id) || ($filters->platform instanceof ChannelType && $channel->type !== $filters->platform)
                 || ($filters->project !== null && ! in_array($filters->project, $projectIds, true))
@@ -169,8 +190,14 @@ final readonly class GetPublicationMetrics
             }
 
             $sync = $statuses->get($channel->id);
-            $coverage[] = ['id' => $channel->id, 'name' => $channel->name, 'platform' => $channel->type->value,
-                'state' => $sync?->status->value, 'status' => $sync?->status->label() ?? 'Нет наблюдений', 'last_success_at' => $sync?->last_success_at?->toIso8601String()];
+            $coverage[] = [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'platform' => $channel->type->value,
+                'state' => $sync?->status->value,
+                'status' => $sync?->status->label() ?? 'Нет наблюдений',
+                'last_success_at' => $sync?->last_success_at?->toIso8601String(),
+            ];
         }
 
         uasort($publications, static fn(PublicationTimelineData $left, PublicationTimelineData $right): int => (($right->change !== null) <=> ($left->change !== null)) ?: ($right->change <=> $left->change));
@@ -198,7 +225,7 @@ final readonly class GetPublicationMetrics
         return new PublicationMetricsData($filters, $start->toDateString(), $end->toDateString(), $updated, $summaries[$filters->metric->value], $summaries, $daily, array_values($publications), $coverage, array_values($projects->map(static fn(Project $project): array => [
             'id' => $project->id,
             'name' => $project->name,
-            'cover' => ProjectResource::make($project)->toArray(request())['cover'],
+            'cover' => ProjectCardResource::cover($project),
             'is_clipping' => $project->isClippingProject(),
             'content_mode' => $project->content_mode->value,
         ])->all()), $channelOptions, $totals, $production);

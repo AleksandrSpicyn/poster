@@ -6,6 +6,7 @@ namespace App\Actions\Channels;
 
 use App\Classes\Channels\ChannelOAuth;
 use App\Models\Channel;
+use App\Models\User;
 use App\Tasks\Channels\GetChannels;
 use Illuminate\Support\Facades\Gate;
 
@@ -19,9 +20,9 @@ readonly class GetChannelFormAction
         return $this->oauth->scopes($channel);
     }
 
-    public function run(Channel $channel): Channel
+    public function run(User $owner, Channel $channel): Channel
     {
-        Gate::authorize('manageChannels');
+        Gate::forUser($owner)->authorize('manageChannels');
 
         return $this->task->form($channel);
     }

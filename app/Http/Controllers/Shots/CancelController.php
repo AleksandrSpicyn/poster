@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shots;
 
 use App\Actions\Shots\CancelShotGenerationAction;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\Prompt;
@@ -15,7 +16,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class CancelController
+class CancelController extends EpisodeController
 {
     /**
      * Остановка последующих этапов дубля
@@ -42,6 +43,6 @@ class CancelController
     {
         $action->run($prompt, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
+        return $this->redirectToEpisode($series, $episode)->withFragment('shots');
     }
 }

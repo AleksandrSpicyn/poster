@@ -49,8 +49,28 @@ readonly class BuildEpisodeAssembly
             File::put($workspace . '/concat.txt', implode("\n", $clips) . "\n");
             $output = $workspace . '/episode.mp4';
             $result = Process::path($workspace)->timeout($this->remainingSeconds($deadline))->run([
-                'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-                '-f', 'concat', '-safe', '1', '-i', 'concat.txt', '-c:v', 'copy', '-c:a', 'aac', '-t', $this->seconds($duration), '-movflags', '+faststart', $output,
+                'ffmpeg',
+                '-v',
+                'error',
+                '-nostdin',
+                '-y',
+                '-protocol_whitelist',
+                'file,pipe',
+                '-f',
+                'concat',
+                '-safe',
+                '1',
+                '-i',
+                'concat.txt',
+                '-c:v',
+                'copy',
+                '-c:a',
+                'aac',
+                '-t',
+                $this->seconds($duration),
+                '-movflags',
+                '+faststart',
+                $output,
             ]);
 
             if (! $result->successful() || ! is_file($output) || filesize($output) < 1) {
@@ -92,7 +112,12 @@ readonly class BuildEpisodeAssembly
         }
 
         $useAudio = $probe->hasAudio && ! $shot->muteAudio;
-        $audioInput = $useAudio ? [] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo'];
+        $audioInput = $useAudio ? [] : [
+            '-f',
+            'lavfi',
+            '-i',
+            'anullsrc=r=48000:cl=stereo',
+        ];
         $seek = $shot->trimStartMs;
         $videoFilter = 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24';
         $audioFilter = 'aresample=48000,apad';
@@ -106,12 +131,49 @@ readonly class BuildEpisodeAssembly
         }
 
         $command = [
-            'ffmpeg', '-v', 'error', '-nostdin', '-y', '-protocol_whitelist', 'file,pipe',
-            '-ss', $this->seconds($seek), '-f', 'mov', '-i', $path, ...$audioInput,
-            '-map', '0:v:0', '-map', $useAudio ? '0:a:0' : '1:a:0', '-t', $this->seconds($shot->durationMs),
-            '-vf', $videoFilter, '-video_track_timescale', '24000',
-            '-c:v', 'libx264', '-preset', 'veryfast', '-threads', '2', '-pix_fmt', 'yuv420p',
-            '-af', $audioFilter, '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $output,
+            'ffmpeg',
+            '-v',
+            'error',
+            '-nostdin',
+            '-y',
+            '-protocol_whitelist',
+            'file,pipe',
+            '-ss',
+            $this->seconds($seek),
+            '-f',
+            'mov',
+            '-i',
+            $path,
+            ...$audioInput,
+            '-map',
+            '0:v:0',
+            '-map',
+            $useAudio ? '0:a:0' : '1:a:0',
+            '-t',
+            $this->seconds($shot->durationMs),
+            '-vf',
+            $videoFilter,
+            '-video_track_timescale',
+            '24000',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-threads',
+            '2',
+            '-pix_fmt',
+            'yuv420p',
+            '-af',
+            $audioFilter,
+            '-c:a',
+            'pcm_s16le',
+            '-ar',
+            '48000',
+            '-ac',
+            '2',
+            '-movflags',
+            '+faststart',
+            $output,
         ];
         $result = Process::timeout($this->remainingSeconds($deadline))->run($command);
 
@@ -123,8 +185,18 @@ readonly class BuildEpisodeAssembly
     private function probe(string $path): VideoMetadataData
     {
         $response = Process::timeout(30)->run([
-            'ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov',
-            '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', $path,
+            'ffprobe',
+            '-v',
+            'error',
+            '-protocol_whitelist',
+            'file,pipe',
+            '-f',
+            'mov',
+            '-show_entries',
+            'format=duration:stream=codec_type',
+            '-of',
+            'json',
+            $path,
         ]);
 
         if (! $response->successful()) {

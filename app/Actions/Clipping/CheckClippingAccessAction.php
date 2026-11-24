@@ -33,7 +33,18 @@ final readonly class CheckClippingAccessAction
     private function read(ClippingConnection $connection, ClippingAccessData $data): array
     {
         $targets = $this->connections->accessSources($connection, $data);
-        $result = ['projects' => Status::UNCHECKED, 'clips' => Status::UNCHECKED, 'accounts' => Status::UNCHECKED, 'publications' => Status::UNCHECKED, 'account_count' => null, 'metrics' => Status::UNSUPPORTED, 'titles' => [], 'sample' => null, 'source' => null, 'project_id' => $data->project_id ?? $targets?->first()?->project_id];
+        $result = [
+            'projects' => Status::UNCHECKED,
+            'clips' => Status::UNCHECKED,
+            'accounts' => Status::UNCHECKED,
+            'publications' => Status::UNCHECKED,
+            'account_count' => null,
+            'metrics' => Status::UNSUPPORTED,
+            'titles' => [],
+            'sample' => null,
+            'source' => null,
+            'project_id' => $data->project_id ?? $targets?->first()?->project_id,
+        ];
 
         try {
             $reader = $this->readers->forConnection($connection);

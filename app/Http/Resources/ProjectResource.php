@@ -8,7 +8,6 @@ use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** @mixin Project */
 class ProjectResource extends JsonResource
@@ -16,20 +15,9 @@ class ProjectResource extends JsonResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
-        $cover = $this->resource instanceof Project ? $this->resource->coverImage() : null;
-
-        $focusX = $cover?->getCustomProperty('focus_x');
-        $focusY = $cover?->getCustomProperty('focus_y');
-
         return [
             'id' => $this->id,
-            'cover' => $cover instanceof Media ? [
-                'id' => $cover->id,
-                'url' => route('projects.cover.show', ['project' => $this->id, 'v' => $cover->id], absolute: false),
-                'source' => $cover->collection_name === Project::COVER ? 'upload' : 'frame',
-                'x' => is_int($focusX) ? $focusX : 50,
-                'y' => is_int($focusY) ? $focusY : 50,
-            ] : null,
+            'cover' => $this->resource instanceof Project ? ProjectCardResource::cover($this->resource) : null,
             'name' => $this->name,
             'prompt' => $this->prompt,
             'content_mode' => $this->content_mode->value,

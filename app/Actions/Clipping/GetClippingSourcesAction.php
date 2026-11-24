@@ -50,11 +50,28 @@ final readonly class GetClippingSourcesAction
 
         return [
             'search' => $search,
-            'connection' => $connection->only(['id', 'name', 'driver']), 'sources' => $sources,
+            'connection' => $connection->only([
+                'id',
+                'name',
+                'driver',
+            ]),
+            'sources' => $sources,
             'sourceBindings' => $this->connections->mappedSources($connection),
-            'previous' => $preview?->only(['id', 'external_id', 'project_id', 'accounts', 'clip_count', 'imported_at']),
-            'channels' => $readsAccounts ? $this->accounts->channels($connection) : [], 'mappings' => (object) ($readsAccounts ? $this->accounts->mappings($connection) : []),
-            'accounts' => $accounts, 'importProjects' => $connection->import_projects, 'importAccounts' => $connection->import_accounts, 'readsAccounts' => $readsAccounts, 'accountError' => $accountError,
+            'previous' => $preview?->only([
+                'id',
+                'external_id',
+                'project_id',
+                'accounts',
+                'clip_count',
+                'imported_at',
+            ]),
+            'channels' => $readsAccounts ? $this->accounts->channels($connection) : [],
+            'mappings' => (object) ($readsAccounts ? $this->accounts->mappings($connection) : []),
+            'accounts' => $accounts,
+            'importProjects' => $connection->import_projects,
+            'importAccounts' => $connection->import_accounts,
+            'readsAccounts' => $readsAccounts,
+            'accountError' => $accountError,
         ];
     }
 }

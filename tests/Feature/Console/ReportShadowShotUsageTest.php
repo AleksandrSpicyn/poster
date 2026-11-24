@@ -68,3 +68,14 @@ test('оператор не может сменить строгий режим 
     assertDatabaseCount('billing_accounts', 1);
     assertDatabaseHas('billing_accounts', ['owner_id' => $owner->id, 'accounting_mode' => 'enforced']);
 });
+
+test('показывает сохранённый режим прежней версии', function (): void {
+    $owner = User::factory()->create();
+    DB::table('billing_accounts')->insert(['owner_id' => $owner->id, 'accounting_mode' => 'historical']);
+
+    $report = consoleCommand('billing:shadow-usage', ['owner' => $owner->id]);
+
+    $report
+        ->expectsOutput('Режим учёта: historical')
+        ->assertSuccessful();
+});

@@ -33,7 +33,9 @@ class OpenApiGenerator extends ScribeGenerator
         /** @var array<string, mixed> $document */
         $document = array_replace_recursive($root, [
             'components' => ['securitySchemes' => ['default' => [
-                'type' => 'apiKey', 'in' => 'cookie', 'name' => $this->sessionCookie,
+                'type' => 'apiKey',
+                'in' => 'cookie',
+                'name' => $this->sessionCookie,
             ]]],
         ]);
 
@@ -56,16 +58,39 @@ class OpenApiGenerator extends ScribeGenerator
             }
 
             $parameter['schema'] = array_replace($parameter['schema'], match ($parameter['name']) {
-                'page' => ['type' => 'integer', 'minimum' => 1, 'default' => 1],
-                'perPage' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 10],
-                'sort' => ['type' => 'string', 'enum' => SortDirection::values(), 'default' => SortDirection::DESC->value],
+                'page' => [
+                    'type' => 'integer',
+                    'minimum' => 1,
+                    'default' => 1,
+                ],
+                'perPage' => [
+                    'type' => 'integer',
+                    'minimum' => 1,
+                    'maximum' => 100,
+                    'default' => 10,
+                ],
+                'sort' => [
+                    'type' => 'string',
+                    'enum' => SortDirection::values(),
+                    'default' => SortDirection::DESC->value,
+                ],
                 'type' => ['type' => 'string', 'enum' => [FilterValue::ALL->value, ...ChannelType::values()]],
                 default => [],
             });
         }
 
         $pathItem['operationId'] = strtolower($endpoint->httpMethods[0]) . '_'
-            . str_replace(['/', '{', '}', '-'], ['_', '', '', '_'], trim($endpoint->uri, '/') ?: 'root');
+            . str_replace([
+                '/',
+                '{',
+                '}',
+                '-',
+            ], [
+                '_',
+                '',
+                '',
+                '_',
+            ], trim($endpoint->uri, '/') ?: 'root');
         $pathItem['parameters'] = $parameters;
 
         return $pathItem;

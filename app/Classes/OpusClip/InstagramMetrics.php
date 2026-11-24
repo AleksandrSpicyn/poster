@@ -19,7 +19,7 @@ final readonly class InstagramMetrics
      */
     public function read(PendingRequest $http, string $account, array $references, bool $insights = true, bool $allowBasic = false): Generator
     {
-        $http->withoutRedirecting()->timeout(30)->baseUrl('https://graph.instagram.com/' . config()->string('services.instagram.version'));
+        $http->withoutRedirecting()->timeout(30)->baseUrl(config()->string('services.instagram.graph_url') . '/' . config()->string('services.instagram.version'));
         $remaining = array_fill_keys($references, true);
         $seen = [];
         $params = ['fields' => 'id,permalink,like_count,comments_count', 'limit' => 100];

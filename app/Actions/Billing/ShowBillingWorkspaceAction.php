@@ -27,10 +27,14 @@ final readonly class ShowBillingWorkspaceAction
         };
 
         return [
-            'section' => $section->value, 'catalogVersion' => BillingProduct::CATALOG_VERSION,
+            'section' => $section->value,
+            'catalogVersion' => BillingProduct::CATALOG_VERSION,
             'catalog' => collect(BillingProduct::cases())->map(fn(BillingProduct $product): array => [
-                'code' => $product->value, 'label' => $product->label(), 'seconds' => $product->seconds(),
-                'amount' => $product->amountKopecks(), 'monthly' => $product->isMonthly(),
+                'code' => $product->value,
+                'label' => $product->label(),
+                'seconds' => $product->seconds(),
+                'amount' => $product->amountKopecks(),
+                'monthly' => $product->isMonthly(),
             ]),
             'account' => $account,
             'sources' => $section === BillingSection::OVERVIEW ? $this->workspace->sources($owner) : [],
@@ -39,8 +43,11 @@ final readonly class ShowBillingWorkspaceAction
             'historyProjects' => $section === BillingSection::SECONDS ? $this->workspace->historyProjects($owner) : [],
             'selected' => $selected?->value,
             'checkout' => $selected instanceof BillingProduct ? [
-                'request_key' => (string) Str::uuid(), 'catalog_version' => BillingProduct::CATALOG_VERSION,
-                'offer_url' => FiscalProfile::offerUrl(), 'test_mode' => $this->availability->testMode(), 'can_auto_renew' => $selected->isMonthly() && (bool) ($account->automatic_payments_enabled ?? false),
+                'request_key' => (string) Str::uuid(),
+                'catalog_version' => BillingProduct::CATALOG_VERSION,
+                'offer_url' => FiscalProfile::offerUrl(),
+                'test_mode' => $this->availability->testMode(),
+                'can_auto_renew' => $selected->isMonthly() && (bool) ($account->automatic_payments_enabled ?? false),
                 'blocked' => $this->availability->blocked($owner, $selected, (bool) ($account->sales_enabled ?? false)),
             ] : null,
             'pendingOrder' => $this->workspace->pendingOrder($owner),

@@ -77,7 +77,12 @@ const source = computed(() =>
 const run = computed(() => selectedRun.value ?? props.runs.find((item) => item.opus_source_id === source.value?.id));
 const project = computed(() => props.projects.find((item) => item.id === source.value?.project_id));
 const connection = computed(() => props.connections.find((item) => item.id === source.value?.clipping_connection_id));
-const visibleRuns = computed(() => props.runs.filter((run) => sources.value.some((source) => source.id === run.opus_source_id)));
+const sourcesById = computed(() => new Map(sources.value.map((source) => [source.id, source])));
+const visibleRuns = computed(() => props.runs.filter((run) => sourcesById.value.has(run.opus_source_id)));
+const sourcesWithoutRuns = computed(() => {
+    const seen = new Set(visibleRuns.value.map((run) => run.opus_source_id));
+    return sources.value.filter((source) => !seen.has(source.id));
+});
 const partial = computed(() => !!source.value?.publications_pending && !selectedRun.value?.completed_at);
 const paused = computed(() => !!source.value?.sync_paused_at && !selectedRun.value?.completed_at);
 const checkedAccess = computed(
@@ -155,17 +160,13 @@ function refresh() {
                 <section id="history">
                     <p v-if="!visibleRuns.length && !previews.length && !sources.length" class="text-muted-foreground">Импортов пока нет.</p>
                     <a v-for="item in visibleRuns" :key="item.id" :href="'#run-' + item.id" class="history-row">
-                        <strong>{{ sources.find((s) => s.id === item.opus_source_id)?.title || 'Проект' }}</strong>
+                        <strong>{{ sourcesById.get(item.opus_source_id)?.title || 'Проект' }}</strong>
                         <span
                             >{{ time(item.created_at) }} ·
                             {{ item.completed_at ? 'Новых клипов: ' + item.clips_added : item.failed_at ? 'Ошибка обновления' : 'Обновляется' }}</span
                         >
                     </a>
-                    <a
-                        v-for="item in sources.filter((s) => !visibleRuns.some((r) => r.opus_source_id === s.id))"
-                        :key="item.id"
-                        :href="'#source-' + item.id"
-                        class="history-row"
+                    <a v-for="item in sourcesWithoutRuns" :key="item.id" :href="'#source-' + item.id" class="history-row"
                         ><strong>{{ item.title || 'Проект' }}</strong
                         ><span>{{ item.sync_error ? 'Ошибка обновления' : 'Ожидает обновления' }}</span></a
                     >

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Actions\Dashboard\GetDashboardAction;
+use App\Actions\Dashboard\GetPublicationAnalyticsAction;
 use App\Data\MetricPeriodData;
 use App\Data\PublicationMetricsData;
 use App\Http\Resources\PostResource;
@@ -81,12 +82,12 @@ class DashboardController
      * @responseField props.recentPrompts object Последние шесть генераций в формате PromptResource.
      * @responseField props.recentPosts object Последние пять публикаций в формате PostResource.
      */
-    public function __invoke(#[CurrentUser] User $owner, MetricPeriodData $period, GetDashboardAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, MetricPeriodData $period, GetDashboardAction $action, GetPublicationAnalyticsAction $analytics): Response
     {
         $dashboard = $action->run($owner);
 
         return inertia('Dashboard', [
-            'analytics' => fn(): PublicationMetricsData => $action->metrics($owner, $period, includeProduction: true),
+            'analytics' => fn(): PublicationMetricsData => $analytics->run($owner, $period, includeProduction: true),
             'stats' => [
                 'prompts' => $dashboard->promptCount,
                 'pending' => $dashboard->pendingCount,

@@ -31,7 +31,13 @@ class SeriesAssemblyParametersResource extends JsonResource
             $media = $accepted?->getFirstMedia(EpisodeAssembly::VIDEO);
             $ready = $episode?->validity === EpisodeValidity::CURRENT && $accepted?->status === AssemblyStatus::ACCEPTED
                 && $accepted->duration_ms !== null && $media !== null && is_file($media->getPath());
-            $parts[] = ['id' => $episode?->id, 'number' => $number, 'title' => $episode?->title, 'version' => $accepted?->number, 'ready' => $ready];
+            $parts[] = [
+                'id' => $episode?->id,
+                'number' => $number,
+                'title' => $episode?->title,
+                'version' => $accepted?->number,
+                'ready' => $ready,
+            ];
             $canBuild = $canBuild && $ready;
         }
 

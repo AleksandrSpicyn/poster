@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatCount } from '@/lib/formatCount';
 import { useHashNavigation } from '@/composables/useHashNavigation';
-import { fetchProjectSearchPreview, type ProjectSearchPreview } from '@/lib/api/projects';
+import { useProjectSearchPreview } from '@/composables/useProjectSearchPreview';
 import ProjectOwnerPanel from '@/components/projects/ProjectOwnerPanel.vue';
 import ProjectCoverGallery from '@/components/projects/ProjectCoverGallery.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -49,38 +49,7 @@ watch(
     },
     { flush: 'post' },
 );
-const preview = ref<ProjectSearchPreview>();
-watch(
-    () => [searching.value, filters.search, filters.active, filters.clipping, page.props.projects] as const,
-    ([open, search, active, clipping, projects], _, onCleanup) => {
-        preview.value = undefined;
-        if (!open) return;
-        if (
-            search === page.props.filters.search &&
-            !page.props.filters.archived &&
-            !!active === !!page.props.filters.active &&
-            !!clipping === !!page.props.filters.clipping
-        ) {
-            preview.value = { total: projects.meta.total, name: projects.data[0]?.name };
-            return;
-        }
-
-        const controller = new AbortController();
-        const timer = window.setTimeout(async () => {
-            try {
-                const url = route('projects.index', { search, active, clipping, perPage: 1 });
-                const result = await fetchProjectSearchPreview(url, page, controller.signal);
-                if (!controller.signal.aborted) preview.value = result;
-            } catch {
-                // The full search remains available when its background preview is interrupted.
-            }
-        }, 220);
-        onCleanup(() => {
-            window.clearTimeout(timer);
-            controller.abort();
-        });
-    },
-);
+const preview = useProjectSearchPreview(searching, filters);
 function restoreSearch() {
     searching.value = location.hash === '#search';
 }

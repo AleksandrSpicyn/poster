@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Billing;
 
-use App\Actions\Billing\ReconcileBillingPaymentAction;
-use App\Actions\Billing\SyncBillingRefundAction;
+use App\Actions\Billing\HandleYooKassaNotificationAction;
 use App\Data\Billing\YooKassaNotificationData;
 use Illuminate\Http\Response;
 
@@ -29,15 +28,9 @@ final class YooKassaWebhookController
      * @response 429
      * @response 500
      */
-    public function __invoke(YooKassaNotificationData $data, ReconcileBillingPaymentAction $action, SyncBillingRefundAction $refunds): Response
+    public function __invoke(YooKassaNotificationData $data, HandleYooKassaNotificationAction $action): Response
     {
-        if ($data->attemptId !== null && $data->isPaymentNotification()) {
-            $action->run($data->attemptId, $data->externalId, 'yookassa');
-        }
-
-        if ($data->event === 'refund.succeeded') {
-            $refunds->notification($data->externalId, $data->description);
-        }
+        $action->run($data);
 
         return response('');
     }

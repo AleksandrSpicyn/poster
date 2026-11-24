@@ -42,7 +42,11 @@ class AssignWorkspaceOwner extends Command
                 throw new RuntimeException('An ID is missing or repeated.');
             }
 
-            foreach ([...$selectedProjects, ...$selectedChannels, ...$selectedChats] as $record) {
+            foreach ([
+                ...$selectedProjects,
+                ...$selectedChannels,
+                ...$selectedChats,
+            ] as $record) {
                 if ($record->owner_id !== null && $record->owner_id !== $owner->id) {
                     throw new RuntimeException('This record already belongs to another user.');
                 }

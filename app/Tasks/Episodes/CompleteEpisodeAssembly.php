@@ -45,14 +45,21 @@ class CompleteEpisodeAssembly
                     }
 
                     $created[] = $assembly->addMedia($path)
-                        ->withCustomProperties(['checksum' => $checksum, 'duration_ms' => $video->durationMs,
-                            'time_ms' => $continuation->timeMs, 'assembly_id' => $assembly->id])
+                        ->withCustomProperties([
+                            'checksum' => $checksum,
+                            'duration_ms' => $video->durationMs,
+                            'time_ms' => $continuation->timeMs,
+                            'assembly_id' => $assembly->id,
+                        ])
                         ->toMediaCollection($collection);
                 }
 
                 $this->assemblies->update($assembly, [
-                    'status' => AssemblyStatus::READY, 'duration_ms' => $video->durationMs,
-                    'completed_at' => now(), 'error_message' => null, 'lock_version' => $assembly->lock_version + 1,
+                    'status' => AssemblyStatus::READY,
+                    'duration_ms' => $video->durationMs,
+                    'completed_at' => now(),
+                    'error_message' => null,
+                    'lock_version' => $assembly->lock_version + 1,
                 ]);
             });
         } catch (Throwable $exception) {

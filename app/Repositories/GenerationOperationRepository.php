@@ -28,7 +28,11 @@ readonly class GenerationOperationRepository extends EloquentRepository
     {
         return GenerationOperation::query()->with('prompt.media', 'prompt.project')
             ->where(function ($query): void {
-                $query->whereIn('status', [GenerationOperationStatus::PLANNED->value, GenerationOperationStatus::SUBMITTED->value, GenerationOperationStatus::RUNNING->value])
+                $query->whereIn('status', [
+                    GenerationOperationStatus::PLANNED->value,
+                    GenerationOperationStatus::SUBMITTED->value,
+                    GenerationOperationStatus::RUNNING->value,
+                ])
                     ->where(function ($query): void {
                         $query->whereNull('next_check_at')->orWhere('next_check_at', '<=', now());
                     });
@@ -103,7 +107,13 @@ readonly class GenerationOperationRepository extends EloquentRepository
 
     public function hasUnresolvedForPrompt(Prompt $latest): bool
     {
-        return $latest->generationOperations()->whereIn('status', [GenerationOperationStatus::PLANNED->value, GenerationOperationStatus::SUBMITTING->value, GenerationOperationStatus::SUBMITTED->value, GenerationOperationStatus::RUNNING->value, GenerationOperationStatus::SUBMISSION_UNKNOWN->value])->exists();
+        return $latest->generationOperations()->whereIn('status', [
+            GenerationOperationStatus::PLANNED->value,
+            GenerationOperationStatus::SUBMITTING->value,
+            GenerationOperationStatus::SUBMITTED->value,
+            GenerationOperationStatus::RUNNING->value,
+            GenerationOperationStatus::SUBMISSION_UNKNOWN->value,
+        ])->exists();
     }
 
     /** @param array<string, mixed> $snapshot */
@@ -111,9 +121,12 @@ readonly class GenerationOperationRepository extends EloquentRepository
     {
         return $prompt->generationOperations()->chaperone('prompt')->create([
             'production_run_id' => $productionRun?->id,
-            'stage' => GenerationOperationStage::IMAGE, 'status' => GenerationOperationStatus::PLANNED,
-            'request_key' => $requestKey, 'idempotency_key' => hash('sha256', $requestKey . ':image'),
-            'request_snapshot' => $snapshot, 'next_check_at' => now(),
+            'stage' => GenerationOperationStage::IMAGE,
+            'status' => GenerationOperationStatus::PLANNED,
+            'request_key' => $requestKey,
+            'idempotency_key' => hash('sha256', $requestKey . ':image'),
+            'request_snapshot' => $snapshot,
+            'next_check_at' => now(),
         ]);
     }
 

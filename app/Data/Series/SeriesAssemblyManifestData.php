@@ -29,8 +29,14 @@ class SeriesAssemblyManifestData extends Data
                 throw new RuntimeException('The final assembly has an invalid part.');
             }
 
-            $parts[] = ['number' => $part['number'], 'episode_id' => $part['episode_id'], 'assembly_id' => $part['assembly_id'],
-                'media_id' => $part['media_id'], 'checksum' => $part['checksum'], 'duration_ms' => $part['duration_ms']];
+            $parts[] = [
+                'number' => $part['number'],
+                'episode_id' => $part['episode_id'],
+                'assembly_id' => $part['assembly_id'],
+                'media_id' => $part['media_id'],
+                'checksum' => $part['checksum'],
+                'duration_ms' => $part['duration_ms'],
+            ];
         }
 
         return new self($parts, $snapshot['specification_version'], $snapshot['plan_hash']);

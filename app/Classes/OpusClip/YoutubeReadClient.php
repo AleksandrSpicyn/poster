@@ -27,9 +27,11 @@ final class YoutubeReadClient
         $token = $credentials['access_token'] ?? null;
 
         if (! is_numeric($created) || ! is_numeric($expiresIn) || (int) $created + (int) $expiresIn < now()->getTimestamp() + 60) {
-            $token = Http::asForm()->timeout(20)->withoutRedirecting()->post('https://oauth2.googleapis.com/token', [
-                'client_id' => $channel->oauthClientId(), 'client_secret' => $channel->oauthClientSecret(),
-                'refresh_token' => Payload::string($credentials['refresh_token'] ?? null, 'refresh_token'), 'grant_type' => 'refresh_token',
+            $token = Http::asForm()->timeout(20)->withoutRedirecting()->post(config()->string('services.youtube.token_url'), [
+                'client_id' => $channel->oauthClientId(),
+                'client_secret' => $channel->oauthClientSecret(),
+                'refresh_token' => Payload::string($credentials['refresh_token'] ?? null, 'refresh_token'),
+                'grant_type' => 'refresh_token',
             ])->throw()->json('access_token');
         }
 

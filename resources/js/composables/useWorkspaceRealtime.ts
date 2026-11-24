@@ -1,4 +1,5 @@
 import { useRoute } from '@/composables/useRoute';
+import { csrfHeaders } from '@/lib/api/csrf';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/vue3';
 import Echo from 'laravel-echo';
@@ -125,14 +126,7 @@ export function useWorkspaceRealtime() {
             channelAuthorization: {
                 endpoint: route('broadcasting.auth'),
                 transport: 'ajax',
-                headersProvider: () => ({
-                    'X-XSRF-TOKEN': decodeURIComponent(
-                        document.cookie
-                            .split('; ')
-                            .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
-                            ?.slice(11) ?? '',
-                    ),
-                }),
+                headersProvider: csrfHeaders,
             },
         });
         echo = new Echo({ broadcaster: 'reverb', client });

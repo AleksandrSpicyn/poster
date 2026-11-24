@@ -63,7 +63,11 @@ readonly class ProduceSeriesMediaSubAction
             }
 
             if ($latest !== null) {
-                $blocked = $latest->operations->contains(fn(GenerationOperation $operation): bool => in_array($operation->status, [GenerationOperationStatus::FAILED, GenerationOperationStatus::CANCELLED, GenerationOperationStatus::ABANDONED], true));
+                $blocked = $latest->operations->contains(fn(GenerationOperation $operation): bool => in_array($operation->status, [
+                    GenerationOperationStatus::FAILED,
+                    GenerationOperationStatus::CANCELLED,
+                    GenerationOperationStatus::ABANDONED,
+                ], true));
                 $this->update->run(
                     $run,
                     $blocked ? ProductionStatus::NEEDS_ATTENTION : ProductionStatus::WAITING,

@@ -39,7 +39,13 @@ class GenerationProviderUsageRepository
             $key = ['provider' => $provider->value, 'external_id' => $externalId];
             $query = GenerationProviderUsage::query()->where($key);
             $query->upsert(
-                [...$key, 'prompt_id' => $promptId, 'status' => $usage->status->value, 'observed_at' => now('UTC'), ...$details],
+                [
+                    ...$key,
+                    'prompt_id' => $promptId,
+                    'status' => $usage->status->value,
+                    'observed_at' => now('UTC'),
+                    ...$details,
+                ],
                 ['provider', 'external_id'],
                 ['external_id'],
             );
@@ -65,7 +71,20 @@ class GenerationProviderUsageRepository
             ->where('observed_at', '<', $until->utc())
             ->orderBy('observed_at')
             ->orderBy('id')
-            ->get(['provider', 'external_id', 'result_model', 'requested_model', 'input_mode', 'resolution', 'status', 'duration', 'completion_tokens', 'charge_e8', 'currency', 'finance_reference']);
+            ->get([
+                'provider',
+                'external_id',
+                'result_model',
+                'requested_model',
+                'input_mode',
+                'resolution',
+                'status',
+                'duration',
+                'completion_tokens',
+                'charge_e8',
+                'currency',
+                'finance_reference',
+            ]);
     }
 
     public function reconcile(VideoProvider $provider, string $externalId, int $charge, string $currency, string $reference): void
@@ -86,7 +105,12 @@ class GenerationProviderUsageRepository
                 return;
             }
 
-            $query->update(['charge_e8' => $charge, 'currency' => $currency, 'finance_reference' => $reference, 'reconciled_at' => now('UTC')]);
+            $query->update([
+                'charge_e8' => $charge,
+                'currency' => $currency,
+                'finance_reference' => $reference,
+                'reconciled_at' => now('UTC'),
+            ]);
         }, 3);
     }
 }

@@ -24,7 +24,11 @@ readonly class ResetPasswordAction
     public function run(ResetPasswordData $data): string
     {
         /** @var string $status PasswordBroker returns a translation key. */
-        $status = $this->passwords->reset(['email' => $data->email, 'password' => $data->password, 'token' => $data->token], function (User $user) use ($data): void {
+        $status = $this->passwords->reset([
+            'email' => $data->email,
+            'password' => $data->password,
+            'token' => $data->token,
+        ], function (User $user) use ($data): void {
             $user->forceFill(['password' => $data->password, 'remember_token' => Str::random(60)]);
             $this->saveUser->run($user);
             $this->events->dispatch(new PasswordReset($user));

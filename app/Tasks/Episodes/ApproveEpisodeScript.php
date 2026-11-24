@@ -54,7 +54,11 @@ class ApproveEpisodeScript
             $episode->setRelation('series', $series);
             $revision->setRelation('episode', $episode);
 
-            $this->episodeRevisions->update($revision, ['status' => RevisionStatus::APPROVED, 'approved_at' => now(), 'approved_by' => $actor->id]);
+            $this->episodeRevisions->update($revision, [
+                'status' => RevisionStatus::APPROVED,
+                'approved_at' => now(),
+                'approved_by' => $actor->id,
+            ]);
 
             if ($useGeneratedTitle) {
                 $this->episodes->update($episode, ['title' => $revision->title]);

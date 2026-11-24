@@ -32,7 +32,11 @@ readonly class SeriesRepository extends EloquentRepository
     {
         return Series::query()->whereRelation('project', 'owner_id', $owner->id)
             ->with('project.media', 'project.coverFrame')
-            ->withCount(['characters', 'episodes', 'episodes as accepted_episodes_count' => static fn(Builder $query) => $query->whereNotNull('accepted_assembly_id')])
+            ->withCount([
+                'characters',
+                'episodes',
+                'episodes as accepted_episodes_count' => static fn(Builder $query) => $query->whereNotNull('accepted_assembly_id'),
+            ])
             ->when($data->active, static fn(Builder $query) => $query->whereNull('archived_at')->whereRelation('project', 'is_active', true))
             ->latest('created_at')
             ->latest('id')

@@ -62,7 +62,11 @@ readonly class Hailuo extends AsyncVideoGenerator
             modes: [VideoInputMode::FIRST_FRAME],
             minDuration: 6,
             maxDuration: 10,
-            resolutions: ['512P', '768P', '1080P'],
+            resolutions: [
+                '512P',
+                '768P',
+                '1080P',
+            ],
             defaultResolution: '768P',
             durations: [6, 10],
         );

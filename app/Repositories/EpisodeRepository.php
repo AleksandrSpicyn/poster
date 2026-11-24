@@ -72,7 +72,11 @@ readonly class EpisodeRepository extends EloquentRepository
         $project = $series->project ?? throw new LogicException('Missing series project.');
         $channels = $project->channels()
             ->where('channels.owner_id', $project->owner_id)->where('is_active', true)->whereNotNull('credentials->access_token')
-            ->whereIn('type', [ChannelType::YOUTUBE, ChannelType::INSTAGRAM, ChannelType::TIKTOK])
+            ->whereIn('type', [
+                ChannelType::YOUTUBE,
+                ChannelType::INSTAGRAM,
+                ChannelType::TIKTOK,
+            ])
             ->orderBy('name')->limit(100)->get()
             ->reject(fn(Channel $channel): bool => $channel->type === ChannelType::TIKTOK && ! $channel->canSendTiktokInboxVideo())->values();
         $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())
@@ -129,8 +133,11 @@ readonly class EpisodeRepository extends EloquentRepository
     {
         return Episode::query()->whereKey($episode->id)->where('script_request_key', $requestKey)
             ->where('script_generation_status', ScriptGenerationStatus::RUNNING)
-            ->update(['script_generation_status' => ScriptGenerationStatus::QUEUED,
-                'script_started_at' => null, 'script_generation_error' => null]);
+            ->update([
+                'script_generation_status' => ScriptGenerationStatus::QUEUED,
+                'script_started_at' => null,
+                'script_generation_error' => null,
+            ]);
     }
 
     public function completeScriptRequest(Episode $episode, string $requestKey, ?string $error): int

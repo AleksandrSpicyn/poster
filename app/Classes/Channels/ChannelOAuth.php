@@ -41,26 +41,42 @@ readonly class ChannelOAuth
 
     public function fingerprint(Channel $channel): string
     {
-        return Snapshot::hash([$channel->id, $channel->type->value, $channel->oauthClientId(), $channel->oauthClientSecret(), $channel->external_account, $channel->credentials]);
+        return Snapshot::hash([
+            $channel->id,
+            $channel->type->value,
+            $channel->oauthClientId(),
+            $channel->oauthClientSecret(),
+            $channel->external_account,
+            $channel->credentials,
+        ]);
     }
 
     public function authorizationUrl(Channel $channel, string $state): string
     {
         $redirectUri = self::redirectUri($channel->type);
         $key = $channel->type === ChannelType::TIKTOK ? 'client_key' : 'client_id';
-        $params = [$key => Payload::string($channel->oauthClientId(), 'client_id'),
-            'redirect_uri' => $redirectUri, 'response_type' => 'code', 'state' => $state];
+        $params = [
+            $key => Payload::string($channel->oauthClientId(), 'client_id'),
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'state' => $state,
+        ];
         Payload::string($channel->oauthClientSecret(), 'client_secret');
 
         return match ($channel->type) {
-            ChannelType::YOUTUBE => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-                ...$params, 'scope' => implode(' ', $this->scopes($channel)), 'access_type' => 'offline', 'prompt' => $channel->external_account === null ? 'consent' : 'select_account consent',
+            ChannelType::YOUTUBE => config()->string('services.youtube.authorize_url') . '?' . http_build_query([
+                ...$params,
+                'scope' => implode(' ', $this->scopes($channel)),
+                'access_type' => 'offline',
+                'prompt' => $channel->external_account === null ? 'consent' : 'select_account consent',
             ]),
-            ChannelType::TIKTOK => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
+            ChannelType::TIKTOK => config()->string('services.tiktok.authorize_url') . '?' . http_build_query([
                 ...$params, 'scope' => implode(',', $this->scopes($channel)),
             ]),
-            ChannelType::INSTAGRAM => 'https://www.instagram.com/oauth/authorize?' . http_build_query([
-                ...$params, 'scope' => implode(',', array_unique([...$this->scopes($channel), 'instagram_business_manage_insights'])), 'enable_fb_login' => 'false',
+            ChannelType::INSTAGRAM => config()->string('services.instagram.authorize_url') . '?' . http_build_query([
+                ...$params,
+                'scope' => implode(',', array_unique([...$this->scopes($channel), 'instagram_business_manage_insights'])),
+                'enable_fb_login' => 'false',
             ]),
             default => throw new RuntimeException('OAuth is not available for this platform.'),
         };

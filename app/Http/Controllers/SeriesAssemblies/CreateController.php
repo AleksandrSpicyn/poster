@@ -25,7 +25,11 @@ class CreateController
         $series = $action->run($series);
 
         return inertia('SeriesAssemblies/Create', [
-            'series' => ['id' => $series->id, 'name' => $series->name, 'project_id' => $series->project_id],
+            'series' => [
+                'id' => $series->id,
+                'name' => $series->name,
+                'project_id' => $series->project_id,
+            ],
             'parameters' => SeriesAssemblyParametersResource::make($series)->resolve(),
         ]);
     }

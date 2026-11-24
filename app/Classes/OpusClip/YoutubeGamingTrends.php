@@ -21,10 +21,17 @@ final readonly class YoutubeGamingTrends
     /** @return list<array{title: string, channel: string, views: string, views_per_day?: int|null, url: string}> */
     public function search(string $game): array
     {
-        $http = $this->client()->baseUrl('https://www.googleapis.com/youtube/v3');
-        $results = $http->get('search', ['part' => 'snippet', 'type' => 'video', 'q' => $game,
-            'order' => 'viewCount', 'videoDuration' => 'short', 'videoCategoryId' => '20',
-            'publishedAfter' => now('UTC')->subDays(7)->toRfc3339String(), 'maxResults' => 10])->throw();
+        $http = $this->client()->baseUrl(config()->string('services.youtube.api_url'));
+        $results = $http->get('search', [
+            'part' => 'snippet',
+            'type' => 'video',
+            'q' => $game,
+            'order' => 'viewCount',
+            'videoDuration' => 'short',
+            'videoCategoryId' => '20',
+            'publishedAfter' => now('UTC')->subDays(7)->toRfc3339String(),
+            'maxResults' => 10,
+        ])->throw();
         $ids = $results->collect('items')->map(fn($item): string => Payload::string(data_get($item, 'id.videoId'), 'videoId'))->all();
 
         if ($ids === []) {

@@ -39,7 +39,8 @@ class Post extends Model
         'description',
         'external_id',
         'prompt_id',
-        'episode_assembly_id', 'series_assembly_id',
+        'episode_assembly_id',
+        'series_assembly_id',
         'publication_request_id',
         'url',
     ];

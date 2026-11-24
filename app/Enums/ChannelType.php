@@ -28,6 +28,10 @@ enum ChannelType: string
     /** @return list<self> */
     public static function oauthProviders(): array
     {
-        return [self::YOUTUBE, self::INSTAGRAM, self::TIKTOK];
+        return [
+            self::YOUTUBE,
+            self::INSTAGRAM,
+            self::TIKTOK,
+        ];
     }
 }

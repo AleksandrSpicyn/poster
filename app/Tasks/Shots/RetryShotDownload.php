@@ -46,10 +46,19 @@ class RetryShotDownload
                 throw ValidationException::withMessages(['download' => 'Wait for the current download before retrying.']);
             }
 
-            $this->operations->update($operation, ['status' => GenerationOperationStatus::PLANNED, 'next_check_at' => now(),
-                'cancel_requested_at' => null, 'error_code' => null, 'completed_at' => null,
-                'result_snapshot' => [...($operation->result_snapshot ?? []), 'retry_limit' => $operation->check_count + 3,
-                    'retry_requested_by' => $actor->id, 'retry_requested_at' => now()->toISOString()]]);
+            $this->operations->update($operation, [
+                'status' => GenerationOperationStatus::PLANNED,
+                'next_check_at' => now(),
+                'cancel_requested_at' => null,
+                'error_code' => null,
+                'completed_at' => null,
+                'result_snapshot' => [
+                    ...($operation->result_snapshot ?? []),
+                    'retry_limit' => $operation->check_count + 3,
+                    'retry_requested_by' => $actor->id,
+                    'retry_requested_at' => now()->toISOString(),
+                ],
+            ]);
 
             $this->usage->setStatus([$prompt->id], ReservationStatus::HELD);
 

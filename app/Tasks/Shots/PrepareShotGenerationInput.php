@@ -49,9 +49,12 @@ readonly class PrepareShotGenerationInput
         $referenceMediaIds = [...$primaryReferences, ...array_slice($secondaryReferences, 0, $availableReferences - count($primaryReferences))];
         $specification = json_encode(collect($series->specification)->except('story_outline')->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $characterPrompt = json_encode(collect($characters)->map(fn(PinnedCharacterData $character): array => [
-            'id' => $character->id, 'character_id' => $character->character_id, 'description' => $character->description,
+            'id' => $character->id,
+            'character_id' => $character->character_id,
+            'description' => $character->description,
             'name' => $character->name,
-            'appearance' => $character->appearance, 'voice' => $character->voice,
+            'appearance' => $character->appearance,
+            'voice' => $character->voice,
         ])->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $setting = json_encode($scene->setting, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $cameraSettings = $shot->camera;
@@ -111,16 +114,25 @@ No extra dialogue, printed captions, logos or watermark. Do not replace the seri
 TEXT;
 
         return [
-            'schema_version' => 1, 'actor_id' => $actor->id, 'series_id' => $series->id,
-            'episode_revision_id' => $revision->id, 'specification_version' => $series->specification_version,
-            'continuity_version' => $series->continuity_version, 'context_hash' => $revision->context_hash,
-            'characters' => collect($characters)->map(fn(PinnedCharacterData $character): array => $character->toArray())->all(), 'transition_mode' => $shot->transition_mode->value,
+            'schema_version' => 1,
+            'actor_id' => $actor->id,
+            'series_id' => $series->id,
+            'episode_revision_id' => $revision->id,
+            'specification_version' => $series->specification_version,
+            'continuity_version' => $series->continuity_version,
+            'context_hash' => $revision->context_hash,
+            'characters' => collect($characters)->map(fn(PinnedCharacterData $character): array => $character->toArray())->all(),
+            'transition_mode' => $shot->transition_mode->value,
             'audio_mode' => $audioMode->value,
-            'reference_media_ids' => $referenceMediaIds, 'source_reference_position' => $sourceReferencePosition,
-            'source_media_id' => $sourceMediaId, 'source_sha256' => $sourceChecksum,
-            'source_prompt_id' => $sourcePromptId, 'source_assembly_id' => $sourceAssemblyId,
+            'reference_media_ids' => $referenceMediaIds,
+            'source_reference_position' => $sourceReferencePosition,
+            'source_media_id' => $sourceMediaId,
+            'source_sha256' => $sourceChecksum,
+            'source_prompt_id' => $sourcePromptId,
+            'source_assembly_id' => $sourceAssemblyId,
             'source_time_ms' => $shot->source_anchor['time_ms'] ?? null,
-            'image_prompt' => $imagePrompt, 'video_prompt' => $videoPrompt,
+            'image_prompt' => $imagePrompt,
+            'video_prompt' => $videoPrompt,
             'video' => $settings->videoSnapshot(),
         ];
     }

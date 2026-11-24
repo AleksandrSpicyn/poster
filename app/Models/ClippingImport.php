@@ -27,5 +27,10 @@ class ClippingImport extends Model
 
     protected $hidden = ['clips'];
 
-    protected $casts = ['clips' => 'array', 'accounts' => 'array', 'unmapped_accounts' => 'array', 'imported_at' => 'datetime'];
+    protected $casts = [
+        'clips' => 'array',
+        'accounts' => 'array',
+        'unmapped_accounts' => 'array',
+        'imported_at' => 'datetime',
+    ];
 }

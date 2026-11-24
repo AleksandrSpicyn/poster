@@ -45,13 +45,22 @@ class SaveCharacterRevision
             'number' => $this->characterRevisions->nextNumber($character),
             'status' => RevisionStatus::DRAFT,
         ]);
-        $revision->fill(['description' => $data->description, 'appearance' => $data->appearance, 'voice' => $data->voice]);
+        $revision->fill([
+            'description' => $data->description,
+            'appearance' => $data->appearance,
+            'voice' => $data->voice,
+        ]);
 
         if (! $data->title instanceof Optional) {
             $revision->title = $data->title;
         }
 
-        if ($revision->exists && $revision->isDirty(['title', 'description', 'appearance', 'voice'])) {
+        if ($revision->exists && $revision->isDirty([
+            'title',
+            'description',
+            'appearance',
+            'voice',
+        ])) {
             $revision->lock_version++;
         }
 

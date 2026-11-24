@@ -5,17 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Projects;
 
 use App\Actions\Projects\GetProjectFormAction;
-use App\Data\ProjectData;
-use App\Enums\ContentAudience;
-use App\Enums\CycleSceneMode;
-use App\Enums\CycleStructure;
-use App\Enums\ProjectContentMode;
-use App\Enums\SeriesAudioMode;
-use App\Enums\SeriesOutputMode;
-use App\Http\Resources\ChannelResource;
-use App\Http\Resources\CharacterResource;
-use App\Http\Resources\ProjectResource;
-use App\Http\Resources\SeriesResource;
+use App\Http\Resources\ProjectFormResponse;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -43,23 +33,7 @@ class EditController
     public function __invoke(#[CurrentUser] User $owner, Project $project, GetProjectFormAction $action): Response
     {
         $details = $action->run($owner, $project);
-        $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
 
-        return inertia('Projects/Form', [
-            'project' => ProjectResource::make($details->project)->resolve(),
-            'scheduleSettings' => $details->scheduleSettings,
-            'contentModes' => Gate::allows('manageSeries') ? ProjectContentMode::labels() : [ProjectContentMode::SHORT->value => ProjectContentMode::SHORT->label()],
-            'series' => $series === null ? null : SeriesResource::make($series)->resolve(),
-            'castCharacters' => $series === null ? [] : CharacterResource::collection($series->characters)->resolve(),
-            'channels' => ChannelResource::collection($details->channels)->resolve(),
-            'selectedChannelIds' => $details->selectedChannelIds,
-            'audiences' => ContentAudience::labels(),
-            'audioModes' => SeriesAudioMode::labels(),
-            'outputModes' => SeriesOutputMode::labels(),
-            'cycleStructures' => CycleStructure::labels(),
-            'sceneModes' => CycleSceneMode::labels(),
-            'defaultAudioMode' => SeriesAudioMode::NATIVE->value,
-            'limits' => ['name' => ProjectData::NAME_MAX_LENGTH, 'prompt' => ProjectData::PROMPT_MAX_LENGTH],
-        ]);
+        return ProjectFormResponse::render($details, Gate::forUser($owner)->allows('manageSeries'));
     }
 }

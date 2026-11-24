@@ -24,9 +24,15 @@ readonly class AttachSeriesAssembly
                 return;
             }
 
-            $this->runs->update($run, ['series_assembly_id' => $assembly->id, 'stage' => ProductionStage::FINAL_MONTAGE,
-                'stage_started_at' => now(), 'next_check_at' => now(), 'status' => ProductionStatus::WAITING,
-                'lock_version' => $run->lock_version + 1, 'error_message' => null]);
+            $this->runs->update($run, [
+                'series_assembly_id' => $assembly->id,
+                'stage' => ProductionStage::FINAL_MONTAGE,
+                'stage_started_at' => now(),
+                'next_check_at' => now(),
+                'status' => ProductionStatus::WAITING,
+                'lock_version' => $run->lock_version + 1,
+                'error_message' => null,
+            ]);
         });
     }
 }

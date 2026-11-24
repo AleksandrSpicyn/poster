@@ -17,9 +17,12 @@ final readonly class YoutubeOAuth
      */
     public function exchange(Channel $channel, string $code, string $redirectUri, array $requiredScopes): array
     {
-        $response = Http::asForm()->timeout(20)->post('https://oauth2.googleapis.com/token', [
-            'client_id' => $channel->oauthClientId(), 'client_secret' => $channel->oauthClientSecret(), 'code' => $code,
-            'redirect_uri' => $redirectUri, 'grant_type' => 'authorization_code',
+        $response = Http::asForm()->timeout(20)->post(config()->string('services.youtube.token_url'), [
+            'client_id' => $channel->oauthClientId(),
+            'client_secret' => $channel->oauthClientSecret(),
+            'code' => $code,
+            'redirect_uri' => $redirectUri,
+            'grant_type' => 'authorization_code',
         ])->throw();
         $token = $response->json('access_token');
 
@@ -44,17 +47,27 @@ final readonly class YoutubeOAuth
             throw new ChannelAuthorizationException('Google did not grant offline access. Reconnect the assigned channel and approve the consent screen.');
         }
 
-        return ['access_token' => $token, 'refresh_token' => $refresh,
-            'token_type' => 'Bearer', 'expires_in' => TokenLifetime::seconds($response->json('expires_in'), 3600), 'created' => now()->timestamp,
-            'channel_id' => $profile->id, 'account_name' => $profile->name,
-            'granted_scopes' => is_string($scopes) ? array_values(array_filter(explode(' ', $scopes))) : null];
+        return [
+            'access_token' => $token,
+            'refresh_token' => $refresh,
+            'token_type' => 'Bearer',
+            'expires_in' => TokenLifetime::seconds($response->json('expires_in'), 3600),
+            'created' => now()->timestamp,
+            'channel_id' => $profile->id,
+            'account_name' => $profile->name,
+            'granted_scopes' => is_string($scopes) ? array_values(array_filter(explode(' ', $scopes))) : null,
+        ];
     }
 
     private function findChannel(string $token, ?string $assigned): YoutubeChannelData
     {
-        $query = ['part' => 'snippet', 'mine' => 'true', 'maxResults' => 50];
+        $query = [
+            'part' => 'snippet',
+            'mine' => 'true',
+            'maxResults' => 50,
+        ];
         do {
-            $profile = Http::withToken($token)->timeout(20)->get('https://www.googleapis.com/youtube/v3/channels', $query)->throw();
+            $profile = Http::withToken($token)->timeout(20)->get(config()->string('services.youtube.api_url') . '/channels', $query)->throw();
             $items = $profile->json('items');
 
             if (! is_array($items)) {

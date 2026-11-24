@@ -24,6 +24,7 @@ return [
     */
 
     'opus_clip' => [
+        'api_url' => 'https://api.opus.pro/api/',
         'key' => env('OPUS_CLIP_API_KEY', ''),
     ],
 
@@ -89,6 +90,10 @@ return [
     ],
 
     'youtube' => [
+        'api_url' => 'https://www.googleapis.com/youtube/v3',
+        'analytics_url' => 'https://youtubeanalytics.googleapis.com/v2',
+        'token_url' => 'https://oauth2.googleapis.com/token',
+        'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
         'data_api_key' => env('YOUTUBE_DATA_API_KEY', ''),
         'client_id' => env('YOUTUBE_CLIENT_ID'),
         'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
@@ -99,6 +104,9 @@ return [
     ],
 
     'instagram' => [
+        'graph_url' => 'https://graph.instagram.com',
+        'token_url' => 'https://api.instagram.com/oauth/access_token',
+        'authorize_url' => 'https://www.instagram.com/oauth/authorize',
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'token' => env('INSTAGRAM_TOKEN'),
@@ -111,6 +119,8 @@ return [
     ],
 
     'tiktok' => [
+        'api_url' => 'https://open.tiktokapis.com/v2/',
+        'authorize_url' => 'https://www.tiktok.com/v2/auth/authorize/',
         'direct_post' => env('TIKTOK_DIRECT_POST', false),
         'public_direct_post' => env('TIKTOK_PUBLIC_DIRECT_POST', false),
         'client_id' => env('TIKTOK_CLIENT_ID'),

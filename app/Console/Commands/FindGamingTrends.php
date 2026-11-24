@@ -49,7 +49,13 @@ class FindGamingTrends extends Command
                 }
 
                 $this->info($name);
-                $this->table(['Title', 'Channel', 'Views', 'Views/day (min. 1 day)', 'URL'], $rows);
+                $this->table([
+                    'Title',
+                    'Channel',
+                    'Views',
+                    'Views/day (min. 1 day)',
+                    'URL',
+                ], $rows);
             } catch (RequestException $error) {
                 $this->error($name . ': YouTube returned HTTP ' . $error->response->status() . '. Check access and quota.');
                 $result = self::FAILURE;

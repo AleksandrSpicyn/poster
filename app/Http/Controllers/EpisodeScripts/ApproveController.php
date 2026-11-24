@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\EpisodeScripts;
 
 use App\Actions\Episodes\ApproveEpisodeScriptAction;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\Series;
@@ -12,7 +13,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class ApproveController
+class ApproveController extends EpisodeController
 {
     /**
      * Утверждение просмотренного сценария
@@ -36,6 +37,6 @@ class ApproveController
     {
         $action->run($revision, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

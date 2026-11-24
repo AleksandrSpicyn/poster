@@ -41,10 +41,24 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manageChannels', [OperationsPolicy::class, 'manageChannels']);
         Gate::define('manageSeries', [OperationsPolicy::class, 'manageSeries']);
 
-        foreach ([Project::class, Channel::class, Prompt::class, Post::class, Series::class,
-            Character::class, CharacterRevision::class, Episode::class, EpisodeRevision::class,
-            Scene::class, Shot::class, GenerationOperation::class, EpisodeAssembly::class, SeriesAssembly::class,
-            PublicationRequest::class, ProductionRun::class] as $model) {
+        foreach ([
+            Project::class,
+            Channel::class,
+            Prompt::class,
+            Post::class,
+            Series::class,
+            Character::class,
+            CharacterRevision::class,
+            Episode::class,
+            EpisodeRevision::class,
+            Scene::class,
+            Shot::class,
+            GenerationOperation::class,
+            EpisodeAssembly::class,
+            SeriesAssembly::class,
+            PublicationRequest::class,
+            ProductionRun::class,
+        ] as $model) {
             $model::observe(BroadcastWorkspaceChanges::class);
         }
     }

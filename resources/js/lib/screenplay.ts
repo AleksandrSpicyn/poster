@@ -37,3 +37,23 @@ export function sourcePrecedes(source: ContinuationSource, scenePosition: number
         (source.scene_position === scenePosition && source.shot_position < shotPosition)
     );
 }
+
+export function parseScreenplayImport(text: string): { script: Record<string, unknown> | null; error: string } {
+    let script: unknown;
+    try {
+        script = JSON.parse(text);
+    } catch {
+        return { script: null, error: 'Введите сценарий в формате JSON.' };
+    }
+    if (typeof script !== 'object' || script === null || Array.isArray(script)) return { script: null, error: 'Введите сценарий в формате JSON.' };
+    if (!('scenes' in script) || !Array.isArray(script.scenes)) return { script: null, error: 'scenes · ожидается массив сцен.' };
+
+    for (const [index, scene] of script.scenes.entries()) {
+        const shots: unknown = scene?.shots;
+        if (!Array.isArray(shots)) {
+            const detail = typeof shots === 'string' ? ', получена строка.' : '.';
+            return { script: null, error: `scenes[${index}].shots · ожидается массив кадров${detail}` };
+        }
+    }
+    return { script, error: '' };
+}

@@ -54,8 +54,11 @@ readonly class CheckShotGenerationAction
                 }
 
                 $receipt = [
-                    'video_url' => $result->videoUrl, 'audio_url' => $result->audioUrl,
-                    'last_frame_url' => $result->lastFrameUrl, 'duration' => $result->duration, 'model' => $result->model,
+                    'video_url' => $result->videoUrl,
+                    'audio_url' => $result->audioUrl,
+                    'last_frame_url' => $result->lastFrameUrl,
+                    'duration' => $result->duration,
+                    'model' => $result->model,
                 ];
                 $missingAudio = data_get($operation->request_snapshot, 'video.generate_audio') === true && $result->audioUrl === null;
                 $wrongModel = $result->model !== null && $result->model !== $operation->model;

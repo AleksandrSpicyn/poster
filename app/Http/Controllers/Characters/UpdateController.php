@@ -37,6 +37,10 @@ class UpdateController
     {
         $action->run($series, $data, $character);
 
-        return to_route('characters.show', ['project' => $project, 'series' => $series, 'character' => $character]);
+        return to_route('characters.show', [
+            'project' => $project,
+            'series' => $series,
+            'character' => $character,
+        ]);
     }
 }

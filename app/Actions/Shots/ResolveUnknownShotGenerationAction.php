@@ -47,16 +47,21 @@ readonly class ResolveUnknownShotGenerationAction
             $generator->capabilities($operation->model);
 
             $metadata = [
-                ...($operation->result_snapshot ?? []), 'resolved_by' => $actor->id,
-                'resolution_note' => $data->note, 'resolved_at' => now()->toISOString(),
+                ...($operation->result_snapshot ?? []),
+                'resolved_by' => $actor->id,
+                'resolution_note' => $data->note,
+                'resolved_at' => now()->toISOString(),
             ];
 
             try {
                 $result = $this->read->run($generator, $provider, $data->external_id, $operation, $operation->model);
             } catch (VideoGeneratingException $exception) {
                 $this->update->run($operation, GenerationOperationStatus::FAILED, [
-                    'external_id' => $data->external_id, 'provider' => $operation->provider,
-                    'model' => $operation->model, 'result_snapshot' => $metadata, 'error_code' => $exception::class,
+                    'external_id' => $data->external_id,
+                    'provider' => $operation->provider,
+                    'model' => $operation->model,
+                    'result_snapshot' => $metadata,
+                    'error_code' => $exception::class,
                 ], GenerationOperationStatus::SUBMISSION_UNKNOWN);
 
                 return true;
@@ -66,7 +71,12 @@ readonly class ResolveUnknownShotGenerationAction
                 throw ValidationException::withMessages(['external_id' => 'The remote receipt could not be verified. No new generation was sent.']);
             }
 
-            $attributes = ['external_id' => $data->external_id, 'provider' => $operation->provider, 'model' => $operation->model, 'error_code' => null];
+            $attributes = [
+                'external_id' => $data->external_id,
+                'provider' => $operation->provider,
+                'model' => $operation->model,
+                'error_code' => null,
+            ];
 
             if (! $result instanceof VideoResultData) {
                 $this->update->run(
@@ -81,13 +91,23 @@ readonly class ResolveUnknownShotGenerationAction
                 return true;
             }
 
-            $metadata = [...$metadata, 'video_url' => $result->videoUrl, 'audio_url' => $result->audioUrl,
-                'last_frame_url' => $result->lastFrameUrl, 'duration' => $result->duration, 'model' => $result->model];
+            $metadata = [
+                ...$metadata,
+                'video_url' => $result->videoUrl,
+                'audio_url' => $result->audioUrl,
+                'last_frame_url' => $result->lastFrameUrl,
+                'duration' => $result->duration,
+                'model' => $result->model,
+            ];
             $missingAudio = data_get($operation->request_snapshot, 'video.generate_audio') === true && $result->audioUrl === null;
             $next = $this->update->run(
                 $operation,
                 $missingAudio ? GenerationOperationStatus::FAILED : GenerationOperationStatus::SUCCEEDED,
-                [...$attributes, 'result_snapshot' => $metadata, 'error_code' => $missingAudio ? 'missing_requested_audio' : null],
+                [
+                    ...$attributes,
+                    'result_snapshot' => $metadata,
+                    'error_code' => $missingAudio ? 'missing_requested_audio' : null,
+                ],
                 GenerationOperationStatus::SUBMISSION_UNKNOWN,
             );
 

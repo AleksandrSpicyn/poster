@@ -9,7 +9,7 @@ use App\Enums\GenerationAccountingMode;
 use App\Jobs\GenerateEpisodeScriptJob;
 use App\Models\Episode;
 use App\Models\User;
-use App\Repositories\GenerationReservationRepository;
+use App\Repositories\BillingAccountingRepository;
 use App\Tasks\Episodes\BuildEpisodeContext;
 use App\Tasks\Episodes\QueueEpisodeScript;
 use App\Tasks\Users\RefreshUser;
@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 readonly class RequestEpisodeScriptAction
 {
-    public function __construct(private GenerationReservationRepository $usage, private BuildEpisodeContext $context, private QueueEpisodeScript $queue, private RefreshUser $refreshUser) {}
+    public function __construct(private BillingAccountingRepository $accounting, private BuildEpisodeContext $context, private QueueEpisodeScript $queue, private RefreshUser $refreshUser) {}
 
     public function run(Episode $episode, GenerateEpisodeScriptData $data, User $actor): void
     {
@@ -31,7 +31,7 @@ readonly class RequestEpisodeScriptAction
 
         Gate::forUser($actor)->authorize('manageSeries', $episode);
 
-        if ($this->usage->mode($actor->id) === GenerationAccountingMode::ENFORCED->value) {
+        if ($this->accounting->storedMode($actor->id) === GenerationAccountingMode::ENFORCED->value) {
             throw ValidationException::withMessages(['balance' => 'Генерация сценария входит в резерв эпизода. Запустите производство из проекта или введите сценарий вручную.']);
         }
 

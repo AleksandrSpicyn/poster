@@ -51,15 +51,24 @@ readonly class ResumeProduction
                 $next = $this->runs->createQueued($project, $series, $actor, $key, $current->input_snapshot);
 
                 if ($current->series_assembly_id !== null) {
-                    $this->runs->update($next, ['series_assembly_id' => $current->series_assembly_id, 'stage' => $current->stage,
-                        'episode_id' => $current->episode_id, 'episode_assembly_id' => $current->episode_assembly_id]);
+                    $this->runs->update($next, [
+                        'series_assembly_id' => $current->series_assembly_id,
+                        'stage' => $current->stage,
+                        'episode_id' => $current->episode_id,
+                        'episode_assembly_id' => $current->episode_assembly_id,
+                    ]);
                 }
 
                 return $next;
             }
 
-            $this->runs->update($current, ['status' => ProductionStatus::WAITING, 'next_check_at' => now(),
-                'stage_started_at' => now(), 'lock_version' => $current->lock_version + 1, 'error_message' => null]);
+            $this->runs->update($current, [
+                'status' => ProductionStatus::WAITING,
+                'next_check_at' => now(),
+                'stage_started_at' => now(),
+                'lock_version' => $current->lock_version + 1,
+                'error_message' => null,
+            ]);
 
             return $current;
         });

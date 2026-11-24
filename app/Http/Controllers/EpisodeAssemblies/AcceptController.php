@@ -6,6 +6,7 @@ namespace App\Http\Controllers\EpisodeAssemblies;
 
 use App\Actions\Episodes\AcceptEpisodeAction;
 use App\Data\Episodes\AcceptEpisodeData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
@@ -14,7 +15,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class AcceptController
+class AcceptController extends EpisodeController
 {
     /**
      * Принятие монтажа и подтверждение событий
@@ -44,6 +45,6 @@ class AcceptController
     {
         $action->run($assembly, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

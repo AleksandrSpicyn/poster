@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clipping;
 
-use App\Actions\Clipping\GetClippingConnectionsAction;
-use App\Http\Resources\ProjectResource;
+use App\Actions\Clipping\GetClippingHistoryAction;
+use App\Http\Resources\ProjectCardResource;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
-use Illuminate\Support\Arr;
 use Inertia\Response;
 
 class HistoryController
@@ -21,13 +20,13 @@ class HistoryController
      * @subgroup Клиппинг
      * @authenticated
      */
-    public function __invoke(#[CurrentUser] User $owner, GetClippingConnectionsAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, GetClippingHistoryAction $action): Response
     {
-        $data = $action->history($owner);
+        $data = $action->run($owner);
 
         return inertia('Clipping/History', [
             ...$data,
-            'projects' => $data['projects']->map(static fn(Project $project): array => Arr::only(ProjectResource::make($project)->resolve(), ['id', 'name', 'cover'])),
+            'projects' => $data['projects']->map(static fn(Project $project): array => ProjectCardResource::make($project)->resolve()),
         ]);
     }
 }

@@ -81,7 +81,11 @@ class CharacterRevision extends Model implements HasMedia
     {
         $this->addMediaCollection(self::REFERENCES)
             ->useDisk('local')
-            ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);
+            ->acceptsMimeTypes([
+                'image/png',
+                'image/jpeg',
+                'image/webp',
+            ]);
     }
 
     protected static function booted(): void

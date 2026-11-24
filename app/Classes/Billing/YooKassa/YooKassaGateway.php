@@ -75,7 +75,8 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway, R
     {
         $response = $this->verifiedMerchant()->withHeader('Idempotence-Key', $request->idempotencyKey)->post('refunds', [
             ...($request->reference === null ? [] : ['description' => $request->reference]),
-            'payment_id' => $request->paymentId, 'amount' => $this->amount($request->amountKopecks),
+            'payment_id' => $request->paymentId,
+            'amount' => $this->amount($request->amountKopecks),
         ]);
         $result = $this->refund($response);
 
@@ -102,10 +103,19 @@ final readonly class YooKassaGateway implements PaymentGateway, RefundGateway, R
         $type = $request->kind === 'refund' ? 'refund' : 'payment';
         $amount = $this->amount($request->amountKopecks);
         $response = $this->verifiedMerchant()->withHeader('Idempotence-Key', $key)->post('receipts', [
-            'type' => $type, $type . '_id' => $request->sourceId, 'send' => true, 'internet' => true,
+            'type' => $type,
+            $type . '_id' => $request->sourceId,
+            'send' => true,
+            'internet' => true,
             'customer' => ['email' => $request->email],
-            'items' => [['description' => $request->description, 'quantity' => '1.000', 'amount' => $amount, 'vat_code' => $request->vat,
-                'payment_subject' => $request->subject, 'payment_mode' => $request->mode]],
+            'items' => [[
+                'description' => $request->description,
+                'quantity' => '1.000',
+                'amount' => $amount,
+                'vat_code' => $request->vat,
+                'payment_subject' => $request->subject,
+                'payment_mode' => $request->mode,
+            ]],
             'settlements' => [['type' => $request->kind === 'offset' ? 'prepayment' : 'cashless', 'amount' => $amount]],
             ...($request->taxSystem === null ? [] : ['tax_system_code' => $request->taxSystem]),
         ]);

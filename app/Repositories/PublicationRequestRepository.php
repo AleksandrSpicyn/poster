@@ -66,7 +66,11 @@ readonly class PublicationRequestRepository extends EloquentRepository
     {
         return PublicationRequest::query()->whereKey($request->id)
             ->where('status', '!=', PublicationStatus::PUBLISHED)
-            ->update(['status' => $status, 'container_id' => $containerId ?? $request->container_id, 'error_message' => $error]);
+            ->update([
+                'status' => $status,
+                'container_id' => $containerId ?? $request->container_id,
+                'error_message' => $error,
+            ]);
     }
 
     public function failPendingProduction(ProductionRun $run): int
@@ -153,12 +157,22 @@ readonly class PublicationRequestRepository extends EloquentRepository
             ->with('channel')->latest('id')->limit(20)->get();
     }
 
+    public function shortWithProject(PublicationRequest $request): ?Prompt
+    {
+        return $request->prompt()->with('project')->first();
+    }
+
     public function forShort(Prompt $prompt, Channel $channel, int $ownerId, ?TiktokPublicationData $tiktok = null): PublicationRequest
     {
         return PublicationRequest::query()->firstOrCreate(['prompt_id' => $prompt->id, 'channel_id' => $channel->id], [
-            'created_by' => $ownerId, 'status' => PublicationStatus::PLANNED,
-            'payload' => ['title' => $tiktok->title ?? Str::limit($prompt->prompt, 97), 'description' => '', 'made_for_kids' => false,
-                ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : [])],
+            'created_by' => $ownerId,
+            'status' => PublicationStatus::PLANNED,
+            'payload' => [
+                'title' => $tiktok->title ?? Str::limit($prompt->prompt, 97),
+                'description' => '',
+                'made_for_kids' => false,
+                ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
+            ],
         ]);
     }
 
@@ -175,11 +189,18 @@ readonly class PublicationRequestRepository extends EloquentRepository
 
         foreach ($channels as $channel) {
             $request = $existing->get($channel->id) ?? new PublicationRequest([
-                'release_key' => $releaseKey, 'channel_id' => $channel->id, 'series_assembly_id' => $assembly->id, 'created_by' => $actor->id,
-                'production_run_id' => $run?->id, 'status' => PublicationStatus::PLANNED,
-                'payload' => [...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []), 'title' => Str::limit($assembly->series->name, 97),
+                'release_key' => $releaseKey,
+                'channel_id' => $channel->id,
+                'series_assembly_id' => $assembly->id,
+                'created_by' => $actor->id,
+                'production_run_id' => $run?->id,
+                'status' => PublicationStatus::PLANNED,
+                'payload' => [
+                    ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
+                    'title' => Str::limit($assembly->series->name, 97),
                     'description' => $assembly->series->specification['premise'],
-                    'made_for_kids' => ($assembly->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value],
+                    'made_for_kids' => ($assembly->series->specification['audience'] ?? null) === ContentAudience::CHILDREN->value,
+                ],
             ]);
             $request->setRelation('channel', $channel);
 
@@ -198,7 +219,11 @@ readonly class PublicationRequestRepository extends EloquentRepository
             if ($run instanceof ProductionRun && $request->production_run_id !== $run->id && $request->status === PublicationStatus::FAILED
                 && $request->error_message === 'Automatic production stopped before publication.') {
                 if ($request->container_id !== null || $request->submitted_at === null) {
-                    $request->update(['production_run_id' => $run->id, 'status' => $request->container_id === null ? PublicationStatus::PLANNED : PublicationStatus::PROCESSING, 'error_message' => null]);
+                    $request->update([
+                        'production_run_id' => $run->id,
+                        'status' => $request->container_id === null ? PublicationStatus::PLANNED : PublicationStatus::PROCESSING,
+                        'error_message' => null,
+                    ]);
                 }
             }
 
@@ -246,8 +271,13 @@ readonly class PublicationRequestRepository extends EloquentRepository
 
         foreach ($channels as $channel) {
             $request = $existing->get($channel->id) ?? new PublicationRequest([
-                'episode_assembly_id' => $assembly->id, 'channel_id' => $channel->id,
-                'created_by' => $actor->id, 'production_run_id' => $productionRun?->id, 'scheduled_at' => $scheduledAt, 'status' => PublicationStatus::PLANNED, 'payload' => [
+                'episode_assembly_id' => $assembly->id,
+                'channel_id' => $channel->id,
+                'created_by' => $actor->id,
+                'production_run_id' => $productionRun?->id,
+                'scheduled_at' => $scheduledAt,
+                'status' => PublicationStatus::PLANNED,
+                'payload' => [
                     ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
                     'title' => Str::limit($context->revision->title, 97),
                     'description' => $description,

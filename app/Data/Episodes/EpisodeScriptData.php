@@ -26,6 +26,10 @@ class EpisodeScriptData extends Data
     /** @return array<string, list<string>> */
     public static function rules(): array
     {
-        return ['character_revision_ids.*' => ['integer', 'min:1', 'distinct']];
+        return ['character_revision_ids.*' => [
+            'integer',
+            'min:1',
+            'distinct',
+        ]];
     }
 }

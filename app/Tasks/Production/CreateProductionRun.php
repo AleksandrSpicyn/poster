@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tasks\Production;
 
+use App\Classes\Billing\ProductionBudget;
 use App\Enums\GenerationAccountingMode;
 use App\Enums\ProjectContentMode;
 use App\Enums\SeriesOutputMode;
@@ -11,7 +12,6 @@ use App\Models\ProductionRun;
 use App\Models\Project;
 use App\Models\Series;
 use App\Models\User;
-use App\Repositories\ProductionBudgetRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\ProjectRepository;
 use App\Repositories\SeriesRepository;
@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 class CreateProductionRun
 {
     public function __construct(
-        private readonly ProductionBudgetRepository $budget,
+        private readonly ProductionBudget $budget,
         private readonly ProjectRepository $projects,
         private readonly SeriesRepository $series,
         private readonly ProductionRunRepository $runs,

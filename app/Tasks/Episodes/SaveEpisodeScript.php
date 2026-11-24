@@ -74,14 +74,21 @@ class SaveEpisodeScript
             $this->shotRules->validate($episode, $script, $shots, $characters, $context);
 
             $context['characters'] = $characters->map(fn(CharacterRevision $character): array => [
-                'id' => $character->id, 'character_id' => $character->character_id,
-                'description' => $character->description, 'appearance' => $character->appearance, 'voice' => $character->voice,
+                'id' => $character->id,
+                'character_id' => $character->character_id,
+                'description' => $character->description,
+                'appearance' => $character->appearance,
+                'voice' => $character->voice,
             ])->all();
 
             $episode->setRelation('series', $series);
             $revision = $this->episodeRevisions->createScript($episode, $script, $context, $series->continuity_version);
 
-            $this->episodes->update($episode, ['title' => $script->title, 'current_revision_id' => $revision->id, 'lock_version' => $expectedVersion + 1]);
+            $this->episodes->update($episode, [
+                'title' => $script->title,
+                'current_revision_id' => $revision->id,
+                'lock_version' => $expectedVersion + 1,
+            ]);
 
             return $revision;
         });

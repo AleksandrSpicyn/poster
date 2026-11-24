@@ -31,7 +31,11 @@ enum ProductionStatus: string
 
     public function isActive(): bool
     {
-        return in_array($this, [self::QUEUED, self::RUNNING, self::WAITING], true);
+        return in_array($this, [
+            self::QUEUED,
+            self::RUNNING,
+            self::WAITING,
+        ], true);
     }
 
     public function blocksNextRun(): bool

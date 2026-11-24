@@ -21,7 +21,7 @@ final readonly class SaveClippingConnectionAction
             throw ValidationException::withMessages(['driver' => 'Выберите доступный драйвер.']);
         }
 
-        $connection = $this->connections->save($owner, $data)->refresh();
+        $connection = $this->connections->createForOwner($owner, $data);
         $this->sync->run($connection);
 
         return $connection;

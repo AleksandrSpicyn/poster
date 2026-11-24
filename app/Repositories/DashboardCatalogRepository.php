@@ -28,7 +28,13 @@ final readonly class DashboardCatalogRepository
     {
         return Channel::query()->where('owner_id', $owner->id)
             ->with(['projects' => fn($query) => $query->where('projects.owner_id', $owner->id)->select('projects.id')])
-            ->orderBy('name')->get(['id', 'name', 'type', 'credentials', 'external_account']);
+            ->orderBy('name')->get([
+                'id',
+                'name',
+                'type',
+                'credentials',
+                'external_account',
+            ]);
     }
 
     /**

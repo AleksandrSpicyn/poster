@@ -6,12 +6,13 @@ namespace App\Http\Controllers\EpisodeAssemblies;
 
 use App\Actions\Episodes\RequestEpisodeAssemblyAction;
 use App\Data\Episodes\AssemblyManifestData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends EpisodeController
 {
     /**
      * Сборка эпизода из выбранных дублей
@@ -39,6 +40,6 @@ class StoreController
     {
         $action->run($revision, $data);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

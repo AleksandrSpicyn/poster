@@ -33,7 +33,12 @@ final readonly class ChannelMetricsClient
             foreach ($this->tiktok->videos($channel, $references) as $video) {
                 $metrics = [];
 
-                foreach (['view_count' => 'views', 'like_count' => 'likes', 'comment_count' => 'comments', 'share_count' => 'shares'] as $field => $name) {
+                foreach ([
+                    'view_count' => 'views',
+                    'like_count' => 'likes',
+                    'comment_count' => 'comments',
+                    'share_count' => 'shares',
+                ] as $field => $name) {
                     if (is_int($video[$field] ?? null)) {
                         $metrics[$name] = $video[$field];
                     }

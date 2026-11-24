@@ -24,7 +24,10 @@ class PrivatizeWorkspaceMedia extends Command
     public function handle(): int
     {
         $types = array_map(static fn(string $class): string => new $class()->getMorphClass(), [
-            Prompt::class, EpisodeAssembly::class, SeriesAssembly::class, CharacterRevision::class,
+            Prompt::class,
+            EpisodeAssembly::class,
+            SeriesAssembly::class,
+            CharacterRevision::class,
         ]);
         $count = 0;
 
@@ -49,7 +52,11 @@ class PrivatizeWorkspaceMedia extends Command
         $relative = $media->getPathRelativeToRoot();
         $dir = dirname($relative);
 
-        if (basename($dir) !== (string) $media->id || basename($relative) !== $media->file_name || ! in_array($media->conversions_disk, ['', 'public', 'local'], true)) {
+        if (basename($dir) !== (string) $media->id || basename($relative) !== $media->file_name || ! in_array($media->conversions_disk, [
+            '',
+            'public',
+            'local',
+        ], true)) {
             throw new RuntimeException("Unexpected disk layout for media {$media->id}.");
         }
 

@@ -1,23 +1,13 @@
 <script setup lang="ts">
 import { ImagePlus } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { useObjectUrl } from '@vueuse/core';
+import { ref } from 'vue';
 
 const props = defineProps<{ label: string; file: File | null; disabled?: boolean; required?: boolean }>();
 const emit = defineEmits<{ select: [file: File] }>();
 const dragging = ref(false);
 const error = ref('');
-const preview = ref('');
-watch(
-    () => props.file,
-    (file, _, cleanup) => {
-        preview.value = file ? URL.createObjectURL(file) : '';
-        if (preview.value) {
-            const url = preview.value;
-            cleanup(() => URL.revokeObjectURL(url));
-        }
-    },
-    { immediate: true },
-);
+const preview = useObjectUrl(() => props.file);
 
 function select(files?: FileList | null) {
     dragging.value = false;

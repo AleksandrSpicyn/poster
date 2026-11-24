@@ -40,6 +40,10 @@ class DestroyController
     {
         $action->run($revision, $media, $data->lock_version);
 
-        return to_route('characters.show', ['project' => $project, 'series' => $series, 'character' => $character]);
+        return to_route('characters.show', [
+            'project' => $project,
+            'series' => $series,
+            'character' => $character,
+        ]);
     }
 }

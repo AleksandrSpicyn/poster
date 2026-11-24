@@ -6,11 +6,12 @@ namespace App\Http\Controllers\EpisodeScripts;
 
 use App\Actions\Episodes\SaveEpisodeScriptAction;
 use App\Data\Episodes\SaveEpisodeScriptData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\Series;
 use Illuminate\Http\RedirectResponse;
 
-class StoreController
+class StoreController extends EpisodeController
 {
     /**
      * Сохранение новой версии сценария
@@ -57,6 +58,6 @@ class StoreController
     {
         $action->run($episode, $data);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

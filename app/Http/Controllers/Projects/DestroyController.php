@@ -6,9 +6,7 @@ namespace App\Http\Controllers\Projects;
 
 use App\Actions\Projects\DeleteProjectAction;
 use App\Models\Project;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DestroyController
@@ -32,19 +30,9 @@ class DestroyController
      * @response 404
      * @response 409 {"message":"Удаление недоступно, пока у проекта есть связанные данные или активное производство."}
      */
-    public function __invoke(Project $project, Request $request, DeleteProjectAction $action): RedirectResponse|JsonResponse
+    public function __invoke(Project $project, DeleteProjectAction $action): RedirectResponse
     {
-        if (! $action->run($project)) {
-            $message = 'Удаление недоступно, пока у проекта есть связанные данные или активное производство.';
-
-            if ($request->expectsJson()) {
-                return response()->json(['message' => $message], 409);
-            }
-
-            Inertia::flash('error', $message);
-
-            return to_route('projects.show', $project);
-        }
+        $action->run($project);
 
         Inertia::flash('success', 'Проект удалён.');
 

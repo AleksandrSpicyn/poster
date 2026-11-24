@@ -44,9 +44,14 @@ class SeriesAssembly extends Model implements HasMedia
     protected $guarded = ['id'];
 
     protected $casts = [
-        'status' => AssemblyStatus::class, 'manifest' => 'array', 'review' => 'array',
-        'lock_version' => 'integer', 'duration_ms' => 'integer',
-        'started_at' => 'datetime', 'completed_at' => 'datetime', 'accepted_at' => 'datetime',
+        'status' => AssemblyStatus::class,
+        'manifest' => 'array',
+        'review' => 'array',
+        'lock_version' => 'integer',
+        'duration_ms' => 'integer',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'accepted_at' => 'datetime',
     ];
 
     /** @return BelongsTo<Series, $this> */

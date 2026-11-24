@@ -81,9 +81,16 @@ class Tiktok extends AbstractPublisher implements StagedPublisher, VerifiablePub
 
             $reply = $this->client->forChannel($this->channel, 'video.publish')->post('post/publish/video/init/', [
                 'source_info' => ['source' => 'PULL_FROM_URL', 'video_url' => $this->getVideoUrl()],
-                'post_info' => ['title' => $post->title ?? '', 'privacy_level' => $post->privacy, 'disable_comment' => ! $post->comment,
-                    'disable_duet' => ! $post->duet, 'disable_stitch' => ! $post->stitch, 'brand_content_toggle' => $post->partner,
-                    'brand_organic_toggle' => $post->own_brand, 'is_aigc' => $post->ai],
+                'post_info' => [
+                    'title' => $post->title ?? '',
+                    'privacy_level' => $post->privacy,
+                    'disable_comment' => ! $post->comment,
+                    'disable_duet' => ! $post->duet,
+                    'disable_stitch' => ! $post->stitch,
+                    'brand_content_toggle' => $post->partner,
+                    'brand_organic_toggle' => $post->own_brand,
+                    'is_aigc' => $post->ai,
+                ],
             ]);
 
             return Payload::string($this->client->data($reply, 'publish_id'), 'publish_id');

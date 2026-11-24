@@ -13,7 +13,14 @@ final class BillingAuditRepository
     public function counts(): array
     {
         $entries = DB::table('generation_credit_entries')->groupBy('grant_id')->select('grant_id');
-        $counters = ['granted', 'available', 'held', 'consumed', 'expired', 'revoked'];
+        $counters = [
+            'granted',
+            'available',
+            'held',
+            'consumed',
+            'expired',
+            'revoked',
+        ];
 
         foreach ($counters as $counter) {
             $entries->selectRaw("sum({$counter}_delta) as {$counter}");

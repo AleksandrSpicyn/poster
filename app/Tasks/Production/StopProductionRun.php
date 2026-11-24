@@ -46,7 +46,12 @@ class StopProductionRun
             $series?->setRelation('project', $project);
             $this->series->pauseCycle($series);
 
-            $this->runs->update($run, ['status' => ProductionStatus::STOPPED, 'next_check_at' => null, 'completed_at' => now(), 'error_message' => $message]);
+            $this->runs->update($run, [
+                'status' => ProductionStatus::STOPPED,
+                'next_check_at' => null,
+                'completed_at' => now(),
+                'error_message' => $message,
+            ]);
 
             $this->budget->releaseUnused($run);
 

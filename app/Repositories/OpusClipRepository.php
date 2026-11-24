@@ -138,7 +138,11 @@ final readonly class OpusClipRepository extends EloquentRepository
 
             $projectId = $preview->project_id ?? $origin?->project_id;
             $project = $projectId === null
-                ? new Project(['name' => $preview->source_name ?? $preview->game ?? $preview->external_id, 'prompt' => '', 'is_active' => false])
+                ? new Project([
+                    'name' => $preview->source_name ?? $preview->game ?? $preview->external_id,
+                    'prompt' => '',
+                    'is_active' => false,
+                ])
                 : $projects->whereNull('opus_source_id')->where('content_mode', 'short')->findOrFail($projectId);
 
             if ((($project->clipping_connection_id !== null || $project->clipping_workspace !== null) && $project->clipping_connection_id !== $connection->id)
@@ -186,7 +190,11 @@ final readonly class OpusClipRepository extends EloquentRepository
         $name = $this->sourceProjectName($origin);
 
         if ($legacyCards && $origin->wasRecentlyCreated) {
-            $card = new Project(['name' => $name, 'prompt' => '', 'is_active' => $project->is_active]);
+            $card = new Project([
+                'name' => $name,
+                'prompt' => '',
+                'is_active' => $project->is_active,
+            ]);
             $card->owner_id = $project->owner_id;
             $card->opus_source_id = $origin->id;
             $card->save();
@@ -234,12 +242,25 @@ final readonly class OpusClipRepository extends EloquentRepository
                 $merged[$canonical] = $record;
 
                 if (! $record->exists || $record->isDirty()) {
-                    $rows[$canonical] = array_intersect_key($record->getAttributes(), array_flip(['opus_source_id', 'clip_id', 'title', 'duration_ms', 'score', 'publications']));
+                    $rows[$canonical] = array_intersect_key($record->getAttributes(), array_flip([
+                        'opus_source_id',
+                        'clip_id',
+                        'title',
+                        'duration_ms',
+                        'score',
+                        'publications',
+                    ]));
                 }
             }
 
             if ($rows !== []) {
-                $this->query()->upsert(array_values($rows), ['opus_source_id', 'clip_id'], ['title', 'duration_ms', 'score', 'publications', 'updated_at']);
+                $this->query()->upsert(array_values($rows), ['opus_source_id', 'clip_id'], [
+                    'title',
+                    'duration_ms',
+                    'score',
+                    'publications',
+                    'updated_at',
+                ]);
             }
         }
 

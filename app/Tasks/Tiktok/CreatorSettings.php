@@ -38,7 +38,12 @@ final readonly class CreatorSettings
         }
 
         $allowed = config()->boolean('services.tiktok.public_direct_post')
-            ? ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'] : ['SELF_ONLY'];
+            ? [
+                'PUBLIC_TO_EVERYONE',
+                'MUTUAL_FOLLOW_FRIENDS',
+                'FOLLOWER_OF_CREATOR',
+                'SELF_ONLY',
+            ] : ['SELF_ONLY'];
 
         return new CreatorSettingsData(
             nickname: Payload::string($response->json('data.creator_nickname'), 'nickname'),

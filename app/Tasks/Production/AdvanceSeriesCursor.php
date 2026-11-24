@@ -24,9 +24,14 @@ readonly class AdvanceSeriesCursor
             }
 
             $this->runs->update($current, [
-                'episode_id' => null, 'episode_assembly_id' => null, 'outcome_snapshot' => null,
-                'stage' => ProductionStage::PREPARING, 'stage_started_at' => now(),
-                'status' => ProductionStatus::WAITING, 'next_check_at' => now(), 'lock_version' => $current->lock_version + 1,
+                'episode_id' => null,
+                'episode_assembly_id' => null,
+                'outcome_snapshot' => null,
+                'stage' => ProductionStage::PREPARING,
+                'stage_started_at' => now(),
+                'status' => ProductionStatus::WAITING,
+                'next_check_at' => now(),
+                'lock_version' => $current->lock_version + 1,
             ]);
         });
     }

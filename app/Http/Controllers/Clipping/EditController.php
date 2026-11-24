@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clipping;
 
-use App\Actions\Clipping\GetClippingConnectionsAction;
+use App\Actions\Clipping\GetClippingSettingsAction;
 use App\Models\ClippingConnection;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -19,8 +19,8 @@ class EditController
      * @subgroup Клиппинг
      * @authenticated
      */
-    public function __invoke(ClippingConnection $connection, #[CurrentUser] User $owner, GetClippingConnectionsAction $action): Response
+    public function __invoke(ClippingConnection $connection, #[CurrentUser] User $owner, GetClippingSettingsAction $action): Response
     {
-        return inertia('Clipping/Edit', $action->settings($connection, $owner));
+        return inertia('Clipping/Edit', $action->run($connection, $owner));
     }
 }

@@ -72,9 +72,12 @@ class BuildEpisodeContext
             'continuity' => $source->continuity_snapshot ?? [],
             'characters' => array_values($this->characterRevisions->currentForContext($series->id, $series->cast_settings?->lead_character_id)
                 ->map(fn(CharacterRevision $revision): array => [
-                    'id' => $revision->id, 'character_id' => $revision->character_id,
+                    'id' => $revision->id,
+                    'character_id' => $revision->character_id,
                     'name' => $revision->character->name ?? '',
-                    'description' => $revision->description, 'appearance' => $revision->appearance, 'voice' => $revision->voice,
+                    'description' => $revision->description,
+                    'appearance' => $revision->appearance,
+                    'voice' => $revision->voice,
                 ])
                 ->all()),
         ];
@@ -94,8 +97,13 @@ class BuildEpisodeContext
         if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
             $plan = CyclePlanData::validateAndCreate($series->cycle_plan ?? []);
             $part = $plan->parts[$episode->number - 1] ?? throw new RuntimeException('The part has no place in the cycle.');
-            $snapshot['cycle'] = ['objective' => $plan->objective, 'structure' => $plan->structure->value,
-                'part' => $part->toArray(), 'part_count' => count($plan->parts), 'plan_hash' => Snapshot::hash($series->cycle_plan ?? [])];
+            $snapshot['cycle'] = [
+                'objective' => $plan->objective,
+                'structure' => $plan->structure->value,
+                'part' => $part->toArray(),
+                'part_count' => count($plan->parts),
+                'plan_hash' => Snapshot::hash($series->cycle_plan ?? []),
+            ];
         }
 
         $history = $this->episodes->acceptedHistory($episode, $series->id);

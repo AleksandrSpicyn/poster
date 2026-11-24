@@ -10,7 +10,8 @@ export function useFormApi() {
     const route = useRoute();
     const page = usePage<SharedData>();
 
-    return function submitForm(form: Pick<InertiaFormProps<object>, 'submit'>, endpoint: Endpoint, options?: UseFormSubmitOptions) {
+    return function submitForm(form: Pick<InertiaFormProps<object>, 'submit' | 'processing'>, endpoint: Endpoint, options?: UseFormSubmitOptions) {
+        if (form.processing) return;
         const [name, params] = typeof endpoint === 'string' ? [endpoint, undefined] : endpoint;
         const verb = page.props.ziggy.routes[name]?.methods.find((method): method is keyof typeof methods => method in methods);
         if (!verb) throw new Error(`No form submission method for route "${name}".`);

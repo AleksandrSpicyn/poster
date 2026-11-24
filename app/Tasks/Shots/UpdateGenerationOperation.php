@@ -53,9 +53,16 @@ class UpdateGenerationOperation
 
             $completed = in_array($status, [GenerationOperationStatus::SUCCEEDED, GenerationOperationStatus::FAILED], true);
             $cancelled = $completed && $operation->cancel_requested_at !== null;
-            $this->operations->update($operation, [...$attributes, 'status' => $cancelled ? GenerationOperationStatus::CANCELLED : $status,
+            $this->operations->update($operation, [
+                ...$attributes,
+                'status' => $cancelled ? GenerationOperationStatus::CANCELLED : $status,
                 'completed_at' => $completed ? now() : null,
-                'next_check_at' => in_array($status, [GenerationOperationStatus::PLANNED, GenerationOperationStatus::SUBMITTED, GenerationOperationStatus::RUNNING], true) ? now()->addMinute() : null]);
+                'next_check_at' => in_array($status, [
+                    GenerationOperationStatus::PLANNED,
+                    GenerationOperationStatus::SUBMITTED,
+                    GenerationOperationStatus::RUNNING,
+                ], true) ? now()->addMinute() : null,
+            ]);
 
             if ($status === GenerationOperationStatus::FAILED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
                 $this->usage->setStatus([$prompt->id], ReservationStatus::RELEASED);

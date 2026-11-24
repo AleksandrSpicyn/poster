@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\GenerationAccountingMode;
-use App\Repositories\GenerationReservationRepository;
+use App\Repositories\BillingAccountingRepository;
 use DomainException;
 use Illuminate\Console\Command;
 
@@ -15,7 +15,7 @@ final class ConfigureBillingPilot extends Command
 
     protected $description = 'Настроить продажи, автоплатежи и учёт секунд владельца';
 
-    public function handle(GenerationReservationRepository $usage): int
+    public function handle(BillingAccountingRepository $accounts): int
     {
         $mode = $this->option('mode');
         $owner = (int) $this->argument('owner');
@@ -27,8 +27,8 @@ final class ConfigureBillingPilot extends Command
                 throw new DomainException('Неизвестный режим учёта.');
             }
 
-            $usage->configurePilot($owner, $accounting, $this->flag('sales'), $this->flag('automatic'));
-            $this->line('Режим учёта: ' . $usage->mode($owner));
+            $accounts->configurePilot($owner, $accounting, $this->flag('sales'), $this->flag('automatic'));
+            $this->line('Режим учёта: ' . $accounts->storedMode($owner));
         } catch (DomainException $error) {
             $this->error($error->getMessage());
 

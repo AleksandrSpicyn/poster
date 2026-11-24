@@ -26,8 +26,16 @@ final readonly class OpusMetricRepository
             ->join('opus_clips', 'opus_clips.id', '=', 'opus_clip_metrics.opus_clip_id')
             ->join('opus_sources', 'opus_sources.id', '=', 'opus_clips.opus_source_id')
             ->where('opus_sources.project_id', $project->id)->whereIn('observed_on', [$start, $end])
-            ->get(['opus_clip_metrics.opus_clip_id', 'platform', 'media_id', 'observed_on', 'metrics',
-                'opus_sources.game as clip_game', 'opus_clips.title as clip_title', 'opus_clips.clip_id']);
+            ->get([
+                'opus_clip_metrics.opus_clip_id',
+                'platform',
+                'media_id',
+                'observed_on',
+                'metrics',
+                'opus_sources.game as clip_game',
+                'opus_clips.title as clip_title',
+                'opus_clips.clip_id',
+            ]);
     }
 
     /** @return LazyCollection<int, OpusClipMetric> */
@@ -65,12 +73,22 @@ final readonly class OpusMetricRepository
             ->whereIn('platform', array_unique(array_column($rows, 'platform')))
             ->whereIn('media_id', array_unique(array_column($rows, 'media_id')))
             ->whereIn('observed_on', array_unique(array_column($rows, 'observed_on')))
-            ->get()->keyBy(fn(OpusClipMetric $row): string => serialize([$row->opus_clip_id, $row->platform, $row->media_id, $row->observed_on]));
+            ->get()->keyBy(fn(OpusClipMetric $row): string => serialize([
+                $row->opus_clip_id,
+                $row->platform,
+                $row->media_id,
+                $row->observed_on,
+            ]));
         $changed = [];
         $newOrigins = [];
 
         foreach ($rows as $row) {
-            $key = serialize([$row['opus_clip_id'], $row['platform'], $row['media_id'], $row['observed_on']]);
+            $key = serialize([
+                $row['opus_clip_id'],
+                $row['platform'],
+                $row['media_id'],
+                $row['observed_on'],
+            ]);
             $metric = $existing->get($key) ?? new OpusClipMetric();
             $metric->fill($row);
 
@@ -80,12 +98,21 @@ final readonly class OpusMetricRepository
             }
 
             if ($metric->isDirty()) {
-                $changed[$key] = array_diff_key($metric->getAttributes(), array_flip(['id', 'created_at', 'updated_at']));
+                $changed[$key] = array_diff_key($metric->getAttributes(), array_flip([
+                    'id',
+                    'created_at',
+                    'updated_at',
+                ]));
             }
         }
 
         DB::transaction(function () use ($changed, $newOrigins): void {
-            OpusClipMetric::query()->upsert(array_values($changed), ['opus_clip_id', 'platform', 'media_id', 'observed_on'], ['metrics', 'account_id']);
+            OpusClipMetric::query()->upsert(array_values($changed), [
+                'opus_clip_id',
+                'platform',
+                'media_id',
+                'observed_on',
+            ], ['metrics', 'account_id']);
             $this->syncRuns->observations($newOrigins);
         }, attempts: 3);
     }

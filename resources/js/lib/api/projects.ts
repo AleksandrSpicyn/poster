@@ -1,5 +1,7 @@
-import type { ProjectsPageProps } from '@/types/projects';
+import type { ListFilters } from '@/types/content';
 import type { Page } from '@inertiajs/core';
+import type { route as namedRoute } from 'ziggy-js';
+import { isRecord } from '../isRecord';
 
 export interface ProjectSearchPreview {
     total: number;
@@ -7,11 +9,12 @@ export interface ProjectSearchPreview {
 }
 
 export async function fetchProjectSearchPreview(
-    url: string,
+    route: typeof namedRoute,
+    filters: Pick<ListFilters, 'search' | 'active' | 'clipping'>,
     page: Pick<Page, 'component' | 'version'>,
     signal: AbortSignal,
 ): Promise<ProjectSearchPreview | undefined> {
-    const response = await fetch(url, {
+    const response = await fetch(route('projects.index', { ...filters, perPage: 1 }), {
         signal,
         headers: {
             Accept: 'application/json',
@@ -23,6 +26,10 @@ export async function fetchProjectSearchPreview(
     });
     if (!response.ok || !response.headers.has('X-Inertia')) return;
 
-    const { props }: { props: Partial<Pick<ProjectsPageProps, 'projects'>> } = await response.json();
-    if (props.projects) return { total: props.projects.meta.total, name: props.projects.data[0]?.name };
+    const payload: unknown = await response.json();
+    if (!isRecord(payload) || !isRecord(payload.props) || !isRecord(payload.props.projects)) return;
+    const { meta, data } = payload.props.projects;
+    if (!isRecord(meta) || typeof meta.total !== 'number' || !Array.isArray(data)) return;
+    const first: unknown = data[0];
+    return { total: meta.total, name: isRecord(first) && typeof first.name === 'string' ? first.name : undefined };
 }

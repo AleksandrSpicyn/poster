@@ -38,9 +38,31 @@ class ReportGenerationProviderUsage extends Command
         $rows = $usage->observedBetween($from, $from->addDay())->map(static function (GenerationProviderUsage $row): array {
             $charge = $row->charge_e8 === null ? '—' : sprintf('%d.%08d %s', intdiv($row->charge_e8, 100_000_000), $row->charge_e8 % 100_000_000, $row->currency);
 
-            return [$row->provider, $row->external_id, $row->result_model ?? $row->requested_model ?? '—', $row->input_mode ?? '—', $row->resolution ?? '—', $row->status, $row->duration ?? '—', $row->completion_tokens ?? '—', $charge, $row->finance_reference ?? '—'];
+            return [
+                $row->provider,
+                $row->external_id,
+                $row->result_model ?? $row->requested_model ?? '—',
+                $row->input_mode ?? '—',
+                $row->resolution ?? '—',
+                $row->status,
+                $row->duration ?? '—',
+                $row->completion_tokens ?? '—',
+                $charge,
+                $row->finance_reference ?? '—',
+            ];
         });
-        $this->table(['Провайдер', 'Попытка', 'Модель', 'Режим', 'Разрешение', 'Статус', 'Секунды', 'Токены', 'Начисление', 'Детализация'], $rows);
+        $this->table([
+            'Провайдер',
+            'Попытка',
+            'Модель',
+            'Режим',
+            'Разрешение',
+            'Статус',
+            'Секунды',
+            'Токены',
+            'Начисление',
+            'Детализация',
+        ], $rows);
 
         return self::SUCCESS;
     }

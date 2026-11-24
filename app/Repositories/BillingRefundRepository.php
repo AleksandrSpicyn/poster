@@ -8,6 +8,7 @@ use App\Data\Billing\MerchantData;
 use App\Data\Billing\RefundAttemptData;
 use App\Data\Billing\RefundRequestData;
 use App\Data\Billing\RefundResultData;
+use App\Enums\GenerationCreditBucket;
 use App\Enums\PaymentStatus;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -69,12 +70,26 @@ final readonly class BillingRefundRepository
             }
 
             $at = now('UTC');
-            DB::table('billing_refunds')->insert(['id' => $id, 'payment_id' => $payment, 'operator_id' => $operator, 'adjustment_seconds' => $seconds, 'reason' => $reason,
-                'idempotency_key' => (string) Str::uuid(), 'provider' => $paid->provider, 'shop' => $paid->shop, 'test_mode' => $paid->test_mode, 'status' => 'created',
-                'amount_kopecks' => $amount, 'currency' => $paid->currency, 'next_check_at' => $at, 'created_at' => $at, 'updated_at' => $at]);
+            DB::table('billing_refunds')->insert([
+                'id' => $id,
+                'payment_id' => $payment,
+                'operator_id' => $operator,
+                'adjustment_seconds' => $seconds,
+                'reason' => $reason,
+                'idempotency_key' => (string) Str::uuid(),
+                'provider' => $paid->provider,
+                'shop' => $paid->shop,
+                'test_mode' => $paid->test_mode,
+                'status' => 'created',
+                'amount_kopecks' => $amount,
+                'currency' => $paid->currency,
+                'next_check_at' => $at,
+                'created_at' => $at,
+                'updated_at' => $at,
+            ]);
 
             if ($grant !== null && $seconds > 0) {
-                $this->credits->transfer($paid->owner_id, $grant->id, null, $seconds, 'available', 'held', 'refund_hold', 'refund.hold.' . $id, 'Возврат');
+                $this->credits->transfer($paid->owner_id, $grant->id, null, $seconds, GenerationCreditBucket::AVAILABLE, GenerationCreditBucket::HELD, 'refund_hold', 'refund.hold.' . $id, 'Возврат');
             }
         }, 3);
     }
@@ -105,7 +120,11 @@ final readonly class BillingRefundRepository
     {
         return DB::transaction(function () use ($id, $external): ?RefundAttemptData {
             /** @var object{external_id: ?string, provider: string, shop: string, test_mode: bool, idempotency_key: string, amount_kopecks: int, sent_at: ?string, payment_id: string}|null $row */
-            $row = DB::table('billing_refunds')->where('id', $id)->whereIn('status', ['created', 'unknown', 'pending'])->lockForUpdate()->first();
+            $row = DB::table('billing_refunds')->where('id', $id)->whereIn('status', [
+                'created',
+                'unknown',
+                'pending',
+            ])->lockForUpdate()->first();
 
             if ($row === null || ($external !== null && ($row->sent_at === null || ($row->external_id !== null && $row->external_id !== $external)))) {
                 return null;
@@ -119,8 +138,12 @@ final readonly class BillingRefundRepository
 
             /** @var string $payment */
             $payment = DB::table('billing_payments')->where('id', $row->payment_id)->value('external_id');
-            DB::table('billing_refunds')->where('id', $id)->update(['sent_at' => $row->sent_at ?? now('UTC'), 'status' => $lookup === null ? 'unknown' : 'pending',
-                'next_check_at' => $lookup === null ? null : now('UTC')->addMinutes(2), 'updated_at' => now('UTC')]);
+            DB::table('billing_refunds')->where('id', $id)->update([
+                'sent_at' => $row->sent_at ?? now('UTC'),
+                'status' => $lookup === null ? 'unknown' : 'pending',
+                'next_check_at' => $lookup === null ? null : now('UTC')->addMinutes(2),
+                'updated_at' => now('UTC'),
+            ]);
 
             return new RefundAttemptData(
                 $id,
@@ -142,7 +165,13 @@ final readonly class BillingRefundRepository
         DB::transaction(function () use ($attempt, $result): void {
             /** @var object{owner_id: int, order_id: int, payment_id: string, payment_amount: int, period_ends_at: ?string} $order */
             $order = DB::table('billing_refunds as r')->join('billing_payments as p', 'p.id', '=', 'r.payment_id')->join('billing_orders as o', 'o.id', '=', 'p.order_id')
-                ->where('r.id', $attempt->id)->firstOrFail(['o.owner_id', 'p.order_id', 'r.payment_id', 'p.amount_kopecks as payment_amount', 'o.period_ends_at']);
+                ->where('r.id', $attempt->id)->firstOrFail([
+                    'o.owner_id',
+                    'p.order_id',
+                    'r.payment_id',
+                    'p.amount_kopecks as payment_amount',
+                    'o.period_ends_at',
+                ]);
             $account = DB::table('billing_accounts')->where('owner_id', $order->owner_id)->lockForUpdate()->firstOrFail();
             /** @var object{status: string, external_id: ?string, adjustment_seconds: int} $refund */
             $refund = DB::table('billing_refunds')->where('id', $attempt->id)->lockForUpdate()->firstOrFail();
@@ -158,8 +187,13 @@ final readonly class BillingRefundRepository
             $status = $attempt->externalId === null ? PaymentStatus::PENDING : $result->status;
             $finished = in_array($status, [PaymentStatus::SUCCEEDED, PaymentStatus::CANCELLED], true);
             $at = now('UTC');
-            DB::table('billing_refunds')->where('id', $attempt->id)->update(['status' => $status->value, 'external_id' => $result->externalId, 'confirmed_at' => $finished ? $at : null,
-                'next_check_at' => $finished ? null : $at->copy()->addMinute(), 'updated_at' => $at]);
+            DB::table('billing_refunds')->where('id', $attempt->id)->update([
+                'status' => $status->value,
+                'external_id' => $result->externalId,
+                'confirmed_at' => $finished ? $at : null,
+                'next_check_at' => $finished ? null : $at->copy()->addMinute(),
+                'updated_at' => $at,
+            ]);
 
             if (! $finished) {
                 return;
@@ -168,8 +202,8 @@ final readonly class BillingRefundRepository
             if ($refund->adjustment_seconds > 0) {
                 /** @var object{id: int, ends_at: ?string} $grant */
                 $grant = DB::table('generation_grants')->where('order_id', $order->order_id)->lockForUpdate()->firstOrFail();
-                $to = $status === PaymentStatus::SUCCEEDED ? 'revoked' : ($grant->ends_at !== null && $grant->ends_at <= $at->toDateTimeString() ? 'expired' : 'available');
-                $this->credits->transfer($order->owner_id, $grant->id, null, $refund->adjustment_seconds, 'held', $to, $status === PaymentStatus::SUCCEEDED ? 'revoke' : 'refund_release', 'refund.close.' . $attempt->id, 'Возврат');
+                $to = $status === PaymentStatus::SUCCEEDED ? GenerationCreditBucket::REVOKED : ($grant->ends_at !== null && $grant->ends_at <= $at->toDateTimeString() ? GenerationCreditBucket::EXPIRED : GenerationCreditBucket::AVAILABLE);
+                $this->credits->transfer($order->owner_id, $grant->id, null, $refund->adjustment_seconds, GenerationCreditBucket::HELD, $to, $status === PaymentStatus::SUCCEEDED ? 'revoke' : 'refund_release', 'refund.close.' . $attempt->id, 'Возврат');
             }
 
             if ($status === PaymentStatus::SUCCEEDED) {
@@ -192,7 +226,14 @@ final readonly class BillingRefundRepository
                 DB::table('billing_orders')->where('id', $order->order_id)->update(['status' => $full ? 'refunded' : 'partially_refunded', 'updated_at' => $at]);
 
                 if ($full && ! $excess->exists() && $order->period_ends_at !== null && $account->renews_at === $order->period_ends_at) {
-                    DB::table('billing_accounts')->where('owner_id', $order->owner_id)->update(['renewal_consent' => false, 'current_product' => null, 'next_product' => null, 'calendar_anchor_at' => null, 'renews_at' => $at, 'updated_at' => $at]);
+                    DB::table('billing_accounts')->where('owner_id', $order->owner_id)->update([
+                        'renewal_consent' => false,
+                        'current_product' => null,
+                        'next_product' => null,
+                        'calendar_anchor_at' => null,
+                        'renews_at' => $at,
+                        'updated_at' => $at,
+                    ]);
                 }
             }
         }, 3);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Actions\Dashboard\GetDashboardAction;
+use App\Actions\Dashboard\GetPublicationAnalyticsAction;
 use App\Data\MetricPeriodData;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
@@ -18,8 +18,8 @@ final class PublicationAnalyticsController
      * @group Кабинет
      * @authenticated
      */
-    public function __invoke(#[CurrentUser] User $owner, MetricPeriodData $period, GetDashboardAction $dashboard): Response
+    public function __invoke(#[CurrentUser] User $owner, MetricPeriodData $period, GetPublicationAnalyticsAction $analytics): Response
     {
-        return inertia('PublicationAnalytics', ['analytics' => $dashboard->metrics($owner, $period)]);
+        return inertia('PublicationAnalytics', ['analytics' => $analytics->run($owner, $period)]);
     }
 }

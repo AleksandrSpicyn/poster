@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Clipping;
 
 use App\Actions\Clipping\CheckClippingAccessAction;
-use App\Actions\Clipping\GetClippingConnectionsAction;
+use App\Actions\Clipping\GetClippingSettingsAction;
 use App\Data\ClippingAccessData;
 use App\Models\ClippingConnection;
 use App\Models\User;
@@ -21,8 +21,8 @@ class AccessController
      * @subgroup Клиппинг
      * @authenticated
      */
-    public function __invoke(ClippingConnection $connection, ClippingAccessData $data, #[CurrentUser] User $owner, GetClippingConnectionsAction $action, CheckClippingAccessAction $check): Response
+    public function __invoke(ClippingConnection $connection, ClippingAccessData $data, #[CurrentUser] User $owner, GetClippingSettingsAction $action, CheckClippingAccessAction $check): Response
     {
-        return inertia('Clipping/Edit', [...$action->settings($connection, $owner), 'access' => $check->run($connection, $data)]);
+        return inertia('Clipping/Edit', [...$action->run($connection, $owner), 'access' => $check->run($connection, $data)]);
     }
 }

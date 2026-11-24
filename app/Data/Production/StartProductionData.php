@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\Production;
 
+use App\Classes\Channels\ChannelIdRule;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Min;
 use Spatie\LaravelData\Attributes\Validation\Required;
@@ -18,9 +19,9 @@ class StartProductionData extends Data
         #[Max(20)] public ?array $channel_ids = null,
     ) {}
 
-    /** @return array<string, list<string>> */
+    /** @return array<string, ChannelIdRule> */
     public static function rules(): array
     {
-        return ['channel_ids.*' => ['integer', 'min:1', 'distinct']];
+        return ['channel_ids.*' => new ChannelIdRule()];
     }
 }

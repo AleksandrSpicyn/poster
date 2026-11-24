@@ -80,9 +80,13 @@ class SaveEpisodeAssembly
 
             $selectedMedia[] = $media->id;
             $manifestShots[] = [
-                'shot_id' => $shot->id, 'prompt_id' => $prompt->id, 'media_id' => $media->id,
-                'checksum' => $checksum, 'trim_start_ms' => $selection->trim_start_ms,
-                'trim_end_ms' => $end, 'duration_ms' => $end - $selection->trim_start_ms,
+                'shot_id' => $shot->id,
+                'prompt_id' => $prompt->id,
+                'media_id' => $media->id,
+                'checksum' => $checksum,
+                'trim_start_ms' => $selection->trim_start_ms,
+                'trim_end_ms' => $end,
+                'duration_ms' => $end - $selection->trim_start_ms,
                 'mute_audio' => data_get($prompt->input_snapshot, 'audio_mode') === SeriesAudioMode::SILENT->value,
             ];
         }
@@ -100,7 +104,11 @@ class SaveEpisodeAssembly
             }
         }
 
-        $manifest = ['schema_version' => 1, 'shots' => $manifestShots, 'duration_ms' => array_sum(array_column($manifestShots, 'duration_ms'))];
+        $manifest = [
+            'schema_version' => 1,
+            'shots' => $manifestShots,
+            'duration_ms' => array_sum(array_column($manifestShots, 'duration_ms')),
+        ];
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($revision, $episode, $series, $manifest, $hash, $data): EpisodeAssembly {

@@ -8,7 +8,18 @@ import PublicationMetricsFilter from '@/components/PublicationMetricsFilter.vue'
 import PublicationCounters from '@/components/PublicationCounters.vue';
 import PublicationMetricChart from '@/components/PublicationMetricChart.vue';
 import { Button } from '@/components/ui/button';
-import { amount, counterNames, dateLabel, metricPeriods, observedCountersByDate, platformNames, rangeLabel, signed } from '@/types/analytics';
+import {
+    rankedPublications,
+    platformShares,
+    amount,
+    counterNames,
+    dateLabel,
+    metricPeriods,
+    observedCountersByDate,
+    platformNames,
+    rangeLabel,
+    signed,
+} from '@/lib/analytics';
 import type { AnalyticsFilters, Counter, MetricsReport, PublicationTimeline } from '@/types/analytics';
 
 const props = defineProps<{ report: MetricsReport; detail?: boolean }>();
@@ -33,9 +44,7 @@ const interval = computed(() => rangeLabel(start.value, props.report.to));
 const period = computed(() => (filters.value.from ? undefined : metricPeriods.find((item) => item.days === filters.value.days)));
 const names = counterNames;
 const metric = computed(() => filters.value.metric);
-const list = computed(() =>
-    props.report.publications.filter((p) => p.latest[metric.value] != null).sort((a, b) => b.latest[metric.value]! - a.latest[metric.value]!),
-);
+const list = computed(() => rankedPublications(props.report.publications, metric.value));
 const bestPublications = computed(() => list.value.slice(0, 5));
 const showGrowth = ref(false);
 const chartTitles: Record<Counter, string> = {
@@ -71,15 +80,7 @@ function url(v: View, patch: Partial<AnalyticsFilters> = {}, item?: PublicationT
         publication: item?.key,
     });
 }
-const platforms = computed(() => {
-    const sums = new Map<string, number>();
-    for (const p of list.value) {
-        const value = p.latest[metric.value];
-        if (value != null) sums.set(p.platform, (sums.get(p.platform) ?? 0) + value);
-    }
-    const total = [...sums.values()].reduce((s, n) => s + Math.max(n, 0), 0);
-    return [...sums].map(([key, value]) => ({ key, value, pct: total ? (100 * Math.max(value, 0)) / total : 0 })).sort((a, b) => b.value - a.value);
-});
+const platforms = computed(() => platformShares(list.value, metric.value));
 function entry(label: string, key: Counter) {
     const growth = props.report.summaries[key];
     return {

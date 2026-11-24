@@ -61,7 +61,8 @@ class AbandonShotGeneration
                 'status' => GenerationOperationStatus::ABANDONED,
                 'completed_at' => now(),
                 'next_check_at' => null,
-                'result_snapshot' => [...($operation->result_snapshot ?? []),
+                'result_snapshot' => [
+                    ...($operation->result_snapshot ?? []),
                     'resolved_by' => $actor->id,
                     'resolution_note' => trim($data->note),
                     'resolved_at' => now()->toISOString(),

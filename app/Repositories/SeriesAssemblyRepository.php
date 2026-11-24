@@ -97,19 +97,29 @@ readonly class SeriesAssemblyRepository extends EloquentRepository
     public function queue(Series $series, array $manifest, string $hash): SeriesAssembly
     {
         $existing = SeriesAssembly::query()->where('series_id', $series->id)->where('manifest_hash', $hash)
-            ->whereIn('status', [AssemblyStatus::QUEUED, AssemblyStatus::BUILDING, AssemblyStatus::READY, AssemblyStatus::ACCEPTED])->first();
+            ->whereIn('status', [
+                AssemblyStatus::QUEUED,
+                AssemblyStatus::BUILDING,
+                AssemblyStatus::READY,
+                AssemblyStatus::ACCEPTED,
+            ])->first();
 
         if ($existing !== null) {
             return $existing;
         }
 
         $assembly = SeriesAssembly::query()->create([
-            'series_id' => $series->id, 'number' => (SeriesAssembly::query()->where('series_id', $series->id)->orderByDesc('number')->first()->number ?? 0) + 1,
-            'status' => AssemblyStatus::QUEUED, 'manifest' => $manifest, 'manifest_hash' => $hash,
+            'series_id' => $series->id,
+            'number' => (SeriesAssembly::query()->where('series_id', $series->id)->orderByDesc('number')->first()->number ?? 0) + 1,
+            'status' => AssemblyStatus::QUEUED,
+            'manifest' => $manifest,
+            'manifest_hash' => $hash,
         ]);
 
         $items = collect(SeriesAssemblyManifestData::fromSnapshot($manifest)->parts)->map(fn(array $part): array => [
-            'series_assembly_id' => $assembly->id, 'episode_assembly_id' => $part['assembly_id'], 'position' => $part['number'],
+            'series_assembly_id' => $assembly->id,
+            'episode_assembly_id' => $part['assembly_id'],
+            'position' => $part['number'],
         ]);
         DB::table('series_assembly_items')->insert($items->all());
 

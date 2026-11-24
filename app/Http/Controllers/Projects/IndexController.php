@@ -43,13 +43,19 @@ class IndexController
 
         return inertia('Projects/Index', [
             'information' => $information instanceof Project ? [
-                'project' => ProjectResource::make($information)->resolve(), 'owner' => $owner->name,
+                'project' => ProjectResource::make($information)->resolve(),
+                'owner' => $owner->name,
                 'episodes' => $information->series->sum('episodes_count'),
                 'accepted' => $information->series->sum('accepted_episodes_count'),
             ] : null,
             'projects' => ProjectResource::collection($action->run($owner, $data)),
-            'filters' => ['search' => $data->search ?? '', 'sort' => ($data->sort ?? SortDirection::DESC)->value,
-                ...($data->archived ? ['archived' => true] : []), ...($data->active ? ['active' => true] : []), ...($data->clipping ? ['clipping' => true] : [])],
+            'filters' => [
+                'search' => $data->search ?? '',
+                'sort' => ($data->sort ?? SortDirection::DESC)->value,
+                ...($data->archived ? ['archived' => true] : []),
+                ...($data->active ? ['active' => true] : []),
+                ...($data->clipping ? ['clipping' => true] : []),
+            ],
             'sortDirections' => SortDirection::labels(),
         ]);
     }

@@ -22,7 +22,13 @@ enum GenerationOperationStatus: string
 
     public function isActive(): bool
     {
-        return in_array($this, [self::PLANNED, self::SUBMITTING, self::SUBMITTED, self::RUNNING, self::SUBMISSION_UNKNOWN], true);
+        return in_array($this, [
+            self::PLANNED,
+            self::SUBMITTING,
+            self::SUBMITTED,
+            self::RUNNING,
+            self::SUBMISSION_UNKNOWN,
+        ], true);
     }
 
     public function label(): string

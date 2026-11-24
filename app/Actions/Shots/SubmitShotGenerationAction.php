@@ -68,7 +68,11 @@ readonly class SubmitShotGenerationAction
                     $submittedId = $generator->generate($request);
                     $submittedProvider = $provider;
                     $submittedModel = $request->model;
-                    $this->update->run($operation, GenerationOperationStatus::SUBMITTED, ['external_id' => $submittedId, 'provider' => $provider, 'model' => $request->model]);
+                    $this->update->run($operation, GenerationOperationStatus::SUBMITTED, [
+                        'external_id' => $submittedId,
+                        'provider' => $provider,
+                        'model' => $request->model,
+                    ]);
                     CheckShotGenerationJob::dispatch($operation->id)->delay(now()->addMinute())->afterCommit();
 
                     return;
@@ -88,7 +92,9 @@ readonly class SubmitShotGenerationAction
             } catch (Throwable $exception) {
                 if ($submittedId !== null) {
                     $this->update->run($operation, GenerationOperationStatus::SUBMITTED, [
-                        'external_id' => $submittedId, 'provider' => $submittedProvider, 'model' => $submittedModel,
+                        'external_id' => $submittedId,
+                        'provider' => $submittedProvider,
+                        'model' => $submittedModel,
                         'error_code' => 'post_submission_delivery_interrupted',
                     ]);
 

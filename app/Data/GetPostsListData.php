@@ -32,7 +32,12 @@ class GetPostsListData extends Data
         public string|null|Optional $type = new Optional(),
         #[Max(200)]
         public ?string $search = null,
-        #[In([0, 7, 30, 90])]
+        #[In([
+            0,
+            7,
+            30,
+            90,
+        ])]
         public int $days = 30,
     ) {}
 }

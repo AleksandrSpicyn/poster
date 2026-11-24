@@ -11,7 +11,7 @@ use Throwable;
 
 final readonly class SyncBillingCheckoutAction
 {
-    public function __construct(private BillingCheckoutRepository $checkout, private PaymentGatewayFactory $gateways) {}
+    public function __construct(private BillingCheckoutRepository $checkout, private PaymentGatewayFactory $gateways, private RecordBillingPaymentAction $record) {}
 
     public function run(string $id): void
     {
@@ -24,7 +24,7 @@ final readonly class SyncBillingCheckoutAction
         try {
             $gateway = $this->gateways->payments($attempt->merchant);
             $result = $attempt->externalId === null ? $gateway->createPayment($attempt->request) : $gateway->findPayment($attempt->externalId);
-            $this->checkout->record($attempt, $result);
+            $this->record->run($attempt, $result);
         } catch (Throwable $error) {
             report($error);
         }

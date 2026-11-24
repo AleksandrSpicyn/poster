@@ -1,95 +1,66 @@
-import type { Appearance, AppearanceValues, SharedData } from '@/types';
-import { usePage } from '@inertiajs/vue3';
-import { onMounted, ref } from 'vue';
+import type { Appearance, AppearanceValues } from '@/types';
+import { inject, readonly, ref, type App, type InjectionKey, type Ref } from 'vue';
 
-function updateTheme(value: Appearance, values: AppearanceValues) {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    if (value === values.SYSTEM) {
-        const mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
-        const systemTheme = mediaQueryList.matches ? values.DARK : values.LIGHT;
-
-        document.documentElement.classList.toggle('dark', systemTheme === values.DARK);
-    } else {
-        document.documentElement.classList.toggle('dark', value === values.DARK);
-    }
+interface ThemePreference {
+    appearance: Readonly<Ref<Appearance>>;
+    updateAppearance: (value: Appearance) => void;
 }
 
-const setCookie = (name: string, value: string, days = 365) => {
-    if (typeof document === 'undefined') {
-        return;
+const themePreference: InjectionKey<ThemePreference> = Symbol('themePreference');
+
+function storedPreference(values: AppearanceValues): Appearance {
+    try {
+        const stored = localStorage.getItem('appearance');
+        if (stored === values.DARK || stored === values.LIGHT) return stored;
+    } catch {
+        // Storage can be unavailable in a restricted browsing context.
     }
-
-    const maxAge = days * 24 * 60 * 60;
-
-    document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
-};
-
-const mediaQuery = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return window.matchMedia('(prefers-color-scheme: dark)');
-};
-
-const getStoredAppearance = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return localStorage.getItem('appearance') as Appearance | null;
-};
-
-const handleSystemThemeChange = (values: AppearanceValues) => {
-    const currentAppearance = getStoredAppearance();
-
-    updateTheme(currentAppearance || values.SYSTEM, values);
-};
-
-/** Значения темы приходят из PHP enum через shared props, до первого mount Vue. */
-export function initializeTheme(values: AppearanceValues) {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    // Initialize theme from saved preference or default to system...
-    const savedAppearance = getStoredAppearance();
-    updateTheme(savedAppearance || values.SYSTEM, values);
-
-    // Set up system theme change listener...
-    mediaQuery()?.addEventListener('change', () => handleSystemThemeChange(values));
+    return values.SYSTEM;
 }
 
-/** Синхронизирует настройку темы между Vue, localStorage и cookie корневого Blade-шаблона. */
-export function useAppearance() {
-    const values = usePage<SharedData>().props.appearanceValues;
-    const appearance = ref<Appearance>(values.SYSTEM);
+export function installAppearance(app: App, values: AppearanceValues) {
+    const browser = typeof window !== 'undefined';
+    const appearance = ref<Appearance>(browser ? storedPreference(values) : values.SYSTEM);
+    const system = browser ? window.matchMedia('(prefers-color-scheme: dark)') : undefined;
+    function apply() {
+        if (system)
+            document.documentElement.classList.toggle(
+                'dark',
+                appearance.value === values.DARK || (appearance.value === values.SYSTEM && system.matches),
+            );
+    }
 
-    onMounted(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-
-        if (savedAppearance) {
-            appearance.value = savedAppearance;
-        }
-    });
+    apply();
+    function syncPreference(event: StorageEvent) {
+        if (event.key !== 'appearance' && event.key !== null) return;
+        appearance.value = storedPreference(values);
+        apply();
+    }
+    if (browser) {
+        system?.addEventListener('change', apply);
+        window.addEventListener('storage', syncPreference);
+        app.onUnmount(() => {
+            system?.removeEventListener('change', apply);
+            window.removeEventListener('storage', syncPreference);
+        });
+    }
 
     function updateAppearance(value: Appearance) {
         appearance.value = value;
-
-        // localStorage восстанавливает выбор после клиентского запуска, cookie доступна Laravel до него.
-        localStorage.setItem('appearance', value);
-
-        setCookie('appearance', value);
-
-        updateTheme(value, values);
+        apply();
+        if (!browser) return;
+        try {
+            localStorage.setItem('appearance', value);
+        } catch {
+            // The cookie still supplies the preference for the next server render.
+        }
+        document.cookie = `appearance=${value};path=/;max-age=31536000;SameSite=Lax`;
     }
+    app.provide(themePreference, { appearance: readonly(appearance), updateAppearance });
+}
 
-    return {
-        appearanceValues: values,
-        appearance,
-        updateAppearance,
-    };
+export function useAppearance() {
+    const preference = inject(themePreference);
+    if (!preference) throw new Error('Theme preference must be installed on the current application.');
+    return preference;
 }

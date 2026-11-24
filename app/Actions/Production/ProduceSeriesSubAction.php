@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Actions\Production;
 
+use App\Classes\Billing\ProductionBudget;
 use App\Enums\ProductionStage;
 use App\Models\ProductionRun;
 use App\Models\User;
-use App\Repositories\ProductionBudgetRepository;
 use Illuminate\Support\Facades\DB;
 
 readonly class ProduceSeriesSubAction
 {
     public function __construct(
-        private ProductionBudgetRepository $budget,
+        private ProductionBudget $budget,
         private PlanSeriesProductionSubAction $plan,
         private BuildSeriesVideoSubAction $finalVideo,
         private ConfirmSeriesVideoSubAction $finalReview,
@@ -27,7 +27,12 @@ readonly class ProduceSeriesSubAction
 
     public function run(ProductionRun $run, User $actor): void
     {
-        if (in_array($run->stage, [ProductionStage::PLANNING, ProductionStage::PREPARING, ProductionStage::SCREENPLAY, ProductionStage::MEDIA], true)) {
+        if (in_array($run->stage, [
+            ProductionStage::PLANNING,
+            ProductionStage::PREPARING,
+            ProductionStage::SCREENPLAY,
+            ProductionStage::MEDIA,
+        ], true)) {
             DB::transaction(fn() => $this->budget->prepare($run->project, $run, $run->series), 3);
         }
 

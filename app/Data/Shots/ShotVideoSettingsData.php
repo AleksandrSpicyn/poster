@@ -22,8 +22,14 @@ class ShotVideoSettingsData extends Data
     /** @return array{provider: string, model: string, duration: int, resolution: string, aspect_ratio: string, generate_audio: bool, return_last_frame: bool} */
     public function videoSnapshot(): array
     {
-        return ['provider' => $this->provider->value, 'model' => $this->capabilities->model, 'duration' => $this->duration,
-            'resolution' => $this->capabilities->defaultResolution, 'aspect_ratio' => $this->capabilities->defaultAspectRatio,
-            'generate_audio' => $this->generateAudio, 'return_last_frame' => $this->capabilities->supportsReturnLastFrame];
+        return [
+            'provider' => $this->provider->value,
+            'model' => $this->capabilities->model,
+            'duration' => $this->duration,
+            'resolution' => $this->capabilities->defaultResolution,
+            'aspect_ratio' => $this->capabilities->defaultAspectRatio,
+            'generate_audio' => $this->generateAudio,
+            'return_last_frame' => $this->capabilities->supportsReturnLastFrame,
+        ];
     }
 }

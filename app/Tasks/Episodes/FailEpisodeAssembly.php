@@ -27,7 +27,8 @@ class FailEpisodeAssembly
             }
 
             $this->assemblies->update($assembly, [
-                'status' => AssemblyStatus::FAILED, 'completed_at' => now(),
+                'status' => AssemblyStatus::FAILED,
+                'completed_at' => now(),
                 'error_message' => 'The episode could not be assembled. Check the selected takes and request a new assembly.',
                 'lock_version' => $assembly->lock_version + 1,
             ]);

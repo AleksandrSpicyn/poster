@@ -14,7 +14,13 @@ final class GetChannelListData extends Data
 {
     public function __construct(
         #[Min(1)] public int $page = 1,
-        #[In([10, 20, 25, 50, 100])] public int $perPage = 20,
+        #[In([
+            10,
+            20,
+            25,
+            50,
+            100,
+        ])] public int $perPage = 20,
         #[Max(200)] public ?string $search = null,
         public ?bool $active = null,
         public ?SortDirection $sort = null,

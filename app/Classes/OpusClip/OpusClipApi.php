@@ -28,7 +28,7 @@ final readonly class OpusClipApi
 
         try {
             $response = Http::withToken($this->key)->acceptJson()->withoutRedirecting()->timeout(30)
-                ->get('https://api.opus.pro/api/' . $endpoint, $query);
+                ->get(config()->string('services.opus_clip.api_url') . $endpoint, $query);
         } catch (ConnectionException) {
             throw new RuntimeException("Cannot reach api.opus.pro ($endpoint).");
         }

@@ -61,9 +61,14 @@ final readonly class SyncOpusMetricsAction
         try {
             foreach ($this->client->read($channel, array_map(strval(...), array_keys($targets))) as $id => $metrics) {
                 foreach ($targets[$id] as $clipId) {
-                    $rows[] = ['opus_clip_id' => $clipId, 'platform' => $channel->type->value, 'media_id' => (string) $id,
-                        'observed_on' => now('UTC')->toDateString(), 'metrics' => $metrics,
-                        'account_id' => is_string($accountId) ? $accountId : null];
+                    $rows[] = [
+                        'opus_clip_id' => $clipId,
+                        'platform' => $channel->type->value,
+                        'media_id' => (string) $id,
+                        'observed_on' => now('UTC')->toDateString(),
+                        'metrics' => $metrics,
+                        'account_id' => is_string($accountId) ? $accountId : null,
+                    ];
                     $count++;
 
                     if (count($rows) === 100) {

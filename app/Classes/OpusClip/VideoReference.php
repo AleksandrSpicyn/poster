@@ -27,7 +27,11 @@ final class VideoReference
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
         $path = (string) parse_url($url, PHP_URL_PATH);
 
-        if ($type === ChannelType::TIKTOK && in_array($host, ['www.tiktok.com', 'tiktok.com', 'm.tiktok.com'], true)
+        if ($type === ChannelType::TIKTOK && in_array($host, [
+            'www.tiktok.com',
+            'tiktok.com',
+            'm.tiktok.com',
+        ], true)
             && preg_match('~^/@[^/]+/video/([0-9]{1,20})/?$~D', $path, $match)) {
             return $match[1];
         }
@@ -37,7 +41,12 @@ final class VideoReference
             return $match[1];
         }
 
-        if ($type !== ChannelType::YOUTUBE || ! in_array($host, ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'], true)) {
+        if ($type !== ChannelType::YOUTUBE || ! in_array($host, [
+            'youtube.com',
+            'www.youtube.com',
+            'm.youtube.com',
+            'youtu.be',
+        ], true)) {
             return null;
         }
 

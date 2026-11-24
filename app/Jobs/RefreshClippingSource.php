@@ -36,7 +36,11 @@ class RefreshClippingSource implements ShouldBeUnique, ShouldQueue
     /** @return list<int> */
     public function backoff(): array
     {
-        return [60, 300, 900];
+        return [
+            60,
+            300,
+            900,
+        ];
     }
 
     public function handle(ClippingReaders $readers, ClippingConnectionRepository $connections, OpusClipRepository $clips): void

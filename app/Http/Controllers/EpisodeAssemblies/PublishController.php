@@ -6,6 +6,7 @@ namespace App\Http\Controllers\EpisodeAssemblies;
 
 use App\Actions\Episodes\RequestEpisodePublicationAction;
 use App\Data\Episodes\PublishEpisodeData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
@@ -14,7 +15,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class PublishController
+class PublishController extends EpisodeController
 {
     /**
      * Публикация принятого эпизода в выбранные каналы
@@ -41,6 +42,6 @@ class PublishController
     {
         $action->run($assembly, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

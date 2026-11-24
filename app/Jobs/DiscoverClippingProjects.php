@@ -28,7 +28,11 @@ class DiscoverClippingProjects implements ShouldBeUnique, ShouldQueue
 
     public function uniqueId(): string
     {
-        return implode(':', [$this->connectionId, $this->version, (int) $this->refreshExisting]);
+        return implode(':', [
+            $this->connectionId,
+            $this->version,
+            (int) $this->refreshExisting,
+        ]);
     }
 
     public function handle(ClippingReaders $readers, ClippingConnectionRepository $connections): void

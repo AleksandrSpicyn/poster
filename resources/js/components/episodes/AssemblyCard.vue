@@ -2,7 +2,7 @@
 import { useFormApi } from '@/lib/api/useFormApi';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import type { ProjectSummary } from '@/types/projects';
-import { platformNames } from '@/types/analytics';
+import { platformNames } from '@/lib/analytics';
 import { publicationStates } from '@/lib/publicationStatus';
 import InputError from '@/components/InputError.vue';
 import PublicationRecoveryForm from '@/components/episodes/PublicationRecoveryForm.vue';

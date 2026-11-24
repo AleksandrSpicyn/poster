@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Settings\AppearanceController;
 use App\Http\Controllers\Settings\Password\EditController as EditPasswordController;
 use App\Http\Controllers\Settings\Password\UpdateController as UpdatePasswordController;
 use App\Http\Controllers\Settings\Profile\DestroyController as DestroyProfileController;
@@ -23,5 +24,5 @@ Route::middleware('auth')->prefix('settings')->group(function (): void {
         Route::put('/', UpdatePasswordController::class)->name('update');
     });
 
-    Route::get('appearance', fn() => inertia('settings/Appearance'))->name('appearance');
+    Route::get('appearance', AppearanceController::class)->name('appearance');
 });

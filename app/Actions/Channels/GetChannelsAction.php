@@ -18,7 +18,7 @@ readonly class GetChannelsAction
     /** @return LengthAwarePaginator<int, Channel> */
     public function run(User $owner, GetChannelListData $filters): LengthAwarePaginator
     {
-        Gate::authorize('manageChannels');
+        Gate::forUser($owner)->authorize('manageChannels');
 
         return $this->task->run($owner, $filters);
     }

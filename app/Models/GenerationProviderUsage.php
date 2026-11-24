@@ -30,5 +30,9 @@ class GenerationProviderUsage extends Model
 
     protected $table = 'generation_provider_usage';
 
-    protected $casts = ['charge_e8' => 'integer', 'completion_tokens' => 'integer', 'reconciled_at' => 'immutable_datetime'];
+    protected $casts = [
+        'charge_e8' => 'integer',
+        'completion_tokens' => 'integer',
+        'reconciled_at' => 'immutable_datetime',
+    ];
 }

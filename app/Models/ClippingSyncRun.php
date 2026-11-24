@@ -22,7 +22,12 @@ final class ClippingSyncRun extends Model
 {
     protected $guarded = ['id'];
 
-    protected $casts = ['clips_completed_at' => 'datetime', 'failed_at' => 'datetime', 'resumed_at' => 'datetime', 'completed_at' => 'datetime'];
+    protected $casts = [
+        'clips_completed_at' => 'datetime',
+        'failed_at' => 'datetime',
+        'resumed_at' => 'datetime',
+        'completed_at' => 'datetime',
+    ];
 
     /** @return BelongsTo<OpusSource, $this> */
     public function source(): BelongsTo

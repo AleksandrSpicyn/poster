@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Shots;
 
 use App\Actions\Shots\RequestShotGenerationAction;
 use App\Data\Episodes\RequestShotData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\Scene;
@@ -15,7 +16,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class GenerateController
+class GenerateController extends EpisodeController
 {
     /**
      * Генерация дубля плана
@@ -44,6 +45,6 @@ class GenerateController
     {
         $action->run($shot, $user, $data->source_prompt_id, $data->request_key, $data->new_take);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
+        return $this->redirectToEpisode($series, $episode)->withFragment('shots');
     }
 }

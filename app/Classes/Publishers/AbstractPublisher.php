@@ -52,7 +52,9 @@ abstract class AbstractPublisher implements Publisher
         $media = $this->prompt->getFirstMedia();
 
         return $media instanceof Media ? URL::temporarySignedRoute('prompts.export', now()->addHours(2), [
-            'prompt' => $this->prompt->id, 'media' => $media->id, 'owner' => $this->channel->owner_id,
+            'prompt' => $this->prompt->id,
+            'media' => $media->id,
+            'owner' => $this->channel->owner_id,
         ]) : '';
     }
 

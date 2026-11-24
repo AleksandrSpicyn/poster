@@ -6,6 +6,7 @@ namespace App\Http\Controllers\PublicationRequests;
 
 use App\Actions\Episodes\ResolveEpisodePublicationAction;
 use App\Data\Episodes\ResolveEpisodePublicationData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
@@ -15,7 +16,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class ResolveController
+class ResolveController extends EpisodeController
 {
     /**
      * Подтверждение неизвестного результата публикации
@@ -52,6 +53,6 @@ class ResolveController
     ): RedirectResponse {
         $action->run($publication, $user, $data->external_id);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode]);
+        return $this->redirectToEpisode($series, $episode);
     }
 }

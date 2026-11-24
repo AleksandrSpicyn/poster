@@ -18,8 +18,21 @@ class ExtractContinuationMedia
         $frameStart = number_format(max(0, $video->durationMs - 500) / 1000, 3, '.', '');
         $tailStart = number_format(max(0, $video->durationMs - 2000) / 1000, 3, '.', '');
         $result = Process::timeout(120)->run([
-            'ffmpeg', '-v', 'error', '-nostdin', '-y', '-ss', $frameStart, '-i', $video->path,
-            '-an', '-update', '1', '-f', 'image2', $frame,
+            'ffmpeg',
+            '-v',
+            'error',
+            '-nostdin',
+            '-y',
+            '-ss',
+            $frameStart,
+            '-i',
+            $video->path,
+            '-an',
+            '-update',
+            '1',
+            '-f',
+            'image2',
+            $frame,
         ]);
 
         if (! $result->successful() || ! is_file($frame) || @getimagesize($frame) === false) {
@@ -27,9 +40,28 @@ class ExtractContinuationMedia
         }
 
         $result = Process::timeout(120)->run([
-            'ffmpeg', '-v', 'error', '-nostdin', '-y', '-ss', $tailStart, '-i', $video->path,
-            '-c:v', 'libx264', '-preset', 'veryfast', '-threads', '2', '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac', '-movflags', '+faststart', $tail,
+            'ffmpeg',
+            '-v',
+            'error',
+            '-nostdin',
+            '-y',
+            '-ss',
+            $tailStart,
+            '-i',
+            $video->path,
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-threads',
+            '2',
+            '-pix_fmt',
+            'yuv420p',
+            '-c:a',
+            'aac',
+            '-movflags',
+            '+faststart',
+            $tail,
         ]);
 
         if (! $result->successful() || ! is_file($tail) || filesize($tail) < 1) {

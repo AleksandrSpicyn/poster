@@ -61,6 +61,10 @@ class WorkspaceUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
     /** @return array{resource: string, id: int, version: int} */
     public function broadcastWith(): array
     {
-        return ['resource' => $this->resource, 'id' => $this->resourceId, 'version' => $this->version];
+        return [
+            'resource' => $this->resource,
+            'id' => $this->resourceId,
+            'version' => $this->version,
+        ];
     }
 }

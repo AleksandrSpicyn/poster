@@ -61,7 +61,11 @@ class Project extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection(self::COVER)->useDisk('local')->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+        $this->addMediaCollection(self::COVER)->useDisk('local')->acceptsMimeTypes([
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+        ]);
     }
 
     /** @return HasOneThrough<Media, Prompt, $this> */
@@ -111,10 +115,18 @@ class Project extends Model implements HasMedia
         'is_active',
     ];
 
-    protected $casts = ['content_mode' => ProjectContentMode::class, 'is_active' => 'boolean',
-        'schedule_enabled' => 'boolean', 'archived_at' => 'datetime'];
+    protected $casts = [
+        'content_mode' => ProjectContentMode::class,
+        'is_active' => 'boolean',
+        'schedule_enabled' => 'boolean',
+        'archived_at' => 'datetime',
+    ];
 
-    protected $attributes = ['settings_version' => 1, 'content_mode' => ProjectContentMode::SHORT->value, 'is_active' => true];
+    protected $attributes = [
+        'settings_version' => 1,
+        'content_mode' => ProjectContentMode::SHORT->value,
+        'is_active' => true,
+    ];
 
     /** @return HasMany<ProductionRun, $this> */
     public function productionRuns(): HasMany

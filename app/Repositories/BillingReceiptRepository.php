@@ -21,7 +21,13 @@ final class BillingReceiptRepository
         DB::transaction(function () use ($payment, $refund, $offset): void {
             /** @var object{order_id: int, amount_kopecks: int, provider: string, shop: string, test_mode: bool, product_code: string, status: string, external_id: ?string, fiscal_profile: ?string, receipt_email: ?string, period_ends_at: ?string} $row */
             $row = DB::table('billing_payments as p')->join('billing_orders as o', 'o.id', '=', 'p.order_id')->where('p.id', $payment)
-                ->lockForUpdate()->firstOrFail(['p.*', 'o.product_code', 'o.fiscal_profile', 'o.receipt_email', 'o.period_ends_at']);
+                ->lockForUpdate()->firstOrFail([
+                    'p.*',
+                    'o.product_code',
+                    'o.fiscal_profile',
+                    'o.receipt_email',
+                    'o.period_ends_at',
+                ]);
 
             if ($row->fiscal_profile === null || $row->receipt_email === null || $row->external_id === null || $row->status !== 'succeeded') {
                 if ($offset) {
@@ -54,7 +60,11 @@ final class BillingReceiptRepository
                 $grant = DB::table('generation_grants')->where('order_id', $row->order_id)->first();
 
                 if ($profile['mode'] !== 'full_prepayment' || $grant === null || $grant->held_seconds > 0 || ($grant->available_seconds > 0 && ($grant->ends_at === null || $grant->ends_at > now('UTC')->toDateTimeString()))
-                    || DB::table('billing_refunds')->where('payment_id', $payment)->whereIn('status', ['created', 'pending', 'unknown'])->exists()
+                    || DB::table('billing_refunds')->where('payment_id', $payment)->whereIn('status', [
+                        'created',
+                        'pending',
+                        'unknown',
+                    ])->exists()
                     || ! DB::table('billing_receipts')->where('event_key', 'payment.' . $payment)->where('status', 'registered')->exists()) {
                     throw new DomainException('Для зачёта нужны чек предоплаты и завершённый пакет без открытых резервов и возвратов.');
                 }
@@ -79,9 +89,21 @@ final class BillingReceiptRepository
                 $offset ? 'full_payment' : $profile['mode'],
                 $profile['tax_system'],
             );
-            DB::table('billing_receipts')->insert(['event_key' => $key, 'payment_id' => $payment, 'refund_id' => $refund, 'kind' => $kind, 'status' => 'created',
-                'provider' => $row->provider, 'shop' => $row->shop, 'test_mode' => $row->test_mode, 'idempotency_key' => (string) Str::uuid(),
-                'request_snapshot' => $request->toJson(), 'next_check_at' => now('UTC'), 'created_at' => now('UTC'), 'updated_at' => now('UTC')]);
+            DB::table('billing_receipts')->insert([
+                'event_key' => $key,
+                'payment_id' => $payment,
+                'refund_id' => $refund,
+                'kind' => $kind,
+                'status' => 'created',
+                'provider' => $row->provider,
+                'shop' => $row->shop,
+                'test_mode' => $row->test_mode,
+                'idempotency_key' => (string) Str::uuid(),
+                'request_snapshot' => $request->toJson(),
+                'next_check_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+            ]);
         }, 3);
     }
 
@@ -120,9 +142,14 @@ final class BillingReceiptRepository
                 throw new DomainException('Нужна сверка по ID чека в исходном магазине.');
             }
 
-            DB::table('billing_receipts')->where('id', $id)->update(['sent_at' => $row->status === 'cancelled' ? now('UTC') : ($row->sent_at ?? now('UTC')),
-                'idempotency_key' => $key, 'status' => $lookup === null ? 'unknown' : 'pending', 'external_id' => $row->status === 'cancelled' ? null : $row->external_id,
-                'next_check_at' => $lookup === null ? null : now('UTC')->addMinutes(2), 'updated_at' => now('UTC')]);
+            DB::table('billing_receipts')->where('id', $id)->update([
+                'sent_at' => $row->status === 'cancelled' ? now('UTC') : ($row->sent_at ?? now('UTC')),
+                'idempotency_key' => $key,
+                'status' => $lookup === null ? 'unknown' : 'pending',
+                'external_id' => $row->status === 'cancelled' ? null : $row->external_id,
+                'next_check_at' => $lookup === null ? null : now('UTC')->addMinutes(2),
+                'updated_at' => now('UTC'),
+            ]);
 
             return new ReceiptAttemptData($id, new MerchantData($row->provider, $row->shop, (bool) $row->test_mode), ReceiptRequestData::from($row->request_snapshot), $key, $lookup);
         }, 3);
@@ -136,6 +163,11 @@ final class BillingReceiptRepository
             default => 'pending',
         };
         DB::table('billing_receipts')->where('id', $attempt->id)->where('idempotency_key', $attempt->key)->whereIn('status', ['pending', 'unknown'])
-            ->update(['status' => $status, 'external_id' => $result->externalId, 'next_check_at' => $status === 'pending' ? now('UTC')->addMinute() : null, 'updated_at' => now('UTC')]);
+            ->update([
+                'status' => $status,
+                'external_id' => $result->externalId,
+                'next_check_at' => $status === 'pending' ? now('UTC')->addMinute() : null,
+                'updated_at' => now('UTC'),
+            ]);
     }
 }

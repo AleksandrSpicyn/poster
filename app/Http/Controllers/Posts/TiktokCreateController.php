@@ -17,8 +17,12 @@ class TiktokCreateController
     {
         $form = $action->run($channel, $page->page);
 
-        return inertia('Posts/Tiktok', ['channelId' => $channel->id, ...$form, 'videos' => $form['videos']->through(
-            fn(Media $media): array => TiktokVideoResource::make($media)->resolve(),
-        )]);
+        return inertia('Posts/Tiktok', [
+            'channelId' => $channel->id,
+            ...$form,
+            'videos' => $form['videos']->through(
+                fn(Media $media): array => TiktokVideoResource::make($media)->resolve(),
+            ),
+        ]);
     }
 }

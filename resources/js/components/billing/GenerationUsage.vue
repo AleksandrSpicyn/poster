@@ -2,35 +2,14 @@
 import { Button } from '@/components/ui/button';
 import { operationLabel } from '@/lib/billing';
 import { useRoute } from '@/composables/useRoute';
-import { fetchBillingUsage, fetchProductionQuote } from '@/lib/api/billing';
+import { useGenerationUsage, type GenerationUsageTarget } from '@/composables/useGenerationUsage';
 import { Link } from '@inertiajs/vue3';
-import { onUnmounted, ref } from 'vue';
-const props = defineProps<{ kind: 'shot' | 'run' | 'production'; id: number; seriesId?: number }>();
+const props = defineProps<GenerationUsageTarget>();
 const route = useRoute();
-const data = ref<Awaited<ReturnType<typeof fetchBillingUsage>>>();
-const error = ref('');
-let controller: AbortController | undefined;
-async function refresh() {
-    controller?.abort();
-    const request = new AbortController();
-    controller = request;
-    error.value = '';
-    data.value = undefined;
-    try {
-        const result =
-            props.kind === 'production'
-                ? await fetchProductionQuote(route('billing.quotes.store'), props.id, props.seriesId, request.signal)
-                : await fetchBillingUsage(route(props.kind === 'shot' ? 'billing.usage.shot' : 'billing.usage.run', props.id), request.signal);
-        if (!request.signal.aborted) data.value = result;
-    } catch (failure) {
-        if (!request.signal.aborted) error.value = failure instanceof Error ? failure.message : 'Не удалось загрузить баланс.';
-    }
-}
+const { data, error, refresh, setOpen } = useGenerationUsage(props);
 function toggle(event: Event) {
-    if ((event.currentTarget as HTMLDetailsElement).open) refresh();
-    else controller?.abort();
+    if (event.currentTarget instanceof HTMLDetailsElement) setOpen(event.currentTarget.open);
 }
-onUnmounted(() => controller?.abort());
 </script>
 <template>
     <details class="text-sm" @toggle="toggle">

@@ -1,80 +1,24 @@
 <script setup lang="ts">
+import { useTiktokReceiptRefresh } from '@/composables/useTiktokReceiptRefresh';
 import { useHashNavigation } from '@/composables/useHashNavigation';
 import EpisodePreview from '@/components/episodes/EpisodePreview.vue';
 import Heading from '@/components/Heading.vue';
 import TiktokPublicationReceipt from '@/components/TiktokPublicationReceipt.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
-import type { ProjectSummary } from '@/types/projects';
+import type { TiktokPublicationProps } from '@/types/tiktokPublication';
+import { useTiktokPublicationForm } from '@/composables/useTiktokPublicationForm';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useFormApi } from '@/lib/api/useFormApi';
 import { useRoute } from '@/composables/useRoute';
 
-const props = defineProps<{
-    channelId: number;
-    account: string;
-    accountId: string;
-    creator: { nickname: string; privacy: string[]; comment: boolean; duet: boolean; stitch: boolean; duration: number } | null;
-    inbox: boolean;
-    directUnavailable: boolean;
-    videos: {
-        data: {
-            id: number;
-            label: string;
-            url: string;
-            project: Pick<ProjectSummary, 'id' | 'name' | 'cover'> | null;
-            assembly_number: number | null;
-            receipt: {
-                status: string;
-                current_recipient: boolean;
-                submitted_at: string | null;
-                published_at: string | null;
-                url: string | null;
-            } | null;
-        }[];
-        next_page_url: string | null;
-        prev_page_url: string | null;
-    };
-}>();
+const props = defineProps<TiktokPublicationProps>();
 const submitForm = useFormApi();
 const route = useRoute();
 const page = usePage();
-const form = useForm({
-    media_id: null as number | null,
-    account_id: props.accountId,
-    mode: props.inbox ? 'inbox' : 'direct',
-    title: '',
-    privacy: '',
-    consent: false,
-    comment: false,
-    duet: false,
-    stitch: false,
-    disclose: false,
-    own_brand: false,
-    partner: false,
-    ai: false,
-});
-watch(
-    () => [props.accountId, props.inbox, props.creator] as const,
-    ([account, inbox, creator]) => {
-        if (form.account_id !== account) {
-            form.account_id = account;
-            form.privacy = '';
-            form.own_brand = false;
-            form.partner = false;
-            form.disclose = false;
-        }
-        if (!inbox && creator) form.mode = 'direct';
-        if (!creator && inbox) form.mode = 'inbox';
-        if (!creator?.privacy.includes(form.privacy)) form.privacy = '';
-        if (!creator?.comment) form.comment = false;
-        if (!creator?.duet) form.duet = false;
-        if (!creator?.stitch) form.stitch = false;
-        form.consent = false;
-    },
-);
+const { form, consentChanged } = useTiktokPublicationForm(props);
 const rechecking = ref(false);
 function retryCreator() {
     rechecking.value = true;
@@ -125,30 +69,7 @@ function restoreReceipt() {
 }
 useHashNavigation(restoreReceipt);
 
-const refreshingReceipt = ref(false);
-const receiptError = ref('');
-function refreshReceipt() {
-    if (refreshingReceipt.value) return;
-    refreshingReceipt.value = true;
-    router.reload({
-        only: ['videos'],
-        onSuccess: () => {
-            receiptError.value = '';
-        },
-        onHttpException: (response) => {
-            if (response.status === 419) return;
-            receiptError.value = 'Не удалось обновить статус. Повторите проверку.';
-            return false;
-        },
-        onNetworkError: () => {
-            receiptError.value = 'Нет связи. Проверьте подключение и повторите попытку.';
-            return false;
-        },
-        onFinish: () => {
-            refreshingReceipt.value = false;
-        },
-    });
-}
+const { refreshingReceipt, receiptError, refreshReceipt } = useTiktokReceiptRefresh();
 const project = computed(() => {
     if (video.value) return video.value.project;
     if (props.videos.next_page_url || props.videos.prev_page_url) return null;
@@ -157,7 +78,6 @@ const project = computed(() => {
 });
 const duration = ref(0);
 const durationError = ref(false);
-const consentChanged = ref(false);
 const videoSelect = ref<HTMLSelectElement>();
 const tooLong = computed(() => form.mode === 'direct' && props.creator && duration.value > props.creator.duration);
 watch(
@@ -223,34 +143,6 @@ function submit() {
             },
         });
 }
-watch(
-    () => [
-        form.media_id,
-        form.mode,
-        form.title,
-        form.privacy,
-        form.disclose,
-        form.comment,
-        form.duet,
-        form.stitch,
-        form.own_brand,
-        form.partner,
-        form.ai,
-    ],
-    () => {
-        consentChanged.value = form.consent || consentChanged.value;
-        form.consent = false;
-    },
-);
-watch(
-    () => form.disclose,
-    (disclose) => {
-        if (!disclose) {
-            form.partner = false;
-            form.own_brand = false;
-        }
-    },
-);
 </script>
 
 <template>

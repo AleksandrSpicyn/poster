@@ -32,7 +32,11 @@ class UploadCharacterReference
         $contents = file_get_contents($path);
 
         if ($dimensions === false || $contents === false
-            || ! in_array($dimensions[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP], true)
+            || ! in_array($dimensions[2], [
+                IMAGETYPE_PNG,
+                IMAGETYPE_JPEG,
+                IMAGETYPE_WEBP,
+            ], true)
             || $dimensions[0] < 64 || $dimensions[1] < 64
             || $dimensions[0] > 6000 || $dimensions[1] > 6000
             || $dimensions[0] * $dimensions[1] > 20000000

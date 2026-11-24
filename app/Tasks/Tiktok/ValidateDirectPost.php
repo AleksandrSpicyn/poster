@@ -27,8 +27,23 @@ final readonly class ValidateDirectPost
             throw ValidationException::withMessages(['title' => 'Подпись превышает лимит TikTok в 2200 единиц UTF-16.']);
         }
 
-        $probe = Process::timeout(8)->run(['ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov', '-i', $path,
-            '-select_streams', 'v:0', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json']);
+        $probe = Process::timeout(8)->run([
+            'ffprobe',
+            '-v',
+            'error',
+            '-protocol_whitelist',
+            'file,pipe',
+            '-f',
+            'mov',
+            '-i',
+            $path,
+            '-select_streams',
+            'v:0',
+            '-show_entries',
+            'format=duration:stream=codec_type',
+            '-of',
+            'json',
+        ]);
         $info = json_decode($probe->output(), true);
         $duration = data_get($info, 'format.duration');
 

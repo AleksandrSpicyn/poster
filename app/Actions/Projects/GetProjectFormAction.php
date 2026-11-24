@@ -19,7 +19,7 @@ readonly class GetProjectFormAction
 
     public function run(User $owner, ?Project $project = null): ProjectFormData
     {
-        $canManage = Gate::allows('manageChannels');
+        $canManage = Gate::forUser($owner)->allows('manageChannels');
 
         return new ProjectFormData(
             project: $project instanceof Project ? $this->getProject->run($project) : null,

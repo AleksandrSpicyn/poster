@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { assemblyTimeline } from '@/lib/assemblyTimeline';
 import { useFormApi } from '@/lib/api/useFormApi';
 import { useHashNavigation } from '@/composables/useHashNavigation';
 import SeriesAssemblyParameters from '@/components/SeriesAssemblyParameters.vue';
@@ -70,14 +71,7 @@ const statusLabels: Record<string, string> = {
     failed: 'Не удалось собрать версию',
 };
 const assemblyPreview = ref<InstanceType<typeof EpisodePreview> | null>(null);
-const parts = computed(() => {
-    let offset = 0;
-    return (props.assembly.manifest.parts ?? []).map((part) => {
-        const start = offset;
-        offset += part.duration_ms;
-        return { ...part, start, version: props.assembly.source_versions?.[part.assembly_id] };
-    });
-});
+const parts = computed(() => assemblyTimeline(props.assembly.manifest.parts ?? [], props.assembly.source_versions));
 const timecode = (ms: number) => [Math.floor(ms / 60000), Math.floor(ms / 1000) % 60].map((value) => String(value).padStart(2, '0')).join(':');
 const versionNumber = (number: number) => String(number).padStart(2, '0');
 const durationLabel = computed(() => (props.assembly.duration_ms === null ? '' : timecode(props.assembly.duration_ms)));
@@ -94,13 +88,12 @@ watch(
 );
 const errors = computed<Record<string, string | undefined>>(() => form.errors);
 const playbackError = ref(false);
-const boundaries = computed(() => {
-    let elapsed = 0;
-    return (props.assembly.manifest.parts ?? []).slice(0, -1).map((part) => {
-        elapsed += part.duration_ms / 1000;
-        return { number: part.number, time: elapsed };
-    });
-});
+const boundaries = computed(() =>
+    parts.value.slice(0, -1).map((part) => ({
+        number: part.number,
+        time: (part.start + part.duration_ms) / 1000,
+    })),
+);
 const joint = computed(() => (tab.value === 'status' ? boundaries.value.find((item) => item.number === jointNumber.value) : undefined));
 function showJoint(number: number) {
     playbackError.value = false;

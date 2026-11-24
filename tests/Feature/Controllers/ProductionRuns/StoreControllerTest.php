@@ -167,3 +167,25 @@ test('отклоняет недоступного получателя до со
     Bus::assertNothingDispatched();
     Http::assertNothingSent();
 })->with([true, false]);
+
+test('отклоняет некорректные идентификаторы каналов до запуска', function (): void {
+    Bus::fake();
+    $actor = serialOperator();
+    $project = Project::factory()->recycle(workspaceOwner())->create();
+
+    $response = actingAs($actor)
+        ->postJson(route('production_runs.store', $project), [
+            'request_key' => 'invalid-delivery-channels',
+            'channel_ids' => [0, 'bad', 3, 3],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'channel_ids.0',
+            'channel_ids.1',
+            'channel_ids.2',
+            'channel_ids.3',
+        ]);
+    expect($project->productionRuns()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+});

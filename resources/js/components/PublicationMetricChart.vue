@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { amount, dateLabel } from '@/types/analytics';
+import { amount, dateLabel } from '@/lib/analytics';
 import { computed } from 'vue';
 const props = defineProps<{ values: Record<string, number | null>; label: string; snapshots?: boolean; overview?: boolean }>();
 const chart = computed(() => {

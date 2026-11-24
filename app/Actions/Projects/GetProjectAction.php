@@ -22,10 +22,10 @@ readonly class GetProjectAction
     public function run(User $owner, Project $project, GetPromptsListData $filters): ProjectWorkspaceData
     {
         $project = $this->getProject->run($project);
-        $series = Gate::allows('manageSeries') ? $project->seriesDefinition : null;
+        $series = Gate::forUser($owner)->allows('manageSeries') ? $project->seriesDefinition : null;
         $details = $series === null ? null : $this->getSeries->run($series, $filters->page ?? 1);
 
-        $canReadClips = $project->isClippingProject() && Gate::allows('manageChannels');
+        $canReadClips = $project->isClippingProject() && Gate::forUser($owner)->allows('manageChannels');
 
         return new ProjectWorkspaceData(
             project: $project,

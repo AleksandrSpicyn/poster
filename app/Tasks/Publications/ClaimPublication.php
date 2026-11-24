@@ -11,6 +11,7 @@ use App\Enums\PublicationStatus;
 use App\Enums\SeriesOutputMode;
 use App\Models\Episode;
 use App\Models\ProductionRun;
+use App\Models\Prompt;
 use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
 use App\Models\User;
@@ -19,12 +20,13 @@ use App\Repositories\EpisodeRepository;
 use App\Repositories\PublicationRequestRepository;
 use App\Repositories\SeriesAssemblyRepository;
 use App\Repositories\SeriesRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ClaimPublication
 {
-    public function __construct(private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes, private readonly ChannelRepository $channels, private readonly SeriesRepository $seriesRepository, private readonly SeriesAssemblyRepository $finalAssemblies) {}
+    public function __construct(private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes, private readonly ChannelRepository $channels, private readonly SeriesRepository $seriesRepository, private readonly SeriesAssemblyRepository $finalAssemblies, private readonly UserRepository $users) {}
 
     public function run(PublicationRequest $request, bool $container = false): bool
     {
@@ -57,10 +59,10 @@ class ClaimPublication
 
     private function shortRejectionReason(PublicationRequest $request): ?string
     {
-        $short = $request->prompt()->with('project')->first();
+        $short = $this->publications->shortWithProject($request);
 
-        if ($short === null || ! $short->generated || $short->shot_id !== null || $short->project?->is_active !== true
-            || $short->project->owner_id !== $request->created_by || ! User::query()->whereKey($request->created_by)->whereNotNull('email_verified_at')->exists()
+        if (! $short instanceof Prompt || ! $short->generated || $short->shot_id !== null || $short->project?->is_active !== true
+            || $short->project->owner_id !== $request->created_by || ! $this->users->isVerified($request->created_by)
             || ! $this->channels->readyForProject($request->channel_id, $short->project_id)) {
             return 'The short or its channel is no longer available to this owner.';
         }

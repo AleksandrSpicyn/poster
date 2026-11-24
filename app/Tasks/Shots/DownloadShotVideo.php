@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tasks\Shots;
 
+use App\Classes\Billing\MeteredVideo;
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
+use App\Repositories\GenerationReservationRepository;
 use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
-use App\Tasks\ValidateMeteredVideo;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
@@ -19,7 +20,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DownloadShotVideo
 {
-    public function __construct(private readonly PromptRepository $prompts, private readonly ValidateMeteredVideo $validate) {}
+    public function __construct(private readonly PromptRepository $prompts, private readonly GenerationReservationRepository $usage) {}
 
     public function run(GenerationOperation $operation): Media
     {
@@ -27,7 +28,7 @@ class DownloadShotVideo
         $existing = $prompt->getFirstMedia(Prompt::SHOT_VIDEO);
 
         if ($existing instanceof Media) {
-            $this->validate->run($prompt->id, $existing->getPath());
+            MeteredVideo::assertMatchesQuote($existing->getPath(), $this->usage->quotedSeconds($prompt->id));
 
             return $existing;
         }
@@ -57,14 +58,30 @@ class DownloadShotVideo
                 throw new RuntimeException('The generated video is empty or exceeds 200 MB.');
             }
 
-            $probe = Process::timeout(30)->run(['ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mov', '-i', $path, '-select_streams', 'v:0', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0']);
+            $probe = Process::timeout(30)->run([
+                'ffprobe',
+                '-v',
+                'error',
+                '-protocol_whitelist',
+                'file,pipe',
+                '-f',
+                'mov',
+                '-i',
+                $path,
+                '-select_streams',
+                'v:0',
+                '-show_entries',
+                'stream=codec_type',
+                '-of',
+                'csv=p=0',
+            ]);
             $probe->throw();
 
             if (trim($probe->output()) !== 'video') {
                 throw new RuntimeException('The generated file has no readable video stream.');
             }
 
-            $this->validate->run($prompt->id, $path);
+            MeteredVideo::assertMatchesQuote($path, $this->usage->quotedSeconds($prompt->id));
 
             return $prompt->addMedia($path)->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
         } finally {

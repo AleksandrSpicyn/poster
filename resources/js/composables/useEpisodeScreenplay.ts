@@ -1,10 +1,10 @@
 import { useFormApi } from '@/lib/api/useFormApi';
-import { createScreenplayScene, createScreenplayShot } from '@/lib/screenplay';
+import { createScreenplayScene, createScreenplayShot, parseScreenplayImport } from '@/lib/screenplay';
 import type { SharedData } from '@/types';
 import type { EpisodeWorkspaceProps, Screenplay } from '@/types/episodes';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { useOnline } from '@vueuse/core';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, toRaw, watch } from 'vue';
 
 export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const submitForm = useFormApi();
@@ -22,6 +22,9 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     const initialScriptJson = JSON.stringify(initialScript, null, 2);
     const scriptText = ref(initialScriptJson);
     const jsonError = ref('');
+    watch(scriptText, () => {
+        jsonError.value = '';
+    });
     const restored = ref(false);
     const saveError = ref('');
     const sourceVersion = ref(revision.value?.number ?? 0);
@@ -37,7 +40,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         () => scriptForm.isDirty || Boolean(generateForm.brief) || scriptText.value !== JSON.stringify(scriptForm.script, null, 2),
     );
     const changedFields = computed(() => {
-        const saved: Screenplay = props.screenplay ?? JSON.parse(initialScriptJson);
+        const saved: Screenplay = props.screenplay ?? initialScript;
         const current = scriptForm.script;
         const changes: string[] = [];
         if (generateForm.brief) changes.push('Задание на сценарий');
@@ -108,7 +111,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         () => props.screenplay,
         (screenplay) => {
             if (!screenplay || hasDraft.value || scriptForm.processing) return;
-            const script = JSON.parse(JSON.stringify(screenplay)) as Screenplay;
+            const script = structuredClone(toRaw(screenplay));
             sourceVersion.value = revision.value?.number ?? 0;
             scriptForm.defaults({ script, lock_version: props.episode.lock_version });
             scriptForm.reset();
@@ -148,7 +151,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
     });
     function loadServerVersion() {
         if (!props.screenplay) return;
-        const saved = JSON.parse(JSON.stringify(props.screenplay)) as Screenplay;
+        const saved = structuredClone(toRaw(props.screenplay));
         scriptForm.defaults({ script: saved, lock_version: props.episode.lock_version });
         scriptForm.reset();
         scriptForm.clearErrors();
@@ -173,7 +176,7 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
             : 'Не удалось сохранить изменения. Оставьте вкладку открытой и повторите отправку.';
         return false as const;
     }
-    function postScript(script: Screenplay) {
+    function postScript(script: Screenplay | Record<string, unknown>) {
         scriptForm.transform((data) => ({ ...data, script }));
         submitForm(scriptForm, ['episodes.scripts.store', params], {
             preserveState: 'errors',
@@ -190,28 +193,10 @@ export function useEpisodeScreenplay(props: EpisodeWorkspaceProps) {
         saveError.value = '';
         postScript(scriptForm.script);
     }
-    function checkJson(): Screenplay | null {
-        jsonError.value = '';
-        let parsed: unknown;
-        try {
-            parsed = JSON.parse(scriptText.value);
-            if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Screenplay must be an object.');
-        } catch {
-            jsonError.value = 'Введите сценарий в формате JSON.';
-            return null;
-        }
-        const candidate = parsed as Partial<Screenplay>;
-        if (!Array.isArray(candidate.scenes)) {
-            jsonError.value = 'scenes · ожидается массив сцен.';
-            return null;
-        }
-        const invalid = candidate.scenes.findIndex((scene) => !scene || !Array.isArray(scene.shots));
-        if (invalid >= 0) {
-            const value = candidate.scenes[invalid]?.shots;
-            jsonError.value = 'scenes[' + invalid + '].shots · ожидается массив кадров' + (typeof value === 'string' ? ', получена строка.' : '.');
-            return null;
-        }
-        return candidate as Screenplay;
+    function checkJson() {
+        const imported = parseScreenplayImport(scriptText.value);
+        jsonError.value = imported.error;
+        return imported.script;
     }
     function importScript() {
         if (!online.value || scriptForm.processing || editorStale.value) return;

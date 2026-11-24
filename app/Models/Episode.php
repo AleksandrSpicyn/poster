@@ -56,7 +56,12 @@ class Episode extends Model
         'accepted_assembly_id',
         'lock_version',
         'validity',
-        'script_request_key', 'script_requested_by', 'script_generation_status', 'script_request_payload', 'script_generation_error', 'script_started_at',
+        'script_request_key',
+        'script_requested_by',
+        'script_generation_status',
+        'script_request_payload',
+        'script_generation_error',
+        'script_started_at',
     ];
 
     protected $casts = [

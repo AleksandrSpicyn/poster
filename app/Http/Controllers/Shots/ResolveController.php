@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Shots;
 
 use App\Actions\Shots\ResolveUnknownShotGenerationAction;
 use App\Data\Shots\ResolveShotGenerationData;
+use App\Http\Controllers\EpisodeController;
 use App\Models\Episode;
 use App\Models\EpisodeRevision;
 use App\Models\GenerationOperation;
@@ -17,7 +18,7 @@ use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 
-class ResolveController
+class ResolveController extends EpisodeController
 {
     /**
      * Проверка неизвестного запуска по ID провайдера
@@ -49,6 +50,6 @@ class ResolveController
     {
         $action->run($operation, $data, $user);
 
-        return to_route('episodes.show', ['series' => $series, 'episode' => $episode])->withFragment('shots');
+        return $this->redirectToEpisode($series, $episode)->withFragment('shots');
     }
 }

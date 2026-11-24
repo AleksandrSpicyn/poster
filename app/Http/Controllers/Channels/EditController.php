@@ -9,6 +9,8 @@ use App\Classes\Channels\ChannelOAuth;
 use App\Enums\ChannelType;
 use App\Http\Resources\ChannelResource;
 use App\Models\Channel;
+use App\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Response;
 
 class EditController
@@ -28,8 +30,13 @@ class EditController
      * @response 403 {"message":"This action is unauthorized."}
      * @response 404
      */
-    public function __invoke(Channel $channel, GetChannelFormAction $action): Response
+    public function __invoke(#[CurrentUser] User $owner, Channel $channel, GetChannelFormAction $action): Response
     {
-        return inertia('Channels/Form', ['channel' => ChannelResource::make($action->run($channel))->resolve(), 'requestedScopes' => $channel->type === ChannelType::TIKTOK ? $action->requestedScopes($channel) : [], 'channelTypes' => [$channel->type->value => $channel->type->label()], 'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null]);
+        return inertia('Channels/Form', [
+            'channel' => ChannelResource::make($action->run($owner, $channel))->resolve(),
+            'requestedScopes' => $channel->type === ChannelType::TIKTOK ? $action->requestedScopes($channel) : [],
+            'channelTypes' => [$channel->type->value => $channel->type->label()],
+            'callbackUrl' => in_array($channel->type, ChannelType::oauthProviders(), true) ? ChannelOAuth::redirectUri($channel->type) : null,
+        ]);
     }
 }

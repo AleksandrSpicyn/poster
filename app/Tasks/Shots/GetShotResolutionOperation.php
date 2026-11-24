@@ -36,7 +36,13 @@ class GetShotResolutionOperation
         }
 
         if ($operation->status !== GenerationOperationStatus::SUBMISSION_UNKNOWN
-            && ($operation->external_id !== $externalId || ! in_array($operation->status, [GenerationOperationStatus::SUBMITTED, GenerationOperationStatus::RUNNING, GenerationOperationStatus::SUCCEEDED, GenerationOperationStatus::FAILED, GenerationOperationStatus::CANCELLED], true))) {
+            && ($operation->external_id !== $externalId || ! in_array($operation->status, [
+                GenerationOperationStatus::SUBMITTED,
+                GenerationOperationStatus::RUNNING,
+                GenerationOperationStatus::SUCCEEDED,
+                GenerationOperationStatus::FAILED,
+                GenerationOperationStatus::CANCELLED,
+            ], true))) {
             throw ValidationException::withMessages(['operation' => 'Only an unknown submission can be resolved with a remote receipt.']);
         }
 

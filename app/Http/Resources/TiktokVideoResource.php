@@ -13,7 +13,6 @@ use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Arr;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** @mixin Media */
@@ -40,7 +39,7 @@ class TiktokVideoResource extends JsonResource
             'label' => $source instanceof Prompt ? $source->prompt : $this->name,
             'assembly_number' => ($source instanceof EpisodeAssembly || $source instanceof SeriesAssembly) && $source->status === AssemblyStatus::ACCEPTED ? $source->number : null,
             'url' => route('posts.tiktok.preview', ['channel' => $channel, 'media' => $this->id]),
-            'project' => $project instanceof Project ? Arr::only(ProjectResource::make($project)->resolve($request), ['id', 'name', 'cover']) : null,
+            'project' => $project instanceof Project ? ProjectCardResource::make($project)->resolve($request) : null,
             'receipt' => $receipt instanceof PublicationRequest ? [
                 'id' => $receipt->id,
                 'status' => $receipt->status->value,

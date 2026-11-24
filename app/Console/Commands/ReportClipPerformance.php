@@ -58,7 +58,12 @@ class ReportClipPerformance extends Command
                 $views = $row->metrics['views'] ?? null;
 
                 if ($previous !== null && $views !== null) {
-                    $rows[] = [$row->clip_game ?? 'Unassigned', $row->clip_title ?? $row->clip_id, $views - $previous, $views];
+                    $rows[] = [
+                        $row->clip_game ?? 'Unassigned',
+                        $row->clip_title ?? $row->clip_id,
+                        $views - $previous,
+                        $views,
+                    ];
                 }
             }
 
@@ -70,7 +75,12 @@ class ReportClipPerformance extends Command
                 continue;
             }
 
-            $this->table(['Game', 'Clip', 'View change', 'Total views'], collect($rows)->sortByDesc(2)->take(10)->values()->all());
+            $this->table([
+                'Game',
+                'Clip',
+                'View change',
+                'Total views',
+            ], collect($rows)->sortByDesc(2)->take(10)->values()->all());
         }
 
         return self::SUCCESS;

@@ -32,7 +32,11 @@ readonly class StartSeriesAssembly
                 return null;
             }
 
-            $this->assemblies->update($assembly, ['status' => AssemblyStatus::BUILDING, 'started_at' => now(), 'lock_version' => $assembly->lock_version + 1]);
+            $this->assemblies->update($assembly, [
+                'status' => AssemblyStatus::BUILDING,
+                'started_at' => now(),
+                'lock_version' => $assembly->lock_version + 1,
+            ]);
 
             return $assembly;
         });

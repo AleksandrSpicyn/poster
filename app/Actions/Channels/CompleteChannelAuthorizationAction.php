@@ -35,7 +35,13 @@ readonly class CompleteChannelAuthorizationAction
             return null;
         } catch (Throwable $exception) {
             $message = $exception instanceof ChannelAuthorizationException ? $exception->getMessage() : null;
-            Log::warning('Channel OAuth connection failed.', ['channel' => $channel->id, 'platform' => $channel->type->value, 'exception' => $exception::class, 'source' => basename($exception->getFile()) . ':' . $exception->getLine(), 'reason' => $message]);
+            Log::warning('Channel OAuth connection failed.', [
+                'channel' => $channel->id,
+                'platform' => $channel->type->value,
+                'exception' => $exception::class,
+                'source' => basename($exception->getFile()) . ':' . $exception->getLine(),
+                'reason' => $message,
+            ]);
 
             if ($data->error === 'access_denied') {
                 return 'Вы отменили авторизацию на площадке.';
