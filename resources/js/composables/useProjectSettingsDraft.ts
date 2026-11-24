@@ -2,6 +2,23 @@ import type { ProjectFormProps, ProjectSchedule } from '@/types/projects';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 
+function mergeDraftField(base: unknown, local: unknown, latest: unknown): unknown {
+    if (!isFieldGroup(base) || !isFieldGroup(local) || !isFieldGroup(latest)) return local;
+
+    return {
+        ...latest,
+        ...Object.fromEntries(
+            Object.entries(local)
+                .filter(([name, value]) => JSON.stringify(value) !== JSON.stringify(base[name]))
+                .map(([name, value]) => [name, mergeDraftField(base[name], value, latest[name])]),
+        ),
+    };
+}
+
+function isFieldGroup(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function useProjectSettingsDraft(props: ProjectFormProps) {
     const dedicatedSeries = !props.project && new URL(usePage().url, 'http://poster.local').searchParams.get('format') === 'series';
     const initialMode = dedicatedSeries && 'series' in props.contentModes ? 'series' : Object.keys(props.contentModes)[0];
@@ -87,14 +104,18 @@ export function useProjectSettingsDraft(props: ProjectFormProps) {
     }
     function keepDraft() {
         const local = form.data();
-        const edits = fieldKeys.filter(
-            (key) =>
-                key !== 'settings_version' && key !== 'series_lock_version' && JSON.stringify(local[key]) !== JSON.stringify(draftBase.value[key]),
-        );
+        const edits = fieldKeys
+            .filter(
+                (key) =>
+                    key !== 'settings_version' &&
+                    key !== 'series_lock_version' &&
+                    JSON.stringify(local[key]) !== JSON.stringify(draftBase.value[key]),
+            )
+            .map((key) => [key, mergeDraftField(draftBase.value[key], local[key], serverData.value[key])]);
         draftBase.value = serverData.value;
         conflict.value = false;
         form.reset();
-        Object.assign(form, Object.fromEntries(edits.map((key) => [key, local[key]])));
+        Object.assign(form, Object.fromEntries(edits));
         restored.value = true;
     }
     watch(serverData, (latest, previous) => {

@@ -36,14 +36,19 @@ test('Черновик переживает обновление проекта 
     app.mount({});
     context.after(() => app.unmount());
 
+    draft.form.series_specification.visual_style = 'animation';
+    props.series = { specification: { language: 'ru' }, lock_version: 2 };
     draft.form.name = 'Мой черновик';
     props.project = { ...props.project, prompt: 'Новое описание', settings_version: 2 };
     await nextTick();
 
     assert.equal(draft.conflict.value, true);
     assert.equal(draft.form.name, 'Мой черновик');
-    assert.deepEqual(draft.changedKeys.value, ['prompt']);
+    assert.deepEqual(draft.changedKeys.value, ['prompt', 'series_specification']);
     draft.keepDraft();
+    assert.equal(draft.form.series_specification.visual_style, 'animation');
+    assert.equal(draft.form.series_specification.language, 'ru');
+    assert.equal(draft.form.series_lock_version, 2);
     assert.equal(draft.form.prompt, 'Новое описание');
     assert.equal(draft.form.settings_version, 2);
     assert.equal(draft.form.name, 'Мой черновик');
