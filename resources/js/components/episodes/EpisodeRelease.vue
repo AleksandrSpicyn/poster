@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import AssemblyCard from '@/components/episodes/AssemblyCard.vue';
-import { Button } from '@/components/ui/button';
+import EpisodePublicationHistory from '@/components/episodes/EpisodePublicationHistory.vue';
 import type { EpisodeAssemblySummary, EpisodeWorkspaceProps } from '@/types/episodes';
+import { Check, CircleAlert, Clock } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{ workspace: EpisodeWorkspaceProps; assemblies: EpisodeAssemblySummary[] }>();
-const sections = [
-    { key: 'preview', label: 'Предпросмотр' },
-    { key: 'recipients', label: 'Получатели' },
-    { key: 'confirmation', label: 'Подтверждение' },
-    { key: 'results', label: 'Результаты' },
-] as const;
-const section = ref<(typeof sections)[number]['key']>(props.workspace.publications.length ? 'results' : 'preview');
 const selectedId = ref<number | null>(null);
 const assembly = computed(
     () =>
@@ -19,70 +13,59 @@ const assembly = computed(
         props.assemblies.find((a) => a.id === props.workspace.episode.accepted_assembly_id) ??
         props.assemblies[0],
 );
-const recheck = computed(() => props.workspace.episode.validity === 'requires_review');
-const otherVersions = computed(() => props.assemblies.filter((a) => a.id !== assembly.value?.id));
+const params = computed(() => ({ series: props.workspace.series.id, episode: props.workspace.episode.id }));
+const states: Record<string, string> = {
+    draft: 'Черновик',
+    queued: 'В очереди',
+    building: 'Идёт сборка',
+    ready: 'Готова к проверке',
+    accepted: 'Принята',
+    failed: 'Ошибка сборки',
+};
 </script>
 <template>
-    <section class="grid gap-4">
-        <nav v-if="assembly && !recheck" aria-label="Разделы публикации" class="workspace-tabs">
-            <button
-                v-for="item in sections.filter((item) => item.key !== 'results' || workspace.publications.length)"
-                :key="item.key"
-                class="rounded-md px-3 py-2 text-left"
-                :aria-current="section === item.key ? 'step' : undefined"
-                @click="section = item.key"
-            >
-                {{ item.label }}
-            </button>
-        </nav>
-        <div>
-            <section v-if="recheck" class="studio-panel grid gap-4">
-                <h2>Требует перепроверки</h2>
-                <p>После принятия этой версии изменился финал предыдущего эпизода.</p>
-                <p class="studio-row">
-                    <strong>Эпизод</strong>{{ workspace.episode.title }} · выпуск {{ String(workspace.episode.number).padStart(2, '0') }}
-                </p>
-                <p v-if="workspace.sourceAssembly?.continuity_snapshot.character_state" class="studio-row">
-                    <strong>Что проверить</strong>{{ workspace.sourceAssembly.continuity_snapshot.character_state }}
-                </p>
-                <Button as-child class="justify-self-start"><a href="#screenplay">Открыть перепроверку</a></Button>
-            </section>
-            <div v-else-if="!assembly" class="studio-panel grid justify-items-start gap-3">
-                <p>Для публикации сначала соберите монтаж эпизода.</p>
-                <Button as-child><a href="#montage">Перейти к монтажу</a></Button>
-            </div>
-            <AssemblyCard
-                v-else
-                :key="assembly.id + ':' + assembly.lock_version"
-                :assembly="assembly"
-                :episode-title="workspace.episode.title"
-                :project="workspace.project"
-                :episode-number="workspace.episode.number"
-                :caption="workspace.screenplay?.public_caption"
-                :section="section"
-                :params="{ series: workspace.series.id, episode: workspace.episode.id }"
-                :channels="workspace.channels.filter((c) => ['youtube', 'instagram', 'tiktok'].includes(c.type))"
-                :publications="workspace.publications.filter((p) => p.episode_assembly_id === assembly.id)"
-                :can-publish="workspace.series.output_mode !== 'single_video'"
-                :current-accepted="workspace.episode.accepted_assembly_id === assembly.id && workspace.episode.validity === 'current'"
-                :archived="!!workspace.series.archived_at"
-                :project-enabled="workspace.project.is_active"
-                @navigate="section = $event"
-            />
-            <details v-if="otherVersions.length" class="mt-3">
-                <summary>Другие версии сборки</summary>
-                <button
-                    v-for="item in otherVersions"
-                    :key="item.id"
-                    class="block p-2"
-                    @click="
-                        selectedId = item.id;
-                        section = 'preview';
+    <section class="bg-card text-card-foreground min-w-0 rounded-xl border px-4 min-[700px]:px-5 min-[1100px]:px-6 min-[1920px]:px-7">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b py-4">
+            <h2 class="text-xl font-semibold">Публикация эпизода</h2>
+            <div v-if="assembly" class="flex flex-wrap items-center gap-3 text-sm">
+                <select
+                    v-if="assemblies.length > 1"
+                    aria-label="Версия сборки"
+                    class="studio-field"
+                    :value="assembly.id"
+                    @change="selectedId = Number(($event.target as HTMLSelectElement).value)"
+                >
+                    <option v-for="item in assemblies" :key="item.id" :value="item.id">Версия {{ item.number }}</option>
+                </select>
+                <span v-else class="font-mono">Версия {{ assembly.number }}</span>
+                <span
+                    class="inline-flex items-center gap-1.5"
+                    :class="
+                        assembly.status === 'failed' ? 'text-destructive' : assembly.status === 'accepted' ? 'text-ring' : 'text-muted-foreground'
                     "
                 >
-                    Версия {{ item.number }}
-                </button>
-            </details>
+                    <component
+                        :is="assembly.status === 'accepted' ? Check : assembly.status === 'failed' ? CircleAlert : Clock"
+                        class="size-4"
+                        aria-hidden="true"
+                    />
+                    {{ states[assembly.status] ?? assembly.status }}
+                </span>
+            </div>
+        </header>
+        <div v-if="workspace.episode.validity === 'requires_review'" class="grid justify-items-start gap-2 py-4">
+            <h3 class="font-semibold">Требует перепроверки</h3>
+            <p>После принятия этой версии изменился финал предыдущего эпизода.</p>
+            <p v-if="workspace.sourceAssembly?.continuity_snapshot.character_state">
+                {{ workspace.sourceAssembly.continuity_snapshot.character_state }}
+            </p>
+            <a class="inline-flex min-h-11 items-center underline" href="#screenplay">Открыть перепроверку</a>
         </div>
+        <AssemblyCard v-else-if="assembly" :key="assembly.id" :assembly="assembly" :workspace="workspace" :params="params" />
+        <div v-else class="py-4">
+            <p>Для публикации сначала соберите монтаж эпизода.</p>
+            <a class="inline-flex min-h-11 items-center underline" href="#montage">Перейти к монтажу</a>
+        </div>
+        <EpisodePublicationHistory :publications="workspace.publications" :assemblies="assemblies" :params="params" />
     </section>
 </template>

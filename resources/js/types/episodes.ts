@@ -1,3 +1,4 @@
+import type { ChannelType } from '@/types';
 import type { ProjectSummary } from '@/types/projects';
 import type { CharacterRevision, SeriesSummary } from '@/types/series';
 
@@ -80,7 +81,7 @@ export interface EpisodeAssemblySummary {
     accepted_at: string | null;
 }
 export interface PublicationSummary {
-    platform?: string | null;
+    platform?: ChannelType | null;
     url?: string | null;
     id: number;
     episode_assembly_id: number;
@@ -89,6 +90,7 @@ export interface PublicationSummary {
     channel_name: string | null;
     status: string;
     error_message: string | null;
+    created_at: string | null;
     scheduled_at: string | null;
     published_at: string | null;
 }
@@ -152,7 +154,7 @@ export interface EpisodeWorkspaceProps {
     characters: (CharacterRevision & { character_name?: string })[];
     assemblies: EpisodeAssemblySummary[];
     publications: PublicationSummary[];
-    channels: { id: number; name: string; type: string; type_label: string }[];
+    channels: { id: number; name: string; type: ChannelType; type_label: string }[];
     screenplay: Screenplay | null;
     requestKey: string;
     transitionModes: Record<string, string>;

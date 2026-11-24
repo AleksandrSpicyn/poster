@@ -19,7 +19,7 @@ const errors = computed(() => Object.values(form.errors).join(' '));
 function resolve() {
     submitForm(form, ['episodes.publications.resolve', { ...props.params, publication: props.publication.id }], {
         preserveScroll: true,
-        preserveState: 'errors',
+        preserveState: true,
         onSuccess: () => window.location.replace('#release'),
     });
 }

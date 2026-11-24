@@ -185,6 +185,7 @@ function refresh() {
             class="workspace-page"
             :class="{
                 'dialogue-workspace': dialogueFocus,
+                'episode-release-page': panel === 'release',
                 'screenplay-page': panel === 'screenplay' && !dialogueFocus,
                 'episode-overview-page': overview,
                 'scene-detail-page': panel === 'screenplay' && detail !== null && !dialogueFocus,
@@ -207,7 +208,7 @@ function refresh() {
                 </header>
                 <div v-show="!dialogueFocus" class="flex flex-wrap items-start justify-between gap-4">
                     <Heading
-                        :title="panelTitles[panel] ?? 'Сценарий эпизода'"
+                        :title="panel === 'release' ? episode.title : (panelTitles[panel] ?? 'Сценарий эпизода')"
                         :description="series.name + ' / Эпизод ' + String(episode.number).padStart(2, '0')"
                     />
                     <Button
@@ -600,6 +601,19 @@ function refresh() {
 </template>
 
 <style scoped>
+@media (max-width: 699px) {
+    .episode-release-page {
+        gap: 16px;
+    }
+    .episode-release-page > nav {
+        gap: 4px;
+    }
+    .episode-release-page > nav a {
+        padding-inline: 7px;
+        font-size: 13px;
+    }
+}
+
 .screenplay-page {
     container: screenplay / inline-size;
 }

@@ -25,6 +25,7 @@ class PublicationRequestResource extends JsonResource
             'status' => $this->status->value,
             'url' => $this->whenLoaded('post', fn(): ?string => $this->post?->url),
             'error_message' => $this->error_message,
+            'created_at' => $this->created_at?->toISOString(),
             'scheduled_at' => $this->scheduled_at?->toISOString(),
             'published_at' => $this->published_at?->toISOString(),
         ];

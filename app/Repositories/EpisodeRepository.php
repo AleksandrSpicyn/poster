@@ -53,7 +53,6 @@ readonly class EpisodeRepository extends EloquentRepository
             ->whereHas('episodeRevision', fn($query) => $query->where('episode_id', $episode->id))
             ->with('media')
             ->orderByDesc('id')
-            ->limit(20)
             ->get();
         $currentAssembly = $assemblies->first(fn(EpisodeAssembly $assembly): bool => $assembly->episode_revision_id === $episode->current_revision_id
             && $assembly->status !== AssemblyStatus::FAILED && $assembly->selection() !== []);
@@ -80,7 +79,8 @@ readonly class EpisodeRepository extends EloquentRepository
             ->orderBy('name')->limit(100)->get()
             ->reject(fn(Channel $channel): bool => $channel->type === ChannelType::TIKTOK && ! $channel->canSendTiktokInboxVideo())->values();
         $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())
-            ->where('created_by', $project->owner_id)->with('channel', 'post')->orderByDesc('id')->limit(200)->get();
+            ->where('created_by', $project->owner_id)->with('channel', 'post')
+            ->orderByDesc('created_at')->orderByDesc('id')->get();
 
         return new EpisodeWorkspaceData($episode, $characters, $assemblies, $publications, $channels);
     }

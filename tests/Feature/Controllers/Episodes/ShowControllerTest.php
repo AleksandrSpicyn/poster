@@ -11,6 +11,7 @@ use App\Models\Episode;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -151,4 +152,39 @@ test('показывает исходную принятую сборку сох
 
     actingAs($context['user'])->get($route)
         ->assertInertia(fn(Assert $page): Assert => $page->where('memoryAssembly', null));
+});
+
+test('история хранит заявки одного канала по всем версиям в порядке создания', function (): void {
+    $context = episodeHttpFixture();
+    $episode = $context['episode'];
+    $channel = Channel::factory()->recycle($context['user'])->create();
+    $assemblyIds = EpisodeAssembly::factory()
+        ->for($context['revision'], 'episodeRevision')
+        ->count(21)
+        ->create()
+        ->modelKeys();
+    $createdAt = now()->startOfSecond();
+    $requestIds = collect([0, 20, 1])->map(function (int $index) use ($assemblyIds, $createdAt, $channel, $context): int {
+        $request = new PublicationRequest([
+            'episode_assembly_id' => $assemblyIds[$index],
+            'channel_id' => $channel->id,
+            'created_by' => $context['user']->id,
+            'payload' => ['title' => 'Проверка истории'],
+        ]);
+        $request->created_at = $index === 1 ? $createdAt->copy()->subDay() : $createdAt;
+        $request->save();
+
+        return $request->id;
+    })->all();
+
+    actingAs($context['user'])
+        ->get(route('episodes.show', [$episode->series_id, $episode]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->has('assemblies', 21)
+            ->has('publications', 3)
+            ->where('publications.0.id', $requestIds[1])
+            ->where('publications.1.id', $requestIds[0])
+            ->where('publications.1.created_at', $createdAt->toISOString())
+            ->where('publications.2.id', $requestIds[2]));
 });
