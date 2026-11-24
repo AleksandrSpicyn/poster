@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Classes\Publishers;
 
+use App\Classes\Publishers\Facebook\Facebook;
 use App\Classes\Publishers\Instagram\Instagram;
 use App\Classes\Publishers\Tiktok\Tiktok;
 use App\Classes\Publishers\Vk\Vk;
@@ -33,6 +34,7 @@ readonly class PublisherFactory
             ChannelType::YOUTUBE => Youtube::class,
             ChannelType::TIKTOK => Tiktok::class,
             ChannelType::INSTAGRAM => Instagram::class,
+            ChannelType::FACEBOOK => Facebook::class,
             ChannelType::VK => Vk::class,
         };
 

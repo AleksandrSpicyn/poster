@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PublicationProviderPhase;
 use App\Enums\PublicationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property PublicationProviderPhase|null $provider_phase
+ * @property string|null $upload_url
+ * @property Carbon|null $finish_requested_at
  * @property int|null $prompt_id
  * @property int $id
  * @property int|null $series_assembly_id
@@ -49,7 +53,12 @@ class PublicationRequest extends Model
         'published_at',
     ];
 
+    protected $hidden = ['upload_url'];
+
     protected $casts = [
+        'upload_url' => 'encrypted',
+        'provider_phase' => PublicationProviderPhase::class,
+        'finish_requested_at' => 'datetime',
         'status' => PublicationStatus::class,
         'payload' => 'array',
         'scheduled_at' => 'datetime',

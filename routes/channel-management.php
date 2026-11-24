@@ -11,6 +11,7 @@ use App\Http\Controllers\Channels\DisconnectController;
 use App\Http\Controllers\Channels\EditController;
 use App\Http\Controllers\Channels\IndexController;
 use App\Http\Controllers\Channels\ProviderCallbackController;
+use App\Http\Controllers\Channels\SelectFacebookPageController;
 use App\Http\Controllers\Channels\StoreController;
 use App\Http\Controllers\Channels\TiktokRedirectController;
 use App\Http\Controllers\Channels\UpdateController;
@@ -28,6 +29,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageC
         Route::get('edit', EditController::class)->name('edit');
         Route::patch('', UpdateController::class)->name('update');
         Route::delete('', DestroyController::class)->name('destroy');
+        Route::post('facebook/pages/{page}', SelectFacebookPageController::class)->whereNumber('page')->block(10, 10)->name('facebook-page');
         Route::post('connect', ConnectController::class)->block(10, 10)->name('connect');
         Route::get('callback', CallbackController::class)->block(10, 10)->name('callback');
         Route::delete('connection', DisconnectController::class)->name('disconnect');

@@ -7,6 +7,7 @@ namespace App\Tasks\Publications;
 use App\Data\Publications\PreparedPublicationData;
 use App\Data\PublishVideoData;
 use App\Data\Tiktok\TiktokPublicationData;
+use App\Enums\PublicationProviderPhase;
 use App\Models\EpisodeAssembly;
 use App\Models\PublicationRequest;
 use App\Models\SeriesAssembly;
@@ -34,6 +35,17 @@ class PrepareEpisodePublication
     public function run(PublicationRequest $request): PreparedPublicationData
     {
         $request = $this->publications->findOrFail($request->id);
+
+        if ($request->provider_phase === PublicationProviderPhase::FINISH_REQUESTED) {
+            return new PreparedPublicationData($this->channels->forPublication($request), new PublishVideoData(
+                '',
+                '',
+                $request->payload['title'],
+                $request->payload['description'],
+                $request->episode_assembly_id,
+                $request->id,
+            ), $request);
+        }
 
         if (isset($request->payload['export_operation_id']) && ! isset($request->payload['media_id'], $request->payload['sha256'])) {
             throw new RuntimeException('Publication file has not been prepared.');

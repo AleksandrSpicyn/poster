@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Casts\ChannelCredentials;
+use App\Classes\Channels\FacebookOAuth;
 use App\Enums\ChannelType;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Collection;
@@ -84,12 +85,25 @@ class Channel extends Model
         return $this->external_account === null && $this->hasTiktokScope('video.upload');
     }
 
+    public function canReceiveManualEpisode(): bool
+    {
+        if ($this->type !== ChannelType::FACEBOOK) {
+            return $this->canReceiveProduction();
+        }
+
+        return $this->is_active && config()->boolean('services.facebook.manual_reels')
+            && is_array($this->credentials['granted_scopes'] ?? null)
+            && array_all(FacebookOAuth::SCOPES, fn(string $scope): bool => in_array($scope, $this->credentials['granted_scopes'], true))
+            && filled($this->external_account) && $this->external_account === ($this->credentials['channel_id'] ?? null)
+            && filled($this->credentials['access_token'] ?? null);
+    }
+
     public function canReceiveProduction(): bool
     {
         return $this->is_active && match ($this->type) {
             ChannelType::YOUTUBE, ChannelType::INSTAGRAM => filled($this->credentials['access_token'] ?? null),
             ChannelType::TIKTOK => $this->canSendTiktokInboxVideo(),
-            ChannelType::VK => false,
+            ChannelType::FACEBOOK, ChannelType::VK => false,
         };
     }
 
@@ -100,6 +114,11 @@ class Channel extends Model
 
     public function canVerifyPublication(): bool
     {
+        if ($this->type === ChannelType::FACEBOOK) {
+            return filled($this->external_account) && $this->external_account === ($this->credentials['channel_id'] ?? null)
+                && filled($this->credentials['access_token'] ?? null);
+        }
+
         return $this->is_active && match ($this->type) {
             ChannelType::TIKTOK => $this->hasTiktokScope('video.list'),
             ChannelType::INSTAGRAM, ChannelType::YOUTUBE => filled($this->credentials['access_token'] ?? null),

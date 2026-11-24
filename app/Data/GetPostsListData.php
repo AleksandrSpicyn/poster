@@ -28,7 +28,7 @@ class GetPostsListData extends Data
         public ?int $perPage = 10,
         #[IntegerType, Min(1)]
         public ?int $page = 1,
-        #[In(FilterValue::ALL, ChannelType::YOUTUBE, ChannelType::TIKTOK, ChannelType::INSTAGRAM, ChannelType::VK)]
+        #[In(FilterValue::ALL, ChannelType::YOUTUBE, ChannelType::TIKTOK, ChannelType::INSTAGRAM, ChannelType::FACEBOOK, ChannelType::VK)]
         public string|null|Optional $type = new Optional(),
         #[Max(200)]
         public ?string $search = null,

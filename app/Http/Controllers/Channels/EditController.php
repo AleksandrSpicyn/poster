@@ -34,6 +34,7 @@ class EditController
 
         return inertia('Channels/Form', [
             'channel' => ChannelResource::make($form->channel)->resolve(),
+            'facebookPages' => $form->facebookPages,
             'requestedScopes' => $form->requestedScopes,
             'channelTypes' => [$channel->type->value => $channel->type->label()],
             'callbackUrl' => $form->callbackUrl,

@@ -22,6 +22,10 @@ final readonly class ChannelMetricsClient
      */
     public function read(Channel $channel, array $references): Generator
     {
+        if (! in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM, ChannelType::TIKTOK], true)) {
+            return;
+        }
+
         $credentials = $channel->credentials ?? [];
         $account = $channel->type === ChannelType::INSTAGRAM ? ($credentials['account_name'] ?? $credentials['username'] ?? null) : ($credentials['channel_id'] ?? null);
 

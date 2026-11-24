@@ -28,7 +28,7 @@ readonly class SaveChannel
         }
 
         if (! $channel->exists && ! in_array($data->type, ChannelType::oauthProviders(), true)) {
-            throw ValidationException::withMessages(['type' => 'Choose YouTube, Instagram or TikTok.']);
+            throw ValidationException::withMessages(['type' => 'Choose YouTube, Facebook, Instagram or TikTok.']);
         }
 
         $channel->fill([

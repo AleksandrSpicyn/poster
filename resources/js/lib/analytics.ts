@@ -8,7 +8,7 @@ export const metricPeriods = [
 ];
 
 export const counterNames: Record<Counter, string> = { views: 'Просмотры', likes: 'Лайки', shares: 'Репосты', comments: 'Комментарии' };
-export const platformNames: Record<string, string> = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', vk: 'VK' };
+export const platformNames: Record<string, string> = { youtube: 'YouTube', instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', vk: 'VK' };
 const numbers = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 export const amount = (value: number | null | undefined) => (value == null ? '—' : numbers.format(value));
 export const signed = (value: number) => (value > 0 ? '+' + amount(value) : amount(value));

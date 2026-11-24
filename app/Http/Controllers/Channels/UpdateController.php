@@ -27,7 +27,7 @@ class UpdateController
      * @urlParam channel integer required ID канала. Example: 1
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
-     * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,tiktok,vk Example: youtube
+     * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,facebook,tiktok,vk Example: youtube
      * @bodyParam is_active boolean Разрешить публикацию; отсутствие сохраняет текущий флаг. Example: true
      * @response 302
      * @response 401 {"message":"Unauthenticated."}

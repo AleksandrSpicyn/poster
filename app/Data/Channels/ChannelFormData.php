@@ -8,6 +8,9 @@ use App\Models\Channel;
 
 final readonly class ChannelFormData
 {
-    /** @param list<string> $requestedScopes */
-    public function __construct(public Channel $channel, public array $requestedScopes, public ?string $callbackUrl) {}
+    /**
+     * @param list<string> $requestedScopes
+     * @param list<array{id: string, name: string}> $facebookPages
+     */
+    public function __construct(public Channel $channel, public array $requestedScopes, public ?string $callbackUrl, public array $facebookPages = []) {}
 }

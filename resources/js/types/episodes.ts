@@ -154,7 +154,8 @@ export interface EpisodeWorkspaceProps {
     characters: (CharacterRevision & { character_name?: string })[];
     assemblies: EpisodeAssemblySummary[];
     publications: PublicationSummary[];
-    channels: { id: number; name: string; type: ChannelType; type_label: string }[];
+    facebookFileError?: string | null;
+    channels: { facebook_page?: string | null; id: number; name: string; type: ChannelType; type_label: string }[];
     screenplay: Screenplay | null;
     requestKey: string;
     transitionModes: Record<string, string>;

@@ -32,7 +32,7 @@ final readonly class CollectPublicationMetricsAction
             return 0;
         }
 
-        if (! in_array($channel->type, ChannelType::oauthProviders(), true)) {
+        if (! in_array($channel->type, [ChannelType::INSTAGRAM, ChannelType::TIKTOK, ChannelType::YOUTUBE], true)) {
             $this->observations->mark($channel, MetricCollectionStatus::UNSUPPORTED);
 
             return 0;

@@ -3,21 +3,28 @@
 declare(strict_types=1);
 
 use App\Actions\Publications\ReconcilePublicationsAction;
+use App\Classes\Channels\FacebookOAuth;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
+use App\Enums\PublicationProviderPhase;
 use App\Enums\PublicationStatus;
 use App\Enums\UpscaleOperationStatus;
 use App\Enums\UpscaleProvider;
+use App\Events\PostCreated;
+use App\Jobs\FinishEpisodePublicationJob;
 use App\Jobs\PublishEpisodeJob;
 use App\Models\Channel;
 use App\Models\EpisodeAssembly;
 use App\Models\PublicationRequest;
 use App\Tasks\Publications\ClaimPublication;
 use App\Tasks\Publications\PrepareEpisodePublication;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
@@ -189,3 +196,119 @@ test('заявка закрепляет готовый экспорт и про�
     expect($receipt->refresh()->status)->toBe(PublicationStatus::FAILED);
     Http::assertNothingSent();
 });
+
+test('Facebook восстанавливает выпуск после потери ответа finish', function (): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
+    $channel->update(['type' => ChannelType::FACEBOOK, 'external_account' => '42', 'credentials' => ['channel_id' => '42', 'granted_scopes' => FacebookOAuth::SCOPES, 'access_token' => 'page-token']]);
+    config(['services.facebook.manual_reels' => true]);
+    Process::fake(['*ffprobe*' => Process::result(output: json_encode(['streams' => [['codec_type' => 'video', 'width' => 1080, 'height' => 1920, 'codec_name' => 'h264', 'avg_frame_rate' => '30/1']], 'format' => ['duration' => '5']], JSON_THROW_ON_ERROR))]);
+    Bus::fake();
+    Event::fake([PostCreated::class]);
+    $revision = $assembly->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    $url = route('episodes.assemblies.publish', ['series' => $episode->series_id, 'episode' => $episode, 'revision' => $revision, 'assembly' => $assembly]);
+
+    actingAs($owner)->post($url, ['channel_ids' => [$channel->id], 'caption' => 'Подпись'])->assertSessionHasNoErrors();
+    $request = PublicationRequest::query()->sole();
+    $request->update(['scheduled_at' => now()]);
+    Http::fake([
+        '*/42/video_reels' => Http::sequence()->push(['video_id' => '123', 'upload_url' => 'https://rupload.facebook.com/video-upload/123'])->pushFailedConnection(),
+        'https://rupload.facebook.com/*' => function (Request $call) use ($request) {
+            app()->call([new FinishEpisodePublicationJob($request->id), 'handle']);
+            expect($call->header('offset'))->toBe(['2'])
+                ->and($call->body())->toBe(substr(File::get(base_path('tests/Fixtures/shot.mp4')), 2));
+
+            return Http::response(['success' => true]);
+        },
+        '*/123?fields=*' => Http::sequence()
+            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress', 'bytes_transfered' => 2]]])
+            ->push(['status' => ['uploading_phase' => ['status' => 'completed']]])
+            ->push(['id' => '123', 'from' => ['id' => '42'], 'status' => ['publishing_phase' => ['publish_status' => 'published']]]),
+    ]);
+    app()->call([new PublishEpisodeJob($request->id), 'handle']);
+    $job = new FinishEpisodePublicationJob($request->id);
+    app()->call($job->handle(...));
+    app()->call($job->handle(...));
+
+    expect($request->refresh()->provider_phase)->toBe(PublicationProviderPhase::FINISH_REQUESTED);
+    config(['services.facebook.manual_reels' => false]);
+    app()->call($job->handle(...));
+    app()->call($job->handle(...));
+
+    expect($request->refresh()->status)->toBe(PublicationStatus::PUBLISHED)
+        ->and($request->post()->sole()->external_id)->toBe('123')
+        ->and($request->post()->sole()->url)->toBeNull();
+    Event::assertDispatchedTimes(PostCreated::class, 1);
+});
+
+test('отказ Facebook не меняет результат другого канала', function (string $failure): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $instagram, 'user' => $owner] = acceptedEpisodePublication();
+    $channel = Channel::factory()->recycle($owner)->create(['project_id' => $instagram->project_id, 'type' => ChannelType::FACEBOOK,
+        'external_account' => '42', 'credentials' => ['channel_id' => '42', 'granted_scopes' => FacebookOAuth::SCOPES, 'access_token' => 'page-token']]);
+    config(['services.facebook.manual_reels' => true]);
+    Process::fake(['*ffprobe*' => Process::result(output: '{"streams":[{"codec_type":"video","width":540,"height":960,"avg_frame_rate":"24/1","codec_name":"h264"}],"format":{"duration":"3"}}')]);
+    Bus::fake();
+    $revision = $assembly->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    $url = route('episodes.assemblies.publish', ['series' => $episode->series_id, 'episode' => $episode, 'revision' => $revision, 'assembly' => $assembly]);
+    Http::fake([
+        '*/42/video_reels' => match ($failure) {
+            'limit' => Http::response([], 429, ['Retry-After' => '3600']),
+            'timeout' => Http::failedConnection(),
+            default => Http::response(['error' => ['code' => 190]], 403),
+        },
+        '*/ig-episode/media' => Http::response(['id' => 'instagram-container']),
+    ]);
+
+    actingAs($owner)->post($url, ['channel_ids' => [$channel->id, $instagram->id]])->assertSessionHasNoErrors();
+
+    foreach (PublicationRequest::query()->with('channel')->get() as $request) {
+        $request->update(['scheduled_at' => now()]);
+        app()->call([new PublishEpisodeJob($request->id), 'handle']);
+    }
+
+    $facebook = $channel->publicationRequests()->sole();
+    expect($facebook->status)->toBe(match ($failure) {
+        'limit' => PublicationStatus::PLANNED,
+        'timeout' => PublicationStatus::SUBMISSION_UNKNOWN,
+        default => PublicationStatus::FAILED,
+    })
+        ->and($instagram->publicationRequests()->sole()->status)->toBe(PublicationStatus::PROCESSING);
+
+    if ($failure === 'limit') {
+        expect($facebook->scheduled_at?->gt(now()->addMinutes(59)))->toBeTrue();
+    }
+
+    Http::assertSentCount(2);
+})->with(['limit', 'permission', 'timeout']);
+
+test('Facebook проверяет закреплённый экспорт до резервирования видео', function (string $failure): void {
+    Storage::fake('local');
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
+    config(['services.facebook.manual_reels' => true]);
+    $channel->update(['type' => ChannelType::FACEBOOK, 'external_account' => '42', 'credentials' => [
+        'channel_id' => '42', 'granted_scopes' => FacebookOAuth::SCOPES, 'access_token' => 'page-token',
+    ]]);
+    $revision = $assembly->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    $url = route('episodes.assemblies.publish', ['series' => $episode->series_id, 'episode' => $episode, 'revision' => $revision, 'assembly' => $assembly]);
+    $export = $assembly->getFirstMedia(EpisodeAssembly::UPSCALED);
+    expect($export)->not->toBeNull();
+
+    if ($failure === 'checksum') {
+        File::put($export?->getPath() ?? '', 'changed');
+    } elseif ($failure === 'missing') {
+        File::delete($export?->getPath() ?? '');
+    }
+
+    Process::fake(['*ffprobe*' => Process::result(output: '{"streams":[{"codec_type":"video","width":1280,"height":720}],"format":{"duration":"4"}}')]);
+
+    actingAs($owner)->postJson($url, ['channel_ids' => [$channel->id]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('channel_ids');
+
+    expect($channel->publicationRequests()->exists())->toBeFalse();
+    Http::assertNothingSent();
+})->with(['checksum', 'missing', 'horizontal']);

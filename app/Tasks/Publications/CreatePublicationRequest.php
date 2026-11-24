@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tasks\Publications;
 
 use App\Classes\Publications\EpisodeReleaseSchedule;
+use App\Classes\Publishers\Facebook\FacebookReelFile;
 use App\Data\Episodes\PublishEpisodeData;
 use App\Data\Tiktok\TiktokPublicationData;
 use App\Enums\AssemblyStatus;
+use App\Enums\ChannelType;
 use App\Enums\EpisodeValidity;
 use App\Enums\SeriesOutputMode;
 use App\Enums\TiktokDeliveryMode;
@@ -32,6 +34,7 @@ use Spatie\LaravelData\Optional;
 class CreatePublicationRequest
 {
     public function __construct(
+        private readonly FacebookReelFile $facebookFile,
         private readonly EpisodeRepository $episodes,
         private readonly EpisodeReleaseSchedule $schedule,
         private readonly VideoUpscaleOperationRepository $upscales,
@@ -80,7 +83,7 @@ class CreatePublicationRequest
                 throw ValidationException::withMessages(['assembly' => 'Only the current accepted episode can be published.']);
             }
 
-            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data, $tiktok?->mode === TiktokDeliveryMode::DIRECT);
+            $channels = $this->channels->selectedPublishingChannels($series->project_id, $data, $tiktok?->mode === TiktokDeliveryMode::DIRECT, manualEpisode: ! $productionRun instanceof ProductionRun);
 
             if ($channels->count() !== count($data->channel_ids)) {
                 throw ValidationException::withMessages(['channel_ids' => 'Choose supported channels belonging to this project.']);
@@ -93,7 +96,17 @@ class CreatePublicationRequest
                 ? trim(($revision->public_caption ?? '') . "\n\n" . $series->name . ' · ' . $episode->number)
                 : ($data->caption ?? '');
 
-            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $description, $tiktok, $this->upscales->forRelease($assembly)?->id);
+            $export = $this->upscales->forRelease($assembly);
+
+            if ($channels->contains('type', ChannelType::FACEBOOK)) {
+                $error = $this->facebookFile->exportError($assembly, $export);
+
+                if ($error !== null) {
+                    throw ValidationException::withMessages(['channel_ids' => $error]);
+                }
+            }
+
+            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $description, $tiktok, $export);
         });
     }
 }

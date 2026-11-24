@@ -24,6 +24,11 @@ final readonly class PublicationReference
             $path = $url['path'];
             $host = strtolower($url['host']);
 
+            if (in_array($host, ['facebook.com', 'www.facebook.com'], true)
+                && preg_match('~\A/reel/([0-9]{1,64})/?\z~', $path, $match)) {
+                return new self($match[1], ChannelType::FACEBOOK);
+            }
+
             if (in_array($host, ['instagram.com', 'www.instagram.com'], true)
                 && preg_match('~\A/(?:p|reel)/([A-Za-z0-9_-]{1,128})/?\z~', $path, $match)) {
                 return new self('https://www.instagram.com/reel/' . $match[1] . '/', ChannelType::INSTAGRAM);

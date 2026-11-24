@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Classes\Channels\FacebookOAuth;
 use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Project;
@@ -105,3 +106,23 @@ test('подключение игрового TikTok закрепляет вла
     expect($channel->refresh()->external_account)->toBe('gaming');
     expect($channel->canSendTiktokInboxVideo())->toBeFalse();
 });
+
+test('Facebook отклоняет неполные права и подмену выбранной страницы', function (bool $granted): void {
+    $owner = workspaceOwner();
+    $channel = Channel::factory()->recycle($owner)->create(['type' => ChannelType::FACEBOOK, 'external_account' => '41']);
+    actingAs($owner);
+    $state = channelOAuthState($channel);
+    $permissions = $granted ? FacebookOAuth::SCOPES : ['pages_show_list'];
+    Http::fake([
+        '*/oauth/access_token' => Http::response(['access_token' => 'mock-user-token']),
+        '*/me/permissions' => Http::response(['data' => array_map(fn(string $scope): array => ['permission' => $scope, 'status' => 'granted'], $permissions)]),
+        '*/me/accounts*' => Http::response(['data' => [['id' => '42', 'tasks' => ['CREATE_CONTENT'], 'name' => 'Другая страница', 'access_token' => 'mock-page-token']]]),
+    ]);
+
+    get(route('channels.provider-callback', [$channel->type, 'state' => $state, 'code' => 'code']))
+        ->assertSessionHasErrors('oauth');
+
+    expect($channel->refresh()->external_account)->toBe('41')
+        ->and($channel->credentials)->toBeNull();
+    Http::assertSentCount($granted ? 3 : 2);
+})->with([true, false]);

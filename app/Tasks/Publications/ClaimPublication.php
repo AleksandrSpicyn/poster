@@ -10,6 +10,7 @@ use App\Data\Upscale\RequestVideoUpscaleData;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
 use App\Enums\EpisodeValidity;
+use App\Enums\PublicationProviderPhase;
 use App\Enums\PublicationStatus;
 use App\Enums\SeriesOutputMode;
 use App\Enums\UpscaleExport;
@@ -52,9 +53,20 @@ class ClaimPublication
                 return false;
             }
 
+            if ($container && $request->provider_phase !== null && $request->submitted_at?->isFuture()) {
+                return false;
+            }
+
+            if ($container && $request->provider_phase === PublicationProviderPhase::FINISH_REQUESTED) {
+                $this->publications->update($request, ['status' => PublicationStatus::PUBLISHING_CONTAINER, 'submitted_at' => now()]);
+
+                return true;
+            }
+
             $error = $context instanceof PublicationClaimData ? $this->rejectionReason($context) : $this->shortRejectionReason($request);
 
             if ($error !== null) {
+                $request->upload_url = null;
                 $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => $error]);
 
                 return false;
@@ -92,7 +104,9 @@ class ClaimPublication
                     return false;
                 }
 
-                $media = $this->media->episodeExport($source, $operation->result_media_id, $operation->result_sha256);
+                $mediaId = $request->payload['media_id'] ?? $operation->result_media_id;
+                $checksum = $request->payload['sha256'] ?? $operation->result_sha256;
+                $media = $this->media->episodeExport($source, $mediaId, $checksum);
 
                 if (! $media instanceof Media || ($context?->assembly instanceof SeriesAssembly
                     && $this->channels->forPublication($request)->type === ChannelType::INSTAGRAM && filesize($media->getPath()) > 300000000)) {
@@ -101,7 +115,7 @@ class ClaimPublication
                     return false;
                 }
 
-                $request->payload = [...$request->payload, 'media_id' => $operation->result_media_id, 'sha256' => $operation->result_sha256];
+                $request->payload = [...$request->payload, 'media_id' => $mediaId, 'sha256' => $checksum];
             }
 
             if ($context?->assembly instanceof SeriesAssembly && $context->series->release_started_at === null) {
@@ -142,7 +156,7 @@ class ClaimPublication
             return 'The project is disabled.';
         }
 
-        if (! $this->channels->readyForProject($request->channel_id, $project->id, production: $productionRun instanceof ProductionRun)) {
+        if (! $this->channels->readyForProject($request->channel_id, $project->id, production: $productionRun instanceof ProductionRun, manualEpisode: $request->production_run_id === null && $episode instanceof Episode)) {
             return 'The publishing channel is disabled, disconnected or no longer attached to this project.';
         }
 

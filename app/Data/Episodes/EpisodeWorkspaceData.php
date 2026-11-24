@@ -27,5 +27,6 @@ class EpisodeWorkspaceData extends Data
         public Collection $publications,
         public Collection $channels,
         public ?EpisodeScriptData $script = null,
+        public ?string $facebookFileError = null,
     ) {}
 }

@@ -115,6 +115,14 @@ return [
         'token' => env('TELEGRAM_BOT_TOKEN', 'YOUR BOT TOKEN HERE'),
     ],
 
+    'facebook' => [
+        'client_id' => env('FACEBOOK_APP_ID'),
+        'login_config_id' => env('FACEBOOK_LOGIN_CONFIG_ID'),
+        'client_secret' => env('FACEBOOK_APP_SECRET'),
+        'version' => env('FACEBOOK_GRAPH_VERSION', 'v27.0'),
+        'manual_reels' => env('FACEBOOK_MANUAL_REELS', false),
+    ],
+
     'instagram' => [
         'graph_url' => 'https://graph.instagram.com',
         'token_url' => 'https://api.instagram.com/oauth/access_token',

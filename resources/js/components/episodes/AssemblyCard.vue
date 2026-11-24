@@ -151,12 +151,19 @@ function publish() {
                         type="checkbox"
                         :value="channel.id"
                         class="accent-primary size-4 shrink-0"
-                        :disabled="selected.length >= 20 && !publishForm.channel_ids.includes(channel.id)"
+                        :disabled="
+                            (channel.type === 'facebook' && !!workspace.facebookFileError) ||
+                            (selected.length >= 20 && !publishForm.channel_ids.includes(channel.id))
+                        "
                     />
                     <ChannelIcon :channel="channel.type" /><strong class="min-w-0 wrap-anywhere">{{ channel.name }}</strong>
-                    <span class="text-muted-foreground ml-auto pl-1 text-xs">{{ channel.type_label }}</span>
+                    <span class="text-muted-foreground ml-auto pl-1 text-xs"
+                        >{{ channel.type_label }}
+                        <template v-if="channel.type === 'facebook'">· {{ channel.facebook_page }} · Публично</template></span
+                    >
                 </label>
             </fieldset>
+            <p v-if="workspace.facebookFileError" class="text-muted-foreground text-sm">{{ workspace.facebookFileError }}</p>
             <p v-if="selected.some((channel) => channel.type === 'tiktok')" class="text-muted-foreground text-sm">
                 Видео поступит во входящие TikTok. Завершите публикацию в приложении.
             </p>

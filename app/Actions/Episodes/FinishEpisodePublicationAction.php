@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Episodes;
 
 use App\Enums\PublicationStatus;
+use App\Exceptions\FacebookRateLimitException;
 use App\Exceptions\PublicationProcessingException;
 use App\Exceptions\PublicationRejectedException;
 use App\Models\PublicationRequest;
+use App\Repositories\PublicationRequestRepository;
 use App\Tasks\Publications\ClaimPublication;
 use App\Tasks\Publications\FinishPublication;
 use App\Tasks\Publications\PrepareEpisodePublication;
@@ -18,6 +20,7 @@ readonly class FinishEpisodePublicationAction
 {
     public function __construct(
         private ClaimPublication $claim,
+        private PublicationRequestRepository $requests,
         private PrepareEpisodePublication $prepare,
         private FinishPublication $publish,
         private UpdatePublicationState $update,
@@ -34,6 +37,8 @@ readonly class FinishEpisodePublicationAction
             $this->publish->run($context->channel, $context->video, $context->request->container_id ?? '');
         } catch (PublicationProcessingException $exception) {
             $this->update->run($request, PublicationStatus::PUBLISHING_CONTAINER, $exception->inbox ? PublicationStatus::INBOX : PublicationStatus::PROCESSING, error: $exception->getMessage());
+        } catch (FacebookRateLimitException $exception) {
+            $this->requests->deferFacebookRequest($request, PublicationStatus::PUBLISHING_CONTAINER, $exception->retryAt);
         } catch (PublicationRejectedException $exception) {
             $this->update->run($request, PublicationStatus::PUBLISHING_CONTAINER, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {

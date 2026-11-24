@@ -104,12 +104,26 @@ readonly class ChannelRepository extends EloquentRepository
         return $channel->projects()->whereKey($projectId)->exists();
     }
 
-    public function readyForProject(int $channelId, int $projectId, bool $production = false): bool
+    public function readyForProject(int $channelId, int $projectId, bool $production = false, bool $manualEpisode = false): bool
     {
         $query = Channel::query()->whereKey($channelId)->where('is_active', true)->whereNotNull('credentials->access_token')
             ->whereHas('projects', fn(Builder $query) => $query->whereKey($projectId)->whereColumn('projects.owner_id', 'channels.owner_id'));
 
-        return $production ? $query->first()?->canReceiveProduction() === true : $query->exists();
+        $channel = $query->first();
+
+        if (! $channel instanceof Channel) {
+            return false;
+        }
+
+        if ($production) {
+            return $channel->canReceiveProduction();
+        }
+
+        if ($manualEpisode) {
+            return $channel->canReceiveManualEpisode();
+        }
+
+        return ! in_array($channel->type, [ChannelType::FACEBOOK, ChannelType::VK], true);
     }
 
     public function hasDependencies(Channel $channel): bool
@@ -123,13 +137,13 @@ readonly class ChannelRepository extends EloquentRepository
     }
 
     /** @return Collection<int, Channel> */
-    public function selectedPublishingChannels(int $projectId, PublishEpisodeData $data, bool $direct = false): Collection
+    public function selectedPublishingChannels(int $projectId, PublishEpisodeData $data, bool $direct = false, bool $manualEpisode = false): Collection
     {
         return Channel::query()->whereHas('projects', fn(Builder $query) => $query->whereKey($projectId)->whereColumn('projects.owner_id', 'channels.owner_id'))
             ->whereIn('id', $data->channel_ids)->where('is_active', true)->whereNotNull('credentials->access_token')
             ->get()->filter(static fn(Channel $channel): bool => $direct
                 ? $channel->canDirectPostTiktok()
-                : in_array($channel->type, [ChannelType::YOUTUBE, ChannelType::INSTAGRAM], true) || $channel->canSendTiktokInboxVideo())->values();
+                : ($manualEpisode ? $channel->canReceiveManualEpisode() : $channel->canReceiveProduction()))->values();
     }
 
     public function forPublication(PublicationRequest $request): Channel

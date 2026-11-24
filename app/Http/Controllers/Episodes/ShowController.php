@@ -49,6 +49,7 @@ class ShowController
             'characters' => fn(): array => CharacterRevisionResource::collection($details()->characters)->resolve(),
             'assemblies' => fn(): array => EpisodeAssemblyResource::collection($details()->assemblies)->resolve(),
             'publications' => fn(): array => PublicationRequestResource::collection($details()->publications)->resolve(),
+            'facebookFileError' => fn(): ?string => $details()->facebookFileError,
             'channels' => fn(): array => ProjectChannelResource::collection($details()->channels)->resolve(),
             'screenplay' => fn(): ?array => $details()->script?->toArray(),
             'requestKey' => (string) Str::uuid(),

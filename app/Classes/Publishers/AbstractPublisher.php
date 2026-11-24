@@ -11,6 +11,7 @@ use App\Models\Channel;
 use App\Models\Prompt;
 use App\Tasks\Channels\IsChannelProjectActive;
 use App\Tasks\Posts\SavePost;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -84,7 +85,7 @@ abstract class AbstractPublisher implements Publisher
         return '';
     }
 
-    protected function savePost(?string $externalId, ?string $url): void
+    protected function savePost(?string $externalId, ?string $url, ?Carbon $publishedAt = null): void
     {
         $this->savePost->run(
             new PostData(
@@ -97,6 +98,7 @@ abstract class AbstractPublisher implements Publisher
                 $this->prompt instanceof PublishVideoData ? $this->prompt->episodeAssemblyId : null,
                 $this->prompt instanceof PublishVideoData ? $this->prompt->publicationRequestId : null,
                 $this->prompt instanceof PublishVideoData ? $this->prompt->seriesAssemblyId : null,
+                $publishedAt,
             ),
         );
     }

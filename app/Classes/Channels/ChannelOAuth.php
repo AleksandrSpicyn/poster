@@ -27,6 +27,7 @@ readonly class ChannelOAuth
             ChannelType::YOUTUBE => $channel->external_account === null
                 ? [self::UPLOAD_SCOPE, self::READ_SCOPE]
                 : [self::READ_SCOPE, 'https://www.googleapis.com/auth/yt-analytics.readonly'],
+            ChannelType::FACEBOOK => FacebookOAuth::SCOPES,
             ChannelType::TIKTOK => $this->tiktok->scopes(),
             ChannelType::INSTAGRAM => ['instagram_business_basic', $channel->external_account === null
                 ? 'instagram_business_content_publish' : 'instagram_business_manage_insights'],
@@ -63,6 +64,10 @@ readonly class ChannelOAuth
         Payload::string($channel->oauthClientSecret(), 'client_secret');
 
         return match ($channel->type) {
+            ChannelType::FACEBOOK => 'https://www.facebook.com/' . config()->string('services.facebook.version') . '/dialog/oauth?' . http_build_query([
+                ...$params, 'scope' => implode(',', FacebookOAuth::SCOPES),
+                ...array_filter(['config_id' => config('services.facebook.login_config_id')]),
+            ]),
             ChannelType::YOUTUBE => config()->string('services.youtube.authorize_url') . '?' . http_build_query([
                 ...$params,
                 'scope' => implode(' ', $this->scopes($channel)),

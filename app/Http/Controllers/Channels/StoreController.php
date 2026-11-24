@@ -25,7 +25,7 @@ class StoreController
      * @authenticated
      * @header X-XSRF-TOKEN {CSRF_TOKEN}
      * @bodyParam name string required Название до 255 символов. Example: Wildlife
-     * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,tiktok Example: youtube
+     * @bodyParam type string required Платформа, неизменяемая при редактировании. Enum: youtube,instagram,facebook,tiktok Example: youtube
      * @bodyParam is_active boolean Разрешить публикацию. Example: true
      * @response 302
      * @response 401 {"message":"Unauthenticated."}

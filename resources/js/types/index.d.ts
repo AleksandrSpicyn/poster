@@ -59,4 +59,4 @@ export interface User {
     updated_at: string;
 }
 
-export type ChannelType = 'youtube' | 'instagram' | 'tiktok' | 'vk';
+export type ChannelType = 'youtube' | 'instagram' | 'tiktok' | 'facebook' | 'vk';

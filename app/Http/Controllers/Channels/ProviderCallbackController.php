@@ -47,6 +47,10 @@ class ProviderCallbackController
             return to_route('channels.edit', $channel)->withErrors(['oauth' => $result->error]);
         }
 
+        if ($provider === ChannelType::FACEBOOK) {
+            return to_route('channels.edit', $channel);
+        }
+
         Inertia::flash('success', 'Аккаунт подключён.');
         Inertia::flash('connectedChannelId', $channel->id);
 

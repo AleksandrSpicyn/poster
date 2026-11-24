@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tasks\Channels;
 
 use App\Classes\Channels\ChannelOAuth;
+use App\Classes\Channels\FacebookOAuth;
 use App\Data\Channels\OAuthCallbackData;
 use App\Enums\ChannelType;
 use App\Models\Channel;
@@ -17,7 +18,7 @@ use RuntimeException;
 
 readonly class CompleteChannelAuthorization
 {
-    public function __construct(private ChannelOAuth $oauth, private ChannelRepository $channels, private Session $session) {}
+    public function __construct(private ChannelOAuth $oauth, private FacebookOAuth $facebook, private ChannelRepository $channels, private Session $session) {}
 
     public function pendingChannel(ChannelType $provider, User $actor, OAuthCallbackData $data): ?Channel
     {
@@ -45,6 +46,12 @@ readonly class CompleteChannelAuthorization
             || ($pending['fingerprint'] ?? null) !== $fingerprint
             || $data->error !== null || $data->code === null) {
             throw new RuntimeException('Invalid or cancelled authorization.');
+        }
+
+        if ($channel->type === ChannelType::FACEBOOK) {
+            $this->facebook->discover($channel, $data->code, ChannelOAuth::redirectUri($channel->type));
+
+            return;
         }
 
         $credentials = $this->oauth->exchange($channel, $data->code, $provider instanceof ChannelType ? ChannelOAuth::redirectUri($provider) : route('channels.callback', $channel));

@@ -23,6 +23,7 @@ export function useEpisodePublicationForm(props: { workspace: EpisodeWorkspacePr
         () =>
             props.assembly.status === 'accepted' &&
             !blocked() &&
+            !(props.workspace.facebookFileError && selected.value.some((channel) => channel.type === 'facebook')) &&
             selected.value.length > 0 &&
             selected.value.length <= 20 &&
             confirmed.value &&

@@ -8,7 +8,9 @@ use App\Data\Episodes\EpisodePublishingContextData;
 use App\Data\Publications\PublicationClaimData;
 use App\Data\Publications\PublicationResolutionData;
 use App\Data\Tiktok\TiktokPublicationData;
+use App\Enums\ChannelType;
 use App\Enums\ContentAudience;
+use App\Enums\PublicationProviderPhase;
 use App\Enums\PublicationStatus;
 use App\Models\Channel;
 use App\Models\Episode;
@@ -21,9 +23,11 @@ use App\Models\PublicationRequest;
 use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\User;
+use App\Models\VideoUpscaleOperation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +47,10 @@ readonly class PublicationRequestRepository extends EloquentRepository
         $expiredIds = PublicationRequest::query()->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
             ->where('submitted_at', '<', now()->subMinutes(10))
             ->orderBy('id')->limit($limit)->pluck('id');
+
+        PublicationRequest::query()->whereKey($expiredIds)->whereNotNull('provider_phase')->whereNotNull('container_id')
+            ->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])->where('submitted_at', '<', now()->subMinutes(10))
+            ->update(['status' => PublicationStatus::PROCESSING]);
 
         PublicationRequest::query()->whereKey($expiredIds)
             ->whereIn('status', [PublicationStatus::SUBMITTING, PublicationStatus::PUBLISHING_CONTAINER])
@@ -78,8 +86,52 @@ readonly class PublicationRequestRepository extends EloquentRepository
             ->update([
                 'status' => $status,
                 ...($containerId === null ? [] : ['container_id' => $containerId]),
+                ...($status === PublicationStatus::FAILED || $status === PublicationStatus::SUBMISSION_UNKNOWN ? ['upload_url' => null] : []),
                 'error_message' => $error,
             ]);
+    }
+
+    public function recordFacebookSession(int $id, string $videoId, string $uploadUrl): bool
+    {
+        return PublicationRequest::query()->whereKey($id)->where('status', PublicationStatus::SUBMITTING)->whereNull('provider_phase')
+            ->update(['provider_phase' => PublicationProviderPhase::UPLOAD, 'container_id' => $videoId, 'upload_url' => Crypt::encryptString($uploadUrl)]) === 1;
+    }
+
+    public function claimFacebookFinish(PublicationRequest $request, Channel $channel): bool
+    {
+        return DB::transaction(function () use ($request, $channel): bool {
+            $channel = Channel::query()->whereKey($channel->id)->lockForUpdate()->firstOrFail();
+
+            if (! $channel->canReceiveManualEpisode()) {
+                return false;
+            }
+
+            $count = PublicationRequest::query()->where('channel_id', $channel->id)->whereNot('status', PublicationStatus::FAILED)
+                ->where(fn(Builder $window) => $window->where('published_at', '>', now()->subDay())
+                    ->orWhere('finish_requested_at', '>', now()->subDay()))->count();
+
+            return $count < 30 && PublicationRequest::query()->whereKey($request->id)->where('status', PublicationStatus::PUBLISHING_CONTAINER)
+                ->where('provider_phase', PublicationProviderPhase::UPLOAD)->update(['provider_phase' => PublicationProviderPhase::FINISH_REQUESTED,
+                    'upload_url' => null, 'finish_requested_at' => now()]) === 1;
+        }, 3);
+    }
+
+    public function deferRefusedFacebookFinish(int $requestId, Carbon $retryAt): void
+    {
+        PublicationRequest::query()->whereKey($requestId)->where('status', PublicationStatus::PUBLISHING_CONTAINER)
+            ->where('provider_phase', PublicationProviderPhase::FINISH_REQUESTED)
+            ->update(['status' => PublicationStatus::PROCESSING, 'provider_phase' => PublicationProviderPhase::UPLOAD,
+                'finish_requested_at' => null, 'submitted_at' => $retryAt, 'error_message' => 'Facebook отклонил отправку из-за лимита.']);
+    }
+
+    public function deferFacebookRequest(PublicationRequest $request, PublicationStatus $expected, Carbon $retryAt): void
+    {
+        $start = $expected === PublicationStatus::SUBMITTING;
+        PublicationRequest::query()->whereKey($request->id)->where('status', $expected)->update([
+            'status' => $start ? PublicationStatus::PLANNED : PublicationStatus::PROCESSING,
+            ...($start ? ['scheduled_at' => $retryAt] : ['submitted_at' => $retryAt]),
+            'error_message' => 'Facebook временно ограничил частоту запросов.',
+        ]);
     }
 
     public function failPendingProduction(ProductionRun $run): int
@@ -264,7 +316,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
      * @param Collection<int, Channel> $channels
      * @return Collection<int, PublicationRequest>
      */
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, string $description, ?TiktokPublicationData $tiktok = null, ?int $operationId = null): Collection
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, string $description, ?TiktokPublicationData $tiktok = null, ?VideoUpscaleOperation $export = null): Collection
     {
         $existing = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereIn('channel_id', $channels->modelKeys())
             ->lockForUpdate()->get()->keyBy('channel_id');
@@ -279,7 +331,8 @@ readonly class PublicationRequestRepository extends EloquentRepository
                 'scheduled_at' => $scheduledAt,
                 'status' => PublicationStatus::PLANNED,
                 'payload' => [
-                    ...($operationId === null ? [] : ['export_operation_id' => $operationId]),
+                    ...($export instanceof VideoUpscaleOperation ? ['export_operation_id' => $export->id] : []),
+                    ...($channel->type === ChannelType::FACEBOOK ? ['media_id' => $export?->result_media_id, 'sha256' => $export?->result_sha256] : []),
                     ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
                     'title' => Str::limit($context->revision->title, 97),
                     'description' => $description,

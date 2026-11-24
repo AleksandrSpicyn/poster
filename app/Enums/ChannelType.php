@@ -13,6 +13,7 @@ enum ChannelType: string
     case YOUTUBE = 'youtube';
     case TIKTOK = 'tiktok';
     case INSTAGRAM = 'instagram';
+    case FACEBOOK = 'facebook';
     case VK = 'vk';
 
     public function label(): string
@@ -22,6 +23,7 @@ enum ChannelType: string
             self::TIKTOK => 'TikTok',
             self::INSTAGRAM => 'Instagram',
             self::VK => 'VK',
+            self::FACEBOOK => 'Facebook',
         };
     }
 
@@ -32,6 +34,7 @@ enum ChannelType: string
             self::YOUTUBE,
             self::INSTAGRAM,
             self::TIKTOK,
+            self::FACEBOOK,
         ];
     }
 }

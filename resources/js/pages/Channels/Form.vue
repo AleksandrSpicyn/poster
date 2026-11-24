@@ -23,6 +23,7 @@ const props = defineProps<{
     channel: ManagedChannel | null;
     channelTypes: Record<string, string>;
     callbackUrl: string | null;
+    facebookPages?: { id: string; name: string }[];
     requestedScopes?: string[];
 }>();
 const submitForm = useFormApi();
@@ -44,7 +45,7 @@ const deletionErrors = computed<Record<string, string | undefined>>(() => deleti
 const requestError = ref('');
 
 const deletingAllowed = computed(() => props.channel?.can_delete ?? false);
-const oauthSupported = computed(() => ['youtube', 'instagram', 'tiktok'].includes(form.type));
+const oauthSupported = computed(() => ['youtube', 'instagram', 'facebook', 'tiktok'].includes(form.type));
 const tab = ref('');
 function readTab() {
     tab.value = window.location.hash.slice(1);
@@ -109,6 +110,16 @@ function remove() {
                 <a v-if="channel" href="#connected-projects" :aria-current="tab === 'connected-projects' ? 'page' : undefined">Проекты</a>
             </nav>
             <InputError :message="requestError || (!connectionPage ? page.props.errors.oauth : undefined)" />
+            <section v-if="channel && facebookPages?.length" class="studio-panel">
+                <h2>Выберите страницу Facebook для публикаций</h2>
+                <Button
+                    v-for="candidate in facebookPages"
+                    :key="candidate.id"
+                    :disabled="connection.processing"
+                    @click="connection.post(route('channels.facebook-page', { channel: channel.id, page: candidate.id }))"
+                    >{{ candidate.name }} · {{ candidate.id }}</Button
+                >
+            </section>
             <TiktokChannelConnection
                 v-if="channel && connectionPage"
                 :channel="channel"

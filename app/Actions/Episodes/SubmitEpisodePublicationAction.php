@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Episodes;
 
 use App\Enums\PublicationStatus;
+use App\Exceptions\FacebookRateLimitException;
 use App\Exceptions\PublicationRejectedException;
 use App\Jobs\FinishEpisodePublicationJob;
 use App\Models\PublicationRequest;
+use App\Repositories\PublicationRequestRepository;
 use App\Tasks\Publications\ClaimPublication;
 use App\Tasks\Publications\PrepareEpisodePublication;
 use App\Tasks\Publications\StartPublication;
@@ -18,6 +20,7 @@ readonly class SubmitEpisodePublicationAction
 {
     public function __construct(
         private ClaimPublication $claim,
+        private PublicationRequestRepository $requests,
         private PrepareEpisodePublication $prepare,
         private StartPublication $send,
         private UpdatePublicationState $update,
@@ -44,6 +47,8 @@ readonly class SubmitEpisodePublicationAction
             if (! $result->accepted) {
                 $this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::SUBMISSION_UNKNOWN, error: 'The provider did not confirm publication. Verify its outcome before trying again.');
             }
+        } catch (FacebookRateLimitException $exception) {
+            $this->requests->deferFacebookRequest($request, PublicationStatus::SUBMITTING, $exception->retryAt);
         } catch (PublicationRejectedException $exception) {
             $this->update->run($request, PublicationStatus::SUBMITTING, PublicationStatus::FAILED, error: $exception->getMessage());
         } catch (Throwable $exception) {

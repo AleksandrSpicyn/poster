@@ -72,12 +72,13 @@ readonly class EpisodeRepository extends EloquentRepository
         $channels = $project->channels()
             ->where('channels.owner_id', $project->owner_id)->where('is_active', true)->whereNotNull('credentials->access_token')
             ->whereIn('type', [
+                ChannelType::FACEBOOK,
                 ChannelType::YOUTUBE,
                 ChannelType::INSTAGRAM,
                 ChannelType::TIKTOK,
             ])
-            ->orderBy('name')->limit(100)->get()
-            ->reject(fn(Channel $channel): bool => $channel->type === ChannelType::TIKTOK && ! $channel->canSendTiktokInboxVideo())->values();
+            ->orderBy('name')->get()
+            ->filter(fn(Channel $channel): bool => $channel->canReceiveManualEpisode())->take(100)->values();
         $publications = PublicationRequest::query()->whereIn('episode_assembly_id', $assemblies->modelKeys())
             ->where('created_by', $project->owner_id)->with('channel', 'post')
             ->orderByDesc('created_at')->orderByDesc('id')->get();

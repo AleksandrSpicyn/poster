@@ -44,7 +44,7 @@ class SavePost
             if ($request instanceof PublicationRequest) {
                 $this->publications->update($request, [
                     'status' => PublicationStatus::PUBLISHED,
-                    'published_at' => now(),
+                    'published_at' => $dto->publishedAt ?? now(),
                     'error_message' => null,
                 ]);
             }
