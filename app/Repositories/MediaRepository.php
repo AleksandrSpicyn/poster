@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Enums\AssemblyStatus;
+use App\Enums\UpscaleOperationStatus;
 use App\Models\Channel;
 use App\Models\CharacterRevision;
 use App\Models\EpisodeAssembly;
@@ -49,6 +50,29 @@ readonly class MediaRepository extends EloquentRepository
                 ],
             ])])
             ->latest('id')->paginate(20, page: $page);
+    }
+
+    public function episodeExport(EpisodeAssembly $assembly, int $id, ?string $checksum = null): ?Media
+    {
+        $media = $assembly->media()->whereKey($id)->where('disk', 'local')
+            ->whereIn('collection_name', [EpisodeAssembly::VIDEO, EpisodeAssembly::UPSCALED])->first();
+
+        if ($media === null || ! is_file($media->getPath())) {
+            return null;
+        }
+
+        $actual = hash_file('sha256', $media->getPath());
+
+        if ($actual === false || ($checksum !== null && $checksum !== $actual)) {
+            return null;
+        }
+
+        if ($media->collection_name === EpisodeAssembly::UPSCALED && ! $assembly->upscales()
+            ->where('result_media_id', $id)->where('result_sha256', $actual)->where('status', UpscaleOperationStatus::READY)->exists()) {
+            return null;
+        }
+
+        return $media;
     }
 
     public function publishingVideo(Channel $channel, int $id): Media

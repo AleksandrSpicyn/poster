@@ -12,8 +12,8 @@ readonly class GetEpisodeExportAction
 {
     public function __construct(private GetEpisodeExport $getMedia) {}
 
-    public function run(EpisodeAssembly $assembly, Media $media): string
+    public function run(EpisodeAssembly $assembly, Media $media, ?string $checksum = null): string
     {
-        return $this->getMedia->run($assembly, $media);
+        return $this->getMedia->run($assembly, $media, $checksum);
     }
 }

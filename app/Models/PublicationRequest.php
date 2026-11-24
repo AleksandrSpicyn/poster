@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int $created_by
  * @property int|null $production_run_id
  * @property PublicationStatus $status
- * @property array{title: string, description: string, made_for_kids: bool, use_public_description?: bool, tiktok?: array<string, mixed>} $payload
+ * @property array{title: string, description: string, made_for_kids: bool, export_operation_id?: int, media_id?: int, sha256?: string, use_public_description?: bool, tiktok?: array<string, mixed>} $payload
  * @property string|null $container_id
  * @property string|null $error_message
  * @property Carbon|null $scheduled_at

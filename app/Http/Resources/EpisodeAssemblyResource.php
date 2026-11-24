@@ -24,7 +24,7 @@ class EpisodeAssemblyResource extends JsonResource
             'selection' => $this->selection(),
             'error_message' => $this->error_message,
             'continuity_snapshot' => $this->continuity_snapshot,
-            'media' => $this->whenLoaded('media', fn(): array => EpisodeMediaResource::collection($this->media)->resolve($request)),
+            'media' => $this->whenLoaded('media', fn(): array => EpisodeMediaResource::collection($this->media->whereNotIn('collection_name', [EpisodeAssembly::UPSCALE_INPUT, EpisodeAssembly::UPSCALED])->values())->resolve($request)),
             'accepted_at' => $this->accepted_at?->toISOString(),
         ];
     }

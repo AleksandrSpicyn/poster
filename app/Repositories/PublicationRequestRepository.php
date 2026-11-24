@@ -263,7 +263,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
      * @param Collection<int, Channel> $channels
      * @return Collection<int, PublicationRequest>
      */
-    public function forAcceptedAssembly(EpisodeAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, string $description, ?TiktokPublicationData $tiktok = null): Collection
+    public function forAcceptedAssembly(EpisodeAssembly $assembly, Collection $channels, User $actor, ?ProductionRun $productionRun, EpisodePublishingContextData $context, Carbon $scheduledAt, string $description, ?TiktokPublicationData $tiktok = null, ?int $operationId = null): Collection
     {
         $existing = PublicationRequest::query()->where('episode_assembly_id', $assembly->id)->whereIn('channel_id', $channels->modelKeys())
             ->lockForUpdate()->get()->keyBy('channel_id');
@@ -278,6 +278,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
                 'scheduled_at' => $scheduledAt,
                 'status' => PublicationStatus::PLANNED,
                 'payload' => [
+                    ...($operationId === null ? [] : ['export_operation_id' => $operationId]),
                     ...($tiktok instanceof TiktokPublicationData ? ['tiktok' => $tiktok->toArray()] : []),
                     'title' => Str::limit($context->revision->title, 97),
                     'description' => $description,

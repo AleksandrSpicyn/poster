@@ -17,6 +17,7 @@ class ShotVideoSettingsData extends Data
         public readonly int $duration,
         public readonly SeriesAudioMode $audioMode,
         public readonly bool $generateAudio,
+        public readonly string $resolution,
     ) {}
 
     /** @return array{provider: string, model: string, duration: int, resolution: string, aspect_ratio: string, generate_audio: bool, return_last_frame: bool} */
@@ -26,7 +27,7 @@ class ShotVideoSettingsData extends Data
             'provider' => $this->provider->value,
             'model' => $this->capabilities->model,
             'duration' => $this->duration,
-            'resolution' => $this->capabilities->defaultResolution,
+            'resolution' => $this->resolution,
             'aspect_ratio' => $this->capabilities->defaultAspectRatio,
             'generate_audio' => $this->generateAudio,
             'return_last_frame' => $this->capabilities->supportsReturnLastFrame,

@@ -7,6 +7,8 @@ use App\Classes\Generators\VideoGenerator\Runway\Runway;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
 use App\Classes\Generators\VideoGenerator\Seedance\Seedance;
+use App\Classes\Media\Upscale\FalVideoUpscaler;
+use App\Enums\UpscaleProvider;
 use App\Enums\VideoProvider;
 
 return [
@@ -47,6 +49,17 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'upscale' => [
+        'series_id' => (int) env('VIDEO_UPSCALE_SERIES_ID', 0),
+        'budget_e8' => (int) env('VIDEO_UPSCALE_BUDGET_E8', 0),
+        'provider' => env('VIDEO_UPSCALE_PROVIDER', UpscaleProvider::FAL->value),
+        'drivers' => [UpscaleProvider::FAL->value => FalVideoUpscaler::class],
+    ],
+
+    'fal' => [
+        'key' => env('FAL_KEY', ''),
     ],
 
     'video' => [

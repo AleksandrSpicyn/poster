@@ -5,16 +5,24 @@ declare(strict_types=1);
 use App\Actions\Publications\ReconcilePublicationsAction;
 use App\Enums\AssemblyStatus;
 use App\Enums\ChannelType;
+use App\Enums\PublicationStatus;
+use App\Enums\UpscaleOperationStatus;
+use App\Enums\UpscaleProvider;
 use App\Jobs\PublishEpisodeJob;
 use App\Models\Channel;
 use App\Models\EpisodeAssembly;
 use App\Models\PublicationRequest;
 use App\Tasks\Publications\ClaimPublication;
+use App\Tasks\Publications\PrepareEpisodePublication;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\get;
+use function Tests\Support\acceptedEpisodePublication;
 use function Tests\Support\episodeHttpFixture;
 use function Tests\Support\workspaceOwner;
 
@@ -133,3 +141,44 @@ test('два канала ждут общего слота и повторный
     ['2026-11-20 19:01:00', '2026-11-22 19:00:00', '0 19 * * 0,2,5', 'Europe/Moscow', 30],
     ['2026-11-20 19:01:00', '2026-11-21 12:15:00', '15 16 * * 6', 'Asia/Bangkok', 30],
 ]);
+
+test('заявка пилота закрепляет готовый экспорт и проверяет его при выдаче и отправке', function (): void {
+    Storage::fake('local');
+    Bus::fake();
+    ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
+    $revision = $assembly->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    config(['services.upscale.series_id' => $episode->series_id]);
+    $params = ['series' => $episode->series_id, 'episode' => $episode->id, 'revision' => $revision->id, 'assembly' => $assembly->id];
+    $url = route('episodes.assemblies.publish', $params);
+    $media = $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::UPSCALED);
+    $checksum = hash_file('sha256', $media->getPath());
+    assert(is_string($checksum));
+    $op = $assembly->upscales()->create(['attempt' => 1, 'operation_key' => str_repeat('b', 64), 'initiator_id' => $user->id,
+        'provider' => UpscaleProvider::FAL, 'status' => UpscaleOperationStatus::READY, 'source_snapshot' => [], 'profile_snapshot' => ['export' => '1080p'], 'currency' => 'USD', 'estimated_cost_e8' => 0]);
+    $op->result_media_id = $media->id;
+    $op->result_sha256 = $checksum;
+    $op->save();
+
+    $op->update(['status' => UpscaleOperationStatus::PROCESSING]);
+    actingAs($user)->post($url, ['channel_ids' => [$channel->id]])->assertSessionHasNoErrors();
+
+    $receipt = PublicationRequest::query()->sole();
+    $receipt->update(['scheduled_at' => now()->subMinute()]);
+
+    expect(app(ClaimPublication::class)->run($receipt))->toBeFalse();
+    $op->update(['status' => UpscaleOperationStatus::READY]);
+    expect(app(ClaimPublication::class)->run($receipt))->toBeTrue();
+    expect($receipt->refresh()->payload)->toMatchArray(['media_id' => $media->id, 'sha256' => $checksum]);
+
+    $prepared = app(PrepareEpisodePublication::class)->run($receipt)->video;
+    expect($prepared->path)->toBe($media->getPath());
+    get($prepared->url)->assertOk();
+    $receipt->update(['status' => PublicationStatus::PLANNED]);
+    File::put($media->getPath(), 'changed');
+    get($prepared->url)->assertNotFound();
+    $receipt->update(['scheduled_at' => now()->subMinute()]);
+    expect(app(ClaimPublication::class)->run($receipt))->toBeFalse();
+    expect($receipt->refresh()->status)->toBe(PublicationStatus::FAILED);
+    Http::assertNothingSent();
+});

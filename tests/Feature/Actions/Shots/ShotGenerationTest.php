@@ -795,3 +795,27 @@ test('восемь секунд купленного пакета списыва
     assertDatabaseHas('billing_accounts', ['owner_id' => $actor->id, 'renewal_consent' => false]);
     consoleCommand('billing:audit')->assertSuccessful();
 });
+
+test('закрепляет 480p только в новых ревизиях пилотной серии и передаёт его BytePlus', function (bool $newRevision): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $revision = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    config(['services.upscale.series_id' => $episode->series_id, 'services.seedance.resolution' => '720p',
+        'services.seedance.model' => 'dreamina-seedance-2-0-mini-260615']);
+
+    if ($newRevision) {
+        $revision->update(['context_snapshot' => app(BuildEpisodeContext::class)->run($episode)]);
+    }
+
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'fake-resolution'])]);
+
+    $take = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'pilot-resolution');
+    app(SubmitShotGenerationAction::class)->run($take->generationOperations()->firstOrFail()->id);
+    app(SubmitShotGenerationAction::class)->run($take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail()->id);
+
+    $expected = $newRevision ? '480p' : '720p';
+    expect(data_get($take->input_snapshot, 'video.resolution'))->toBe($expected);
+    Http::assertSent(fn(Request $request): bool => $request->method() === 'POST' && $request['resolution'] === $expected);
+})->with([true, false]);

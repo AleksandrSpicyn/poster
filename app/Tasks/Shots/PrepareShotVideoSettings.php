@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tasks\Shots;
 
+use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
+use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Data\Shots\ShotVideoSettingsData;
 use App\Data\VideoGenerationRequestData;
@@ -45,13 +47,24 @@ readonly class PrepareShotVideoSettings
             throw ValidationException::withMessages(['dialogue' => 'This video model cannot generate dialogue. Select a model with native audio.']);
         }
 
+        $resolution = $capabilities->defaultResolution;
+
+        if (($revision->context_snapshot['generation_resolution'] ?? null) === '480p'
+            && $series->id === config('services.upscale.series_id')) {
+            if ($capabilities->model !== Model::V2_0_MINI->value) {
+                throw ValidationException::withMessages(['generation' => 'Для пилота нужен Seedance 2.0 Mini.']);
+            }
+
+            $resolution = Resolution::SD->value;
+        }
+
         try {
             $capabilities->assertSupports(new VideoGenerationRequestData(
                 prompt: $shot->action,
                 duration: $duration,
                 model: $capabilities->model,
                 firstFrameUrl: 'pending-private-frame',
-                resolution: $capabilities->defaultResolution,
+                resolution: $resolution,
                 aspectRatio: $capabilities->defaultAspectRatio,
                 returnLastFrame: $capabilities->supportsReturnLastFrame,
                 generateAudio: $generateAudio,
@@ -60,6 +73,6 @@ readonly class PrepareShotVideoSettings
             throw ValidationException::withMessages(['generation' => 'The configured video model does not support this shot duration, resolution or audio mode.']);
         }
 
-        return new ShotVideoSettingsData($provider, $capabilities, $duration, $audioMode, $generateAudio);
+        return new ShotVideoSettingsData($provider, $capabilities, $duration, $audioMode, $generateAudio, $resolution);
     }
 }

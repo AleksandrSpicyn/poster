@@ -8,13 +8,14 @@ use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
 use App\Models\EpisodeAssembly;
 use App\Repositories\EpisodeAssemblyRepository;
+use App\Repositories\MediaRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class GetEpisodeExport
 {
-    public function __construct(private readonly EpisodeAssemblyRepository $assemblies) {}
+    public function __construct(private readonly MediaRepository $media, private readonly EpisodeAssemblyRepository $assemblies) {}
 
-    public function run(EpisodeAssembly $assembly, Media $media): string
+    public function run(EpisodeAssembly $assembly, Media $media, ?string $checksum = null): string
     {
         $this->assemblies->forExport($assembly);
         $episode = $assembly->episodeRevision?->episode;
@@ -24,7 +25,7 @@ class GetEpisodeExport
             && $episode->validity === EpisodeValidity::CURRENT
             && $media->model_type === $assembly->getMorphClass()
             && $media->model_id === $assembly->id
-            && $media->collection_name === EpisodeAssembly::VIDEO
+            && ($checksum === null ? $media->collection_name === EpisodeAssembly::VIDEO : $this->media->episodeExport($assembly, $media->id, $checksum) instanceof Media)
             && $media->disk === 'local', 404);
 
         $path = $media->getPath();

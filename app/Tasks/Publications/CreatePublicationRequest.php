@@ -20,6 +20,7 @@ use App\Repositories\EpisodeRepository;
 use App\Repositories\ProductionRunRepository;
 use App\Repositories\PublicationRequestRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\VideoUpscaleOperationRepository;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,7 @@ class CreatePublicationRequest
 {
     public function __construct(
         private readonly EpisodeRepository $episodes,
+        private readonly VideoUpscaleOperationRepository $upscales,
         private readonly ProductionRunRepository $runs,
         private readonly EpisodeAssemblyRepository $assemblies,
         private readonly UserRepository $users,
@@ -88,7 +90,7 @@ class CreatePublicationRequest
                 ? trim(($revision->public_caption ?? '') . "\n\n" . $series->name . ' · ' . $episode->number)
                 : ($data->caption ?? '');
 
-            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $description, $tiktok);
+            return $this->publications->forAcceptedAssembly($assembly, $channels, $actor, $productionRun, $context, $scheduledAt, $description, $tiktok, $this->upscales->forRelease($assembly)?->id);
         });
     }
 }

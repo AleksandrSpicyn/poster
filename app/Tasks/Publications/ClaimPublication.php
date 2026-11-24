@@ -9,7 +9,9 @@ use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
 use App\Enums\PublicationStatus;
 use App\Enums\SeriesOutputMode;
+use App\Enums\UpscaleOperationStatus;
 use App\Models\Episode;
+use App\Models\EpisodeAssembly;
 use App\Models\ProductionRun;
 use App\Models\Prompt;
 use App\Models\PublicationRequest;
@@ -17,16 +19,19 @@ use App\Models\SeriesAssembly;
 use App\Models\User;
 use App\Repositories\ChannelRepository;
 use App\Repositories\EpisodeRepository;
+use App\Repositories\MediaRepository;
 use App\Repositories\PublicationRequestRepository;
 use App\Repositories\SeriesAssemblyRepository;
 use App\Repositories\SeriesRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\VideoUpscaleOperationRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ClaimPublication
 {
-    public function __construct(private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes, private readonly ChannelRepository $channels, private readonly SeriesRepository $seriesRepository, private readonly SeriesAssemblyRepository $finalAssemblies, private readonly UserRepository $users) {}
+    public function __construct(private readonly VideoUpscaleOperationRepository $upscales, private readonly MediaRepository $media, private readonly PublicationRequestRepository $publications, private readonly EpisodeRepository $episodes, private readonly ChannelRepository $channels, private readonly SeriesRepository $seriesRepository, private readonly SeriesAssemblyRepository $finalAssemblies, private readonly UserRepository $users) {}
 
     public function run(PublicationRequest $request, bool $container = false): bool
     {
@@ -45,6 +50,38 @@ class ClaimPublication
                 $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => $error]);
 
                 return false;
+            }
+
+            if ($context?->assembly instanceof EpisodeAssembly && isset($request->payload['export_operation_id']) && ! isset($request->payload['media_id'])) {
+                $operation = $this->upscales->findOrFail($request->payload['export_operation_id']);
+
+                if ($operation->episode_assembly_id !== $context->assembly->id || in_array(
+                    $operation->status,
+                    [UpscaleOperationStatus::FAILED, UpscaleOperationStatus::CANCELLED, UpscaleOperationStatus::SUBMISSION_UNKNOWN],
+                    true,
+                )) {
+                    $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => 'Не удалось подготовить файл выпуска.']);
+
+                    return false;
+                }
+
+                if ($operation->status !== UpscaleOperationStatus::READY || $operation->result_media_id === null || $operation->result_sha256 === null) {
+                    return false;
+                }
+
+                if (! $this->media->episodeExport($context->assembly, $operation->result_media_id, $operation->result_sha256) instanceof Media) {
+                    $this->publications->update($request, ['status' => PublicationStatus::FAILED, 'error_message' => 'Файл выпуска недоступен.']);
+
+                    return false;
+                }
+
+                $payload = [...$request->payload, 'media_id' => $operation->result_media_id, 'sha256' => $operation->result_sha256];
+
+                if (isset($payload['tiktok'])) {
+                    $payload['tiktok']['media_id'] = $operation->result_media_id;
+                }
+
+                $this->publications->update($request, ['payload' => $payload]);
             }
 
             if ($context?->assembly instanceof SeriesAssembly && $context->series->release_started_at === null) {
@@ -110,6 +147,10 @@ class ClaimPublication
 
         if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO || ! $episode instanceof Episode) {
             return 'Intermediate parts cannot be published.';
+        }
+
+        if (isset($request->payload['media_id']) && ! $this->media->episodeExport($assembly, $request->payload['media_id'], $request->payload['sha256'] ?? '') instanceof Media) {
+            return 'Выбранный файл публикации изменился или недоступен.';
         }
 
         $this->episodes->refresh($episode);

@@ -27,7 +27,7 @@ readonly class BuildEpisodeAssembly
         private MediaRepository $media,
     ) {}
 
-    public function run(EpisodeAssembly $assembly): BuiltEpisodeVideoData
+    public function run(EpisodeAssembly $assembly, int $width = 720, int $height = 1280): BuiltEpisodeVideoData
     {
         $plan = EpisodeAssemblyPlanData::fromManifest($assembly->manifest);
         $duration = $plan->durationMs;
@@ -42,7 +42,7 @@ readonly class BuildEpisodeAssembly
 
             foreach ($plan->shots as $index => $shot) {
                 $clip = 'clip-' . $index . '.mov';
-                $this->normalize($shot, $sources->get($shot->mediaId), $workspace . '/' . $clip, $deadline);
+                $this->normalize($shot, $sources->get($shot->mediaId), $workspace . '/' . $clip, $deadline, $width, $height);
                 $clips[] = "file '" . $clip . "'";
             }
 
@@ -91,7 +91,7 @@ readonly class BuildEpisodeAssembly
         }
     }
 
-    private function normalize(AssemblyClipData $shot, ?Media $media, string $output, float $deadline): void
+    private function normalize(AssemblyClipData $shot, ?Media $media, string $output, float $deadline, int $width, int $height): void
     {
         if (! $media instanceof Media || $media->collection_name !== Prompt::SHOT_VIDEO) {
             throw new RuntimeException('A selected take is unavailable.');
@@ -119,14 +119,15 @@ readonly class BuildEpisodeAssembly
             'anullsrc=r=48000:cl=stereo',
         ];
         $seek = $shot->trimStartMs;
-        $videoFilter = 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24';
+        $geometry = "scale={$width}:{$height}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={$width}:{$height}:(ow-iw)/2:(oh-ih)/2,setsar=1";
+        $videoFilter = $geometry . ',fps=24';
         $audioFilter = 'aresample=48000,apad';
 
         if ($shot->durationMs < 100) {
             // Decode the preceding frame as the selection may fall entirely between two source timestamps.
             $seek = max(0, $shot->trimStartMs - 1000);
             $offset = $this->seconds($shot->trimStartMs - $seek);
-            $videoFilter = 'fps=1000:round=up,tpad=stop_mode=clone:stop_duration=0.05,trim=start=' . $offset . ',setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1';
+            $videoFilter = 'fps=1000:round=up,tpad=stop_mode=clone:stop_duration=0.05,trim=start=' . $offset . ',setpts=PTS-STARTPTS,' . $geometry;
             $audioFilter = 'atrim=start=' . $offset . ',asetpts=PTS-STARTPTS,' . $audioFilter;
         }
 

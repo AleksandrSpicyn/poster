@@ -9,6 +9,7 @@ use App\Http\Controllers\EpisodeMedia\ShowController as EpisodeMediaShowControll
 use App\Http\Controllers\Episodes;
 use App\Http\Controllers\Episodes\ExportController;
 use App\Http\Controllers\Episodes\StoreController;
+use App\Http\Controllers\Episodes\UpscaleInputController;
 use App\Http\Controllers\EpisodeScripts;
 use App\Http\Controllers\EpisodeScripts\ApproveController;
 use App\Http\Controllers\EpisodeScripts\GenerateController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Shots\CancelController;
 use App\Http\Middleware\VerifyExportOwner;
 use App\Http\Middleware\VerifyWorkspaceOwner;
 use Illuminate\Support\Facades\Route;
+
+Route::get('upscale-inputs/{operation}/{checksum}', UpscaleInputController::class)
+    ->whereNumber('operation')->where('checksum', '[a-f0-9]{64}')->middleware('signed')->name('upscales.input');
 
 Route::get('episode-exports/{assembly}/media/{media}', ExportController::class)
     ->whereNumber(['assembly', 'media'])

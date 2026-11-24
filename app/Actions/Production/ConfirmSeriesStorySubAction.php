@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Production;
 
+use App\Actions\Episodes\AcceptEpisodeAction;
 use App\Data\Episodes\AcceptEpisodeData;
 use App\Data\Production\EpisodeOutcomeData;
 use App\Enums\AssemblyStatus;
@@ -12,7 +13,6 @@ use App\Enums\ProductionStatus;
 use App\Enums\SeriesOutputMode;
 use App\Models\ProductionRun;
 use App\Models\User;
-use App\Tasks\Episodes\AcceptEpisode;
 use App\Tasks\Production\InspectEpisodeOutcome;
 use App\Tasks\Production\UpdateProductionRun;
 use RuntimeException;
@@ -23,7 +23,7 @@ readonly class ConfirmSeriesStorySubAction
         private AdvanceSeriesCycleSubAction $cycle,
         private UpdateProductionRun $update,
         private InspectEpisodeOutcome $inspect,
-        private AcceptEpisode $accept,
+        private AcceptEpisodeAction $accept,
     ) {}
 
     public function run(ProductionRun $run, User $actor): void

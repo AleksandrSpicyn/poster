@@ -36,6 +36,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property Carbon|null $updated_at
  * @property-read EpisodeRevision|null $episodeRevision
  * @property-read User|null $acceptedBy
+ * @property-read Collection<int, VideoUpscaleOperation> $upscales
  * @property-read Collection<int, PublicationRequest> $publications
  * @property-read MediaCollection<int, Media> $media
  */
@@ -118,6 +119,16 @@ class EpisodeAssembly extends Model implements HasMedia
         return $this->hasMany(PublicationRequest::class);
     }
 
+    /** @return HasMany<VideoUpscaleOperation, $this> */
+    public function upscales(): HasMany
+    {
+        return $this->hasMany(VideoUpscaleOperation::class);
+    }
+
+    public const string UPSCALED = 'episode-upscaled';
+
+    public const string UPSCALE_INPUT = 'episode-upscale-input';
+
     public const string VIDEO = 'episode-video';
 
     public const string CONTINUATION_FRAME = 'continuation-frame';
@@ -126,6 +137,8 @@ class EpisodeAssembly extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        $this->addMediaCollection(self::UPSCALED)->useDisk('local');
+        $this->addMediaCollection(self::UPSCALE_INPUT)->useDisk('local');
         $this->addMediaCollection(self::VIDEO)->useDisk('local');
         $this->addMediaCollection(self::CONTINUATION_FRAME)->useDisk('local');
         $this->addMediaCollection(self::CONTINUATION_TAIL)->useDisk('local');

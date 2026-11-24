@@ -38,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('app:reconcile-episode-scripts --limit=50')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-shot-generations --limit=50')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('app:reconcile-video-upscales')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-episode-assemblies --limit=50')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-publications --limit=50')->everyMinute()->withoutOverlapping(5);
         $schedule->command('app:reconcile-productions --limit=50')->everyMinute()->withoutOverlapping(5);
