@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import LandingFooter from '@/components/LandingFooter.vue';
+import LandingHomeLink from '@/components/LandingHomeLink.vue';
 import LandingHeader from '@/components/LandingHeader.vue';
 import { useRoute } from '@/composables/useRoute';
 import { money } from '@/lib/billing';
 import type { Offer } from '@/types/billing';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps<{ catalog: Offer[] }>();
@@ -22,10 +24,10 @@ function takes(seconds: number) {
     <div class="pricing-view">
         <Head title="Тарифы студии" />
         <a class="skip" href="#pricing-title">К тарифам</a>
-        <LandingHeader pricing />
+        <LandingHeader section="pricing" />
         <main class="catalog">
             <div class="price-hero">
-                <Link class="back" :href="route('home')">← На главную</Link>
+                <LandingHomeLink />
                 <h1 id="pricing-title" tabindex="-1">Тарифы студии</h1>
                 <p>Выберите, сколько секунд видео хотите создать. Один пакет действует во всех ваших проектах.</p>
             </div>
@@ -71,6 +73,7 @@ function takes(seconds: number) {
                 </dl>
             </section>
         </main>
+        <LandingFooter />
     </div>
 </template>
 <style scoped>
@@ -87,7 +90,8 @@ function takes(seconds: number) {
         system-ui,
         sans-serif;
     min-height: 100svh;
-    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
 }
 h1,
 h2 {
@@ -109,6 +113,8 @@ a:focus-visible {
     padding: 12px;
 }
 .catalog {
+    flex: 1;
+    width: 100%;
     max-width: 1432px;
     padding-inline: clamp(20px, 4vw, 64px);
     margin: 0 auto;
@@ -134,19 +140,6 @@ a:focus-visible {
         url('../../assets/studio/lunar-landscape.webp') 50% 57% / cover no-repeat;
     opacity: 0.85;
     mask-image: linear-gradient(90deg, transparent, #000 13%, #000 86%, transparent);
-}
-.back {
-    width: fit-content;
-    display: inline-flex;
-    min-height: 36px;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: #d3c7e4;
-    margin-bottom: 12px;
-}
-.back:hover {
-    color: white;
 }
 .price-hero h1 {
     font-size: clamp(54px, 5.4vw, 88px);
@@ -412,10 +405,6 @@ a:focus-visible {
     .pricing-info dl > div {
         grid-template-columns: 1fr;
         gap: 3px;
-    }
-    .back {
-        margin-bottom: 5px;
-        min-height: 44px;
     }
 }
 </style>

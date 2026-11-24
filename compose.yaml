@@ -10,6 +10,8 @@ x-app: &app
   environment:
     - OPUS_CLIP_API_KEY
     - YOUTUBE_DATA_API_KEY
+    - POSTER_CONTACT_EMAIL
+    - POSTER_CONTACT_TELEGRAM
   working_dir: /var/www
   volumes:
     - .:/var/www

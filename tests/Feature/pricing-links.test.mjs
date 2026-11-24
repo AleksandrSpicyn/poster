@@ -21,7 +21,7 @@ test('кнопки тарифов открывают оформление соо
         const url = 'https://poster.example.test';
         const catalog = ['one_off', 'author', 'studio'].map((code) => ({ code, label: code, seconds: 30, amount: 100, monthly: code !== 'one_off' }));
         const routes = Object.fromEntries(
-            ['home', 'pricing', 'login', 'billing.checkout'].map((name) => [
+            ['home', 'pricing', 'contacts', 'policy', 'terms', 'login', 'billing.checkout'].map((name) => [
                 name,
                 { uri: name === 'billing.checkout' ? 'billing/checkout/{product}' : name, methods: ['GET'] },
             ]),

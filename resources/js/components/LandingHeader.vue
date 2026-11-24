@@ -3,25 +3,20 @@ import { useRoute } from '@/composables/useRoute';
 import type { SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 
-const props = defineProps<{ pricing?: boolean }>();
-const emit = defineEmits<{ workflow: [] }>();
+defineProps<{ section?: 'pricing' | 'contacts' }>();
 const route = useRoute();
 const page = usePage<SharedData>();
-
-function homeSection(section: string) {
-    return (props.pricing ? route('home') : '') + '#' + section;
-}
 </script>
 <template>
-    <header class="head" :class="{ pricing }">
+    <header class="head" :class="{ interior: section }">
         <div class="outer nav">
-            <component :is="pricing ? Link : 'a'" class="logo" :href="pricing ? route('home') : '#main'" aria-label="Poster, главная"
+            <component :is="section ? Link : 'a'" class="logo" :href="section ? route('home') : '#main'" aria-label="Poster, главная"
                 ><i aria-hidden="true"><b></b><b></b><b></b></i>Poster</component
             >
             <nav aria-label="Навигация">
-                <component :is="pricing ? Link : 'a'" :href="homeSection('features')">Возможности</component>
-                <component :is="pricing ? Link : 'a'" :href="homeSection('workflow')" @click="emit('workflow')">Рабочий процесс</component>
-                <Link :href="route('pricing')" :aria-current="pricing ? 'page' : undefined">Тарифы</Link>
+                <component :is="section ? Link : 'a'" :href="(section ? route('home') : '') + '#features'">Возможности</component>
+                <Link :href="route('pricing')" :aria-current="section === 'pricing' ? 'page' : undefined">Тарифы</Link>
+                <Link :href="route('contacts')" :aria-current="section === 'contacts' ? 'page' : undefined">Контакты</Link>
             </nav>
             <a class="login" :href="route(page.props.auth.user ? 'dashboard' : 'login')">{{
                 page.props.auth.user ? 'Моя студия' : 'Войти в студию'
@@ -30,7 +25,7 @@ function homeSection(section: string) {
     </header>
 </template>
 <style scoped>
-:global(html:has(.landing, .pricing-view)) {
+:global(html:has(.landing, .pricing-view, .contacts-view)) {
     overflow-y: scroll;
 }
 a:focus-visible {
@@ -101,12 +96,14 @@ a:focus-visible {
     color: var(--bg);
 }
 
-.head.pricing {
+.head.interior {
     background: #191723;
     border-color: #464051;
 }
 .nav nav a[aria-current] {
     color: #d7c1ff;
+    text-decoration: underline;
+    text-underline-offset: 6px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -124,13 +121,22 @@ a:focus-visible {
         gap: 18px;
     }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .nav {
         min-height: 61px;
-        gap: 8px;
+        padding-block: 8px 0;
+        flex-wrap: wrap;
+        gap: 0 8px;
+    }
+    .logo {
+        flex-basis: auto;
     }
     .nav nav {
-        display: none;
+        order: 1;
+        flex-basis: 100%;
+        flex-wrap: wrap;
+        column-gap: 16px;
+        row-gap: 0;
     }
     .login {
         padding: 5px 12px;

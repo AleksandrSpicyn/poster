@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PolicyController;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('pricing', PricingController::class)->name('pricing');
+
+Route::get('contacts', ContactsController::class)->name('contacts');
 
 Route::get('policy', PolicyController::class)->name('policy');
 

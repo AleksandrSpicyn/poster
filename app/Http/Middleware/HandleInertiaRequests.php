@@ -60,7 +60,7 @@ class HandleInertiaRequests extends Middleware
             'name' => $this->appName,
             'appearanceValues' => array_column(Appearance::cases(), 'value', 'name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
-            ...($request->routeIs('pricing') ? [] : [
+            ...($request->routeIs('pricing', 'contacts') ? [] : [
                 'balance' => fn(): ?GenerationBalanceData => $request->user() === null ? null : $this->billing->balance($request->user()->id),
             ]),
             'auth' => [

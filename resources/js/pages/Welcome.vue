@@ -25,7 +25,7 @@ useHashNavigation(revealSection);
     <div class="landing">
         <Head title="Poster — студия коротких форм" /> <a class="skip" href="#main">К содержанию</a>
         <div class="top">
-            <LandingHeader @workflow="openWorkflow" />
+            <LandingHeader />
             <main id="main" tabindex="-1">
                 <div class="outer">
                     <section class="hero" aria-labelledby="title">
