@@ -33,7 +33,7 @@ final readonly class ProductionQuoteCalculator
         ];
 
         if (PilotShotQuote::seconds($video) === null) {
-            throw ValidationException::withMessages(['video' => 'Выберите для производства Seedance Mini 720p, вертикальный кадр и нативный звук.']);
+            throw ValidationException::withMessages(['video' => 'Выберите для производства Seedance Mini 480p или 720p, вертикальный кадр и нативный звук.']);
         }
 
         $shots = $revision instanceof EpisodeRevision ? $this->missingShots($this->budgets->unproducedShotDurations($revision), $video) : [];

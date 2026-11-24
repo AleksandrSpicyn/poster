@@ -9,10 +9,14 @@ use App\Enums\UpscaleOperationStatus;
 use App\Enums\UpscaleProvider;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
- * @property int $episode_assembly_id
+ * @property int|null $episode_assembly_id
+ * @property int|null $series_assembly_id
+ * @property int|null $parent_id
+ * @property int|null $prompt_id
  * @property int $initiator_id
  * @property int|null $source_media_id
  * @property int|null $result_media_id
@@ -30,7 +34,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VideoUpscaleOperation extends Model
 {
     protected $fillable = [
-        'episode_assembly_id', 'initiator_id', 'operation_key', 'attempt', 'provider',
+        'episode_assembly_id', 'series_assembly_id', 'prompt_id', 'parent_id', 'initiator_id', 'operation_key', 'attempt', 'provider',
         'status', 'source_snapshot', 'profile_snapshot', 'estimated_cost_e8', 'currency',
     ];
 
@@ -46,8 +50,35 @@ class VideoUpscaleOperation extends Model
         'last_error_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<SeriesAssembly, $this> */
+    public function seriesAssembly(): BelongsTo
+    {
+        return $this->belongsTo(SeriesAssembly::class);
+    }
+
+    /** @return BelongsTo<Prompt, $this> */
+    public function prompt(): BelongsTo
+    {
+        return $this->belongsTo(Prompt::class);
+    }
+
+    /** @return HasMany<self, $this> */
+    public function parts(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')->orderBy('id');
+    }
+
+    public function source(): EpisodeAssembly|SeriesAssembly|Prompt
+    {
+        return $this->episodeAssembly ?? $this->seriesAssembly ?? $this->prompt()->firstOrFail();
+    }
+
     public function durationMs(): int
     {
+        if (is_int($this->source_snapshot['duration_ms'] ?? null)) {
+            return $this->source_snapshot['duration_ms'];
+        }
+
         return EpisodeAssemblyPlanData::fromManifest($this->source_snapshot)->durationMs;
     }
 

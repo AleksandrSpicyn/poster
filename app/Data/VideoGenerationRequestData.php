@@ -21,7 +21,7 @@ class VideoGenerationRequestData extends Data
         public ?string $lastFrameUrl = null,
         public array $referenceImageUrls = [],
         public ?string $sourceVideoUrl = null,
-        public string $resolution = '720p',
+        public string $resolution = '480p',
         public string $aspectRatio = 'adaptive',
         public bool $returnLastFrame = true,
         public bool $generateAudio = true,

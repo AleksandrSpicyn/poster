@@ -28,7 +28,7 @@ class DownloadShotVideo
         $existing = $prompt->getFirstMedia(Prompt::SHOT_VIDEO);
 
         if ($existing instanceof Media) {
-            MeteredVideo::assertMatchesQuote($existing->getPath(), $this->usage->quotedSeconds($prompt->id));
+            MeteredVideo::assertMatchesQuote($existing->getPath(), $this->usage->quotedSeconds($prompt->id), data_get($prompt->input_snapshot, 'video.resolution') === '480p');
 
             return $existing;
         }
@@ -81,7 +81,7 @@ class DownloadShotVideo
                 throw new RuntimeException('The generated file has no readable video stream.');
             }
 
-            MeteredVideo::assertMatchesQuote($path, $this->usage->quotedSeconds($prompt->id));
+            MeteredVideo::assertMatchesQuote($path, $this->usage->quotedSeconds($prompt->id), data_get($prompt->input_snapshot, 'video.resolution') === '480p');
 
             return $prompt->addMedia($path)->toMediaCollection(Prompt::SHOT_VIDEO, 'local');
         } finally {

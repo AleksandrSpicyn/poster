@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tasks\Series;
 
 use App\Enums\AssemblyStatus;
+use App\Enums\UpscaleOperationStatus;
+use App\Models\EpisodeAssembly;
 use App\Models\SeriesAssembly;
 use App\Repositories\SeriesAssemblyRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -21,7 +23,7 @@ readonly class GetSeriesExport
 
         abort_unless(($preview || ($assembly->status === AssemblyStatus::ACCEPTED && $assembly->series->final_assembly_id === $assembly->id))
             && $media->model_type === $assembly->getMorphClass() && $media->model_id === $assembly->id
-            && $media->collection_name === SeriesAssembly::VIDEO && $media->disk === 'local'
+            && ($media->collection_name === SeriesAssembly::VIDEO || ($media->collection_name === EpisodeAssembly::UPSCALED && $assembly->upscales()->whereNull('parent_id')->where('result_media_id', $media->id)->where('status', UpscaleOperationStatus::READY)->exists())) && $media->disk === 'local'
             && is_file($media->getPath()) && hash_file('sha256', $media->getPath()) === $media->getCustomProperty('checksum'), 404);
 
         return $media->getPath();

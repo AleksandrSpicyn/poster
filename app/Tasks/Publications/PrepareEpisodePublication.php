@@ -33,19 +33,17 @@ class PrepareEpisodePublication
 
     public function run(PublicationRequest $request): PreparedPublicationData
     {
-        if (isset($request->payload['export_operation_id'])) {
-            $request = $this->publications->findOrFail($request->id);
+        $request = $this->publications->findOrFail($request->id);
 
-            if (! isset($request->payload['media_id'], $request->payload['sha256'])) {
-                throw new RuntimeException('Publication file has not been prepared.');
-            }
+        if (isset($request->payload['export_operation_id']) && ! isset($request->payload['media_id'], $request->payload['sha256'])) {
+            throw new RuntimeException('Publication file has not been prepared.');
         }
 
-        $options = isset($request->payload['tiktok']) ? TiktokPublicationData::from($request->payload['tiktok']) : null;
+        $options = isset($request->payload['tiktok']) ? TiktokPublicationData::from([...$request->payload['tiktok'], ...(isset($request->payload['media_id']) ? ['media_id' => $request->payload['media_id']] : [])]) : null;
 
         if ($request->prompt_id !== null) {
             $prompt = $this->prompts->forPublication($request);
-            $media = $prompt->getFirstMedia();
+            $media = isset($request->payload['media_id']) ? $this->media->episodeExport($prompt, $request->payload['media_id'], $request->payload['sha256'] ?? '') : $prompt->getFirstMedia();
 
             if (! $media instanceof Media || ($options instanceof TiktokPublicationData && $options->media_id !== $media->id) || ! is_file($media->getPath())) {
                 throw new RuntimeException('The short video file is unavailable.');
@@ -69,7 +67,7 @@ class PrepareEpisodePublication
 
         $final = $request->series_assembly_id !== null;
         $assembly = $final ? $this->finalAssemblies->withContext($request->series_assembly_id) : $this->assemblies->withMedia($request->episode_assembly_id ?? throw new RuntimeException('No source.'));
-        $media = $assembly instanceof EpisodeAssembly && isset($request->payload['media_id'])
+        $media = isset($request->payload['media_id'])
             ? $this->media->episodeExport($assembly, $request->payload['media_id'], $request->payload['sha256'] ?? '')
             : $assembly->getFirstMedia($final ? SeriesAssembly::VIDEO : EpisodeAssembly::VIDEO);
 

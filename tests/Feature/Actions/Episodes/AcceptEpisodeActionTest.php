@@ -11,7 +11,6 @@ use App\Enums\AssemblyStatus;
 use App\Enums\EpisodeValidity;
 use App\Models\Episode;
 use App\Models\EpisodeAssembly;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -28,7 +27,7 @@ test('принятие обновляет историю один раз и ин
     ]));
     app(ApproveEpisodeScriptAction::class)->run($revision, $user);
     $assembly = EpisodeAssembly::factory()->for($revision)->ready()->create(['duration_ms' => 5000]);
-    $assembly->addMedia(UploadedFile::fake()->create('episode.mp4', 10, 'video/mp4'))->toMediaCollection(EpisodeAssembly::VIDEO);
+    $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
     $later = Episode::factory()->create(['series_id' => $episode->series_id, 'number' => 2, 'predecessor_episode_id' => $episode->id]);
     $data = new AcceptEpisodeData(0, 'The key is found.', 'The hero holds the key.', '', false);
 

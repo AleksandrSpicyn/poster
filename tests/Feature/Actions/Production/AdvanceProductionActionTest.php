@@ -52,6 +52,7 @@ use function Pest\Laravel\travelTo;
 use function Tests\Support\acceptedEpisodePublication;
 use function Tests\Support\consoleCommand;
 use function Tests\Support\episodeHttpFixture;
+use function Tests\Support\readyPublicationExport;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceMedia;
 use function Tests\Support\storyScriptPayload;
@@ -238,6 +239,7 @@ test('проводит выпуск до публикации и продолж�
     $advance->run($run->id);
 
     $publication = $assembly->publications()->sole();
+    readyPublicationExport($assembly, $actor);
     $releaseAt = $publication->scheduled_at ?? throw new LogicException('Release time missing.');
     expect($run->refresh()->next_check_at?->equalTo($releaseAt))->toBeTrue();
     travelTo($releaseAt);

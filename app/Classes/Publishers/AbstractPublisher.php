@@ -60,7 +60,7 @@ abstract class AbstractPublisher implements Publisher
 
     protected function getSourceId(): int
     {
-        return $this->prompt instanceof PublishVideoData ? ($this->prompt->seriesAssemblyId ?? $this->prompt->episodeAssemblyId ?? throw new RuntimeException('The publication has no source.')) : $this->prompt->id;
+        return $this->prompt instanceof PublishVideoData ? ($this->prompt->seriesAssemblyId ?? $this->prompt->episodeAssemblyId ?? $this->prompt->short->id ?? throw new RuntimeException('The publication has no source.')) : $this->prompt->id;
     }
 
     protected function assertProjectActive(): void

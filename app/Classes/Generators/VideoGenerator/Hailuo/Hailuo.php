@@ -67,7 +67,7 @@ readonly class Hailuo extends AsyncVideoGenerator
                 '768P',
                 '1080P',
             ],
-            defaultResolution: '768P',
+            defaultResolution: '512P',
             durations: [6, 10],
         );
     }

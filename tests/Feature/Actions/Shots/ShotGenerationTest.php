@@ -747,7 +747,7 @@ test('восемь секунд купленного пакета списыва
     Bus::fake();
     fakeSerialOpeningFrame();
     $file = Storage::disk('local')->path('eight-seconds.mp4');
-    Process::timeout(30)->run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=size=720x1280:rate=5', '-f', 'lavfi', '-i', 'anullsrc',
+    Process::timeout(30)->run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=size=496x864:rate=5', '-f', 'lavfi', '-i', 'anullsrc',
         '-t', '8', '-c:v', 'libx264', '-preset', 'ultrafast', '-threads', '1', '-c:a', 'aac', '-y', $file])->throw();
     Http::fake([
         '*contents/generations/tasks' => Http::response(['id' => 'paid-video']),
@@ -796,11 +796,11 @@ test('восемь секунд купленного пакета списыва
     consoleCommand('billing:audit')->assertSuccessful();
 });
 
-test('закрепляет 480p только в новых ревизиях пилотной серии и передаёт его BytePlus', function (bool $newRevision): void {
+test('закрепляет 480p в новых и существующих ревизиях и передаёт его BytePlus', function (bool $newRevision): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
     $revision = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail();
     $episode = $revision->episode()->firstOrFail();
-    config(['services.upscale.series_id' => $episode->series_id, 'services.seedance.resolution' => '720p',
+    config(['services.seedance.resolution' => '480p',
         'services.seedance.model' => 'dreamina-seedance-2-0-mini-260615']);
 
     if ($newRevision) {
@@ -815,7 +815,7 @@ test('закрепляет 480p только в новых ревизиях пи
     app(SubmitShotGenerationAction::class)->run($take->generationOperations()->firstOrFail()->id);
     app(SubmitShotGenerationAction::class)->run($take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail()->id);
 
-    $expected = $newRevision ? '480p' : '720p';
+    $expected = '480p';
     expect(data_get($take->input_snapshot, 'video.resolution'))->toBe($expected);
     Http::assertSent(fn(Request $request): bool => $request->method() === 'POST' && $request['resolution'] === $expected);
 })->with([true, false]);

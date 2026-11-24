@@ -52,8 +52,7 @@ return [
     ],
 
     'upscale' => [
-        'series_id' => (int) env('VIDEO_UPSCALE_SERIES_ID', 0),
-        'budget_e8' => (int) env('VIDEO_UPSCALE_BUDGET_E8', 0),
+        'budget_e8' => (int) env('VIDEO_UPSCALE_BUDGET_E8', -1),
         'provider' => env('VIDEO_UPSCALE_PROVIDER', UpscaleProvider::FAL->value),
         'drivers' => [UpscaleProvider::FAL->value => FalVideoUpscaler::class],
     ],
@@ -76,7 +75,7 @@ return [
         'api_key' => env('SEEDANCE_API_KEY', ''),
         'api_url' => env('SEEDANCE_API_URL', 'https://ark.ap-southeast.bytepluses.com/api/v3'),
         'model' => env('SEEDANCE_MODEL', Model::V2_0_MINI->value),
-        'resolution' => env('SEEDANCE_RESOLUTION', Resolution::HD->value),
+        'resolution' => Resolution::SD->value,
     ],
 
     'codex' => [

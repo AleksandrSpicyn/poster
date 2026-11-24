@@ -7,11 +7,15 @@ namespace App\Tasks\Upscale;
 use App\Data\Episodes\BuiltEpisodeVideoData;
 use App\Enums\UpscaleExport;
 use App\Models\EpisodeAssembly;
+use App\Models\Prompt;
+use App\Models\SeriesAssembly;
 use App\Models\VideoUpscaleOperation;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -28,15 +32,47 @@ final class UpscaleMedia
         return $directory;
     }
 
-    public function input(EpisodeAssembly $assembly, VideoUpscaleOperation $operation, BuiltEpisodeVideoData $built): Media
+    /** @return array{media_id: int, checksum: string, duration_ms: int} */
+    public function sourceSnapshot(EpisodeAssembly|SeriesAssembly|Prompt $assembly): array
+    {
+        $file = $assembly->getFirstMedia($assembly instanceof Prompt ? 'default' : $assembly::VIDEO);
+
+        if (! $file instanceof Media || ! is_file($file->getPath()) || ($checksum = hash_file('sha256', $file->getPath())) === false) {
+            throw new RuntimeException('Accepted video is unavailable.');
+        }
+
+        $stream = $this->stream($file->getPath(), 'v:0');
+
+        return ['media_id' => $file->id, 'checksum' => $checksum, 'duration_ms' => (int) round($stream['duration'] * 1000)];
+    }
+
+    public function renderedInput(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation): BuiltEpisodeVideoData
+    {
+        $file = $assembly->getFirstMedia($assembly instanceof Prompt ? 'default' : $assembly::VIDEO);
+
+        if (! $file instanceof Media || $file->id !== $operation->source_snapshot['media_id']
+            || hash_file('sha256', $file->getPath()) !== $operation->source_snapshot['checksum']) {
+            throw new RuntimeException('Accepted video changed.');
+        }
+
+        $workspace = $this->directory($operation) . '/' . Str::uuid();
+        File::makeDirectory($workspace, 0700);
+
+        return new BuiltEpisodeVideoData($file->getPath(), $operation->durationMs(), $workspace);
+    }
+
+    public function input(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation, BuiltEpisodeVideoData $built): Media
     {
         $directory = $this->directory($operation);
 
         try {
             $input = $built->workspace . '/input.mp4';
             $audio = $built->workspace . '/audio.m4a';
-            $this->convert(['-i', $built->path, '-map', '0:a:0', '-c:a', 'copy', $audio]);
-            $this->convert(['-i', $built->path, '-map', '0:v:0', '-vf', 'tpad=stop_mode=clone:stop_duration=0.042,fps=24', '-frames:v',
+            $start = $operation->source_snapshot['start_ms'] ?? null;
+            $trim = is_int($start) ? ['-ss', (string) ($start / 1000)] : [];
+            $limit = is_int($start) ? ['-t', (string) ($operation->durationMs() / 1000)] : [];
+            $this->convert([...$trim, '-i', $built->path, ...$limit, '-map', '0:a:0', '-c:a', is_int($start) ? 'aac' : 'copy', $audio]);
+            $this->convert([...$trim, '-i', $built->path, '-map', '0:v:0', '-vf', 'scale=486:864:force_original_aspect_ratio=decrease,pad=486:864:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=0.042,fps=24', '-frames:v',
                 (string) max(1, round($operation->durationMs() / 1000 * 24)), '-c:v', 'libx264', '-threads', '2', '-movflags', '+faststart', $input]);
             File::move($audio, $directory . '/audio.m4a');
 
@@ -46,7 +82,49 @@ final class UpscaleMedia
         }
     }
 
-    public function output(EpisodeAssembly $assembly, VideoUpscaleOperation $operation, string $url, UpscaleExport $export): Media
+    /** @param Collection<int, VideoUpscaleOperation> $parts */
+    public function join(VideoUpscaleOperation $operation, Collection $parts): Media
+    {
+        $source = $operation->source();
+        $built = $this->renderedInput($source, $operation);
+
+        try {
+            $list = [];
+
+            foreach ($parts as $index => $part) {
+                $file = $source->getMedia(EpisodeAssembly::UPSCALED)->firstWhere('id', $part->result_media_id);
+
+                if ($file === null || hash_file('sha256', $file->getPath()) !== $part->result_sha256) {
+                    throw new RuntimeException('Upscaled part is unavailable.');
+                }
+
+                $name = "part-$index.mp4";
+
+                if (! link($file->getPath(), $built->workspace . '/' . $name)) {
+                    throw new RuntimeException('Could not stage the upscaled part.');
+                }
+
+                $list[] = "file '$name'";
+            }
+
+            File::put($built->workspace . '/parts.txt', implode("\n", $list));
+            $output = $built->workspace . '/final.mp4';
+            Process::path($built->workspace)->timeout(1200)->run(['ffmpeg', '-nostdin', '-v', 'error', '-f', 'concat', '-safe', '1',
+                '-i', 'parts.txt', '-i', $built->path, '-map', '0:v:0', '-map', '1:a:0', '-c', 'copy', '-movflags', '+faststart', $output])->throw();
+            $video = $this->stream($output, 'v:0');
+            $audio = $this->stream($output, 'a:0');
+
+            if (abs($video['duration'] * 1000 - $operation->durationMs()) > 100 || abs($audio['duration'] - $video['duration']) > 0.1) {
+                throw new RuntimeException('Joined export has an unexpected duration.');
+            }
+
+            return $this->attach($source, $operation, $output, EpisodeAssembly::UPSCALED);
+        } finally {
+            File::deleteDirectory($built->workspace);
+        }
+    }
+
+    public function output(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation, string $url, UpscaleExport $export): Media
     {
         $directory = $this->directory($operation);
         $download = $directory . '/download.mp4';
@@ -82,7 +160,7 @@ final class UpscaleMedia
         }
     }
 
-    private function attach(EpisodeAssembly $assembly, VideoUpscaleOperation $operation, string $file, string $collection): Media
+    private function attach(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation, string $file, string $collection): Media
     {
         return $assembly->addMedia($file)->withCustomProperties([
             'upscale_operation_id' => $operation->id, 'checksum' => hash_file('sha256', $file),

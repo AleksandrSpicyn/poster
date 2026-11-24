@@ -72,6 +72,12 @@ class SeriesAssembly extends Model implements HasMedia
         return $this->hasMany(PublicationRequest::class);
     }
 
+    /** @return HasMany<VideoUpscaleOperation, $this> */
+    public function upscales(): HasMany
+    {
+        return $this->hasMany(VideoUpscaleOperation::class);
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection(self::VIDEO)->useDisk('local')->singleFile();

@@ -9,7 +9,7 @@ use RuntimeException;
 
 final class MeteredVideo
 {
-    public static function assertMatchesQuote(string $path, ?int $seconds): void
+    public static function assertMatchesQuote(string $path, ?int $seconds, bool $standardDefinition = false): void
     {
         if ($seconds === null) {
             return;
@@ -34,7 +34,10 @@ final class MeteredVideo
         $video = $streams->firstWhere('codec_type', 'video');
         $duration = $video['duration'] ?? $metadata['format']['duration'] ?? null;
 
-        if (($video['width'] ?? null) !== 720 || ($video['height'] ?? null) !== 1280 || ! is_numeric($duration)
+        $geometry = [$video['width'] ?? null, $video['height'] ?? null];
+        $validGeometry = $standardDefinition ? in_array($geometry, [[480, 854], [486, 864], [496, 864]], true) : $geometry === [720, 1280];
+
+        if (! $validGeometry || ! is_numeric($duration)
             || abs((float) $duration - $seconds) > 0.5 || ! $streams->contains('codec_type', 'audio')) {
             throw new RuntimeException('Параметры файла расходятся с резервом. Требуется проверка исходного результата.');
         }

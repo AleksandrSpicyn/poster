@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
+use function Tests\Support\readyPublicationExport;
 
 /** @return array{Channel, array<string,mixed>} */
 function tiktokShortForm(): array
@@ -38,6 +39,7 @@ function tiktokShortForm(): array
     ]]);
     $short = Prompt::factory()->for($project)->create(['generated' => true]);
     $media = $short->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection('default', 'local');
+    readyPublicationExport($short, $owner);
     actingAs($owner);
 
     return [$channel, ['media_id' => $media->id, 'account_id' => 'alpha', 'mode' => 'direct', 'privacy' => 'SELF_ONLY',

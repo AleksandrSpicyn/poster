@@ -23,7 +23,7 @@ final class PilotShotQuote
     public static function seconds(mixed $video): ?int
     {
         if (! is_array($video) || ($video['provider'] ?? null) !== VideoProvider::SEEDANCE->value
-            || ($video['model'] ?? null) !== Model::V2_0_MINI->value || ($video['resolution'] ?? null) !== Resolution::HD->value
+            || ($video['model'] ?? null) !== Model::V2_0_MINI->value || ! in_array($video['resolution'] ?? null, [Resolution::SD->value, Resolution::HD->value], true)
             || ($video['generate_audio'] ?? null) !== true || ! in_array($video['aspect_ratio'] ?? null, ['9:16', 'adaptive'], true)) {
             return null;
         }

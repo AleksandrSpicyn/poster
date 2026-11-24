@@ -52,10 +52,10 @@ readonly class MediaRepository extends EloquentRepository
             ->latest('id')->paginate(20, page: $page);
     }
 
-    public function episodeExport(EpisodeAssembly $assembly, int $id, ?string $checksum = null): ?Media
+    public function episodeExport(EpisodeAssembly|SeriesAssembly|Prompt $assembly, int $id, ?string $checksum = null): ?Media
     {
         $media = $assembly->media()->whereKey($id)->where('disk', 'local')
-            ->whereIn('collection_name', [EpisodeAssembly::VIDEO, EpisodeAssembly::UPSCALED])->first();
+            ->whereIn('collection_name', [$assembly instanceof Prompt ? 'default' : $assembly::VIDEO, EpisodeAssembly::UPSCALED])->first();
 
         if ($media === null || ! is_file($media->getPath())) {
             return null;
@@ -68,7 +68,7 @@ readonly class MediaRepository extends EloquentRepository
         }
 
         if ($media->collection_name === EpisodeAssembly::UPSCALED && ! $assembly->upscales()
-            ->where('result_media_id', $id)->where('result_sha256', $actual)->where('status', UpscaleOperationStatus::READY)->exists()) {
+            ->whereNull('parent_id')->where('result_media_id', $id)->where('result_sha256', $actual)->where('status', UpscaleOperationStatus::READY)->exists()) {
             return null;
         }
 

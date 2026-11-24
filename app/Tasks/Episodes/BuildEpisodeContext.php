@@ -82,10 +82,6 @@ class BuildEpisodeContext
                 ->all()),
         ];
 
-        if ($series->output_mode === SeriesOutputMode::EPISODES && $series->id === config('services.upscale.series_id')) {
-            $snapshot['generation_resolution'] = '480p';
-        }
-
         $cast = $series->cast_settings;
 
         if ($cast !== null) {

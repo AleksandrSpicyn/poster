@@ -14,9 +14,10 @@ use function Tests\Support\episodeHttpFixture;
 
 test('принятие монтажа подтверждает факты без публикации', function (): void {
     Storage::fake('local');
+    Queue::fake();
     $context = episodeHttpFixture();
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->create(['status' => AssemblyStatus::READY, 'duration_ms' => 5000]);
-    $assembly->addMedia(base_path('tests/Fixtures/portrait.png'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
+    $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
 
     actingAs($context['user'])
         ->post(route('episodes.assemblies.accept', [...$context['params'], 'assembly' => $assembly]), ['lock_version' => 0, 'confirmed_events' => 'The key was found.', 'character_state' => 'The hero holds the key.', 'open_threads' => 'The door is still locked.', 'scene_closed' => false])
@@ -40,11 +41,10 @@ test('принятие требует подтверждённых событи�
     expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY);
 });
 
-test('приёмка пилотного эпизода автоматически ставит экспорт 1080p перед публикацией', function (): void {
+test('приёмка эпизода автоматически ставит экспорт 1080p перед публикацией', function (): void {
     Storage::fake('local');
     Queue::fake();
     $context = episodeHttpFixture();
-    config(['services.upscale.series_id' => $context['episode']->series_id]);
     $manifest = ['shots' => [['media_id' => 1, 'prompt_id' => 1, 'checksum' => str_repeat('a', 64),
         'trim_start_ms' => 0, 'trim_end_ms' => 5000, 'duration_ms' => 5000]], 'duration_ms' => 5000];
     $assembly = EpisodeAssembly::factory()->for($context['revision'])->ready()->create([

@@ -29,7 +29,7 @@ class SaveGeneratedVideo
     public function run(Prompt $prompt, string $path): void
     {
         $existing = $prompt->getFirstMedia();
-        MeteredVideo::assertMatchesQuote($existing?->getPath() ?? $path, $this->usage->quotedSeconds($prompt->id));
+        MeteredVideo::assertMatchesQuote($existing?->getPath() ?? $path, $this->usage->quotedSeconds($prompt->id), data_get($prompt->input_snapshot, 'video_request.resolution') === '480p');
 
         if (! $existing instanceof Media) {
             $prompt->addMedia($path)->toMediaCollection();

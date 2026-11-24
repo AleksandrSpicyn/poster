@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tasks\Shots;
 
-use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
-use App\Classes\Generators\VideoGenerator\Seedance\Enums\Resolution;
 use App\Classes\Generators\VideoGenerator\VideoGeneratorFactory;
 use App\Data\Shots\ShotVideoSettingsData;
 use App\Data\VideoGenerationRequestData;
@@ -48,15 +46,6 @@ readonly class PrepareShotVideoSettings
         }
 
         $resolution = $capabilities->defaultResolution;
-
-        if (($revision->context_snapshot['generation_resolution'] ?? null) === '480p'
-            && $series->id === config('services.upscale.series_id')) {
-            if ($capabilities->model !== Model::V2_0_MINI->value) {
-                throw ValidationException::withMessages(['generation' => 'Для пилота нужен Seedance 2.0 Mini.']);
-            }
-
-            $resolution = Resolution::SD->value;
-        }
 
         try {
             $capabilities->assertSupports(new VideoGenerationRequestData(

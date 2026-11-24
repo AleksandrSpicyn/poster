@@ -239,7 +239,7 @@ test('Seedance использует снимок параметров после
     app(Seedance::class)->generate($request);
 
     Http::assertSent(fn(Request $http): bool => $http['model'] === Model::V2_0_MINI->value
-        && $http['duration'] === 8 && $http['resolution'] === '720p');
+        && $http['duration'] === 8 && $http['resolution'] === '480p');
     Http::assertSentCount(1);
 });
 

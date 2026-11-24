@@ -4,34 +4,37 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
-use App\Classes\Publishers\PublisherFactory;
+use App\Actions\Upscale\RequestVideoUpscaleAction;
+use App\Data\Upscale\RequestVideoUpscaleData;
 use App\Enums\ChannelType;
+use App\Enums\UpscaleExport;
 use App\Events\VideoBuilt;
+use App\Jobs\PublishEpisodeJob;
 use App\Models\Channel;
+use App\Repositories\PublicationRequestRepository;
 use App\Tasks\Projects\GetPromptProject;
-use Illuminate\Support\Facades\Log;
 
-/**
- * После сборки отправляет ролик в каждый канал проекта через PublisherFactory.
- * Обработка синхронная, но отдельный адаптер может продолжить публикацию в очереди.
- */
 readonly class VideoBuiltListener
 {
-    public function __construct(private PublisherFactory $publishers, private GetPromptProject $getProject) {}
+    public function __construct(private RequestVideoUpscaleAction $upscale, private PublicationRequestRepository $requests, private GetPromptProject $getProject) {}
 
     public function handle(VideoBuilt $event): void
     {
         $prompt = $event->getPrompt();
         $project = $this->getProject->run($prompt);
 
-        if ($prompt->shot_id !== null || $project?->is_active !== true) {
+        if ($prompt->shot_id !== null || $project?->is_active !== true || $project->owner === null) {
             return;
         }
 
-        Log::info("VideoBuilt: {$event->getPrompt()->getFirstMediaUrl()}");
+        $operation = $this->upscale->run($prompt, $project->owner, new RequestVideoUpscaleData(UpscaleExport::FULL_HD));
 
-        $project->channels->filter(fn(Channel $channel): bool => $channel->type !== ChannelType::TIKTOK && $channel->owner_id === $project->owner_id && $channel->is_active && filled($channel->credentials['access_token'] ?? null))->each(function (Channel $channel) use ($prompt): void {
-            $this->publishers->make($channel, $prompt)->publish();
+        $project->channels->filter(fn(Channel $channel): bool => $channel->type !== ChannelType::TIKTOK && $channel->owner_id === $project->owner_id && $channel->is_active && filled($channel->credentials['access_token'] ?? null))->each(function (Channel $channel) use ($prompt, $operation): void {
+            $request = $this->requests->forShort($prompt, $channel, $operation->initiator_id, operationId: $operation->id);
+
+            if ($request->wasRecentlyCreated) {
+                PublishEpisodeJob::dispatch($request->id)->afterCommit();
+            }
         });
     }
 }

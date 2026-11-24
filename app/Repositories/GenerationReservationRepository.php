@@ -32,7 +32,7 @@ final readonly class GenerationReservationRepository
         $mode = DB::table('billing_accounts')->where('owner_id', $project->owner_id)->lockForUpdate()->value('accounting_mode');
 
         if ($mode === GenerationAccountingMode::ENFORCED->value && $seconds === null) {
-            throw ValidationException::withMessages(['video' => 'Пакет покрывает вертикальный дубль Seedance Mini 720p с нативным звуком длительностью от 4 до 15 секунд.']);
+            throw ValidationException::withMessages(['video' => 'Пакет покрывает вертикальный дубль Seedance Mini 480p или 720p с нативным звуком длительностью от 4 до 15 секунд.']);
         }
 
         if ($seconds === null || ! in_array($mode, [GenerationAccountingMode::SHADOW->value, GenerationAccountingMode::ENFORCED->value], true)) {

@@ -16,7 +16,6 @@ use function Tests\Support\episodeHttpFixture;
 
 test('повтор использует ту же попытку до подтверждённого отказа', function (): void {
     $fixture = episodeHttpFixture();
-    config(['services.upscale.series_id' => $fixture['episode']->series_id]);
     $manifest = ['shots' => [[
         'media_id' => 1, 'prompt_id' => 2, 'checksum' => str_repeat('a', 64),
         'trim_start_ms' => 0, 'trim_end_ms' => 5000, 'duration_ms' => 5000,
@@ -33,6 +32,7 @@ test('повтор использует ту же попытку до подтв
         $capabilities,
         UpscaleExport::HD,
         4_000_000,
+        $manifest,
         $retry,
     );
     $owner = $fixture['user'];

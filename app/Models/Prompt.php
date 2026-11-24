@@ -117,6 +117,12 @@ class Prompt extends Model implements HasMedia
 
     public const string SHOT_VIDEO = 'shot-video';
 
+    /** @return HasMany<VideoUpscaleOperation, $this> */
+    public function upscales(): HasMany
+    {
+        return $this->hasMany(VideoUpscaleOperation::class);
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('default')->useDisk('local');

@@ -10,6 +10,7 @@ use App\Tasks\BuildVideo;
 use App\Tasks\Prompts\RefreshPrompt;
 use App\Tasks\Prompts\SaveGeneratedVideo;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
@@ -44,9 +45,11 @@ readonly class SaveVideoAction
                 return;
             }
 
-            $this->saveGeneratedVideo->run($prompt, $this->buildVideo->run($prompt));
-
-            event(new VideoBuilt($prompt));
+            $path = $this->buildVideo->run($prompt);
+            DB::transaction(function () use ($prompt, $path): void {
+                $this->saveGeneratedVideo->run($prompt, $path);
+                event(new VideoBuilt($prompt));
+            });
         });
     }
 }

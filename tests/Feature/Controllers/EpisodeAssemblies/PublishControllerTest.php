@@ -142,13 +142,12 @@ test('два канала ждут общего слота и повторный
     ['2026-11-20 19:01:00', '2026-11-21 12:15:00', '15 16 * * 6', 'Asia/Bangkok', 30],
 ]);
 
-test('заявка пилота закрепляет готовый экспорт и проверяет его при выдаче и отправке', function (): void {
+test('заявка закрепляет готовый экспорт и проверяет его при выдаче и отправке', function (): void {
     Storage::fake('local');
     Bus::fake();
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $user] = acceptedEpisodePublication();
     $revision = $assembly->episodeRevision()->firstOrFail();
     $episode = $revision->episode()->firstOrFail();
-    config(['services.upscale.series_id' => $episode->series_id]);
     $params = ['series' => $episode->series_id, 'episode' => $episode->id, 'revision' => $revision->id, 'assembly' => $assembly->id];
     $url = route('episodes.assemblies.publish', $params);
     $media = $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::UPSCALED);

@@ -15,8 +15,9 @@ use App\Enums\UpscaleOperationStatus as Status;
 use App\Enums\UpscaleQueueStatus;
 use App\Jobs\AdvanceVideoUpscaleJob;
 use App\Models\EpisodeAssembly;
+use App\Models\Prompt;
+use App\Models\SeriesAssembly;
 use App\Models\VideoUpscaleOperation;
-use App\Repositories\EpisodeAssemblyRepository;
 use App\Repositories\VideoUpscaleOperationRepository;
 use App\Tasks\Episodes\BuildEpisodeAssembly;
 use App\Tasks\Upscale\UpscaleMedia;
@@ -30,7 +31,6 @@ final readonly class AdvanceVideoUpscaleAction
 {
     public function __construct(
         private VideoUpscaleOperationRepository $operations,
-        private EpisodeAssemblyRepository $assemblies,
         private VideoUpscalerFactory $drivers,
         private BuildEpisodeAssembly $build,
         private UpscaleMedia $media,
@@ -39,7 +39,34 @@ final readonly class AdvanceVideoUpscaleAction
     public function run(int $id): void
     {
         $operation = $this->operations->findOrFail($id);
-        $assembly = $this->assemblies->withMedia($operation->episode_assembly_id);
+        $assembly = $operation->source();
+
+        if (isset($operation->source_snapshot['part_count'])) {
+            if (! in_array($operation->status, [Status::PENDING, Status::PROCESSING], true)) {
+                return;
+            }
+
+            $parts = $operation->parts()->get();
+
+            if ($parts->count() !== $operation->source_snapshot['part_count'] || $parts->contains(fn(VideoUpscaleOperation $part): bool => in_array($part->status, [Status::FAILED, Status::CANCELLED], true))) {
+                $this->operations->mark($operation, Status::FAILED);
+
+                return;
+            }
+
+            if ($parts->every(fn(VideoUpscaleOperation $part): bool => $part->status === Status::READY)) {
+                $file = $this->existing($assembly, $operation, EpisodeAssembly::UPSCALED)
+                    ?? $this->media->join($operation, $parts);
+                $this->record($operation, $file, true);
+
+                return;
+            }
+
+            $this->operations->mark($operation, Status::PROCESSING);
+            AdvanceVideoUpscaleJob::dispatch($id)->delay(now()->addSeconds(30));
+
+            return;
+        }
 
         if ($operation->status === Status::SUBMITTING) {
             // The previous worker released its lease without recording the paid POST outcome.
@@ -95,10 +122,10 @@ final readonly class AdvanceVideoUpscaleAction
         AdvanceVideoUpscaleJob::dispatch($id)->delay(now()->addSeconds(30));
     }
 
-    private function submit(VideoUpscaleOperation $operation, EpisodeAssembly $assembly): void
+    private function submit(VideoUpscaleOperation $operation, EpisodeAssembly|SeriesAssembly|Prompt $assembly): void
     {
         try {
-            if (Snapshot::hash($assembly->manifest) !== Snapshot::hash($operation->source_snapshot)) {
+            if ($assembly instanceof EpisodeAssembly && ! isset($operation->source_snapshot['media_id']) && Snapshot::hash($assembly->manifest) !== Snapshot::hash($operation->source_snapshot)) {
                 $this->operations->mark($operation, Status::CANCELLED);
 
                 return;
@@ -113,7 +140,8 @@ final readonly class AdvanceVideoUpscaleAction
             }
 
             $input = $this->existing($assembly, $operation, EpisodeAssembly::UPSCALE_INPUT)
-                ?? $this->media->input($assembly, $operation, $this->build->run($assembly, $profile->sourceWidth, $profile->sourceHeight));
+                ?? $this->media->input($assembly, $operation, $assembly instanceof EpisodeAssembly && ! isset($operation->source_snapshot['media_id'])
+                    ? $this->build->run($assembly, $profile->sourceWidth, $profile->sourceHeight) : $this->media->renderedInput($assembly, $operation));
             $this->record($operation, $input, false);
             $url = URL::temporarySignedRoute('upscales.input', now()->addDay(), ['operation' => $operation->id, 'checksum' => $operation->source_sha256]);
             $request = new UpscaleRequestData($url, $operation->durationMs(), $this->export($operation));
@@ -151,7 +179,7 @@ final readonly class AdvanceVideoUpscaleAction
         return is_string($value) ? UpscaleExport::from($value) : throw new InvalidArgumentException('Invalid export profile.');
     }
 
-    private function existing(EpisodeAssembly $assembly, VideoUpscaleOperation $operation, string $collection): ?Media
+    private function existing(EpisodeAssembly|SeriesAssembly|Prompt $assembly, VideoUpscaleOperation $operation, string $collection): ?Media
     {
         return $assembly->getMedia($collection)->first(fn(Media $media): bool => $media->getCustomProperty('upscale_operation_id') === $operation->id
             && is_file($media->getPath()) && $media->getCustomProperty('checksum') === hash_file('sha256', $media->getPath()));

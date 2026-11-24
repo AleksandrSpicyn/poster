@@ -26,7 +26,7 @@ readonly class AcceptEpisodeAction
             $accepted = $this->accept->run($assembly, $data, $actor, $run);
             $series = $this->series->forAssembly($accepted);
 
-            if ($series->id === config('services.upscale.series_id') && $series->output_mode === SeriesOutputMode::EPISODES) {
+            if ($series->output_mode === SeriesOutputMode::EPISODES) {
                 $this->upscale->run($accepted, $actor, new RequestVideoUpscaleData(UpscaleExport::FULL_HD));
             }
 
