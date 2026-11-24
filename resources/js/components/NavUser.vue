@@ -22,7 +22,7 @@ const { setOpenMobile } = useSidebar();
                         >{{ getInitials(user.name) }}</span
                     >
                     <span class="flex flex-col gap-0.5 text-left group-data-[collapsible=icon]:hidden"
-                        ><strong>Моя студия</strong><AccountBalance class="items-baseline gap-1.5"
+                        ><strong>Моя студия</strong><AccountBalance class="items-center gap-1.5"
                     /></span>
                     <span class="sr-only">Меню аккаунта</span>
                 </SidebarMenuButton>
