@@ -121,6 +121,8 @@ return [
         'client_secret' => env('FACEBOOK_APP_SECRET'),
         'version' => env('FACEBOOK_GRAPH_VERSION', 'v27.0'),
         'manual_reels' => env('FACEBOOK_MANUAL_REELS', false),
+        'direct_page_channel_id' => (string) env('FACEBOOK_DIRECT_PAGE_CHANNEL_ID', ''),
+        'direct_page_id' => (string) env('FACEBOOK_DIRECT_PAGE_ID', ''),
     ],
 
     'instagram' => [
