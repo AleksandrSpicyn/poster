@@ -17,6 +17,8 @@ final class FacebookOAuth
 {
     public const array SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'];
 
+    private const array CONTENT_TASKS = ['CREATE_CONTENT', 'PROFILE_PLUS_CREATE_CONTENT'];
+
     public static function graph(): string
     {
         return 'https://graph.facebook.com/' . config()->string('services.facebook.version');
@@ -50,7 +52,9 @@ final class FacebookOAuth
 
                 $id = Payload::string($page['id'] ?? null, 'id');
 
-                if (! in_array('CREATE_CONTENT', $page['tasks'], true) || ($channel->external_account !== null && $channel->external_account !== $id)) {
+                $canCreateContent = array_any(self::CONTENT_TASKS, fn(string $task): bool => in_array($task, $page['tasks'], true));
+
+                if (! $canCreateContent || ($channel->external_account !== null && $channel->external_account !== $id)) {
                     continue;
                 }
 

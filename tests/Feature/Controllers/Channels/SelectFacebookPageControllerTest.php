@@ -25,7 +25,7 @@ test('владелец выбирает доступную страницу Face
         '*/me/accounts*' => Http::sequence()
             ->push(['data' => [['id' => '21', 'name' => 'Первая', 'tasks' => ['CREATE_CONTENT'], 'access_token' => 'first-secret']], 'paging' => ['next' => 'next', 'cursors' => ['after' => 'cursor']]])
             ->push(['data' => [
-                ['id' => '22', 'name' => 'Вторая', 'tasks' => ['CREATE_CONTENT'], 'access_token' => 'second-secret'],
+                ['id' => '22', 'name' => 'Вторая', 'tasks' => ['PROFILE_PLUS_CREATE_CONTENT'], 'access_token' => 'second-secret'],
                 ['id' => '23', 'name' => 'Чужая', 'tasks' => ['ANALYZE']],
             ]]),
     ]);
