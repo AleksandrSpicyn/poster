@@ -94,7 +94,14 @@ readonly class PublicationRequestRepository extends EloquentRepository
     public function recordFacebookSession(int $id, string $videoId, string $uploadUrl): bool
     {
         return PublicationRequest::query()->whereKey($id)->where('status', PublicationStatus::SUBMITTING)->whereNull('provider_phase')
-            ->update(['provider_phase' => PublicationProviderPhase::UPLOAD, 'container_id' => $videoId, 'upload_url' => Crypt::encryptString($uploadUrl)]) === 1;
+            ->update(['provider_phase' => PublicationProviderPhase::READY_TO_UPLOAD, 'container_id' => $videoId, 'upload_url' => Crypt::encryptString($uploadUrl)]) === 1;
+    }
+
+    public function beginFacebookUpload(int $id): bool
+    {
+        return PublicationRequest::query()->whereKey($id)->where('status', PublicationStatus::PUBLISHING_CONTAINER)
+            ->where('provider_phase', PublicationProviderPhase::READY_TO_UPLOAD)
+            ->update(['provider_phase' => PublicationProviderPhase::UPLOAD]) === 1;
     }
 
     public function claimFacebookFinish(PublicationRequest $request, Channel $channel): bool
@@ -111,7 +118,7 @@ readonly class PublicationRequestRepository extends EloquentRepository
                     ->orWhere('finish_requested_at', '>', now()->subDay()))->count();
 
             return $count < 30 && PublicationRequest::query()->whereKey($request->id)->where('status', PublicationStatus::PUBLISHING_CONTAINER)
-                ->where('provider_phase', PublicationProviderPhase::UPLOAD)->update(['provider_phase' => PublicationProviderPhase::FINISH_REQUESTED,
+                ->whereIn('provider_phase', [PublicationProviderPhase::READY_TO_UPLOAD, PublicationProviderPhase::UPLOAD])->update(['provider_phase' => PublicationProviderPhase::FINISH_REQUESTED,
                     'upload_url' => null, 'finish_requested_at' => now()]) === 1;
         }, 3);
     }

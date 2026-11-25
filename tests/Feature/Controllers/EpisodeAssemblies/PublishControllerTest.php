@@ -197,7 +197,7 @@ test('заявка закрепляет готовый экспорт и про�
     Http::assertNothingSent();
 });
 
-test('Facebook восстанавливает выпуск после потери ответа finish', function (): void {
+test('Facebook восстанавливает выпуск после потери ответа finish', function (?int $offset): void {
     Storage::fake('local');
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
     $channel->update(['type' => ChannelType::FACEBOOK, 'external_account' => '42', 'credentials' => ['channel_id' => '42', 'granted_scopes' => FacebookOAuth::SCOPES, 'access_token' => 'page-token']]);
@@ -214,15 +214,16 @@ test('Facebook восстанавливает выпуск после потер
     $request->update(['scheduled_at' => now()]);
     Http::fake([
         '*/42/video_reels' => Http::sequence()->push(['video_id' => '123', 'upload_url' => 'https://rupload.facebook.com/video-upload/123'])->pushFailedConnection(),
-        'https://rupload.facebook.com/*' => function (Request $call) use ($request) {
+        'https://rupload.facebook.com/*' => function (Request $call) use ($request, $offset) {
             app()->call([new FinishEpisodePublicationJob($request->id), 'handle']);
-            expect($call->header('offset'))->toBe(['2'])
-                ->and($call->body())->toBe(substr(File::get(base_path('tests/Fixtures/shot.mp4')), 2));
+            expect($call->header('offset'))->toBe([(string) ($offset ?? 0)])
+                ->and($call->body())->toBe(substr(File::get(base_path('tests/Fixtures/shot.mp4')), $offset ?? 0));
 
             return Http::response(['success' => true]);
         },
         '*/123?fields=*' => Http::sequence()
-            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress', 'bytes_transfered' => 2]]])
+            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress', ...($offset === null ? [] : ['bytes_transfered' => $offset])]]])
+            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress']]])
             ->push(['status' => ['uploading_phase' => ['status' => 'completed']]])
             ->push(['id' => '123', 'from' => ['id' => '42'], 'status' => ['publishing_phase' => ['publish_status' => 'published']]]),
     ]);
@@ -231,6 +232,9 @@ test('Facebook восстанавливает выпуск после потер
     app()->call($job->handle(...));
     app()->call($job->handle(...));
 
+    expect($request->refresh()->status)->toBe(PublicationStatus::PROCESSING);
+    Http::assertSentCount(4);
+    app()->call($job->handle(...));
     expect($request->refresh()->provider_phase)->toBe(PublicationProviderPhase::FINISH_REQUESTED);
     config(['services.facebook.manual_reels' => false]);
     app()->call($job->handle(...));
@@ -240,7 +244,7 @@ test('Facebook восстанавливает выпуск после потер
         ->and($request->post()->sole()->external_id)->toBe('123')
         ->and($request->post()->sole()->url)->toBeNull();
     Event::assertDispatchedTimes(PostCreated::class, 1);
-});
+})->with([null, 2]);
 
 test('отказ Facebook не меняет результат другого канала', function (string $failure): void {
     Storage::fake('local');

@@ -17,6 +17,7 @@ use App\Exceptions\PublicationRejectedException;
 use App\Exceptions\PublicationVerificationException;
 use App\Models\Channel;
 use App\Models\Prompt;
+use App\Models\PublicationRequest;
 use App\Repositories\PublicationRequestRepository;
 use App\Support\Integrations\Payload;
 use App\Tasks\Channels\IsChannelProjectActive;
@@ -151,7 +152,7 @@ final class Facebook extends AbstractPublisher implements StagedPublisher, Verif
             }
 
             if ($response->json('status.uploading_phase.status') !== 'completed') {
-                $this->upload($video->path, $request->upload_url, $response);
+                $this->upload($video->path, $request, $response);
 
                 throw new PublicationProcessingException('Проверяем загрузку ролика Facebook.');
             }
@@ -189,14 +190,22 @@ final class Facebook extends AbstractPublisher implements StagedPublisher, Verif
         throw new PublicationProcessingException('Ожидаем подтверждения публикации Facebook.');
     }
 
-    private function upload(string $path, ?string $uploadUrl, Response $response): void
+    private function upload(string $path, PublicationRequest $request, Response $response): void
     {
         $offset = $response->json('status.uploading_phase.bytes_transfered');
 
-        if ($offset === null && $response->json('status.uploading_phase.status') === 'not_started') {
+        $phase = $response->json('status.uploading_phase.status');
+        $firstUpload = $request->provider_phase === PublicationProviderPhase::READY_TO_UPLOAD;
+
+        if ($offset === null && ($phase === 'not_started' || ($firstUpload && $phase === 'in_progress'))) {
             $offset = 0;
         }
 
+        if ($offset === null && $phase === 'in_progress' && $request->created_at?->gt(now()->subDay())) {
+            throw new PublicationProcessingException('Ожидаем позицию загрузки Facebook.');
+        }
+
+        $uploadUrl = $request->upload_url;
         $size = filesize($path);
         $remoteSize = $response->json('status.uploading_phase.source_file_size');
 
@@ -209,6 +218,10 @@ final class Facebook extends AbstractPublisher implements StagedPublisher, Verif
         }
 
         if ($offset < $size) {
+            if ($firstUpload && ! $this->requests->beginFacebookUpload($request->id)) {
+                throw new PublicationProcessingException('Проверяем состояние загрузки Facebook.');
+            }
+
             $stream = Utils::streamFor(Utils::tryFopen($path, 'rb'));
 
             try {
