@@ -51,7 +51,7 @@ test('точная страница Facebook доступна при пусто�
     config()->set([
         'services.facebook.client_id' => '1234',
         'services.facebook.client_secret' => 'app-secret',
-        'services.facebook.direct_page_channel_id' => (string) $channel->getKey(),
+        'services.facebook.direct_page_channel_id' => (string) $channel->id,
         'services.facebook.direct_page_id' => '42',
     ]);
     actingAs($owner);
