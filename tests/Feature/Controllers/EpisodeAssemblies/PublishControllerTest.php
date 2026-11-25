@@ -197,7 +197,7 @@ test('заявка закрепляет готовый экспорт и про�
     Http::assertNothingSent();
 });
 
-test('Facebook восстанавливает выпуск после потери ответа finish', function (?int $offset): void {
+test('Facebook восстанавливает выпуск после потери ответа finish', function (?int $offset, string $offsetField, string $complete): void {
     Storage::fake('local');
     ['assembly' => $assembly, 'channel' => $channel, 'user' => $owner] = acceptedEpisodePublication();
     $channel->update(['type' => ChannelType::FACEBOOK, 'external_account' => '42', 'credentials' => ['channel_id' => '42', 'granted_scopes' => FacebookOAuth::SCOPES, 'access_token' => 'page-token']]);
@@ -222,9 +222,9 @@ test('Facebook восстанавливает выпуск после потер
             return Http::response(['success' => true]);
         },
         '*/123?fields=*' => Http::sequence()
-            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress', ...($offset === null ? [] : ['bytes_transfered' => $offset])]]])
+            ->push(['status' => ['uploading_phase' => ['status' => 'in_progress', ...($offset === null ? [] : [$offsetField => $offset])]]])
             ->push(['status' => ['uploading_phase' => ['status' => 'in_progress']]])
-            ->push(['status' => ['uploading_phase' => ['status' => 'completed']]])
+            ->push(['status' => ['uploading_phase' => ['status' => $complete]]])
             ->push(['id' => '123', 'from' => ['id' => '42'], 'status' => ['publishing_phase' => ['publish_status' => 'published']]]),
     ]);
     app()->call([new PublishEpisodeJob($request->id), 'handle']);
@@ -244,7 +244,7 @@ test('Facebook восстанавливает выпуск после потер
         ->and($request->post()->sole()->external_id)->toBe('123')
         ->and($request->post()->sole()->url)->toBeNull();
     Event::assertDispatchedTimes(PostCreated::class, 1);
-})->with([null, 2]);
+})->with([[null, 'bytes_transferred', 'complete'], [2, 'bytes_transferred', 'complete'], [2, 'bytes_transfered', 'completed']]);
 
 test('отказ Facebook не меняет результат другого канала', function (string $failure): void {
     Storage::fake('local');

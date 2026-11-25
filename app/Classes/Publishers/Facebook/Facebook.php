@@ -151,7 +151,7 @@ final class Facebook extends AbstractPublisher implements StagedPublisher, Verif
                 throw new PublicationRejectedException('Публикация Facebook отключена.');
             }
 
-            if ($response->json('status.uploading_phase.status') !== 'completed') {
+            if (! in_array($response->json('status.uploading_phase.status'), ['complete', 'completed'], true)) {
                 $this->upload($video->path, $request, $response);
 
                 throw new PublicationProcessingException('Проверяем загрузку ролика Facebook.');
@@ -192,7 +192,7 @@ final class Facebook extends AbstractPublisher implements StagedPublisher, Verif
 
     private function upload(string $path, PublicationRequest $request, Response $response): void
     {
-        $offset = $response->json('status.uploading_phase.bytes_transfered');
+        $offset = $response->json('status.uploading_phase.bytes_transferred') ?? $response->json('status.uploading_phase.bytes_transfered');
 
         $phase = $response->json('status.uploading_phase.status');
         $firstUpload = $request->provider_phase === PublicationProviderPhase::READY_TO_UPLOAD;
