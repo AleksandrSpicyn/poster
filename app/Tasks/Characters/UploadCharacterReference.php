@@ -8,6 +8,7 @@ use App\Classes\Generators\VoiceSample;
 use App\Data\Characters\CharacterReferenceData;
 use App\Enums\ReferenceView;
 use App\Enums\RevisionStatus;
+use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Repositories\CharacterRepository;
 use App\Repositories\CharacterRevisionRepository;
@@ -52,7 +53,7 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['character' => 'An archived character or series cannot receive references.']);
         }
 
-        if ($character !== null && ! $this->characterRevisions->acceptsVoiceSample($revision, $character)) {
+        if ($character instanceof Character && ! $this->characterRevisions->acceptsVoiceSample($revision, $character)) {
             throw ValidationException::withMessages(['revision' => 'Откройте текущую утверждённую версию или последний черновик персонажа.']);
         }
 

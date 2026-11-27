@@ -32,6 +32,7 @@ test('пробу можно прослушать до сохранения и з
             ->post(route('characters.revisions.approve', $params), ['lock_version' => 0])
             ->assertSessionHasNoErrors();
     }
+
     $version = $context['revision']->refresh()->lock_version;
     $part = str_repeat(pack('v', 120), 24000);
     $stream = collect([
