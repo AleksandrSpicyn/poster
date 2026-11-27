@@ -118,7 +118,7 @@ export interface ShotCue {
     end_ms: number;
     asset_id?: number | null;
 }
-export interface ShotDirection {
+interface ShotDirection {
     notes?: string | null;
     visible_character_ids: number[] | null;
     reference_ids: number[];
