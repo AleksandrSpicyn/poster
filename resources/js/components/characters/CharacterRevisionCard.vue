@@ -34,7 +34,13 @@ const editForm = useForm({
     voice: { ...props.revision.voice, description: typeof props.revision.voice.description === 'string' ? props.revision.voice.description : '' },
     lock_version: props.revision.lock_version,
 });
-const uploadForm = useForm({ file: null as File | null, view: 'front', label: '', lock_version: props.revision.lock_version });
+const uploadForm = useForm({
+    file: null as File | null,
+    view: 'front',
+    label: '',
+    replace_voice_id: null as number | null,
+    lock_version: props.revision.lock_version,
+});
 const approvalForm = useForm({ lock_version: props.revision.lock_version });
 const removeForm = useForm({ lock_version: props.revision.lock_version });
 const editErrors = computed<Record<string, string | undefined>>(() => editForm.errors);
@@ -63,6 +69,7 @@ function update() {
 }
 function upload() {
     uploadFailure.value = '';
+    uploadForm.replace_voice_id = uploadForm.view === 'voice' ? (props.revision.voice_sample?.id ?? null) : null;
     submitForm(uploadForm, ['characters.references.store', params], {
         preserveScroll: true,
         preserveState: 'errors',
@@ -286,7 +293,9 @@ function selectFile(file: File) {
                         uploadForm.clearErrors();
                     "
                 >
-                    <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value">{{ viewLabel(value) }}</option></select
+                    <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value" :disabled="value === 'voice' && !latestRevision">
+                        {{ viewLabel(value) }}
+                    </option></select
                 ><InputError :message="uploadForm.errors.view" />
             </div>
             <div class="grid min-w-0 gap-2">
@@ -330,7 +339,11 @@ function selectFile(file: File) {
             </div>
             <div class="flex flex-wrap items-end gap-2">
                 <Button type="submit" class="h-11" :disabled="busy || !uploadForm.file || editForm.isDirty">{{
-                    uploadFailure ? 'Повторить загрузку' : 'Добавить референс'
+                    uploadForm.view === 'voice' && revision.voice_sample
+                        ? 'Заменить образец голоса'
+                        : uploadFailure
+                          ? 'Повторить загрузку'
+                          : 'Добавить референс'
                 }}</Button>
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError

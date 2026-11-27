@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\User;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -40,7 +41,7 @@ test('пробу можно прослушать до сохранения и з
     expect(substr((string) $wav, 44))->toBe($part . $part);
     expect($context['revision']->media()->exists())->toBeFalse();
     Http::assertSent(fn(Request $request): bool => $request->url() === $url && $request->hasHeader('X-Api-Key', 'test-speech-key')
-        && $request['text'] === 'Я тебя слышу.' && $request['model_id'] === 'dola-seed-tts-3.0' && $request['output_format'] === ['format' => 'pcm', 'sample_rate' => 24000]);
+        && $request['language_code'] === 'ru' && $request['text'] === 'Я тебя слышу.' && $request['model_id'] === 'dola-seed-tts-3.0' && $request['output_format'] === ['format' => 'pcm', 'sample_rate' => 24000]);
 
     post(route('characters.references.store', $params), ['file' => UploadedFile::fake()->createWithContent('voice.wav', (string) $wav), 'view' => 'voice', 'lock_version' => 0])
         ->assertRedirect()->assertSessionHasNoErrors();
@@ -93,8 +94,7 @@ test('после обновления карточки проигрываетс�
         $value = str_contains($request->url(), $voices[0]) ? 100 : 200;
         $chunk = base64_encode(str_repeat(pack('v', $value), 48000));
 
-        return Http::response(implode('
-', [
+        return Http::response(implode("\n", [
             '{"event":"ready"}',
             json_encode(['event' => 'audio', 'audio' => $chunk], JSON_THROW_ON_ERROR),
             '{"event":"final","is_final":true,"reason":"TTS_STREAM_FINAL_REASON_CLOSED"}',
@@ -140,3 +140,29 @@ test('подмена родителя в адресе пробы скрывае�
 
     Http::assertNothingSent();
 })->with(['project', 'series', 'character', 'revision']);
+
+test('чужой проект скрывает черновик и не расходует запрос речи', function (): void {
+    config(['services.byteplus_speech.api_key' => 'test']);
+    $context = serialCharacterContext();
+    $other = User::factory()->create();
+    config(['horizon.allowed_emails' => [$other->email]]);
+    Http::fake();
+
+    actingAs($other)->postJson(route('characters.revisions.voice_preview', [...$context['params'], 'revision' => $context['revision']]), [
+        'voice_id' => 'multi_female_sophie_v3_uranus_bigtts', 'text' => 'Я тебя слышу.', 'lock_version' => 0,
+    ])->assertNotFound();
+
+    Http::assertNothingSent();
+});
+
+test('слишком большой ответ отклоняется без повторной генерации', function (): void {
+    $context = serialCharacterContext();
+    config(['services.byteplus_speech.api_key' => 'test']);
+    Http::fake(['*' => Http::response(str_repeat('x', 3 * 1024 * 1024 + 1))]);
+
+    actingAs(serialOperator())->postJson(route('characters.revisions.voice_preview', [...$context['params'], 'revision' => $context['revision']]), [
+        'voice_id' => 'multi_female_sophie_v3_uranus_bigtts', 'text' => 'Я тебя слышу.', 'lock_version' => 0,
+    ])->assertStatus(502)->assertJsonPath('message', 'Ответ BytePlus превысил допустимый размер.');
+
+    Http::assertSentCount(1);
+});

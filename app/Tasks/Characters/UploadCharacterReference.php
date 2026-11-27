@@ -44,7 +44,9 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['revision' => 'Create a draft version before changing character references.']);
         }
 
-        if ($revision->lock_version !== $data->lock_version) {
+        $expectedVersion = $voice ? $data->lock_version : ($data->lock_version ?? 0);
+
+        if ($revision->lock_version !== $expectedVersion) {
             throw ValidationException::withMessages(['lock_version' => 'The character references were changed. Refresh them before uploading.']);
         }
 
@@ -103,11 +105,13 @@ class UploadCharacterReference
             $revision->lock_version++;
             $this->characterRevisions->save($revision);
 
-            DB::afterRollBack(fn() => $this->discardFiles($media));
+            if ($voice) {
+                DB::afterRollBack(fn() => $this->discardFiles($media));
+            }
 
             if ($previous instanceof Media) {
                 $previous->deleteQuietly();
-                DB::afterCommit(fn() => $this->discardFiles($previous));
+                DB::afterCommit(fn() => rescue(fn() => $this->discardFiles($previous)));
             }
         } catch (Throwable $exception) {
             $media ??= $this->mediaRepository->referenceByFileName($revision, $fileName);

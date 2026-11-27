@@ -339,6 +339,7 @@ test('реплики и голос персонажа фиксируются в 
 
     $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'dialogue-1');
 
+    expect(data_get($prompt->input_snapshot, 'characters.0'))->not->toHaveKey('voice_sample');
     expect($prompt->prompt)->toContain('The adventure begins.', 'calm and warm', 'series language', 'pinned voice blueprint');
     expect(data_get($prompt->input_snapshot, 'video.generate_audio'))->toBeTrue();
     expect(data_get($prompt->input_snapshot, 'audio_mode'))->toBe('native');

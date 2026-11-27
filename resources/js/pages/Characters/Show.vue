@@ -34,6 +34,7 @@ const sectionHash = ref('');
 const newVersion = computed(() => !archived.value && sectionHash.value === '#new-version');
 const selectedRevision = computed(() => props.revisions.data.find((revision) => sectionHash.value === '#revision-' + revision.id));
 const editableVersions = computed(() => (archived.value ? [] : props.revisions.data.filter((revision) => revision.status === 'draft')));
+const latestRevisionId = computed(() => (props.revisions.meta.current_page === 1 ? props.revisions.data[0]?.id : undefined));
 const uploadRevision = computed(() => editableVersions.value.find((revision) => sectionHash.value === '#references-' + revision.id));
 const referenceCount = computed(() => props.revisions.data.reduce((total, version) => total + (version.references?.length ?? 0), 0));
 const referenceCountLabel = computed(() => formatCount(referenceCount.value, 'изображение', 'изображения', 'изображений'));
@@ -133,6 +134,7 @@ function changePage(page: number) {
                     v-if="uploadRevision"
                     :key="uploadRevision.id + ':' + uploadRevision.lock_version"
                     :revision="uploadRevision"
+                    :latest-revision="uploadRevision.id === latestRevisionId"
                     :params="params"
                     :speech-voices="speechVoices"
                     :reference-views="referenceViews"
@@ -266,7 +268,7 @@ function changePage(page: number) {
                             :key="revision.id + ':' + revision.lock_version"
                             :focused="!!selectedRevision"
                             :revision="revision"
-                            :latest-revision="revisions.meta.current_page === 1 && revisions.data[0]?.id === revision.id"
+                            :latest-revision="revision.id === latestRevisionId"
                             :approved-revision="character.current_revision"
                             :params="params"
                             :speech-voices="speechVoices"

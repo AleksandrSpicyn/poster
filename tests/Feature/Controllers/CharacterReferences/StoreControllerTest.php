@@ -195,3 +195,14 @@ test('другая вкладка изменила черновик во вре�
     expect($context['revision']->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE)->sole()->id)->toBe($media->id);
     expect(hash_file('sha256', $media->getPath()))->toBe($media->getCustomProperty('checksum'));
 })->with([true, false]);
+
+test('запись голоса требует версии даже у нового черновика', function (): void {
+    Storage::fake('local');
+    $context = serialCharacterContext();
+
+    actingAs(serialOperator())->postJson(route('characters.references.store', [...$context['params'], 'revision' => $context['revision']]), [
+        'view' => 'voice', 'file' => UploadedFile::fake()->createWithContent('sample.wav', serialVoiceWav()),
+    ])->assertUnprocessable()->assertJsonValidationErrors('lock_version');
+
+    expect($context['revision']->media()->exists())->toBeFalse();
+});
