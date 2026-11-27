@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Classes\Generators\VideoGenerator\Seedance\Enums\Model;
 use App\Classes\Generators\VideoGenerator\Seedance\Seedance;
+use App\Data\AudioReferenceData;
 use App\Data\VideoGenerationRequestData;
 use App\Enums\VideoInputMode;
 use App\Exceptions\VideoGeneratingException;
@@ -261,3 +262,46 @@ test('Seedance возвращает последний кадр и метада�
     expect($result?->model)->toBe(Model::V2_5->value);
     Http::assertSentCount(1);
 });
+
+test('Seedance Mini привязывает два голоса к одному визуальному референсу', function (): void {
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'sample-voices'])]);
+    $request = new VideoGenerationRequestData(
+        prompt: 'Audio 1 is Erven. Audio 2 is Saven.',
+        duration: 8,
+        model: Model::V2_0_MINI->value,
+        mode: VideoInputMode::REFERENCES,
+        referenceImageUrls: ['https://cdn.example.com/court.png'],
+        audioReferences: [new AudioReferenceData('asset://voice-a', 3000), new AudioReferenceData('asset://voice-b', 4000)],
+    );
+
+    app(Seedance::class)->generate($request);
+
+    Http::assertSent(fn(Request $http): bool => data_get($http->data(), 'content.1.role') === 'reference_image'
+        && data_get($http->data(), 'content.2') === ['type' => 'audio_url', 'audio_url' => ['url' => 'asset://voice-a'], 'role' => 'reference_audio']
+        && data_get($http->data(), 'content.3.audio_url.url') === 'asset://voice-b');
+});
+
+test('Seedance Mini проверяет образцы до отправки', function (array $durations, VideoInputMode $mode, bool $audio): void {
+    Http::fake();
+    /** @var list<int> $durations */
+    $request = new VideoGenerationRequestData(
+        prompt: 'Dialogue',
+        duration: 8,
+        model: Model::V2_0_MINI->value,
+        mode: $mode,
+        firstFrameUrl: $mode === VideoInputMode::FIRST_FRAME ? 'frame.png' : null,
+        referenceImageUrls: $mode === VideoInputMode::REFERENCES ? ['frame.png'] : [],
+        generateAudio: $audio,
+        audioReferences: array_map(fn(int $duration): AudioReferenceData => new AudioReferenceData('asset://sample', $duration), $durations),
+    );
+
+    expect(fn() => app(Seedance::class)->generate($request))->toThrow(InvalidArgumentException::class);
+
+    Http::assertNothingSent();
+})->with([
+    [[4000, 4000, 4000, 2000], VideoInputMode::REFERENCES, true],
+    [[9000, 7000], VideoInputMode::REFERENCES, true],
+    [[1900], VideoInputMode::REFERENCES, true],
+    [[3000], VideoInputMode::FIRST_FRAME, true],
+    [[3000], VideoInputMode::REFERENCES, false],
+]);

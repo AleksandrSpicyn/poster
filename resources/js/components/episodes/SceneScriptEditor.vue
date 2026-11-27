@@ -85,6 +85,22 @@ function error(path: string): string | undefined {
         @focusin="rememberActiveLine"
     >
         <legend class="sr-only">Сценарий эпизода</legend>
+        <label class="grid gap-1"
+            >Длительность этого эпизода, с
+            <input
+                type="number"
+                min="4"
+                max="300"
+                class="rounded border p-2"
+                placeholder="Из паспорта сериала"
+                :value="model.target_duration_seconds ?? ''"
+                @input="model.target_duration_seconds = ($event.target as HTMLInputElement).valueAsNumber || null"
+            />
+        </label>
+        <label class="grid gap-1"
+            >Постановочные заметки эпизода
+            <textarea v-model="model.scene_notes" rows="2" maxlength="4000" class="rounded border p-2" />
+        </label>
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
                 <Label for="script-title">Название эпизода</Label

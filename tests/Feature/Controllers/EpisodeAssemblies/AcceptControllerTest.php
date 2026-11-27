@@ -62,3 +62,18 @@ test('приёмка эпизода автоматически ставит эк
     Queue::assertPushed(AdvanceVideoUpscaleJob::class, fn(AdvanceVideoUpscaleJob $job): bool => $job->operationId === $operation->id);
     Http::assertNothingSent();
 });
+
+test('приёмка реплик сохраняет подтверждение прослушивания конкретного монтажа', function (): void {
+    Storage::fake('local');
+    Queue::fake();
+    $context = episodeHttpFixture();
+    $assembly = EpisodeAssembly::factory()->for($context['revision'])->ready()->create(['manifest' => ['requires_audio_review' => true]]);
+    $assembly->addMedia(base_path('tests/Fixtures/shot.mp4'))->preservingOriginal()->toMediaCollection(EpisodeAssembly::VIDEO);
+    $payload = ['lock_version' => 0, 'confirmed_events' => 'Принят указ.', 'character_state' => 'Совет окончен.', 'open_threads' => 'Ждут вестей.', 'scene_closed' => true];
+    $url = route('episodes.assemblies.accept', [...$context['params'], 'assembly' => $assembly]);
+
+    actingAs($context['user'])->postJson($url, $payload)->assertUnprocessable()->assertJsonValidationErrors('audio_reviewed');
+    actingAs($context['user'])->post($url, [...$payload, 'audio_reviewed' => true])->assertSessionHasNoErrors();
+
+    expect($assembly->refresh()->continuity_snapshot['audio_reviewed_by'])->toBe($context['user']->id);
+});

@@ -15,5 +15,6 @@ enum ReferenceView: string
     case THREE_QUARTER = 'three_quarter';
     case FULL_BODY = 'full_body';
     case EXPRESSION = 'expression';
+    case VOICE = 'voice';
     case OTHER = 'other';
 }

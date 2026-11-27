@@ -73,6 +73,10 @@ readonly class Seedance extends AsyncVideoGenerator
                 ];
             }
 
+            foreach ($request->audioReferences as $audio) {
+                $content[] = ['type' => 'audio_url', 'audio_url' => ['url' => $audio->url], 'role' => 'reference_audio'];
+            }
+
             if ($request->mode === VideoInputMode::EXTEND) {
                 $content[] = [
                     'type' => 'video_url',
@@ -130,6 +134,12 @@ readonly class Seedance extends AsyncVideoGenerator
             supportsLastFrame: true,
             supportsReturnLastFrame: true,
             supportsAudioGeneration: true,
+            maxAudioReferences: match ($model) {
+                Model::V2_5 => 10,
+                Model::V2_5_FLASH => 5,
+                default => 3,
+            },
+            maxReferenceAudioMs: $model->supportsExtension() ? 30000 : 15000,
         );
     }
 

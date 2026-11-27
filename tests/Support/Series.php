@@ -89,3 +89,12 @@ function storyScriptPayload(CharacterRevision $character): array
         ]],
     ];
 }
+
+function serialVoiceWav(int $seconds = 3): string
+{
+    $pcm = str_repeat(pack('v*', 500, 0, 65036, 0), $seconds * 2000);
+    $size = strlen($pcm);
+
+    return 'RIFF' . pack('V', 36 + $size) . 'WAVEfmt ' . pack('VvvVVvv', 16, 1, 1, 8000, 16000, 2, 16)
+        . 'data' . pack('V', $size) . $pcm;
+}

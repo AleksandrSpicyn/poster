@@ -7,7 +7,6 @@ namespace App\Data\Characters;
 use App\Enums\ReferenceView;
 use Illuminate\Http\UploadedFile;
 use Spatie\LaravelData\Attributes\Validation\File;
-use Spatie\LaravelData\Attributes\Validation\Image;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Mimes;
 use Spatie\LaravelData\Attributes\Validation\Min;
@@ -21,7 +20,7 @@ class CharacterReferenceData extends Data
     public const int MAX_REFERENCES = 30;
 
     public function __construct(
-        #[Required, File, Image, Mimes('png', 'jpg', 'jpeg', 'webp'), Max(self::MAX_SIZE_KB)]
+        #[Required, File, Mimes('png', 'jpg', 'jpeg', 'webp', 'wav', 'mp3'), Max(self::MAX_SIZE_KB)]
         public UploadedFile $file,
         public ReferenceView $view,
         #[Max(255)]

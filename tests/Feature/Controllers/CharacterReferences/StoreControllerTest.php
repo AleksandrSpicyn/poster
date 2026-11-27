@@ -10,6 +10,7 @@ use function Pest\Laravel\actingAs;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
 use function Tests\Support\serialReferenceUpload;
+use function Tests\Support\serialVoiceWav;
 
 test('загрузка сохраняет приватный файл с ракурсом и контрольной суммой', function (): void {
     Storage::fake('local');
@@ -99,4 +100,21 @@ test('загрузка не прикрепляет файл к чужой вер
         ->assertNotFound();
 
     expect($other->media()->count())->toBe(0);
+});
+
+test('сохраняет один закрытый образец речи отдельно от внешности', function (): void {
+    Storage::fake('local');
+    $context = serialCharacterContext();
+    $url = route('characters.references.store', [...$context['params'], 'revision' => $context['revision']]);
+    $file = fn() => UploadedFile::fake()->createWithContent('voice.wav', serialVoiceWav());
+
+    actingAs(serialOperator())->post($url, ['view' => 'voice', 'file' => $file(), 'lock_version' => 0])->assertRedirect();
+    $media = $context['revision']->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE)->sole();
+
+    expect($media->disk)->toBe('local')
+        ->and($media->getCustomProperty('duration_ms'))->toBe(3000)
+        ->and($media->getCustomProperty('checksum'))->toBe(hash_file('sha256', $media->getPath()))
+        ->and($context['revision']->getMedia(CharacterRevision::REFERENCES))->toBeEmpty();
+    actingAs(serialOperator())->postJson($url, ['view' => 'voice', 'file' => $file(), 'lock_version' => 1])
+        ->assertUnprocessable()->assertJsonValidationErrors('file');
 });

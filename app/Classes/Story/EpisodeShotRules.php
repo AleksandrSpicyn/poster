@@ -8,6 +8,7 @@ use App\Data\Episodes\DialogueLineData;
 use App\Data\Episodes\EpisodeScriptData;
 use App\Data\Episodes\ShotData;
 use App\Enums\SeriesAudioMode;
+use App\Enums\ShotCueKind;
 use App\Enums\TransitionMode;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
@@ -28,7 +29,7 @@ final readonly class EpisodeShotRules
      */
     public function validate(Episode $episode, EpisodeScriptData $script, Collection $shots, Collection $characters, array $context): void
     {
-        $characterIds = $characters->pluck('character_id');
+        $characterIds = $characters->map(static fn(CharacterRevision $revision): int => $revision->character_id);
         $silent = data_get($context, 'specification.audio_mode') === SeriesAudioMode::SILENT->value;
         $sourceIds = array_values($shots->map(fn(ShotData $shot): ?int => $shot->source_prompt_id)->filter()->unique()->all());
         $sources = $this->prompts->readySources($episode, $sourceIds);
@@ -38,6 +39,26 @@ final readonly class EpisodeShotRules
 
         foreach ($script->scenes as $scenePosition => $scene) {
             foreach ($scene->shots as $shotPosition => $shot) {
+                $direction = $shot->direction;
+
+                if ($direction !== null && array_diff($direction->visible_character_ids ?? [], $characterIds->all()) !== []) {
+                    throw ValidationException::withMessages(['script.scenes' => 'Выберите участников кадра из состава эпизода.']);
+                }
+
+                foreach ($shot->dialogue as $line) {
+                    if (($line->start_ms === null) !== ($line->end_ms === null)
+                        || ($line->start_ms !== null && ($line->end_ms <= $line->start_ms || $line->end_ms > $shot->duration_ms))) {
+                        throw ValidationException::withMessages(['script.scenes' => 'Проверьте начало и конец реплики внутри кадра.']);
+                    }
+                }
+
+                foreach ($direction->cues ?? [] as $cue) {
+                    if ($cue->end_ms <= $cue->start_ms || $cue->end_ms > $shot->duration_ms || ($cue->kind === ShotCueKind::TEXT && $cue->asset_id !== null)
+                        || ($cue->kind === ShotCueKind::INSERT && $cue->asset_id === null) || ($silent && $cue->kind === ShotCueKind::SOUND)) {
+                        throw ValidationException::withMessages(['script.scenes' => 'Проверьте тип и интервал звука или титра.']);
+                    }
+                }
+
                 if ($silent && $shot->dialogue !== []) {
                     throw ValidationException::withMessages(['script.scenes.' . $scenePosition . '.shots.' . $shotPosition . '.dialogue' => 'Silent series cannot contain dialogue. Remove the lines or select speech and sound in the series brief.']);
                 }

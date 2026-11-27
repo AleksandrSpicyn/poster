@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class ShowController extends Controller
 {
     /**
-     * Просмотр приватного изображения-референса
+     * Просмотр приватного референса персонажа
      *
      * Требуются сессия, подтверждённый email и CSRF для изменений.
      * Вложенные ресурсы ограничены своим родителем. Данные кабинета общие.

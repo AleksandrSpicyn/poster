@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Actions\Production;
 
+use App\Actions\Episodes\SaveEpisodeScriptAction;
 use App\Data\Episodes\GenerateEpisodeScriptData;
 use App\Enums\ProductionStage;
 use App\Enums\ProductionStatus;
 use App\Enums\ScriptGenerationStatus;
 use App\Jobs\GenerateEpisodeScriptJob;
 use App\Models\ProductionRun;
+use App\Models\Series;
 use App\Models\User;
 use App\Tasks\Episodes\ApproveEpisodeScript;
 use App\Tasks\Episodes\BuildEpisodeContext;
@@ -22,6 +24,7 @@ use RuntimeException;
 readonly class ProduceSeriesScreenplaySubAction
 {
     public function __construct(
+        private SaveEpisodeScriptAction $scripts,
         private UpdateProductionRun $update,
         private BuildEpisodeContext $context,
         private QueueEpisodeScript $queueScript,
@@ -33,6 +36,14 @@ readonly class ProduceSeriesScreenplaySubAction
     {
         $episode = $run->episode ?? throw new RuntimeException('The production episode is unavailable.');
         $revision = $episode->currentRevision;
+
+        if ($revision === null && $episode->script_generation_status !== ScriptGenerationStatus::QUEUED && $episode->script_generation_status !== ScriptGenerationStatus::RUNNING) {
+            $season = $episode->series?->getMedia(Series::ASSETS)->filter(fn($item): bool => $item->getCustomProperty('kind') === 'season')->sortByDesc('id')->first();
+
+            if ($season !== null) {
+                $revision = $this->scripts->importSeason($episode, $season->id, $episode->lock_version);
+            }
+        }
 
         if ($revision !== null) {
             $this->assertScreenplay->run($revision);

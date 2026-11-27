@@ -9,6 +9,10 @@ use Spatie\LaravelData\Data;
 
 class AssemblyClipData extends Data
 {
+    /**
+     * @param list<ShotCueData> $cues
+     * @param array<array-key, mixed> $assets
+     */
     public function __construct(
         public readonly int $mediaId,
         public readonly int $promptId,
@@ -17,6 +21,9 @@ class AssemblyClipData extends Data
         public readonly int $trimEndMs,
         public readonly int $durationMs,
         public readonly bool $muteAudio,
+        public readonly array $cues = [],
+        public readonly array $assets = [],
+        public readonly ?int $seriesId = null,
     ) {}
 
     public static function fromSnapshot(mixed $shot): self
@@ -30,6 +37,17 @@ class AssemblyClipData extends Data
             throw new RuntimeException('The assembly manifest contains an invalid trim or media reference.');
         }
 
-        return new self($shot['media_id'], $shot['prompt_id'], $shot['checksum'], $shot['trim_start_ms'], $shot['trim_end_ms'], $shot['duration_ms'], $shot['mute_audio'] ?? false);
+        return new self(
+            $shot['media_id'],
+            $shot['prompt_id'],
+            $shot['checksum'],
+            $shot['trim_start_ms'],
+            $shot['trim_end_ms'],
+            $shot['duration_ms'],
+            $shot['mute_audio'] ?? false,
+            array_values(array_map(ShotCueData::from(...), is_array($shot['cues'] ?? null) ? $shot['cues'] : [])),
+            is_array($shot['assets'] ?? null) ? $shot['assets'] : [],
+            is_int($shot['series_id'] ?? null) ? $shot['series_id'] : null,
+        );
     }
 }

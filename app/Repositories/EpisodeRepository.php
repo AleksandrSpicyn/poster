@@ -36,7 +36,7 @@ readonly class EpisodeRepository extends EloquentRepository
 
     public function workspace(Episode $episode): EpisodeWorkspaceData
     {
-        $episode->loadMissing('series.project.media', 'series.project.coverFrame');
+        $episode->loadMissing('series.media', 'series.project.media', 'series.project.coverFrame');
         $episode->load([
             'currentRevision.characterRevisions:character_revisions.id',
             'currentRevision.scenes.shots.prompts' => static function (HasMany $query): void {
@@ -64,7 +64,7 @@ readonly class EpisodeRepository extends EloquentRepository
         $characters = CharacterRevision::query()
             ->where('status', RevisionStatus::APPROVED)
             ->whereHas('character', fn($query) => $query->where('series_id', $series->id)->whereNull('archived_at'))
-            ->with('character')
+            ->with('character', 'media')
             ->orderByDesc('id')
             ->limit(100)
             ->get();

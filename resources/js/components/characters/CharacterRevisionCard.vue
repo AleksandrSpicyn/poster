@@ -46,6 +46,7 @@ const viewLabels: Record<string, string> = {
     full_body: 'В полный рост',
     expression: 'Выражение лица',
     other: 'Другой ракурс',
+    voice: 'Образец голоса',
 };
 function viewLabel(view: string) {
     return viewLabels[view] ?? props.referenceViews[view] ?? view;
@@ -63,7 +64,7 @@ function upload() {
         preserveScroll: true,
         preserveState: 'errors',
         onNetworkError: () => {
-            uploadFailure.value = 'Соединение прервалось. Существующие изображения сохранены.';
+            uploadFailure.value = 'Соединение прервалось. Проверьте список референсов перед повторной загрузкой.';
             return false;
         },
         onHttpException: (response) => {
@@ -91,6 +92,12 @@ function remove(media: number) {
             return false;
         },
     });
+}
+function selectVoiceFile(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    uploadForm.file = file ?? null;
+    uploadForm.clearErrors('file');
+    uploadFailure.value = '';
 }
 function selectFile(file: File) {
     uploadFailure.value = '';
@@ -179,6 +186,14 @@ function selectFile(file: File) {
                 </dl>
                 <p v-if="!archived" class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
             </div>
+            <div v-if="revision.voice_sample" class="space-y-2">
+                <h3 class="text-sm font-semibold">Образец голоса</h3>
+                <audio controls preload="none" :src="revision.voice_sample.url" aria-label="Прослушать голос персонажа" class="w-full" />
+                <Button v-if="editable" type="button" variant="outline" :disabled="busy || editForm.isDirty" @click="remove(revision.voice_sample.id)"
+                    >Удалить образец голоса</Button
+                >
+                <InputError :message="removeFailure || removeErrors.revision || removeForm.errors.lock_version" />
+            </div>
             <div class="space-y-3">
                 <h3 class="text-sm font-semibold">Референсы</h3>
                 <p v-if="!revision.references?.length" class="text-muted-foreground text-sm">
@@ -248,8 +263,38 @@ function selectFile(file: File) {
                 <strong>{{ viewLabel(revision.references[0].view) }} · текущий референс</strong>
             </div>
             <slot v-if="!uploadFailure" name="version" />
+            <div v-show="!uploadFailure" class="grid gap-2">
+                <Label :for="'reference-view-' + revision.id">Тип референса</Label
+                ><select
+                    :id="'reference-view-' + revision.id"
+                    v-model="uploadForm.view"
+                    :disabled="busy"
+                    class="border-input bg-background h-11 rounded-md border px-3 text-sm"
+                    @change="
+                        uploadForm.file = null;
+                        uploadForm.clearErrors();
+                    "
+                >
+                    <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value">{{ viewLabel(value) }}</option></select
+                ><InputError :message="uploadForm.errors.view" />
+            </div>
             <div class="grid min-w-0 gap-2">
+                <template v-if="uploadForm.view === 'voice'">
+                    <Label :for="'voice-sample-' + revision.id">Запись одного говорящего без музыки</Label>
+                    <input
+                        :id="'voice-sample-' + revision.id"
+                        type="file"
+                        accept=".wav,.mp3,audio/wav,audio/mpeg"
+                        required
+                        :disabled="busy || editForm.isDirty"
+                        @change="selectVoiceFile"
+                    />
+                    <p class="text-muted-foreground text-xs">
+                        WAV или MP3, 2–30 с, до 10 МБ. Для диалога трёх героев в Seedance Mini подойдут записи по 3–5 с.
+                    </p>
+                </template>
                 <ImageFilePicker
+                    v-else
                     label="Изображение персонажа"
                     required
                     :file="uploadForm.file"
@@ -257,17 +302,6 @@ function selectFile(file: File) {
                     @select="selectFile"
                 />
                 <InputError :message="uploadForm.errors.file" />
-            </div>
-            <div v-show="!uploadFailure" class="grid gap-2">
-                <Label :for="'reference-view-' + revision.id">Проекция</Label
-                ><select
-                    :id="'reference-view-' + revision.id"
-                    v-model="uploadForm.view"
-                    :disabled="busy"
-                    class="border-input bg-background h-11 rounded-md border px-3 text-sm"
-                >
-                    <option v-for="value in Object.keys(referenceViews)" :key="value" :value="value">{{ viewLabel(value) }}</option></select
-                ><InputError :message="uploadForm.errors.view" />
             </div>
             <div v-show="!uploadFailure" class="grid gap-2">
                 <Label :for="'reference-label-' + revision.id">Подпись</Label

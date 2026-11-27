@@ -11,7 +11,10 @@ use Spatie\LaravelData\Data;
 /** Параметры фиксируются до внешней отправки и сохраняются вместе с дублем. */
 class VideoGenerationRequestData extends Data
 {
-    /** @param list<string> $referenceImageUrls */
+    /**
+     * @param list<string> $referenceImageUrls
+     * @param list<AudioReferenceData> $audioReferences
+     */
     public function __construct(
         public string $prompt,
         public int $duration,
@@ -25,6 +28,7 @@ class VideoGenerationRequestData extends Data
         public string $aspectRatio = 'adaptive',
         public bool $returnLastFrame = true,
         public bool $generateAudio = true,
+        public array $audioReferences = [],
     ) {}
 
     public function assertValid(): void
@@ -43,7 +47,8 @@ class VideoGenerationRequestData extends Data
             VideoInputMode::EXTEND => $hasSourceVideo && $this->firstFrameUrl === null && $this->lastFrameUrl === null,
         };
 
-        if (! $valid || ($this->lastFrameUrl !== null && trim($this->lastFrameUrl) === '')
+        if (($this->audioReferences !== [] && ($this->mode !== VideoInputMode::REFERENCES || ! $this->generateAudio)) || ! $valid || ($this->lastFrameUrl !== null && trim($this->lastFrameUrl) === '')
+            || collect($this->audioReferences)->contains(static fn(AudioReferenceData $audio): bool => trim($audio->url) === '')
             || collect($this->referenceImageUrls)->contains(fn(string $url): bool => trim($url) === '')) {
             throw new InvalidArgumentException('Video inputs do not match the selected generation mode.');
         }

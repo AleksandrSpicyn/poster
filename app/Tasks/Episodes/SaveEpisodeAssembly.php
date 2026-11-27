@@ -8,6 +8,7 @@ use App\Data\Episodes\AssemblyManifestData;
 use App\Enums\AssemblyStatus;
 use App\Enums\RevisionStatus;
 use App\Enums\SeriesAudioMode;
+use App\Enums\ShotCueKind;
 use App\Models\EpisodeAssembly;
 use App\Models\EpisodeRevision;
 use App\Models\Prompt;
@@ -49,6 +50,7 @@ class SaveEpisodeAssembly
         $prompts = $this->prompts->assemblySelection($data);
         $manifestShots = [];
         $selectedMedia = [];
+        $requiresAudioReview = false;
 
         foreach ($data->shots as $position => $selection) {
             $shot = $shots->get($position);
@@ -78,6 +80,12 @@ class SaveEpisodeAssembly
                 throw ValidationException::withMessages(['shots.' . $position => 'A selected take is unavailable.']);
             }
 
+            $direction = $shot->direction();
+            $characters = $prompt->input_snapshot['characters'] ?? [];
+            $hasVoiceSample = collect(is_array($characters) ? $characters : [])->contains(fn(mixed $character): bool => data_get($character, 'voice_sample.media_id') !== null);
+            $hasTimedDialogue = collect($shot->dialogue)->contains(fn(array $line): bool => isset($line['start_ms']));
+            $requiresAudioReview = $requiresAudioReview || $hasVoiceSample || $hasTimedDialogue || ($direction !== null && ($shot->dialogue !== [] || collect($direction->cues)->contains('kind', ShotCueKind::SOUND)));
+
             $selectedMedia[] = $media->id;
             $manifestShots[] = [
                 'shot_id' => $shot->id,
@@ -87,6 +95,11 @@ class SaveEpisodeAssembly
                 'trim_start_ms' => $selection->trim_start_ms,
                 'trim_end_ms' => $end,
                 'duration_ms' => $end - $selection->trim_start_ms,
+                ...($shot->direction() === null ? [] : [
+                    'cues' => data_get($prompt->input_snapshot, 'direction.cues', []),
+                    'assets' => $prompt->input_snapshot['series_assets'] ?? [],
+                    'series_id' => $series->id,
+                ]),
                 'mute_audio' => data_get($prompt->input_snapshot, 'audio_mode') === SeriesAudioMode::SILENT->value,
             ];
         }
@@ -107,6 +120,7 @@ class SaveEpisodeAssembly
         $manifest = [
             'schema_version' => 1,
             'shots' => $manifestShots,
+            ...($requiresAudioReview ? ['requires_audio_review' => true] : []),
             'duration_ms' => array_sum(array_column($manifestShots, 'duration_ms')),
         ];
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR));

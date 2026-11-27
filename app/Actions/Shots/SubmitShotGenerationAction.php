@@ -81,7 +81,7 @@ readonly class SubmitShotGenerationAction
                     $next = $this->update->run($operation, GenerationOperationStatus::SUCCEEDED, ['result_snapshot' => [...($operation->result_snapshot ?? []), 'video_media_id' => $media->id]]);
                 }
 
-                if ($next instanceof GenerationOperation) {
+                if ($next instanceof GenerationOperation && $next->status === GenerationOperationStatus::PLANNED) {
                     SubmitShotGenerationJob::dispatch($next->id)->afterCommit();
                 }
             } catch (CodexBusyException) {

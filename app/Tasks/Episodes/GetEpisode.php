@@ -9,6 +9,7 @@ use App\Data\Episodes\EpisodeScriptData;
 use App\Data\Episodes\EpisodeWorkspaceData;
 use App\Data\Episodes\SceneData;
 use App\Data\Episodes\ShotData;
+use App\Data\Episodes\ShotDirectionData;
 use App\Models\CharacterRevision;
 use App\Models\Episode;
 use App\Models\Scene;
@@ -49,9 +50,12 @@ class GetEpisode
                         is_int($shot->source_anchor['time_ms'] ?? null) ? $shot->source_anchor['time_ms'] : 0,
                         $shot->title,
                         $shot->plan_type,
+                        isset($shot->camera['direction']) ? ShotDirectionData::from($shot->camera['direction']) : null,
                     ))->all()),
                 ))->all()),
                 $revision->public_caption,
+                is_int($revision->context_snapshot['target_duration_seconds'] ?? null) ? $revision->context_snapshot['target_duration_seconds'] : null,
+                is_string($revision->context_snapshot['scene_notes'] ?? null) ? $revision->context_snapshot['scene_notes'] : null,
             );
         }
 

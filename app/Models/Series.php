@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property SeriesOutputMode $output_mode
@@ -48,10 +50,19 @@ use Illuminate\Support\Carbon;
  * @property-read ProductionRun|null $latestProductionRun
  * @property-read ProductionRun|null $activeProductionRun
  */
-class Series extends Model
+class Series extends Model implements HasMedia
 {
     /** @use HasFactory<SeriesFactory> */
     use HasFactory;
+
+    use InteractsWithMedia;
+
+    public const string ASSETS = 'series-assets';
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::ASSETS)->useDisk('local');
+    }
 
     protected $fillable = [
         'project_id',

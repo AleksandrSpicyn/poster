@@ -46,7 +46,7 @@ readonly class SeriesRepository extends EloquentRepository
 
     public function workspace(Series $series, int $page): SeriesWorkspaceData
     {
-        $series->loadMissing('project.media', 'project.coverFrame', 'latestProductionRun.episode')->loadCount(['characters' => static fn(Builder $query) => $query->whereNull('archived_at'), 'episodes']);
+        $series->loadMissing('media', 'project.media', 'project.coverFrame', 'latestProductionRun.episode')->loadCount(['characters' => static fn(Builder $query) => $query->whereNull('archived_at'), 'episodes']);
         $series->project?->loadMissing(['channels' => fn($query) => $query->where('channels.owner_id', $series->project?->owner_id)]);
         $series->latestProductionRun?->loadExists([
             'generationOperations as has_reviewed_take' => fn(Builder $query) => $query

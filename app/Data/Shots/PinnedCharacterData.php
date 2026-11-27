@@ -21,5 +21,6 @@ class PinnedCharacterData extends Data
         public readonly array $appearance,
         public readonly array $voice,
         public readonly array $references,
+        public readonly ?PinnedVoiceSampleData $voice_sample = null,
     ) {}
 }

@@ -20,6 +20,7 @@ class EpisodeAssemblyResource extends JsonResource
             'number' => $this->number,
             'status' => $this->status->value,
             'lock_version' => $this->lock_version,
+            'requires_audio_review' => ($this->manifest['requires_audio_review'] ?? false) === true,
             'duration_ms' => $this->duration_ms,
             'selection' => $this->selection(),
             'error_message' => $this->error_message,

@@ -16,5 +16,6 @@ class AcceptEpisodeData extends Data
         #[Min(1), Max(8000)] public string $character_state,
         #[Max(8000)] public string $open_threads,
         public bool $scene_closed,
+        public bool $audio_reviewed = false,
     ) {}
 }

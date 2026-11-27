@@ -13,7 +13,7 @@ class GetCharacterReference
     {
         abort_unless($media->model_type === $revision->getMorphClass()
             && $media->model_id === $revision->id
-            && $media->collection_name === CharacterRevision::REFERENCES
+            && in_array($media->collection_name, [CharacterRevision::REFERENCES, CharacterRevision::VOICE_SAMPLE], true)
             && $media->disk === 'local', 404);
 
         $path = $media->getPath();

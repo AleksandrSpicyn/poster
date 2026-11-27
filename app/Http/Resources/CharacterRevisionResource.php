@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\CharacterRevision;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** @mixin CharacterRevision */
 class CharacterRevisionResource extends JsonResource
@@ -26,7 +27,12 @@ class CharacterRevisionResource extends JsonResource
             'voice' => $this->voice,
             'lock_version' => $this->lock_version,
             'approved_at' => $this->approved_at?->toISOString(),
-            'references' => $this->whenLoaded('media', fn(): array => CharacterReferenceResource::collection($this->media)->resolve($request)),
+            'voice_sample' => $this->whenLoaded('media', function (): ?CharacterReferenceResource {
+                $sample = $this->getFirstMedia(CharacterRevision::VOICE_SAMPLE);
+
+                return $sample instanceof Media ? new CharacterReferenceResource($sample) : null;
+            }),
+            'references' => $this->whenLoaded('media', fn(): array => CharacterReferenceResource::collection($this->getMedia(CharacterRevision::REFERENCES))->resolve($request)),
         ];
     }
 }

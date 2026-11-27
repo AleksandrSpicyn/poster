@@ -77,6 +77,10 @@ class AcceptEpisode
                 throw ValidationException::withMessages(['assembly' => 'Only a ready assembly of the current approved screenplay and story context can be accepted.']);
             }
 
+            if (($assembly->manifest['requires_audio_review'] ?? false) === true && ! $data->audio_reviewed) {
+                throw ValidationException::withMessages(['audio_reviewed' => 'Прослушайте сборку и подтвердите голоса, реплики и звуковые склейки.']);
+            }
+
             $previous = $episode->predecessor_episode_id === null ? null : $this->episodes->forSeries($series->id, $episode->predecessor_episode_id);
 
             if (($previous instanceof Episode && ($previous->validity !== EpisodeValidity::CURRENT
@@ -89,6 +93,7 @@ class AcceptEpisode
                 'status' => AssemblyStatus::ACCEPTED,
                 'continuity_snapshot' => [
                     'schema_version' => 1,
+                    ...($data->audio_reviewed ? ['audio_reviewed_by' => $actor->id, 'audio_reviewed_at' => now()->toISOString()] : []),
                     'confirmed_events' => $data->confirmed_events,
                     'character_state' => $data->character_state,
                     'open_threads' => $data->open_threads,

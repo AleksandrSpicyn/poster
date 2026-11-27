@@ -30,11 +30,14 @@ class VideoCapabilitiesData extends Data
         public bool $supportsReturnLastFrame = false,
         public bool $supportsAudioGeneration = false,
         public array $durations = [],
+        public int $maxAudioReferences = 0,
+        public int $maxReferenceAudioMs = 0,
     ) {}
 
     public function assertSupports(VideoGenerationRequestData $request): void
     {
         $request->assertValid();
+        $this->assertAudioDurations(array_map(static fn(AudioReferenceData $audio): int => $audio->durationMs, $request->audioReferences));
 
         if ($request->model !== $this->model || ! in_array($request->mode, $this->modes, true)
             || $request->duration < $this->minDuration || $request->duration > $this->maxDuration
@@ -46,6 +49,15 @@ class VideoCapabilitiesData extends Data
             || ($request->returnLastFrame && ! $this->supportsReturnLastFrame)
             || ($request->generateAudio && ! $this->supportsAudioGeneration)) {
             throw new InvalidArgumentException('The video model does not support the requested generation parameters.');
+        }
+    }
+
+    /** @param list<int> $durationsMs */
+    public function assertAudioDurations(array $durationsMs): void
+    {
+        if (count($durationsMs) > $this->maxAudioReferences || array_sum($durationsMs) > $this->maxReferenceAudioMs
+            || ($durationsMs !== [] && min($durationsMs) < 2000)) {
+            throw new InvalidArgumentException('Образцы голосов превышают возможности выбранной модели. Допустимо записей: ' . $this->maxAudioReferences . ', суммарно секунд: ' . ($this->maxReferenceAudioMs / 1000) . '.');
         }
     }
 }

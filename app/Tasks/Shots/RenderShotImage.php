@@ -10,6 +10,7 @@ use App\Enums\TransitionMode;
 use App\Models\CharacterRevision;
 use App\Models\GenerationOperation;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Repositories\MediaRepository;
 use App\Repositories\PromptRepository;
 use App\Support\Integrations\Payload;
@@ -136,6 +137,29 @@ readonly class RenderShotImage
 
                     $preparedReferences[$media->id] = $data;
                 }
+            }
+
+            $assets = $snapshot['series_assets'] ?? [];
+
+            if (! is_array($assets)) {
+                throw new RuntimeException('Invalid series reference snapshot.');
+            }
+
+            $assetMedia = $this->media->byIds(array_map(intval(...), array_keys($assets)));
+
+            foreach ($assets as $id => $asset) {
+                if (! is_array($asset) || ($asset['kind'] ?? null) === 'sound') {
+                    continue;
+                }
+
+                $item = $assetMedia->get((int) $id);
+
+                if ($item === null || $item->disk !== 'local' || $item->model_type !== new Series()->getMorphClass() || (int) $item->model_id !== ($snapshot['series_id'] ?? null)
+                    || $item->collection_name !== Series::ASSETS || hash_file('sha256', $item->getPath()) !== ($asset['checksum'] ?? null)) {
+                    throw new RuntimeException('The approved series reference is unavailable or changed.');
+                }
+
+                $preparedReferences[$item->id] = new ImageReferenceData($item->getPath(), $item->name);
             }
 
             $referenceIds = $snapshot['reference_media_ids'] ?? null;

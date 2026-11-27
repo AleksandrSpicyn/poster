@@ -21,7 +21,8 @@ readonly class AssertProductionScreenplay
     {
         $this->revisions->withScreenplay($revision);
         $shots = $revision->scenes->flatMap(fn(Scene $scene) => $scene->shots);
-        $duration = data_get($revision->context_snapshot, 'specification.episode_duration_seconds');
+        $individual = $revision->context_snapshot['target_duration_seconds'] ?? null;
+        $duration = $individual ?? data_get($revision->context_snapshot, 'specification.episode_duration_seconds');
         $capabilities = $this->generators->make($this->generators->primary())->capabilities();
 
         if (! is_int($duration) || $shots->isEmpty() || $shots->sum('duration_ms') !== $duration * 1000) {
@@ -30,7 +31,7 @@ readonly class AssertProductionScreenplay
 
         $target = data_get($revision->context_snapshot, 'specification.shot_duration_seconds');
 
-        if (is_int($target) && $target > 0 && $duration % $target === 0 && $target >= $capabilities->minDuration && $target <= $capabilities->maxDuration
+        if ($individual === null && is_int($target) && $target > 0 && $duration % $target === 0 && $target >= $capabilities->minDuration && $target <= $capabilities->maxDuration
             && ($capabilities->durations === [] || in_array($target, $capabilities->durations, true))
             && $shots->contains(fn($shot): bool => $shot->duration_ms !== $target * 1000)) {
             throw ValidationException::withMessages(['screenplay' => 'Use the configured generation length for each shot of this episode.']);

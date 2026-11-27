@@ -22,6 +22,7 @@ export interface SeriesCast {
 }
 
 export interface SeriesSummary {
+    assets?: { id: number; label: string; kind: string; url: string }[];
     last_episode_number?: number | null;
     cast_settings?: SeriesCast | null;
     id: number;
@@ -66,6 +67,7 @@ export interface CharacterRevision {
     lock_version: number;
     approved_at: string | null;
     references?: CharacterReference[];
+    voice_sample?: CharacterReference | null;
 }
 
 export interface CharacterSummary {

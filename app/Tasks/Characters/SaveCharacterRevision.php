@@ -64,7 +64,13 @@ class SaveCharacterRevision
             $revision->lock_version++;
         }
 
+        $newVersion = ! $revision->exists;
         $this->characterRevisions->save($revision);
+
+        if ($newVersion && $character->current_revision_id !== null) {
+            $current = $this->characterRevisions->lockedForCharacter($character->id, $character->current_revision_id);
+            $current->getFirstMedia(CharacterRevision::VOICE_SAMPLE)?->copy($revision, CharacterRevision::VOICE_SAMPLE, 'local');
+        }
 
         return $this->characterRevisions->refresh($revision);
     }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tasks\Characters;
 
+use App\Classes\Generators\VoiceSample;
 use App\Data\Characters\CharacterReferenceData;
+use App\Enums\ReferenceView;
 use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
 use App\Repositories\CharacterRevisionRepository;
@@ -25,23 +27,7 @@ class UploadCharacterReference
         $size = $data->file->getSize();
 
         if (! $data->file->isValid() || $path === false || $size < 1 || $size > CharacterReferenceData::MAX_SIZE_KB * 1024) {
-            throw ValidationException::withMessages(['file' => 'Upload a reference image no larger than 10 MB.']);
-        }
-
-        $dimensions = @getimagesize($path);
-        $contents = file_get_contents($path);
-
-        if ($dimensions === false || $contents === false
-            || ! in_array($dimensions[2], [
-                IMAGETYPE_PNG,
-                IMAGETYPE_JPEG,
-                IMAGETYPE_WEBP,
-            ], true)
-            || $dimensions[0] < 64 || $dimensions[1] < 64
-            || $dimensions[0] > 6000 || $dimensions[1] > 6000
-            || $dimensions[0] * $dimensions[1] > 20000000
-            || $this->isAnimated($contents, $dimensions[2])) {
-            throw ValidationException::withMessages(['file' => 'Use a static PNG, JPEG or WebP reference between 64 and 6000 pixels and at most 20 megapixels.']);
+            throw ValidationException::withMessages(['file' => 'Upload a reference file no larger than 10 MB.']);
         }
 
         $revision = $this->characterRevisions->lockedForReferences($revision->id);
@@ -58,21 +44,39 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['character' => 'An archived character or series cannot receive references.']);
         }
 
-        if ($revision->getMedia(CharacterRevision::REFERENCES)->count() >= CharacterReferenceData::MAX_REFERENCES) {
+        $voice = $data->view === ReferenceView::VOICE;
+        $collection = $voice ? CharacterRevision::VOICE_SAMPLE : CharacterRevision::REFERENCES;
+
+        if ($voice && $revision->hasMedia($collection)) {
+            throw ValidationException::withMessages(['file' => 'Удалите прежний образец голоса перед заменой.']);
+        }
+
+        if (! $voice && $revision->getMedia($collection)->count() >= CharacterReferenceData::MAX_REFERENCES) {
             throw ValidationException::withMessages(['file' => 'A character version can contain at most 30 references.']);
         }
 
-        $extension = match ($dimensions[2]) {
-            IMAGETYPE_PNG => 'png',
-            IMAGETYPE_JPEG => 'jpg',
-            default => 'webp',
-        };
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            throw ValidationException::withMessages(['file' => 'Не удалось прочитать файл.']);
+        }
+
+        if ($voice) {
+            $sample = VoiceSample::fromUpload($contents, $data->file->getMimeType());
+            $contents = $sample->wav;
+            $properties = ['duration_ms' => $sample->durationMs];
+            $extension = 'wav';
+        } else {
+            [$extension, $properties] = $this->imageProperties($path, $contents);
+        }
+
         $label = $data->label ?? '';
         $media = null;
         $fileName = Str::uuid() . '.' . $extension;
 
         try {
-            $media = $revision->addMedia($data->file)
+            $file = $voice ? $revision->addMediaFromString($contents) : $revision->addMedia($data->file);
+            $media = $file
                 ->usingName($label !== '' ? $label : $data->view->label())
                 ->usingFileName($fileName)
                 ->withCustomProperties([
@@ -80,10 +84,9 @@ class UploadCharacterReference
                     'original_name' => $data->file->getClientOriginalName(),
                     'label' => $label,
                     'checksum' => hash('sha256', $contents),
-                    'width' => $dimensions[0],
-                    'height' => $dimensions[1],
+                    ...$properties,
                 ])
-                ->toMediaCollection(CharacterRevision::REFERENCES);
+                ->toMediaCollection($collection);
             $revision->lock_version++;
             $this->characterRevisions->save($revision);
         } catch (Throwable $exception) {
@@ -99,6 +102,33 @@ class UploadCharacterReference
     public function discardFiles(Media $media): void
     {
         $this->files->removeAllFiles($media);
+    }
+
+    /** @return array{string, array{width: int, height: int}} */
+    private function imageProperties(string $path, string $contents): array
+    {
+        $dimensions = @getimagesize($path);
+
+        if ($dimensions === false
+            || ! in_array($dimensions[2], [
+                IMAGETYPE_PNG,
+                IMAGETYPE_JPEG,
+                IMAGETYPE_WEBP,
+            ], true)
+            || $dimensions[0] < 64 || $dimensions[1] < 64
+            || $dimensions[0] > 6000 || $dimensions[1] > 6000
+            || $dimensions[0] * $dimensions[1] > 20000000
+            || $this->isAnimated($contents, $dimensions[2])) {
+            throw ValidationException::withMessages(['file' => 'Use a static PNG, JPEG or WebP reference between 64 and 6000 pixels and at most 20 megapixels.']);
+        }
+
+        $extension = match ($dimensions[2]) {
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_JPEG => 'jpg',
+            default => 'webp',
+        };
+
+        return [$extension, ['width' => $dimensions[0], 'height' => $dimensions[1]]];
     }
 
     private function isAnimated(string $contents, int $type): bool

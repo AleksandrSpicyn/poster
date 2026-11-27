@@ -51,6 +51,18 @@ class SaveEpisodeScript
             $shots = collect($script->scenes)->flatMap(fn(SceneData $scene): array => $scene->shots)->values();
             $duration = $shots->sum(fn(ShotData $shot): int => $shot->duration_ms);
 
+            if ($script->scene_notes !== null) {
+                $context['scene_notes'] = $script->scene_notes;
+            }
+
+            if ($script->target_duration_seconds !== null) {
+                if ($duration !== $script->target_duration_seconds * 1000) {
+                    throw ValidationException::withMessages(['script.target_duration_seconds' => 'Сумма кадров должна совпасть с длительностью эпизода.']);
+                }
+
+                $context['target_duration_seconds'] = $script->target_duration_seconds;
+            }
+
             if ($series->output_mode === SeriesOutputMode::SINGLE_VIDEO) {
                 $this->validateCycle($series, $episode, $shots, $duration, $context);
             }

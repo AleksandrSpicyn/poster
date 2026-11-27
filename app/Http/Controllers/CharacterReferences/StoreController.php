@@ -28,8 +28,8 @@ class StoreController extends CharacterController
      * @urlParam series integer required ID сериала. Example: 1
      * @urlParam character integer required ID персонажа. Example: 1
      * @urlParam revision integer required ID черновика. Example: 1
-     * @bodyParam file file required PNG/JPEG/WebP до 10 МБ. No-example
-     * @bodyParam view string required Ракурс: front, profile, three_quarter, full_body, expression, other. Example: front
+     * @bodyParam file file required PNG/JPEG/WebP или образец речи WAV/MP3 (2–30 с), до 10 МБ. No-example
+     * @bodyParam view string required Ракурс или образец голоса: front, profile, three_quarter, full_body, expression, other, voice. Example: front
      * @bodyParam label string Подпись до 255 символов. Example: Mira, front view
      * @bodyParam lock_version integer required Версия черновика. Example: 0
      * @response 302

@@ -38,7 +38,9 @@ const savedTakes = computed(() =>
 );
 const hasActiveRequest = computed(() =>
     props.shot.takes.some((take) =>
-        take.operations.some((operation) => ['planned', 'submitting', 'submitted', 'running', 'submission_unknown'].includes(operation.status)),
+        take.operations.some((operation) =>
+            ['frame_review', 'planned', 'submitting', 'submitted', 'running', 'submission_unknown'].includes(operation.status),
+        ),
     ),
 );
 const errors = computed(() => Object.values(form.errors).join(' '));
@@ -150,7 +152,8 @@ function stop(prompt: number) {
                         !archived &&
                         !take.generated &&
                         take.operations.some(
-                            (item) => ['planned', 'submitting', 'submitted', 'running'].includes(item.status) && !item.cancel_requested_at,
+                            (item) =>
+                                ['frame_review', 'planned', 'submitting', 'submitted', 'running'].includes(item.status) && !item.cancel_requested_at,
                         )
                     "
                     :open="stopping === take.id"
@@ -184,6 +187,17 @@ function stop(prompt: number) {
                         >
                     </DialogContent>
                 </Dialog>
+                <details v-if="take.inputs?.prompt" class="text-sm">
+                    <summary>Что передаётся в генерацию</summary>
+                    <p>
+                        {{ take.inputs.model }} · {{ take.inputs.duration }} с · изображения первого кадра:
+                        {{ take.inputs.images.join(', ') || 'продолжение' }}
+                    </p>
+                    <p v-for="speaker in take.inputs.speakers" :key="speaker.name">
+                        {{ speaker.name }} · {{ speaker.sample ? 'образец №' + speaker.sample : 'описание' }}
+                    </p>
+                    <pre class="max-h-64 overflow-auto whitespace-pre-wrap">{{ take.inputs.prompt }}</pre>
+                </details>
                 <ShotOperationControls v-if="!archived" :take="take" :params="params" />
             </section>
         </div>

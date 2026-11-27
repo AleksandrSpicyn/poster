@@ -13,5 +13,7 @@ class DialogueLineData extends Data
     public function __construct(
         #[Min(1)] public int $character_id,
         #[Max(2000)] public string $text,
+        #[Min(0)] public ?int $start_ms = null,
+        #[Min(1)] public ?int $end_ms = null,
     ) {}
 }

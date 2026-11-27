@@ -8,8 +8,10 @@ use App\Data\Episodes\AssemblyClipData;
 use App\Data\Episodes\BuiltEpisodeVideoData;
 use App\Data\Episodes\EpisodeAssemblyPlanData;
 use App\Data\Episodes\VideoMetadataData;
+use App\Enums\ShotCueKind;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Repositories\MediaRepository;
 use Illuminate\Container\Attributes\Storage;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -43,6 +45,11 @@ readonly class BuildEpisodeAssembly
             foreach ($plan->shots as $index => $shot) {
                 $clip = 'clip-' . $index . '.mov';
                 $this->normalize($shot, $sources->get($shot->mediaId), $workspace . '/' . $clip, $deadline, $width, $height);
+
+                if ($shot->cues !== []) {
+                    $this->applyCues($shot, $workspace, $clip, $width, $height, $deadline);
+                }
+
                 $clips[] = "file '" . $clip . "'";
             }
 
@@ -181,6 +188,108 @@ readonly class BuildEpisodeAssembly
         if (! $result->successful() || ! is_file($output)) {
             throw new RuntimeException('Could not normalize a selected take.');
         }
+    }
+
+    private function applyCues(AssemblyClipData $shot, string $workspace, string $clip, int $width, int $height, float $deadline): void
+    {
+        $inputs = ['-i', $clip];
+        $filters = [];
+        $video = '0:v';
+        $audioTracks = ['[0:a]'];
+        $inputIndex = 0;
+
+        foreach ($shot->cues as $index => $cue) {
+            $start = max(0, $cue->start_ms - $shot->trimStartMs);
+            $end = min($shot->durationMs, $cue->end_ms - $shot->trimStartMs);
+
+            if ($end <= $start || ($cue->kind === ShotCueKind::SOUND && ($cue->asset_id === null || $shot->muteAudio))) {
+                continue;
+            }
+
+            $enable = "enable='gte(t," . $this->seconds($start) . ')*lt(t,' . $this->seconds($end) . ")'";
+
+            if ($cue->kind === ShotCueKind::TEXT) {
+                $file = 'title-' . $index . '.svg';
+                File::put($workspace . '/' . $file, $this->titleOverlay($cue->text, $width, $height));
+                $inputs[] = '-i';
+                $inputs[] = $file;
+                $inputIndex++;
+                $filters[] = "[$video][$inputIndex:v]overlay=$enable" . "[v$index]";
+                $video = "v$index";
+
+                continue;
+            }
+
+            if ($cue->asset_id === null) {
+                throw new RuntimeException('Missing timed asset.');
+            }
+
+            $asset = $this->media->findOrFail($cue->asset_id);
+
+            if ($asset->model_type !== new Series()->getMorphClass() || (int) $asset->model_id !== $shot->seriesId || $asset->disk !== 'local'
+                || $asset->collection_name !== Series::ASSETS || $asset->getCustomProperty('kind') !== $cue->kind->value
+                || hash_file('sha256', $asset->getPath()) !== data_get($shot->assets, $cue->asset_id . '.checksum')) {
+                throw new RuntimeException('The pinned timed asset is unavailable or changed.');
+            }
+
+            $inputs[] = '-i';
+            $inputs[] = $asset->getPath();
+            $inputIndex++;
+
+            if ($cue->kind === ShotCueKind::INSERT) {
+                $filters[] = "[$inputIndex:v]scale=$width:$height:force_original_aspect_ratio=decrease,pad=$width:$height:(ow-iw)/2:(oh-ih)/2,setsar=1[p$index]";
+                $filters[] = "[$video][p$index]overlay=$enable" . "[v$index]";
+                $video = "v$index";
+            } else {
+                $offset = $this->seconds(max(0, $shot->trimStartMs - $cue->start_ms));
+                $length = $this->seconds($end - $start);
+                $filters[] = "[$inputIndex:a]atrim=start=$offset:duration=$length,asetpts=PTS-STARTPTS,adelay=$start:all=1[a$index]";
+                $audioTracks[] = "[a$index]";
+            }
+        }
+
+        if ($filters === []) {
+            return;
+        }
+
+        $audio = '0:a';
+
+        if (count($audioTracks) > 1) {
+            $filters[] = implode('', $audioTracks) . 'amix=inputs=' . count($audioTracks) . ':duration=first:normalize=0[aout]';
+            $audio = '[aout]';
+        }
+
+        $out = 'cued-' . $clip;
+        Process::path($workspace)->timeout($this->remainingSeconds($deadline))->run([
+            'ffmpeg', '-v', 'error', '-nostdin', '-y', ...$inputs, '-filter_complex', implode(';', $filters),
+            '-map', $video === '0:v' ? $video : "[$video]", '-map', $audio, '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+            '-preset', 'veryfast', '-threads', '2', '-video_track_timescale', '24000', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2',
+            '-t', $this->seconds($shot->durationMs), $out,
+        ])->throw();
+
+        if (! File::move($workspace . '/' . $out, $workspace . '/' . $clip)) {
+            throw new RuntimeException('Could not save the clip with its timed cues.');
+        }
+    }
+
+    private function titleOverlay(string $text, int $width, int $height): string
+    {
+        preg_match_all('/.{1,22}(?=\h|$)|.{1,22}/um', $text, $matches);
+        $lines = array_values(array_filter(array_map(trim(...), $matches[0]), static fn(string $line): bool => $line !== ''));
+        $count = max(1, count($lines));
+        $font = max(1, (int) min($width / 16, $height / ($count * 2)));
+        $spacing = (int) ceil($font * 1.3);
+        $boxHeight = ($count + 1) * $spacing;
+        $top = (int) min($height * 0.72, $height * 0.94 - $boxHeight);
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $width . '" height="' . $height . '">'
+            . '<rect x="3%" y="' . $top . '" width="94%" height="' . $boxHeight . '" rx="8" fill="black" fill-opacity="0.65"/>';
+
+        foreach ($lines as $index => $line) {
+            $baseline = $top + ($index + 1) * $spacing;
+            $svg .= '<text x="50%" y="' . $baseline . '" text-anchor="middle" fill="white" font-family="DejaVu Sans,sans-serif" font-size="' . $font . '">' . htmlspecialchars($line, ENT_XML1 | ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</text>';
+        }
+
+        return $svg . '</svg>';
     }
 
     private function probe(string $path): VideoMetadataData

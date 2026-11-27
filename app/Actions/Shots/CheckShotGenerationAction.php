@@ -54,6 +54,7 @@ readonly class CheckShotGenerationAction
                 }
 
                 $receipt = [
+                    ...($operation->result_snapshot ?? []),
                     'video_url' => $result->videoUrl,
                     'audio_url' => $result->audioUrl,
                     'last_frame_url' => $result->lastFrameUrl,

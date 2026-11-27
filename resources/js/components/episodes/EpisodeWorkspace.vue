@@ -9,6 +9,7 @@ import EpisodeMemory from '@/components/episodes/EpisodeMemory.vue';
 import EpisodeOverview from '@/components/episodes/EpisodeOverview.vue';
 import EpisodeRelease from '@/components/episodes/EpisodeRelease.vue';
 import EpisodeShotList from '@/components/episodes/EpisodeShotList.vue';
+import SeriesAssetShelf from '@/components/episodes/SeriesAssetShelf.vue';
 import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -302,6 +303,11 @@ function refresh() {
                 >
                     Предыдущий принятый эпизод изменился. Проверьте источник и сохраните новую версию сценария перед продолжением или публикацией.
                 </p>
+                <SeriesAssetShelf
+                    v-if="!archived && (panel === 'screenplay' || panel === 'shots') && !dialogueFocus"
+                    :series="series"
+                    :episode="episode"
+                />
                 <div class="episode-columns grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
                     <aside v-show="dialogueFocus" class="dialogue-preview studio-panel">
                         <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" class="rounded-lg" />

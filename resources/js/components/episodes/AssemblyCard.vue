@@ -44,12 +44,14 @@ const acceptForm = useForm({
     character_state: '',
     open_threads: '',
     scene_closed: false,
+    audio_reviewed: false,
 });
 const reviewedVersion = ref(false);
 watch(
     () => props.assembly.lock_version,
     (version) => {
         reviewedVersion.value = false;
+        acceptForm.audio_reviewed = false;
         acceptForm.lock_version = version;
     },
 );
@@ -133,6 +135,10 @@ function publish() {
             </div>
             <label class="flex min-h-11 items-center gap-3 text-sm"
                 ><input v-model="acceptForm.scene_closed" type="checkbox" class="size-4" />Последняя сцена завершена</label
+            >
+            <label v-if="assembly.requires_audio_review" class="flex min-h-11 items-center gap-2"
+                ><input v-model="acceptForm.audio_reviewed" type="checkbox" required />Прослушаны реплики, голоса и звуковые склейки этой
+                сборки</label
             >
             <label class="flex min-h-11 items-center gap-2"><input v-model="reviewedVersion" type="checkbox" required />Проверена эта версия</label>
             <InputError :message="acceptErrors" />

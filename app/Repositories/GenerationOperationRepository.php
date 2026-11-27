@@ -72,7 +72,7 @@ readonly class GenerationOperationRepository extends EloquentRepository
 
             $operation->cancel_requested_at = $now;
 
-            if ($operation->status === GenerationOperationStatus::PLANNED && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
+            if (in_array($operation->status, [GenerationOperationStatus::PLANNED, GenerationOperationStatus::FRAME_REVIEW], true) && $operation->stage !== GenerationOperationStage::DOWNLOAD) {
                 $operation->status = GenerationOperationStatus::CANCELLED;
                 $planned[] = $operation->id;
                 $stoppedTakes[] = $operation->prompt_id;
@@ -166,7 +166,8 @@ readonly class GenerationOperationRepository extends EloquentRepository
     {
         return $prompt->generationOperations()->firstOrCreate(['stage' => $nextStage], [
             'production_run_id' => $operation->production_run_id,
-            'status' => GenerationOperationStatus::PLANNED,
+            'status' => $nextStage === GenerationOperationStage::VIDEO && data_get($operation->request_snapshot, 'direction.review_frame') === true
+                ? GenerationOperationStatus::FRAME_REVIEW : GenerationOperationStatus::PLANNED,
             'request_key' => $operation->request_key,
             'idempotency_key' => hash('sha256', $operation->request_key . ':' . $nextStage->value),
             'provider' => $operation->provider,

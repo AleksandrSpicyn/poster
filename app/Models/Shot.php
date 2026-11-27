@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\Episodes\ShotDirectionData;
 use App\Enums\TransitionMode;
 use Database\Factories\ShotFactory;
 use Illuminate\Database\Eloquent\Collection;
@@ -38,6 +39,11 @@ class Shot extends Model
 {
     /** @use HasFactory<ShotFactory> */
     use HasFactory;
+
+    public function direction(): ?ShotDirectionData
+    {
+        return isset($this->camera['direction']) ? ShotDirectionData::from($this->camera['direction']) : null;
+    }
 
     protected $fillable = [
         'scene_id',

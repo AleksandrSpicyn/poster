@@ -10,6 +10,7 @@ enum GenerationOperationStatus: string
 {
     use EnumTrait;
 
+    case FRAME_REVIEW = 'frame_review';
     case PLANNED = 'planned';
     case SUBMITTING = 'submitting';
     case SUBMITTED = 'submitted';
@@ -29,6 +30,7 @@ enum GenerationOperationStatus: string
     public static function active(): array
     {
         return [
+            self::FRAME_REVIEW,
             self::PLANNED,
             self::SUBMITTING,
             self::SUBMITTED,
@@ -40,6 +42,7 @@ enum GenerationOperationStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::FRAME_REVIEW => 'Первый кадр на согласовании',
             self::PLANNED => 'В очереди',
             self::SUBMITTING => 'Отправляется',
             self::SUBMITTED => 'Отправлено',

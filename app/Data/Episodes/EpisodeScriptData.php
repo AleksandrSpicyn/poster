@@ -22,6 +22,8 @@ class EpisodeScriptData extends Data
         #[Min(1), Max(10)] public array $character_revision_ids,
         #[DataCollectionOf(SceneData::class), Min(1), Max(20)] public array $scenes,
         #[Max(1000)] public ?string $public_caption = null,
+        #[Min(4), Max(300)] public ?int $target_duration_seconds = null,
+        #[Max(4000)] public ?string $scene_notes = null,
     ) {}
 
     /** @return array<string, DistinctModelIdRule> */

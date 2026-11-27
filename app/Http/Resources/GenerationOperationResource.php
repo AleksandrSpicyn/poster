@@ -28,6 +28,7 @@ class GenerationOperationResource extends JsonResource
             'retrying_download' => $this->stage === GenerationOperationStage::DOWNLOAD
                 && in_array($this->status, [GenerationOperationStatus::PLANNED, GenerationOperationStatus::RUNNING], true)
                 && isset($this->result_snapshot['retry_requested_at']),
+            'approved_frame_media_id' => isset($this->result_snapshot['frame_approved_at']) ? ($this->result_snapshot['approved_frame_id'] ?? $this->result_snapshot['image_media_id'] ?? null) : null,
             'error_code' => $this->error_code,
             'provider' => $this->provider?->value,
             'model' => $this->model,

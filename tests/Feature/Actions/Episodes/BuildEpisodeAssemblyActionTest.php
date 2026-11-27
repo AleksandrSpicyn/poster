@@ -10,12 +10,15 @@ use App\Enums\AssemblyStatus;
 use App\Enums\SeriesAudioMode;
 use App\Jobs\BuildEpisodeAssemblyJob;
 use App\Models\EpisodeAssembly;
+use App\Models\Series;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 use function Tests\Support\assemblyFixture;
+use function Tests\Support\serialVoiceWav;
 
 require_once dirname(__DIR__, 3) . '/Support/Assemblies.php';
 
@@ -128,3 +131,37 @@ test('собирает фрагмент короче ста миллисекун
     expect($decoded->successful())->toBeTrue();
     expect($decoded->output())->toMatch('/^0,.*[a-f0-9]{32}$/m');
 })->with([[999, 1000], [310, 330], [480, 579]]);
+
+test('монтирует титр, вставку и записанный звук с учётом обрезки', function (): void {
+    Storage::fake('local');
+    Queue::fake([BuildEpisodeAssemblyJob::class]);
+    ['revision' => $revision, 'prompt' => $prompt] = assemblyFixture();
+    $shot = $prompt->shot()->firstOrFail();
+    $series = $revision->episode()->firstOrFail()->series()->firstOrFail();
+    $assets = [];
+    $cues = [];
+    $sources = ['insert' => File::get(base_path('tests/Fixtures/portrait.png')), 'sound' => serialVoiceWav()];
+
+    foreach ($sources as $kind => $bytes) {
+        $digest = hash('sha256', $bytes);
+        $asset = $series->addMediaFromString($bytes)->usingFileName($kind === 'insert' ? 'cover.png' : 'sound.wav')
+            ->withCustomProperties(['kind' => $kind, 'checksum' => $digest])->toMediaCollection(Series::ASSETS);
+        $assets[$asset->id] = ['kind' => $kind, 'checksum' => $digest];
+        $cues[] = ['kind' => $kind, 'asset_id' => $asset->id, 'text' => $kind, 'start_ms' => 0, 'end_ms' => 650];
+    }
+
+    $cues[] = ['kind' => 'text', 'text' => 'Маму: 100%', 'start_ms' => 600, 'end_ms' => 1000];
+    $direction = ['cues' => $cues];
+    $shot->update(['camera' => [...$shot->camera, 'direction' => $direction]]);
+    $prompt->update(['input_snapshot' => [...($prompt->input_snapshot ?? []), 'direction' => $direction, 'series_assets' => $assets]]);
+
+    $assembly = app(RequestEpisodeAssemblyAction::class)->run($revision, new AssemblyManifestData([new AssemblyShotData($prompt->id, 200, 1000)]));
+    app(BuildEpisodeAssemblyAction::class)->run($assembly);
+
+    expect($assembly->refresh()->status)->toBe(AssemblyStatus::READY)
+        ->and($assembly->manifest['requires_audio_review'])->toBeTrue()
+        ->and($assembly->duration_ms)->toBeGreaterThanOrEqual(770)->toBeLessThanOrEqual(870);
+    $path = $assembly->getFirstMedia(EpisodeAssembly::VIDEO)?->getPath();
+    $streams = Process::run(['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', $path]);
+    expect($streams->output())->toContain('audio')->toContain('video');
+});

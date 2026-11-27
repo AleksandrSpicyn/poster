@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tasks\Shots;
 
+use App\Data\Episodes\ShotCueData;
+use App\Data\Episodes\ShotDirectionData;
 use App\Data\Shots\PinnedCharacterData;
 use App\Data\Shots\PinnedReferenceData;
 use App\Data\Shots\ShotContinuationData;
 use App\Data\Shots\ShotVideoSettingsData;
 use App\Enums\SeriesAudioMode;
+use App\Enums\ShotCueKind;
 use App\Enums\TransitionMode;
+use App\Models\Series;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use RuntimeException;
 
 readonly class PrepareShotGenerationInput
@@ -35,18 +40,54 @@ readonly class PrepareShotGenerationInput
         $sourcePromptId = $continuation->sourcePromptId;
         $sourceAssemblyId = $continuation->sourceAssemblyId;
 
-        $primaryReferences = collect($characters)->map(fn(PinnedCharacterData $character): int => $character->references[0]->media_id)->all();
-        $secondaryReferences = collect($characters)->flatMap(fn(PinnedCharacterData $character): array => array_slice($character->references, 1))
+        $direction = $shot->direction();
+        $visible = $direction?->visible_character_ids;
+        $visualCast = $visible === null ? collect($characters) : collect($characters)->whereIn('character_id', $visible);
+        $primaryReferences = $visualCast->map(fn(PinnedCharacterData $character): int => $character->references[0]->media_id)->all();
+        $secondaryReferences = $visualCast->flatMap(fn(PinnedCharacterData $character): array => array_slice($character->references, 1))
             ->map(fn(PinnedReferenceData $reference): int => $reference->media_id)->all();
 
         $sourceReferencePosition = $sourceMediaId !== null && $shot->transition_mode === TransitionMode::NEW_SHOT ? count($primaryReferences) : null;
         $availableReferences = $sourceReferencePosition === null ? 10 : 9;
 
-        if (count($primaryReferences) > $availableReferences) {
+        if (($direction->reference_ids ?? []) === [] && count($primaryReferences) > $availableReferences) {
             throw ValidationException::withMessages(['characters' => 'A continuity reference leaves room for at most nine character identities.']);
         }
 
         $referenceMediaIds = [...$primaryReferences, ...array_slice($secondaryReferences, 0, $availableReferences - count($primaryReferences))];
+        $selected = $direction->reference_ids ?? [];
+        $assetIds = [...$selected, ...array_filter(array_map(static fn(ShotCueData $cue): ?int => $cue->asset_id, $direction->cues ?? []))];
+        $assets = [];
+
+        if ($assetIds !== []) {
+            foreach ($series->getMedia(Series::ASSETS)->whereIn('id', $assetIds) as $asset) {
+                $checksum = $asset->getCustomProperty('checksum');
+
+                if (! is_string($checksum) || ! is_file($asset->getPath()) || hash_file('sha256', $asset->getPath()) !== $checksum) {
+                    throw ValidationException::withMessages(['references' => 'Файл материала изменился.']);
+                }
+
+                $assets[$asset->id] = ['kind' => $asset->getCustomProperty('kind'), 'label' => $asset->name, 'checksum' => $checksum];
+            }
+
+            foreach ($direction->cues ?? [] as $cue) {
+                if ($cue->asset_id !== null && ($assets[$cue->asset_id]['kind'] ?? null) !== $cue->kind->value) {
+                    throw ValidationException::withMessages(['cues' => 'Выберите звук или готовую вставку этого сериала.']);
+                }
+            }
+        }
+
+        if ($selected !== []) {
+            $allowedImages = [...$primaryReferences, ...$secondaryReferences, ...array_keys(array_filter($assets, static fn(array $asset): bool => in_array($asset['kind'], ['location','ensemble','prop','insert'], true)))];
+
+            if (array_diff($selected, $allowedImages) !== [] || count($selected) > $availableReferences || $shot->transition_mode === TransitionMode::CONTINUE_SCENE) {
+                throw ValidationException::withMessages(['references' => 'Проверьте выбранные изображения, лимит вложений и режим нового ракурса.']);
+            }
+
+            $referenceMediaIds = $selected;
+            $sourceReferencePosition = $sourceReferencePosition === null ? null : count($selected);
+        }
+
         $specification = json_encode(collect($series->specification)->except('story_outline')->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $characterPrompt = json_encode(collect($characters)->map(fn(PinnedCharacterData $character): array => [
             'id' => $character->id,
@@ -58,12 +99,23 @@ readonly class PrepareShotGenerationInput
         ])->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $setting = json_encode($scene->setting, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $cameraSettings = $shot->camera;
+        unset($cameraSettings['direction']);
+
+        if ($visible !== null) {
+            $cameraSettings['visible_character_ids'] = $visible;
+        }
 
         if ($shot->plan_type !== null) {
             $cameraSettings['plan_type'] = $shot->plan_type;
         }
 
         $camera = json_encode($cameraSettings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $sceneNotes = $revision->context_snapshot['scene_notes'] ?? null;
+
+        if (is_string($sceneNotes) && $sceneNotes !== '') {
+            $setting .= "\nEpisode continuity notes (episode-relative timing; depict only this shot): " . $sceneNotes;
+        }
+
         $dialogue = json_encode($shot->dialogue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $initialState = json_encode($scene->initial_state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $finalState = $shot->position === $scene->shots->max('position')
@@ -74,6 +126,19 @@ readonly class PrepareShotGenerationInput
             $hasDialogue => "Speak only these exact dialogue lines in the series language, using each character's pinned voice blueprint and delivery: $dialogue. Keep voices distinct and consistent. Do not narrate the production instructions.",
             default => 'No speech, narration, commentary, singing or intelligible vocals. Natural action sounds and suitable instrumental music only.',
         };
+
+        if ($direction instanceof ShotDirectionData) {
+            foreach ($direction->cues as $cue) {
+                if ($cue->kind === ShotCueKind::SOUND && $cue->asset_id === null) {
+                    $sound .= " At {$cue->start_ms}–{$cue->end_ms} ms: {$cue->text}.";
+                }
+            }
+        }
+
+        if ($direction?->notes !== null) {
+            $sound .= ' Production notes (performance and timing only, speak exclusively the scheduled dialogue; text overlays are added in editing): ' . $direction->notes;
+        }
+
         $seriesVoice = $revision->context_snapshot['series_voice'] ?? null;
         $lead = $revision->context_snapshot['lead_character_id'] ?? null;
 
@@ -83,6 +148,26 @@ readonly class PrepareShotGenerationInput
             } elseif (is_int($lead) && in_array($lead, array_column($shot->dialogue, 'character_id'), true)) {
                 $sound .= " For character $lead, apply the series voice direction: $seriesVoice. Keep other characters' individual voice blueprints.";
             }
+        }
+
+        $sampleDurations = [];
+        $voiceDirections = [];
+
+        foreach ($characters as $character) {
+            if ($character->voice_sample !== null) {
+                $sampleDurations[] = $character->voice_sample->duration_ms;
+                $voiceDirections[] = 'Audio ' . count($sampleDurations) . ' is the voice of ' . $character->name . ' (character_id ' . $character->character_id . ').';
+            }
+        }
+
+        try {
+            $settings->capabilities->assertAudioDurations($sampleDurations);
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['voice' => $exception->getMessage()]);
+        }
+
+        if ($voiceDirections !== []) {
+            $sound .= ' Use Image 1 as the opening composition. Use these samples for speaker timbre only. Do not repeat the sample words or background sounds. ' . implode(' ', $voiceDirections);
         }
 
         $imagePrompt = <<<TEXT
@@ -121,10 +206,11 @@ TEXT;
             'specification_version' => $series->specification_version,
             'continuity_version' => $series->continuity_version,
             'context_hash' => $revision->context_hash,
-            'characters' => collect($characters)->map(fn(PinnedCharacterData $character): array => $character->toArray())->all(),
+            'characters' => collect($characters)->map(fn(PinnedCharacterData $character): array => array_filter($character->toArray(), static fn(mixed $value, string $key): bool => $key !== 'voice_sample' || $value !== null, ARRAY_FILTER_USE_BOTH))->all(),
             'transition_mode' => $shot->transition_mode->value,
             'audio_mode' => $audioMode->value,
             'reference_media_ids' => $referenceMediaIds,
+            ...($direction instanceof ShotDirectionData ? ['direction' => $direction->toArray(), 'series_assets' => $assets] : []),
             'source_reference_position' => $sourceReferencePosition,
             'source_media_id' => $sourceMediaId,
             'source_sha256' => $sourceChecksum,
@@ -133,7 +219,7 @@ TEXT;
             'source_time_ms' => $shot->source_anchor['time_ms'] ?? null,
             'image_prompt' => $imagePrompt,
             'video_prompt' => $videoPrompt,
-            'video' => $settings->videoSnapshot(),
+            'video' => $voiceDirections === [] ? $settings->videoSnapshot() : [...$settings->videoSnapshot(), 'aspect_ratio' => '9:16'],
         ];
     }
 }

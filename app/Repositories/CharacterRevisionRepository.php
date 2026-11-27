@@ -57,6 +57,14 @@ readonly class CharacterRevisionRepository extends EloquentRepository
             ->get();
     }
 
+    /** @return Collection<int, CharacterRevision> */
+    public function approvedForSeason(int $seriesId): Collection
+    {
+        return CharacterRevision::query()->with('character')->where('status', RevisionStatus::APPROVED)
+            ->whereHas('character', fn($query) => $query->where('series_id', $seriesId)->whereNull('archived_at')
+                ->whereColumn('characters.current_revision_id', 'character_revisions.id'))->get();
+    }
+
     public function lockedForReferences(int $id): CharacterRevision
     {
         return CharacterRevision::query()->with('character.series', 'media')->lockForUpdate()->findOrFail($id);

@@ -53,6 +53,7 @@ use function Pest\Laravel\travel;
 use function Tests\Support\consoleCommand;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
+use function Tests\Support\serialVoiceWav;
 use function Tests\Support\workspaceOwner;
 
 test('выключение проекта блокирует ожидающий внешний этап', function (GenerationOperationStage $stage): void {
@@ -819,3 +820,70 @@ test('закрепляет 480p в новых и существующих рев
     expect(data_get($take->input_snapshot, 'video.resolution'))->toBe($expected);
     Http::assertSent(fn(Request $request): bool => $request->method() === 'POST' && $request['resolution'] === $expected);
 })->with([true, false]);
+
+test('дубль передаёт закреплённую запись только при реплике её владельца', function (bool $speaks): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $cast = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail()->characterRevisions()->sole();
+    $wav = serialVoiceWav();
+    $cast->addMediaFromString($wav)->usingFileName('voice.wav')
+        ->withCustomProperties(['duration_ms' => 3000, 'checksum' => hash('sha256', $wav)])
+        ->toMediaCollection(CharacterRevision::VOICE_SAMPLE);
+    $shot->update(['dialogue' => $speaks ? [['character_id' => $cast->character_id, 'text' => 'Откройте мост.']] : []]);
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'voice-take'])]);
+
+    $prompt = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'voice-sample');
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->sole()->id);
+    app(SubmitShotGenerationAction::class)->run($prompt->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->sole()->id);
+
+    Http::assertSentCount(1);
+    Http::assertSent(function (Request $request) use ($speaks, $wav, $cast): bool {
+        $content = $request['content'];
+
+        if (! is_array($content)) {
+            return false;
+        }
+
+        $spokenText = data_get($content, '0.text');
+
+        if (! $speaks) {
+            return count($content) === 2 && data_get($content, '1.role') === 'first_frame';
+        }
+
+        return count($content) === 3 && data_get($content, '1.role') === 'reference_image' && data_get($content, '2.role') === 'reference_audio'
+            && data_get($content, '2.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($wav)
+            && is_string($spokenText) && str_contains($spokenText, 'Audio 1 is the voice of ' . $cast->character?->name)
+            && str_contains($spokenText, 'Откройте мост.');
+    });
+})->with([true, false]);
+
+test('ожидает согласования первого кадра и отправляет видео один раз', function (): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $shot->update(['camera' => [...$shot->camera, 'direction' => ['review_frame' => true]]]);
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'reviewed-take'])]);
+    $take = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'approve-opening');
+    $submit = app(SubmitShotGenerationAction::class);
+    $submit->run($take->generationOperations()->firstOrFail()->id);
+
+    $video = $take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->firstOrFail();
+
+    $submit->run($video->id);
+
+    expect($video->refresh()->status)->toBe(GenerationOperationStatus::FRAME_REVIEW);
+    Http::assertNothingSent();
+    $scene = $shot->scene()->firstOrFail();
+    $revision = $scene->episodeRevision()->firstOrFail();
+    $episode = $revision->episode()->firstOrFail();
+    $url = route('shots.frame.approve', ['series' => $episode->series_id, 'episode' => $episode, 'revision' => $revision, 'scene' => $scene, 'shot' => $shot, 'prompt' => $take, 'operation' => $video]);
+    actingAs($actor)->post($url)->assertSessionHasNoErrors()->assertRedirect();
+    actingAs($actor)->post($url)->assertSessionHasNoErrors()->assertRedirect();
+
+    $submit->run($video->id);
+    $submit->run($video->id);
+
+    expect($video->refresh()->status)->toBe(GenerationOperationStatus::SUBMITTED);
+    Http::assertSentCount(1);
+});

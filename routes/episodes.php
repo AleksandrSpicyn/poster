@@ -13,6 +13,8 @@ use App\Http\Controllers\Episodes\UpscaleInputController;
 use App\Http\Controllers\EpisodeScripts;
 use App\Http\Controllers\EpisodeScripts\ApproveController;
 use App\Http\Controllers\EpisodeScripts\GenerateController;
+use App\Http\Controllers\EpisodeScripts\ImportSeasonController;
+use App\Http\Controllers\Series\StoreAssetController;
 use App\Http\Controllers\Shots;
 use App\Http\Controllers\Shots\CancelController;
 use App\Http\Middleware\VerifyExportOwner;
@@ -33,11 +35,15 @@ Route::get('episode-media/{media}', EpisodeMediaShowController::class)
     ->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])
     ->name('episodes.media.preview');
 
+Route::post('series/{series}/assets', StoreAssetController::class)
+    ->whereNumber('series')->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->name('series.assets.store');
+
 Route::prefix('series/{series}/episodes')->whereNumber('series')->middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageSeries'])->scopeBindings()->group(function (): void {
     Route::post('', StoreController::class)->name('episodes.store');
 
     Route::prefix('{episode}')->whereNumber('episode')->group(function (): void {
         Route::get('', Episodes\ShowController::class)->name('episodes.show');
+        Route::post('season/{assetId}', ImportSeasonController::class)->whereNumber('assetId')->name('episodes.scripts.season');
         Route::post('scripts', EpisodeScripts\StoreController::class)->name('episodes.scripts.store');
         Route::post('script-generation', GenerateController::class)->name('episodes.scripts.generate');
 

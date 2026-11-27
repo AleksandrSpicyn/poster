@@ -10,6 +10,7 @@ use App\Models\Channel;
 use App\Models\CharacterRevision;
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Models\SeriesAssembly;
 use App\Models\VideoUpscaleOperation;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,12 @@ readonly class MediaRepository extends EloquentRepository
         ]);
 
         return Media::query()->whereIn('model_type', $types)->where('disk', 'public')->lazyById();
+    }
+
+    public function seasonAsset(int $seriesId, int $id): Media
+    {
+        return Media::query()->where('model_type', new Series()->getMorphClass())->where('model_id', $seriesId)
+            ->where('collection_name', Series::ASSETS)->where('custom_properties->kind', 'season')->findOrFail($id);
     }
 
     public function markPrivate(Media $media): void
@@ -158,7 +165,7 @@ readonly class MediaRepository extends EloquentRepository
     public function referenceByFileName(CharacterRevision $revision, string $fileName): ?Media
     {
         return $revision->media()
-            ->where('collection_name', CharacterRevision::REFERENCES)
+            ->whereIn('collection_name', [CharacterRevision::REFERENCES, CharacterRevision::VOICE_SAMPLE])
             ->where('file_name', $fileName)
             ->first();
     }
@@ -166,7 +173,7 @@ readonly class MediaRepository extends EloquentRepository
     public function referenceForRevision(CharacterRevision $revision, int $id): Media
     {
         return $revision->media()
-            ->where('collection_name', CharacterRevision::REFERENCES)
+            ->whereIn('collection_name', [CharacterRevision::REFERENCES, CharacterRevision::VOICE_SAMPLE])
             ->findOrFail($id);
     }
 }

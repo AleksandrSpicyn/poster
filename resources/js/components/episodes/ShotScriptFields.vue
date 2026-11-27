@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ShotDirectionEditor from '@/components/episodes/ShotDirectionEditor.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ function error(field: string): string | undefined {
 
 <template>
     <div class="space-y-4">
+        <ShotDirectionEditor v-model="shot" :speakers="speakers" />
         <div class="grid gap-2">
             <Label :for="'shot-action-' + sceneIndex + '-' + shotIndex">Что происходит в кадре</Label
             ><textarea

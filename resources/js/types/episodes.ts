@@ -10,6 +10,7 @@ interface EpisodeMedia {
 }
 interface GenerationOperation {
     stage_label: string;
+    approved_frame_media_id?: number | null;
     can_retry_download: boolean;
     retrying_download: boolean;
     id: number;
@@ -20,6 +21,7 @@ interface GenerationOperation {
     cancel_requested_at: string | null;
 }
 export interface ShotTake {
+    inputs?: { images: number[]; speakers: { name: string; sample: number | null }[]; prompt: string; duration: number; model: string };
     id: number;
     shot_id: number;
     take_number: number;
@@ -68,6 +70,7 @@ export interface EpisodeRevisionSummary {
     scenes: SceneSummary[];
 }
 export interface EpisodeAssemblySummary {
+    requires_audio_review?: boolean;
     id: number;
     episode_revision_id: number;
     number: number;
@@ -108,19 +111,36 @@ interface EpisodeSummary {
     script_generation_status: string | null;
     script_generation_error: string | null;
 }
+export interface ShotCue {
+    kind: 'sound' | 'text' | 'insert';
+    text: string;
+    start_ms: number;
+    end_ms: number;
+    asset_id?: number | null;
+}
+export interface ShotDirection {
+    notes?: string | null;
+    visible_character_ids: number[] | null;
+    reference_ids: number[];
+    review_frame: boolean;
+    cues: ShotCue[];
+}
 export interface ScreenplayShot {
+    direction?: ShotDirection | null;
     title?: string | null;
     plan_type?: string | null;
     duration_ms: number;
     action: string;
     camera: string;
     transition_mode: string;
-    dialogue: { character_id: number; text: string }[];
+    dialogue: { character_id: number; text: string; start_ms?: number | null; end_ms?: number | null }[];
     source_prompt_id?: number | null;
     source_assembly_id?: number | null;
     source_time_ms?: number;
 }
 export interface Screenplay {
+    target_duration_seconds?: number | null;
+    scene_notes?: string | null;
     public_caption?: string | null;
     title: string;
     objective: string;

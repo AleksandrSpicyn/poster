@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useFormApi } from '@/lib/api/useFormApi';
+import SeriesAssetShelf from '@/components/episodes/SeriesAssetShelf.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
 import InputError from '@/components/InputError.vue';
 import ListPanel from '@/components/ListPanel.vue';
@@ -77,6 +78,7 @@ function changePage(page: number) {
         <p v-if="series.archived_at" class="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
             Сериал в архиве. История доступна для просмотра.
         </p>
+        <SeriesAssetShelf v-if="!series.archived_at" :series="series" />
         <Teleport defer :to="actionsTarget">
             <Button v-if="!series.archived_at" type="button" variant="outline" class="h-11" @click="openEntry('episode', $event)"
                 >Новый эпизод</Button

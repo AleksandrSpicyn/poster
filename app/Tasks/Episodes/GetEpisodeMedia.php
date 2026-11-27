@@ -6,6 +6,7 @@ namespace App\Tasks\Episodes;
 
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Repositories\EpisodeAssemblyRepository;
 use App\Repositories\PromptRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -28,6 +29,7 @@ class GetEpisodeMedia
                 EpisodeAssembly::CONTINUATION_TAIL,
             ], true)
                 && $this->assemblies->exists($media->model_id),
+            new Series()->getMorphClass() => $media->collection_name === Series::ASSETS,
             default => false,
         };
         abort_unless($allowed && $media->disk === 'local', 404);

@@ -47,6 +47,12 @@ readonly class ConfirmSeriesStorySubAction
                 return;
             }
 
+            if (($assembly->manifest['requires_audio_review'] ?? false) === true) {
+                $this->update->run($run, ProductionStatus::NEEDS_ATTENTION, message: 'Прослушайте голоса и звуковые склейки в готовой сборке, затем примите монтаж.');
+
+                return;
+            }
+
             $this->accept->run($assembly, new AcceptEpisodeData(
                 $assembly->lock_version,
                 $outcome->confirmed_events,

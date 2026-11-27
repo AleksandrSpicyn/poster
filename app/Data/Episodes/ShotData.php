@@ -24,5 +24,6 @@ class ShotData extends Data
         #[Min(0)] public int $source_time_ms = 0,
         #[Max(255)] public ?string $title = null,
         #[Max(255)] public ?string $plan_type = null,
+        public ?ShotDirectionData $direction = null,
     ) {}
 }

@@ -8,6 +8,7 @@ use App\Enums\SeriesAudioMode;
 use App\Models\Series;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** @mixin Series */
 class SeriesResource extends JsonResource
@@ -17,6 +18,10 @@ class SeriesResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'assets' => $this->whenLoaded('media', fn(): array => $this->getMedia(Series::ASSETS)->map(fn(Media $asset): array => [
+                'id' => $asset->id, 'label' => $asset->name, 'kind' => $asset->getCustomProperty('kind'),
+                'url' => route('episodes.media.preview', $asset->id),
+            ])->values()->all()),
             'project_id' => $this->project_id,
             'name' => $this->name,
             'output_mode' => $this->output_mode->value,
