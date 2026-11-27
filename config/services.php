@@ -71,6 +71,16 @@ return [
         ],
     ],
 
+    'byteplus_speech' => [
+        'api_key' => env('BYTEPLUS_SPEECH_API_KEY', ''),
+        'voices' => [
+            'multi_female_sophie_v3_uranus_bigtts' => 'Ксения · разговорный женский',
+            'multi_male_mpho_v3_uranus_bigtts' => 'Оуэн · выразительный мужской',
+            'multi_male_livesteve_v3_uranus_bigtts' => 'Мейсон · энергичный мужской',
+            'multi_female_tuanzi_v3_uranus_bigtts' => 'Туаньцзы · спокойный женский',
+        ],
+    ],
+
     'seedance' => [
         'api_key' => env('SEEDANCE_API_KEY', ''),
         'api_url' => env('SEEDANCE_API_URL', 'https://ark.ap-southeast.bytepluses.com/api/v3'),

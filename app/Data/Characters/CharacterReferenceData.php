@@ -27,5 +27,7 @@ class CharacterReferenceData extends Data
         public ?string $label = null,
         #[Min(0)]
         public int $lock_version = 0,
+        #[Min(1)]
+        public ?int $replace_voice_id = null,
     ) {}
 }

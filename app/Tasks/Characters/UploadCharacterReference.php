@@ -9,8 +9,10 @@ use App\Data\Characters\CharacterReferenceData;
 use App\Enums\ReferenceView;
 use App\Enums\RevisionStatus;
 use App\Models\CharacterRevision;
+use App\Repositories\CharacterRepository;
 use App\Repositories\CharacterRevisionRepository;
 use App\Repositories\MediaRepository;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Filesystem;
@@ -19,7 +21,7 @@ use Throwable;
 
 class UploadCharacterReference
 {
-    public function __construct(private readonly CharacterRevisionRepository $characterRevisions, private readonly MediaRepository $mediaRepository, private readonly Filesystem $files) {}
+    public function __construct(private readonly CharacterRevisionRepository $characterRevisions, private readonly MediaRepository $mediaRepository, private readonly Filesystem $files, private readonly CharacterRepository $characters) {}
 
     public function run(CharacterRevision $revision, CharacterReferenceData $data): Media
     {
@@ -28,6 +30,12 @@ class UploadCharacterReference
 
         if (! $data->file->isValid() || $path === false || $size < 1 || $size > CharacterReferenceData::MAX_SIZE_KB * 1024) {
             throw ValidationException::withMessages(['file' => 'Upload a reference file no larger than 10 MB.']);
+        }
+
+        $voice = $data->view === ReferenceView::VOICE;
+
+        if ($voice) {
+            $this->characters->lockedWithSeries($revision->character_id);
         }
 
         $revision = $this->characterRevisions->lockedForReferences($revision->id);
@@ -44,11 +52,16 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['character' => 'An archived character or series cannot receive references.']);
         }
 
-        $voice = $data->view === ReferenceView::VOICE;
+        if ($voice && $this->characterRevisions->hasNewerRevision($revision)) {
+            throw ValidationException::withMessages(['revision' => 'Откройте последнюю версию персонажа.']);
+        }
+
         $collection = $voice ? CharacterRevision::VOICE_SAMPLE : CharacterRevision::REFERENCES;
 
-        if ($voice && $revision->hasMedia($collection)) {
-            throw ValidationException::withMessages(['file' => 'Удалите прежний образец голоса перед заменой.']);
+        $previous = $voice ? $revision->getFirstMedia($collection) : null;
+
+        if ($previous?->id !== $data->replace_voice_id) {
+            throw ValidationException::withMessages(['file' => 'Проверьте текущий образец голоса перед заменой.']);
         }
 
         if (! $voice && $revision->getMedia($collection)->count() >= CharacterReferenceData::MAX_REFERENCES) {
@@ -89,6 +102,13 @@ class UploadCharacterReference
                 ->toMediaCollection($collection);
             $revision->lock_version++;
             $this->characterRevisions->save($revision);
+
+            DB::afterRollBack(fn() => $this->discardFiles($media));
+
+            if ($previous instanceof Media) {
+                $previous->deleteQuietly();
+                DB::afterCommit(fn() => $this->discardFiles($previous));
+            }
         } catch (Throwable $exception) {
             $media ??= $this->mediaRepository->referenceByFileName($revision, $fileName);
             $media?->delete();

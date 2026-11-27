@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class VoiceSample
 {
+    public const int MAX_PCM_BYTES = 30 * self::SAMPLE_RATE * 2;
+
     private const int SAMPLE_RATE = 24000;
 
     private function __construct(public string $wav, public int $durationMs) {}
@@ -26,10 +28,20 @@ final readonly class VoiceSample
             '-map', '0:a:0', '-t', '30.01', '-ac', '1', '-ar', (string) self::SAMPLE_RATE, '-f', 's16le', 'pipe:1',
         ]);
         $pcm = $result->output();
+
+        if (! $result->successful()) {
+            throw ValidationException::withMessages(['file' => 'Не удалось прочитать аудиозапись.']);
+        }
+
+        return self::fromPcm($pcm, $minimumMs);
+    }
+
+    public static function fromPcm(string $pcm, int $minimumMs = 2000): self
+    {
         $size = strlen($pcm);
         $bytesPerSecond = self::SAMPLE_RATE * 2;
 
-        if (! $result->successful() || $size * 1000 < $minimumMs * $bytesPerSecond || $size > 30 * $bytesPerSecond) {
+        if ($size % 2 !== 0 || $size * 1000 < $minimumMs * $bytesPerSecond || $size > self::MAX_PCM_BYTES) {
             throw ValidationException::withMessages(['file' => 'Нужна читаемая аудиозапись от ' . $minimumMs . ' мс до 30 секунд.']);
         }
 

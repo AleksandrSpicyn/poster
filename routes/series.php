@@ -7,6 +7,7 @@ use App\Http\Controllers\CharacterReferences\DestroyController;
 use App\Http\Controllers\CharacterReferences\ShowController;
 use App\Http\Controllers\CharacterRevisions;
 use App\Http\Controllers\CharacterRevisions\ApproveController;
+use App\Http\Controllers\CharacterRevisions\VoicePreviewController;
 use App\Http\Controllers\Characters;
 use App\Http\Controllers\ProductionRuns;
 use App\Http\Controllers\ProductionRuns\ResumeController;
@@ -64,6 +65,7 @@ Route::middleware(['auth', 'verified', VerifyWorkspaceOwner::class, 'can:manageS
                         Route::prefix('{revision}')->whereNumber('revision')->group(function (): void {
                             Route::patch('', CharacterRevisions\UpdateController::class)->name('update');
                             Route::post('approve', ApproveController::class)->name('approve');
+                            Route::post('voice-preview', VoicePreviewController::class)->middleware('throttle:6,1')->name('voice_preview');
                         });
                     });
 

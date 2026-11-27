@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CharacterVoicePreview from '@/components/characters/CharacterVoicePreview.vue';
 import { useFormApi } from '@/lib/api/useFormApi';
 import { formatCount } from '@/lib/formatCount';
 import ImageFilePicker from '@/components/ImageFilePicker.vue';
@@ -15,7 +16,9 @@ const props = defineProps<{
     revision: CharacterRevision;
     params: CharacterRouteParams;
     referenceViews: Record<string, string>;
+    speechVoices: Record<string, string>;
     archived: boolean;
+    latestRevision?: boolean;
     uploadOnly?: boolean;
     focused?: boolean;
     approvedRevision?: CharacterRevision | null;
@@ -186,6 +189,14 @@ function selectFile(file: File) {
                 </dl>
                 <p v-if="!archived" class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
             </div>
+            <CharacterVoicePreview
+                v-if="editable && latestRevision"
+                :current-sample="revision.voice_sample?.id ?? null"
+                :params="params"
+                :voices="speechVoices"
+                :version="revision.lock_version"
+                :disabled="busy || editForm.isDirty"
+            />
             <div v-if="revision.voice_sample" class="space-y-2">
                 <h3 class="text-sm font-semibold">Образец голоса</h3>
                 <audio controls preload="none" :src="revision.voice_sample.url" aria-label="Прослушать голос персонажа" class="w-full" />

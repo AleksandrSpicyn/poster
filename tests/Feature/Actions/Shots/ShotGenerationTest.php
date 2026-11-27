@@ -32,6 +32,7 @@ use App\Tasks\Episodes\BuildEpisodeContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -53,6 +54,7 @@ use function Pest\Laravel\travel;
 use function Tests\Support\consoleCommand;
 use function Tests\Support\fakeCodexImages;
 use function Tests\Support\serialOperator;
+use function Tests\Support\serialReferenceMedia;
 use function Tests\Support\serialVoiceWav;
 use function Tests\Support\workspaceOwner;
 
@@ -886,4 +888,63 @@ test('ожидает согласования первого кадра и от�
 
     expect($video->refresh()->status)->toBe(GenerationOperationStatus::SUBMITTED);
     Http::assertSentCount(1);
+});
+
+test('два голоса остаются за своими репликами после смены версии персонажа', function (): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    $script = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail();
+    $series = $script->episode()->firstOrFail()->series()->firstOrFail();
+    $first = $script->characterRevisions()->sole();
+    $firstWav = serialVoiceWav();
+    $first->addMediaFromString($firstWav)
+        ->usingFileName('first.wav')
+        ->withCustomProperties(['duration_ms' => 3000, 'checksum' => hash('sha256', $firstWav)])
+        ->toMediaCollection(CharacterRevision::VOICE_SAMPLE);
+    $character = Character::factory()->for($series)->create();
+    $draft = CharacterRevision::factory()->for($character)->create();
+    serialReferenceMedia($draft);
+    $params = ['project' => $series->project_id, 'series' => $series, 'character' => $character];
+    $revisionParams = [...$params, 'revision' => $draft];
+    $upload = fn(int $seconds): UploadedFile => UploadedFile::fake()->createWithContent('sample.wav', serialVoiceWav($seconds));
+
+    actingAs($actor)->post(route('characters.references.store', $revisionParams), ['view' => 'voice', 'file' => $upload(4), 'lock_version' => 0])
+        ->assertSessionHasNoErrors();
+    actingAs($actor)->post(route('characters.revisions.approve', $revisionParams), ['lock_version' => 1])
+        ->assertSessionHasNoErrors();
+    $script->characterRevisions()->attach($draft);
+    $secondWav = File::get($draft->refresh()->getFirstMediaPath(CharacterRevision::VOICE_SAMPLE));
+    $shot->update(['dialogue' => [
+        ['character_id' => $character->id, 'text' => 'Кто на мосту?'],
+        ['character_id' => $first->character_id, 'text' => 'Это я.'],
+    ]]);
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'dialogue'])]);
+    $take = app(RequestShotGenerationAction::class)->run($shot, $actor, requestKey: 'two-speakers');
+
+    actingAs($actor)->post(route('characters.revisions.store', $params), ['description' => 'Новый образ'])
+        ->assertSessionHasNoErrors();
+    $new = $character->revisions()->latest('number')->firstOrFail();
+    $newParams = [...$params, 'revision' => $new];
+    actingAs($actor)->post(route('characters.references.store', $newParams), [
+        'view' => 'voice', 'file' => $upload(5), 'lock_version' => $new->lock_version,
+        'replace_voice_id' => $new->getFirstMedia(CharacterRevision::VOICE_SAMPLE)?->id,
+    ])->assertSessionHasNoErrors();
+    serialReferenceMedia($new);
+    actingAs($actor)->post(route('characters.revisions.approve', $newParams), ['lock_version' => $new->refresh()->lock_version])
+        ->assertSessionHasNoErrors();
+    $submit = app(SubmitShotGenerationAction::class);
+    $submit->run($take->generationOperations()->sole()->id);
+    $submit->run($take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->sole()->id);
+
+    Http::assertSentCount(1);
+    Http::assertSent(function (Request $request) use ($first, $character, $firstWav, $secondWav): bool {
+        $text = data_get($request['content'], '0.text');
+
+        return is_string($text) && str_contains($text, 'Кто на мосту?') && str_contains($text, 'Это я.')
+            && str_contains($text, 'Audio 1 is the voice of ' . $first->character?->name . ' (character_id ' . $first->character_id . ')')
+            && str_contains($text, 'Audio 2 is the voice of ' . $character->name . ' (character_id ' . $character->id . ')')
+            && data_get($request['content'], '2.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($firstWav)
+            && data_get($request['content'], '3.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($secondWav);
+    });
 });

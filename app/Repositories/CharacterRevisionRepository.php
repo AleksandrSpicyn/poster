@@ -65,6 +65,11 @@ readonly class CharacterRevisionRepository extends EloquentRepository
                 ->whereColumn('characters.current_revision_id', 'character_revisions.id'))->get();
     }
 
+    public function hasNewerRevision(CharacterRevision $revision): bool
+    {
+        return CharacterRevision::query()->where('character_id', $revision->character_id)->where('number', '>', $revision->number)->exists();
+    }
+
     public function lockedForReferences(int $id): CharacterRevision
     {
         return CharacterRevision::query()->with('character.series', 'media')->lockForUpdate()->findOrFail($id);

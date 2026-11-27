@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 use App\Models\CharacterRevision;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\post;
+use function Pest\Laravel\postJson;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
+use function Tests\Support\serialReferenceMedia;
 use function Tests\Support\serialReferenceUpload;
 use function Tests\Support\serialVoiceWav;
 
@@ -118,3 +123,75 @@ test('сохраняет один закрытый образец речи от�
     actingAs(serialOperator())->postJson($url, ['view' => 'voice', 'file' => $file(), 'lock_version' => 1])
         ->assertUnprocessable()->assertJsonValidationErrors('file');
 });
+
+test('замена образца требует совпадения с текущей записью', function (): void {
+    Storage::fake('local');
+    $context = serialCharacterContext();
+    $url = route('characters.references.store', [...$context['params'], 'revision' => $context['revision']]);
+    $payload = ['view' => 'voice', 'lock_version' => 1, 'file' => UploadedFile::fake()->createWithContent('next.wav', serialVoiceWav(4))];
+
+    actingAs(serialOperator())
+        ->post($url, ['view' => 'voice', 'lock_version' => 0, 'file' => UploadedFile::fake()->createWithContent('voice.wav', serialVoiceWav())])
+        ->assertSessionHasNoErrors();
+    $previous = $context['revision']->media()->firstOrFail();
+
+    postJson($url, [...$payload, 'replace_voice_id' => $previous->id + 1])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('file');
+
+    expect($context['revision']->media()->firstOrFail()->id)->toBe($previous->id);
+    expect(is_file($previous->getPath()))->toBeTrue();
+
+    post($url, [...$payload, 'replace_voice_id' => $previous->id])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $current = $context['revision']->media()->sole();
+    expect($current->id)->not->toBe($previous->id);
+    expect($current->getCustomProperty('duration_ms'))->toBe(4000);
+    expect(is_file($previous->getPath()))->toBeFalse();
+});
+
+test('ошибка записи нового файла оставляет прежний голос доступным', function (): void {
+    $disk = Storage::fake('local');
+    $context = serialCharacterContext();
+    $url = route('characters.references.store', [...$context['params'], 'revision' => $context['revision']]);
+    $file = fn(int $seconds): UploadedFile => UploadedFile::fake()->createWithContent('voice.wav', serialVoiceWav($seconds));
+    actingAs(serialOperator())->post($url, ['view' => 'voice', 'file' => $file(3), 'lock_version' => 0])
+        ->assertSessionHasNoErrors();
+    $previous = $context['revision']->media()->sole();
+    Event::listen(MediaHasBeenAddedEvent::class, static function (): never {
+        throw new RuntimeException('Ошибка обработки нового образца');
+    });
+
+    postJson($url, ['view' => 'voice', 'file' => $file(4), 'replace_voice_id' => $previous->id, 'lock_version' => 1])
+        ->assertInternalServerError();
+
+    expect($context['revision']->refresh()->lock_version)->toBe(1)
+        ->and($context['revision']->media()->sole()->id)->toBe($previous->id)
+        ->and(hash_file('sha256', $previous->getPath()))->toBe($previous->getCustomProperty('checksum'))
+        ->and($disk->allFiles())->toBe([$previous->getPathRelativeToRoot()]);
+});
+
+test('другая вкладка изменила черновик во время прослушивания', function (bool $approve): void {
+    Storage::fake('local');
+    $context = serialCharacterContext();
+    $params = [...$context['params'], 'revision' => $context['revision']];
+    $url = route('characters.references.store', $params);
+    serialReferenceMedia($context['revision']);
+    actingAs(serialOperator())->post($url, ['view' => 'voice', 'lock_version' => 0, 'file' => UploadedFile::fake()->createWithContent('old.wav', serialVoiceWav())])
+        ->assertSessionHasNoErrors();
+    $media = $context['revision']->refresh()->getFirstMedia(CharacterRevision::VOICE_SAMPLE) ?? throw new RuntimeException('Missing voice.');
+
+    if ($approve) {
+        post(route('characters.revisions.approve', $params), ['lock_version' => 1])->assertSessionHasNoErrors();
+    } else {
+        post($url, ['view' => 'front', 'lock_version' => 1, 'file' => serialReferenceUpload()])->assertSessionHasNoErrors();
+    }
+
+    postJson($url, ['view' => 'voice', 'lock_version' => 1, 'replace_voice_id' => $media->id, 'file' => UploadedFile::fake()->createWithContent('next.wav', serialVoiceWav(4))])
+        ->assertUnprocessable()->assertJsonValidationErrors($approve ? 'revision' : 'lock_version');
+
+    expect($context['revision']->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE)->sole()->id)->toBe($media->id);
+    expect(hash_file('sha256', $media->getPath()))->toBe($media->getCustomProperty('checksum'));
+})->with([true, false]);

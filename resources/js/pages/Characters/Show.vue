@@ -25,6 +25,7 @@ const props = defineProps<{
     selectedEpisode: { id: number; number: number } | null;
     revisions: PaginatedResource<CharacterRevision>;
     referenceViews: Record<string, string>;
+    speechVoices: Record<string, string>;
 }>();
 const submitForm = useFormApi();
 const route = useRoute();
@@ -133,6 +134,7 @@ function changePage(page: number) {
                     :key="uploadRevision.id + ':' + uploadRevision.lock_version"
                     :revision="uploadRevision"
                     :params="params"
+                    :speech-voices="speechVoices"
                     :reference-views="referenceViews"
                     :archived="archived"
                     upload-only
@@ -264,8 +266,10 @@ function changePage(page: number) {
                             :key="revision.id + ':' + revision.lock_version"
                             :focused="!!selectedRevision"
                             :revision="revision"
+                            :latest-revision="revisions.meta.current_page === 1 && revisions.data[0]?.id === revision.id"
                             :approved-revision="character.current_revision"
                             :params="params"
+                            :speech-voices="speechVoices"
                             :reference-views="referenceViews"
                             :archived="archived"
                             @open-upload="showUpload(revision.id)"

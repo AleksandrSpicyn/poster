@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Characters;
 
 use App\Actions\Characters\GetCharacterAction;
+use App\Classes\Generators\AudioGenerator\BytePlusSpeech;
 use App\Data\Characters\CharacterPageData;
 use App\Enums\ReferenceView;
 use App\Http\Resources\CharacterResource;
@@ -38,7 +39,7 @@ class ShowController
      * @response 403 {"message":"Your email address is not verified."}
      * @response 404
      */
-    public function __invoke(Project $project, Series $series, Character $character, CharacterPageData $data, GetCharacterAction $action): Response
+    public function __invoke(Project $project, Series $series, Character $character, CharacterPageData $data, GetCharacterAction $action, BytePlusSpeech $speech): Response
     {
         $details = $action->run($character, $data);
 
@@ -50,6 +51,7 @@ class ShowController
             'episodesCount' => $details->episodesCount,
             'revisions' => CharacterRevisionResource::collection($details->revisions),
             'referenceViews' => ReferenceView::labels(),
+            'speechVoices' => $speech->availableVoices(),
         ]);
     }
 }
