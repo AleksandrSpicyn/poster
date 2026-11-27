@@ -162,6 +162,12 @@ readonly class MediaRepository extends EloquentRepository
         return Media::query()->whereKey($ids)->get()->keyBy('id');
     }
 
+    public function retainPreviousVoiceSample(Media $media): void
+    {
+        $media->collection_name = CharacterRevision::PREVIOUS_VOICE_SAMPLES;
+        $media->save();
+    }
+
     public function referenceByFileName(CharacterRevision $revision, string $fileName): ?Media
     {
         return $revision->media()

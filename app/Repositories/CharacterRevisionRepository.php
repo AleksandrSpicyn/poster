@@ -70,6 +70,20 @@ readonly class CharacterRevisionRepository extends EloquentRepository
         return CharacterRevision::query()->where('character_id', $revision->character_id)->where('number', '>', $revision->number)->exists();
     }
 
+    public function acceptsVoiceSample(CharacterRevision $revision, Character $character): bool
+    {
+        return match ($revision->status) {
+            RevisionStatus::APPROVED => $character->current_revision_id === $revision->id,
+            RevisionStatus::DRAFT => ! $this->hasNewerRevision($revision),
+            default => false,
+        };
+    }
+
+    public function incrementReferenceVersion(CharacterRevision $revision): void
+    {
+        CharacterRevision::query()->whereKey($revision->id)->increment('lock_version');
+    }
+
     public function lockedForReferences(int $id): CharacterRevision
     {
         return CharacterRevision::query()->with('character.series', 'media')->lockForUpdate()->findOrFail($id);

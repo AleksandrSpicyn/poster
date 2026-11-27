@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\CharacterRevision;
 use App\Models\User;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,14 +16,23 @@ use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 use function Tests\Support\serialCharacterContext;
 use function Tests\Support\serialOperator;
+use function Tests\Support\serialReferenceMedia;
 
-test('пробу можно прослушать до сохранения и затем закрепить как образец', function (): void {
+test('пробу можно прослушать до сохранения и затем закрепить как образец', function (bool $approved): void {
     Storage::fake('local');
     config(['services.byteplus_speech.api_key' => 'test-speech-key']);
     $voice = 'multi_male_mpho_v3_uranus_bigtts';
     $url = "https://voice.ap-southeast-1.bytepluses.com/api/v3/text-to-speech/$voice/streaming";
     $context = serialCharacterContext();
     $params = [...$context['params'], 'revision' => $context['revision']];
+
+    if ($approved) {
+        serialReferenceMedia($context['revision']);
+        actingAs(serialOperator())
+            ->post(route('characters.revisions.approve', $params), ['lock_version' => 0])
+            ->assertSessionHasNoErrors();
+    }
+    $version = $context['revision']->refresh()->lock_version;
     $part = str_repeat(pack('v', 120), 24000);
     $stream = collect([
         ['event' => 'ready'],
@@ -33,22 +43,22 @@ test('пробу можно прослушать до сохранения и з
     Http::fake([$url => Http::response($stream)]);
 
     $response = actingAs(serialOperator())
-        ->postJson(route('characters.revisions.voice_preview', $params), ['voice_id' => $voice, 'text' => 'Я тебя слышу.', 'lock_version' => 0]);
+        ->postJson(route('characters.revisions.voice_preview', $params), ['voice_id' => $voice, 'text' => 'Я тебя слышу.', 'lock_version' => $version]);
 
     $response->assertOk()->assertHeader('Content-Type', 'audio/wav');
     $wav = $response->getContent();
     expect($wav)->toBeString()->toStartWith('RIFF');
     expect(substr((string) $wav, 44))->toBe($part . $part);
-    expect($context['revision']->media()->exists())->toBeFalse();
+    expect($context['revision']->media()->where('collection_name', CharacterRevision::VOICE_SAMPLE)->exists())->toBeFalse();
     Http::assertSent(fn(Request $request): bool => $request->url() === $url && $request->hasHeader('X-Api-Key', 'test-speech-key')
         && $request['language_code'] === 'ru' && $request['text'] === 'Я тебя слышу.' && $request['model_id'] === 'dola-seed-tts-3.0' && $request['output_format'] === ['format' => 'pcm', 'sample_rate' => 24000]);
 
-    post(route('characters.references.store', $params), ['file' => UploadedFile::fake()->createWithContent('voice.wav', (string) $wav), 'view' => 'voice', 'lock_version' => 0])
+    post(route('characters.references.store', $params), ['file' => UploadedFile::fake()->createWithContent('voice.wav', (string) $wav), 'view' => 'voice', 'lock_version' => $version])
         ->assertRedirect()->assertSessionHasNoErrors();
 
-    expect($context['revision']->media()->firstOrFail()->getCustomProperty('duration_ms'))->toBe(2000);
+    expect($context['revision']->media()->where('collection_name', CharacterRevision::VOICE_SAMPLE)->sole()->getCustomProperty('duration_ms'))->toBe(2000);
     Http::assertSentCount(1);
-});
+})->with([false, true]);
 
 test('недоступная проба не отправляет запрос провайдеру', function (string $key, string $voice, int $version, int $status): void {
     config(['services.byteplus_speech.api_key' => $key]);

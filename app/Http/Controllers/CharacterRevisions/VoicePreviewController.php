@@ -14,7 +14,7 @@ use Illuminate\Http\Response;
 
 class VoicePreviewController
 {
-    /** Проба голоса для черновика персонажа. */
+    /** Проба голоса для текущей утверждённой версии или последнего черновика персонажа. */
     public function __invoke(Project $project, Series $series, Character $character, CharacterRevision $revision, VoicePreviewData $data, GenerateVoicePreviewAction $action): Response
     {
         $sample = $action->run($series, $character, $revision, $data);

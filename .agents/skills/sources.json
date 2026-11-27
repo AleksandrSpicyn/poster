@@ -38,6 +38,56 @@
         "vue-router-best-practices",
         "vue-testing-best-practices"
       ]
+    },
+    {
+      "repository": "https://github.com/kajisho5/ffmpeg-skill",
+      "commit": "a2ecaa7719b667e828b5580126570ce4311b16d5",
+      "path": ".",
+      "skills": [
+        "ffmpeg-skill"
+      ]
+    },
+    {
+      "repository": "https://github.com/AxelkHellberg/codex-video-use",
+      "commit": "4640b628efa11e48352a221d8cf47b3556842846",
+      "path": "skills/codex-video-use",
+      "skills": [
+        "codex-video-use"
+      ]
+    },
+    {
+      "repository": "https://github.com/jtydhr88/screenwriting-skills",
+      "commit": "81110874ee98d4415f86efb8310e06b0e778e2d9",
+      "path": "plugins/screenwriting/skills",
+      "skills": [
+        "chekhov-dramaturgy",
+        "ozu-screenplay-style",
+        "succession-series-writing",
+        "sw-american-case-studies",
+        "sw-character-bio",
+        "sw-character-conflict",
+        "sw-chinese-opera-banqiang",
+        "sw-chinese-opera-banqiang-cases",
+        "sw-chinese-opera-qupai",
+        "sw-chinese-opera-qupai-cases",
+        "sw-chinese-series-practice",
+        "sw-dialogue",
+        "sw-format-adaptation",
+        "sw-genre-anatomy",
+        "sw-industry-business",
+        "sw-japanese-screenwriting",
+        "sw-korean-french-screenwriting",
+        "sw-premise-theme",
+        "sw-scene-craft",
+        "sw-series-case-studies",
+        "sw-series-engine-bible",
+        "sw-series-structure",
+        "sw-sitcom-comedy",
+        "sw-story-structure",
+        "sw-truby-anatomy",
+        "sw-workflow",
+        "sw-writers-room"
+      ]
     }
   ]
 }

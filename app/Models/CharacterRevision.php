@@ -79,6 +79,8 @@ class CharacterRevision extends Model implements HasMedia
 
     public const string VOICE_SAMPLE = 'character-voice-sample';
 
+    public const string PREVIOUS_VOICE_SAMPLES = 'character-previous-voice-samples';
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection(self::VOICE_SAMPLE)->useDisk('local')->acceptsMimeTypes(['audio/wav', 'audio/x-wav', 'audio/vnd.wave']);

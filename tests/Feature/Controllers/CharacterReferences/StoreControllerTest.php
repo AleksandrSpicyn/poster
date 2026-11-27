@@ -190,7 +190,7 @@ test('другая вкладка изменила черновик во вре�
     }
 
     postJson($url, ['view' => 'voice', 'lock_version' => 1, 'replace_voice_id' => $media->id, 'file' => UploadedFile::fake()->createWithContent('next.wav', serialVoiceWav(4))])
-        ->assertUnprocessable()->assertJsonValidationErrors($approve ? 'revision' : 'lock_version');
+        ->assertUnprocessable()->assertJsonValidationErrors('lock_version');
 
     expect($context['revision']->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE)->sole()->id)->toBe($media->id);
     expect(hash_file('sha256', $media->getPath()))->toBe($media->getCustomProperty('checksum'));
@@ -205,4 +205,33 @@ test('запись голоса требует версии даже у ново
     ])->assertUnprocessable()->assertJsonValidationErrors('lock_version');
 
     expect($context['revision']->media()->exists())->toBeFalse();
+});
+
+test('после утверждения доступны только голос и только у текущей версии', function (): void {
+    Storage::fake('local');
+    $context = serialCharacterContext();
+    $revision = $context['revision'];
+    serialReferenceMedia($revision);
+    $params = [...$context['params'], 'revision' => $revision];
+    actingAs(serialOperator())
+        ->post(route('characters.revisions.approve', $params), ['lock_version' => 0])
+        ->assertSessionHasNoErrors();
+
+    postJson(route('characters.references.store', $params), [
+        'view' => 'front', 'file' => serialReferenceUpload(), 'lock_version' => $revision->refresh()->lock_version,
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('revision');
+
+    $next = CharacterRevision::factory()->for($context['character'])->create(['number' => $revision->number + 1]);
+    serialReferenceMedia($next);
+    post(route('characters.revisions.approve', [...$params, 'revision' => $next]), ['lock_version' => 0])
+        ->assertSessionHasNoErrors();
+
+    postJson(route('characters.references.store', $params), [
+        'view' => 'voice', 'file' => UploadedFile::fake()->createWithContent('sample.wav', serialVoiceWav()), 'lock_version' => $revision->lock_version,
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('revision');
+    expect($revision->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE))->toBeEmpty();
 });

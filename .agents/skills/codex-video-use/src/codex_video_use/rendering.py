@@ -1,0 +1,617 @@
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from fractions import Fraction
+from pathlib import Path
+from typing import Any
+
+from .grading import resolve_filter
+from .utils import CommandFailure, ensure_dir, ffprobe_json, load_json, run
+
+
+LOUDNORM_I = -14.0
+LOUDNORM_TP = -1.0
+LOUDNORM_LRA = 11.0
+SUBTITLE_FORCE_STYLE = (
+    "FontName=Helvetica,FontSize=18,Bold=1,"
+    "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
+    "BorderStyle=1,Outline=2,Shadow=0,"
+    "Alignment=2,MarginV=90"
+)
+HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
+HDR_TONEMAP_FILTER = (
+    "zscale=t=linear:npl=100,"
+    "format=gbrpf32le,"
+    "zscale=p=bt709,"
+    "tonemap=tonemap=hable:desat=0,"
+    "zscale=t=bt709:m=bt709:r=tv,"
+    "format=yuv420p"
+)
+CAPTION_TARGET_WORDS = 2
+CAPTION_MAX_WORDS = 3
+CAPTION_MIN_DURATION = 0.35
+CAPTION_PAUSE_BREAK = 0.3
+
+
+def _has_subtitles_filter() -> bool:
+    try:
+        result = run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, quiet=True)
+    except CommandFailure:
+        return False
+    return " subtitles " in result.stdout
+
+
+def _segment_list(edl: dict[str, Any]) -> list[dict[str, Any]]:
+    if "segments" in edl:
+        return list(edl["segments"])
+    if "ranges" in edl:
+        return [
+            {
+                "source": item["source"],
+                "start": item["start"],
+                "end": item["end"],
+                "label": item.get("beat") or item.get("note") or item.get("label"),
+            }
+            for item in edl["ranges"]
+        ]
+    raise SystemExit("EDL must contain a 'segments' or 'ranges' list")
+
+
+def _probe_primary_video_stream(source_path: Path, *, show_entries: str) -> dict[str, Any]:
+    result = run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            show_entries,
+            "-of",
+            "json",
+            str(source_path),
+        ],
+        capture_output=True,
+        check=False,
+        quiet=True,
+    )
+    if result.returncode != 0:
+        return {}
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return {}
+    streams = payload.get("streams") or []
+    if not streams:
+        return {}
+    return streams[0]
+
+
+def _display_dimensions(source_path: Path) -> tuple[int, int]:
+    stream = _probe_primary_video_stream(
+        source_path,
+        show_entries="stream=width,height:stream_side_data=rotation",
+    )
+    try:
+        width = int(stream.get("width") or 0)
+        height = int(stream.get("height") or 0)
+    except (TypeError, ValueError):
+        return (0, 0)
+
+    rotation = 0.0
+    for side_data in stream.get("side_data_list") or []:
+        if side_data.get("rotation") is not None:
+            try:
+                rotation = float(side_data["rotation"])
+            except (TypeError, ValueError):
+                rotation = 0.0
+            break
+
+    if int(round(rotation)) % 360 in (90, 270):
+        return (height, width)
+    return (width, height)
+
+
+def _target_canvas(source_path: Path, *, preview: bool) -> tuple[int, int]:
+    width, height = _display_dimensions(source_path)
+    portrait = height > width
+    if preview:
+        return (720, 1280) if portrait else (1280, 720)
+    return (1080, 1920) if portrait else (1920, 1080)
+
+
+def _fit_filter(source_path: Path, *, preview: bool) -> str:
+    target_width, target_height = _target_canvas(source_path, preview=preview)
+    return (
+        f"scale={target_width}:{target_height}:force_original_aspect_ratio=decrease,"
+        f"pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2"
+    )
+
+
+def _source_color_transfer(source_path: Path) -> str:
+    result = run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=color_transfer",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(source_path),
+        ],
+        capture_output=True,
+        check=False,
+        quiet=True,
+    )
+    if result.returncode != 0:
+        return ""
+    return (result.stdout or "").strip()
+
+
+def _needs_hdr_tonemap(source_path: Path) -> bool:
+    return _source_color_transfer(source_path) in HDR_TRANSFERS
+
+
+def _parse_fps_arg(value: str) -> str:
+    text = value.strip()
+    if len(text) > 32 or not re.fullmatch(r"(?:[0-9]+(?:\.[0-9]+)?|[0-9]+/[0-9]+)", text):
+        raise argparse.ArgumentTypeError(
+            "FPS must be a positive number or rational, for example 30 or 30000/1001"
+        )
+    try:
+        rate = Fraction(text)
+    except (ValueError, ZeroDivisionError) as exc:
+        raise argparse.ArgumentTypeError(
+            "FPS must be a positive number or rational, for example 30 or 30000/1001"
+        ) from exc
+    if rate <= 0:
+        raise argparse.ArgumentTypeError("FPS must be greater than zero")
+    limit = 2_147_483_647
+    if rate.numerator > limit or rate.denominator > limit:
+        raise argparse.ArgumentTypeError("FPS precision or magnitude is too large")
+    return f"{rate.numerator}/{rate.denominator}"
+
+
+def _probe_source_fps(source_path: Path) -> str | None:
+    stream = _probe_primary_video_stream(
+        source_path,
+        show_entries="stream=avg_frame_rate,r_frame_rate",
+    )
+    for field in ("avg_frame_rate", "r_frame_rate"):
+        value = stream.get(field)
+        if not value or value == "0/0":
+            continue
+        try:
+            return _parse_fps_arg(str(value))
+        except argparse.ArgumentTypeError:
+            continue
+    return None
+
+
+def _video_filters(source_path: Path, *, preview: bool, grade: str | None) -> str:
+    vf_parts = []
+    if _needs_hdr_tonemap(source_path):
+        vf_parts.append(HDR_TONEMAP_FILTER)
+    vf_parts.append(_fit_filter(source_path, preview=preview))
+    resolved_grade = resolve_filter(grade)
+    if resolved_grade:
+        vf_parts.append(resolved_grade)
+    return ",".join(vf_parts)
+
+
+def _source_map(edl: dict[str, Any], edit_dir: Path) -> dict[str, Path]:
+    mapping = {}
+    for key, value in edl["sources"].items():
+        path = Path(value)
+        mapping[key] = path if path.is_absolute() else (edit_dir / path).resolve()
+    return mapping
+
+
+def _chunk_words(words: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Create readable, short caption phrases from timestamped transcript words."""
+    usable_words = [
+        word
+        for word in words
+        if word.get("type") == "word" and str(word.get("text") or "").strip()
+    ]
+    chunks: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    for index, word in enumerate(usable_words):
+        current.append(word)
+        next_word = usable_words[index + 1] if index + 1 < len(usable_words) else None
+        pause = (
+            float(next_word.get("start", 0.0)) - float(word.get("end", 0.0))
+            if next_word
+            else 0.0
+        )
+        duration = float(word.get("end", 0.0)) - float(current[0].get("start", 0.0))
+        text = str(word.get("text") or "").strip()
+        if (
+            next_word is None
+            or text.endswith((".", "!", "?", ",", ";", ":"))
+            or pause >= CAPTION_PAUSE_BREAK
+            or len(current) >= CAPTION_MAX_WORDS
+            or (len(current) >= CAPTION_TARGET_WORDS and duration >= CAPTION_MIN_DURATION)
+        ):
+            chunks.append(current)
+            current = []
+    return chunks
+
+
+def _resolve_subtitles_path(value: str, edit_dir: Path) -> Path:
+    """Find an explicit subtitle file or stop before a render silently loses captions."""
+    requested = Path(value)
+    candidates = [requested if requested.is_absolute() else (edit_dir / requested).resolve()]
+    if not requested.is_absolute():
+        candidates.append(requested.resolve())
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    attempted = ", ".join(str(candidate) for candidate in candidates)
+    raise SystemExit(
+        f"subtitles file in EDL was not found (tried {attempted}). "
+        "Correct the path or use --no-subtitles."
+    )
+
+
+def _srt_time(seconds: float) -> str:
+    total_ms = int(round(seconds * 1000))
+    hours, rem = divmod(total_ms, 3_600_000)
+    minutes, rem = divmod(rem, 60_000)
+    secs, millis = divmod(rem, 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+
+def build_master_srt(edl: dict[str, Any], edit_dir: Path, output_path: Path) -> Path:
+    segments = _segment_list(edl)
+    sources = _source_map(edl, edit_dir)
+    offset = 0.0
+    cues: list[tuple[float, float, str]] = []
+    for segment in segments:
+        transcript_path = edit_dir / "transcripts" / f"{segment['source']}.json"
+        if not transcript_path.exists():
+            source_stem = sources[segment["source"]].stem
+            transcript_path = edit_dir / "transcripts" / f"{source_stem}.json"
+        if not transcript_path.exists():
+            offset += float(segment["end"]) - float(segment["start"])
+            continue
+        payload = load_json(transcript_path)
+        in_range = [
+            word
+            for word in payload.get("words", [])
+            if word.get("type") == "word"
+            and float(word.get("end", 0.0)) > float(segment["start"])
+            and float(word.get("start", 0.0)) < float(segment["end"])
+        ]
+        for chunk in _chunk_words(in_range):
+            local_start = max(float(segment["start"]), float(chunk[0]["start"]))
+            local_end = min(float(segment["end"]), float(chunk[-1]["end"]))
+            out_start = offset + (local_start - float(segment["start"]))
+            out_end = offset + (local_end - float(segment["start"]))
+            if out_end <= out_start:
+                out_end = out_start + 0.35
+            text = " ".join(str(item["text"]).strip() for item in chunk).upper()
+            cues.append((out_start, out_end, text))
+        offset += float(segment["end"]) - float(segment["start"])
+    lines = []
+    for index, (start, end, text) in enumerate(cues, start=1):
+        lines += [str(index), f"{_srt_time(start)} --> {_srt_time(end)}", text, ""]
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"master subtitles -> {output_path}")
+    return output_path
+
+
+def extract_segment(
+    source_path: Path,
+    *,
+    start: float,
+    end: float,
+    grade: str | None,
+    output_path: Path,
+    preview: bool,
+    output_fps: str | None = None,
+) -> Path:
+    duration = end - start
+    fade_out_start = max(0.0, duration - 0.03)
+    vf = _video_filters(source_path, preview=preview, grade=grade)
+    resolved_fps = output_fps or _probe_source_fps(source_path) or "24"
+    command = [
+        "ffmpeg",
+        "-y",
+        "-ss",
+        f"{start:.3f}",
+        "-i",
+        str(source_path),
+        "-t",
+        f"{duration:.3f}",
+        "-vf",
+        vf,
+        "-af",
+        f"afade=t=in:st=0:d=0.03,afade=t=out:st={fade_out_start:.3f}:d=0.03",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast" if not preview else "veryfast",
+        "-crf",
+        "20" if not preview else "24",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        resolved_fps,
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-ar",
+        "48000",
+        str(output_path),
+    ]
+    run(command, quiet=True)
+    return output_path
+
+
+def concat_segments(segment_paths: list[Path], output_path: Path, edit_dir: Path) -> Path:
+    list_path = edit_dir / "_concat.txt"
+    list_path.write_text("".join(f"file '{path.resolve()}'\n" for path in segment_paths), encoding="utf-8")
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_path),
+            "-c",
+            "copy",
+            str(output_path),
+        ],
+        quiet=True,
+    )
+    list_path.unlink(missing_ok=True)
+    return output_path
+
+
+def _measure_loudnorm(input_path: Path) -> dict[str, Any] | None:
+    result = run(
+        [
+            "ffmpeg",
+            "-y",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(input_path),
+            "-af",
+            f"loudnorm=I={LOUDNORM_I}:TP={LOUDNORM_TP}:LRA={LOUDNORM_LRA}:print_format=json",
+            "-vn",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+        quiet=True,
+    )
+    stderr = result.stderr or ""
+    start = stderr.rfind("{")
+    end = stderr.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    import json
+
+    try:
+        return json.loads(stderr[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+
+
+def normalize_audio(input_path: Path, output_path: Path, *, preview: bool) -> Path:
+    if preview:
+        run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(input_path),
+                "-c:v",
+                "copy",
+                "-af",
+                f"loudnorm=I={LOUDNORM_I}:TP={LOUDNORM_TP}:LRA={LOUDNORM_LRA}",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-ar",
+                "48000",
+                str(output_path),
+            ],
+            quiet=True,
+        )
+        return output_path
+    measurement = _measure_loudnorm(input_path)
+    if not measurement:
+        return normalize_audio(input_path, output_path, preview=True)
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(input_path),
+            "-c:v",
+            "copy",
+            "-af",
+            (
+                f"loudnorm=I={LOUDNORM_I}:TP={LOUDNORM_TP}:LRA={LOUDNORM_LRA}"
+                f":measured_I={measurement['input_i']}"
+                f":measured_TP={measurement['input_tp']}"
+                f":measured_LRA={measurement['input_lra']}"
+                f":measured_thresh={measurement['input_thresh']}"
+                f":offset={measurement['target_offset']}:linear=true"
+            ),
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-ar",
+            "48000",
+            str(output_path),
+        ],
+        quiet=True,
+    )
+    return output_path
+
+
+def _overlay_expression(value: Any, fallback: str) -> str:
+    if value is None:
+        return fallback
+    return str(value)
+
+
+def composite_output(
+    base_path: Path,
+    *,
+    overlays: list[dict[str, Any]],
+    subtitles_path: Path | None,
+    output_path: Path,
+    edit_dir: Path,
+) -> Path:
+    if subtitles_path and subtitles_path.exists() and not _has_subtitles_filter():
+        print("warning: ffmpeg subtitles filter is unavailable; skipping burned subtitles in this render")
+        subtitles_path = None
+
+    if not overlays and not subtitles_path:
+        run(["ffmpeg", "-y", "-i", str(base_path), "-c", "copy", str(output_path)], quiet=True)
+        return output_path
+
+    inputs = ["-i", str(base_path)]
+    filter_parts: list[str] = []
+    for index, overlay in enumerate(overlays, start=1):
+        overlay_path = Path(overlay["file"])
+        resolved = overlay_path if overlay_path.is_absolute() else (edit_dir / overlay_path).resolve()
+        inputs += ["-i", str(resolved)]
+        start = float(overlay["start"])
+        filter_parts.append(f"[{index}:v]setpts=PTS-STARTPTS+{start}/TB[ov{index}]")
+
+    current = "[0:v]"
+    for index, overlay in enumerate(overlays, start=1):
+        start = float(overlay["start"])
+        duration = float(overlay["duration"])
+        end = start + duration
+        x = _overlay_expression(overlay.get("x"), "0")
+        y = _overlay_expression(overlay.get("y"), "0")
+        next_label = f"[v{index}]"
+        filter_parts.append(
+            f"{current}[ov{index}]overlay={x}:{y}:enable='between(t,{start:.3f},{end:.3f})'{next_label}"
+        )
+        current = next_label
+
+    if subtitles_path and subtitles_path.exists():
+        escaped = str(subtitles_path.resolve()).replace(":", r"\:").replace("'", r"\'")
+        filter_parts.append(
+            f"{current}subtitles=filename='{escaped}':force_style='{SUBTITLE_FORCE_STYLE}'[vout]"
+        )
+        video_label = "[vout]"
+    elif overlays:
+        filter_parts.append(f"{current}null[vout]")
+        video_label = "[vout]"
+    else:
+        video_label = "[0:v]"
+
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            *inputs,
+            "-filter_complex",
+            ";".join(filter_parts),
+            "-map",
+            video_label,
+            "-map",
+            "0:a",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "copy",
+            str(output_path),
+        ],
+        quiet=True,
+    )
+    return output_path
+
+
+def render_edl(
+    edl_path: Path,
+    *,
+    output_path: Path,
+    preview: bool = False,
+    build_subtitles_flag: bool = False,
+    no_subtitles: bool = False,
+    no_normalize: bool = False,
+    fps: str | None = None,
+) -> Path:
+    edl_path = edl_path.resolve()
+    edit_dir = edl_path.parent
+    ensure_dir(output_path.resolve().parent)
+    edl = load_json(edl_path)
+    source_paths = _source_map(edl, edit_dir)
+    segments = _segment_list(edl)
+    output_fps = fps or (_probe_source_fps(source_paths[segments[0]["source"]]) if segments else None) or "24"
+    clips_dir = ensure_dir(edit_dir / ("clips-preview" if preview else "clips"))
+    rendered_segments = []
+    for index, segment in enumerate(segments):
+        source = source_paths[segment["source"]]
+        clip_path = clips_dir / f"segment-{index:03d}.mp4"
+        rendered_segments.append(
+            extract_segment(
+                source,
+                start=float(segment["start"]),
+                end=float(segment["end"]),
+                grade=segment.get("grade") or edl.get("grade"),
+                output_path=clip_path,
+                preview=preview,
+                output_fps=output_fps,
+            )
+        )
+
+    base_path = edit_dir / ("base-preview.mp4" if preview else "base.mp4")
+    concat_segments(rendered_segments, base_path, edit_dir)
+
+    subtitles_path: Path | None = None
+    if not no_subtitles:
+        if build_subtitles_flag:
+            subtitles_path = build_master_srt(edl, edit_dir, edit_dir / "master.srt")
+        elif "subtitles" in edl:
+            subtitles_path = _resolve_subtitles_path(str(edl["subtitles"]), edit_dir)
+
+    overlays = list(edl.get("overlays") or [])
+    prenorm_path = output_path if no_normalize else output_path.with_suffix(".prenorm.mp4")
+    composite_output(base_path, overlays=overlays, subtitles_path=subtitles_path, output_path=prenorm_path, edit_dir=edit_dir)
+    if no_normalize:
+        return output_path
+    normalize_audio(prenorm_path, output_path, preview=preview)
+    prenorm_path.unlink(missing_ok=True)
+    return output_path
+
+
+def build_render_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Render an edit decision list into a preview or final output.")
+    parser.add_argument("edl", type=Path)
+    parser.add_argument("-o", "--output", type=Path, required=True)
+    parser.add_argument("--preview", action="store_true")
+    parser.add_argument("--build-subtitles", action="store_true")
+    parser.add_argument("--no-subtitles", action="store_true")
+    parser.add_argument("--no-normalize", action="store_true")
+    parser.add_argument("--fps", type=_parse_fps_arg, default=None)
+    return parser

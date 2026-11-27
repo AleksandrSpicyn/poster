@@ -27,6 +27,9 @@ const emit = defineEmits<{ openUpload: [] }>();
 const submitForm = useFormApi();
 const params = { ...props.params, revision: props.revision.id };
 const editable = computed(() => props.revision.status === 'draft' && !props.archived);
+const approvedVoiceEditable = computed(
+    () => !props.archived && props.revision.status === 'approved' && props.revision.id === props.approvedRevision?.id,
+);
 const editForm = useForm({
     title: props.revision.title ?? '',
     description: props.revision.description,
@@ -36,7 +39,7 @@ const editForm = useForm({
 });
 const uploadForm = useForm({
     file: null as File | null,
-    view: 'front',
+    view: approvedVoiceEditable.value ? 'voice' : 'front',
     label: '',
     replace_voice_id: null as number | null,
     lock_version: props.revision.lock_version,
@@ -194,10 +197,10 @@ function selectFile(file: File) {
                         <dd>{{ editForm.voice.description }}</dd>
                     </div>
                 </dl>
-                <p v-if="!archived" class="text-muted-foreground text-xs">Чтобы изменить утверждённый образ, создайте новую версию.</p>
+                <p v-if="!archived" class="text-muted-foreground text-xs">Для изменения описания или внешности создайте новую версию.</p>
             </div>
             <CharacterVoicePreview
-                v-if="editable && latestRevision"
+                v-if="(editable && latestRevision) || approvedVoiceEditable"
                 :current-sample="revision.voice_sample?.id ?? null"
                 :params="params"
                 :voices="speechVoices"
@@ -274,14 +277,16 @@ function selectFile(file: File) {
                 >Добавить референс</Button
             >
         </template>
-        <form v-if="editable && uploadOnly" class="grid min-w-0 gap-4" @submit.prevent="upload">
-            <h2 class="text-xl font-semibold">{{ uploadFailure ? 'Референсы' : 'Добавление референса' }}</h2>
-            <div v-if="uploadFailure && revision.references?.[0]" class="flex items-center gap-3">
+        <form v-if="(editable && uploadOnly) || approvedVoiceEditable" class="grid min-w-0 gap-4" @submit.prevent="upload">
+            <h2 class="text-xl font-semibold">
+                {{ approvedVoiceEditable ? 'Загрузка образца голоса' : uploadFailure ? 'Референсы' : 'Добавление референса' }}
+            </h2>
+            <div v-if="!approvedVoiceEditable && uploadFailure && revision.references?.[0]" class="flex items-center gap-3">
                 <img :src="revision.references[0].url" alt="" class="h-14 w-20 rounded-md object-cover" />
                 <strong>{{ viewLabel(revision.references[0].view) }} · текущий референс</strong>
             </div>
             <slot v-if="!uploadFailure" name="version" />
-            <div v-show="!uploadFailure" class="grid gap-2">
+            <div v-if="!approvedVoiceEditable" v-show="!uploadFailure" class="grid gap-2">
                 <Label :for="'reference-view-' + revision.id">Тип референса</Label
                 ><select
                     :id="'reference-view-' + revision.id"
@@ -323,7 +328,7 @@ function selectFile(file: File) {
                 />
                 <InputError :message="uploadForm.errors.file" />
             </div>
-            <div v-show="!uploadFailure" class="grid gap-2">
+            <div v-if="!approvedVoiceEditable" v-show="!uploadFailure" class="grid gap-2">
                 <Label :for="'reference-label-' + revision.id">Подпись</Label
                 ><Input
                     :id="'reference-label-' + revision.id"
@@ -343,7 +348,9 @@ function selectFile(file: File) {
                         ? 'Заменить образец голоса'
                         : uploadFailure
                           ? 'Повторить загрузку'
-                          : 'Добавить референс'
+                          : uploadForm.view === 'voice'
+                            ? 'Сохранить образец голоса'
+                            : 'Добавить референс'
                 }}</Button>
             </div>
             <InputError :message="uploadForm.errors.lock_version" /><InputError :message="uploadErrors.revision" /><InputError

@@ -99,7 +99,7 @@ onBeforeUnmount(() => {
     <section class="grid min-w-0 gap-3" :aria-labelledby="'voice-heading-' + params.revision">
         <h3 :id="'voice-heading-' + params.revision" class="text-sm font-semibold">Голосовая проба</h3>
         <p v-if="!Object.keys(voices).length" class="text-muted-foreground text-sm">
-            Seed Speech не настроен. Готовую запись можно загрузить через «Добавить референс».
+            Seed Speech не настроен. Можно загрузить готовый файл WAV или MP3.
         </p>
         <template v-else>
             <div class="grid min-w-0 gap-3 sm:grid-cols-[minmax(8rem,1fr)_2fr]">

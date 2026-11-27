@@ -15,6 +15,7 @@ use App\Data\Shots\ResolveShotGenerationData;
 use App\Enums\BillingProduct;
 use App\Enums\GenerationOperationStage;
 use App\Enums\GenerationOperationStatus;
+use App\Enums\RevisionStatus;
 use App\Enums\TransitionMode;
 use App\Jobs\CheckShotGenerationJob;
 use App\Jobs\SubmitShotGenerationJob;
@@ -926,6 +927,24 @@ test('два голоса остаются за своими репликами 
     actingAs($actor)->post(route('characters.revisions.store', $params), ['description' => 'Новый образ'])
         ->assertSessionHasNoErrors();
     $new = $character->revisions()->latest('number')->firstOrFail();
+    $oldSample = $draft->getFirstMedia(CharacterRevision::VOICE_SAMPLE);
+    actingAs($actor)
+        ->post(route('characters.references.store', $revisionParams), [
+            'view' => 'voice',
+            'file' => $upload(3),
+            'replace_voice_id' => $oldSample?->id,
+            'lock_version' => $draft->lock_version,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $replacement = $draft->refresh()->getMedia(CharacterRevision::VOICE_SAMPLE)->sole();
+    expect($draft->status)->toBe(RevisionStatus::APPROVED)
+        ->and($character->refresh()->current_revision_id)->toBe($draft->id)
+        ->and($replacement->id)->not->toBe($oldSample?->id);
+    $nextShot = Shot::factory()->create(['scene_id' => $shot->scene_id, 'position' => 2, 'dialogue' => $shot->dialogue]);
+    $nextTake = app(RequestShotGenerationAction::class)->run($nextShot, $actor, requestKey: 'changed-voice');
+    expect(data_get($nextTake->input_snapshot, 'characters.1.voice_sample.media_id'))->toBe($replacement->id);
+
     $newParams = [...$params, 'revision' => $new];
     actingAs($actor)->post(route('characters.references.store', $newParams), [
         'view' => 'voice', 'file' => $upload(5), 'lock_version' => $new->lock_version,

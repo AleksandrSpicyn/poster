@@ -34,13 +34,11 @@ class UploadCharacterReference
 
         $voice = $data->view === ReferenceView::VOICE;
 
-        if ($voice) {
-            $this->characters->lockedWithSeries($revision->character_id);
-        }
+        $character = $voice ? $this->characters->lockedWithSeries($revision->character_id) : null;
 
         $revision = $this->characterRevisions->lockedForReferences($revision->id);
 
-        if ($revision->status !== RevisionStatus::DRAFT) {
+        if (! $voice && $revision->status !== RevisionStatus::DRAFT) {
             throw ValidationException::withMessages(['revision' => 'Create a draft version before changing character references.']);
         }
 
@@ -54,8 +52,8 @@ class UploadCharacterReference
             throw ValidationException::withMessages(['character' => 'An archived character or series cannot receive references.']);
         }
 
-        if ($voice && $this->characterRevisions->hasNewerRevision($revision)) {
-            throw ValidationException::withMessages(['revision' => 'Откройте последнюю версию персонажа.']);
+        if ($character !== null && ! $this->characterRevisions->acceptsVoiceSample($revision, $character)) {
+            throw ValidationException::withMessages(['revision' => 'Откройте текущую утверждённую версию или последний черновик персонажа.']);
         }
 
         $collection = $voice ? CharacterRevision::VOICE_SAMPLE : CharacterRevision::REFERENCES;
@@ -102,14 +100,15 @@ class UploadCharacterReference
                     ...$properties,
                 ])
                 ->toMediaCollection($collection);
-            $revision->lock_version++;
-            $this->characterRevisions->save($revision);
+            $this->characterRevisions->incrementReferenceVersion($revision);
 
             if ($voice) {
                 DB::afterRollBack(fn() => $this->discardFiles($media));
             }
 
-            if ($previous instanceof Media) {
+            if ($previous instanceof Media && $revision->status === RevisionStatus::APPROVED) {
+                $this->mediaRepository->retainPreviousVoiceSample($previous);
+            } elseif ($previous instanceof Media) {
                 $previous->deleteQuietly();
                 DB::afterCommit(fn() => rescue(fn() => $this->discardFiles($previous)));
             }

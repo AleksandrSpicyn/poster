@@ -107,7 +107,7 @@ class BuildShotVideoRequest
 
             $record = $this->media->findOrFail($sample['media_id']);
 
-            if ($record->disk !== 'local' || $record->collection_name !== CharacterRevision::VOICE_SAMPLE
+            if ($record->disk !== 'local' || ! in_array($record->collection_name, [CharacterRevision::VOICE_SAMPLE, CharacterRevision::PREVIOUS_VOICE_SAMPLES], true)
                 || $record->model_type !== new CharacterRevision()->getMorphClass() || (int) $record->model_id !== $character['id']) {
                 throw new RuntimeException('The pinned voice sample is unavailable.');
             }

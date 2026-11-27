@@ -7,7 +7,6 @@ namespace App\Actions\Characters;
 use App\Classes\Generators\AudioGenerator\BytePlusSpeech;
 use App\Classes\Generators\VoiceSample;
 use App\Data\Characters\VoicePreviewData;
-use App\Enums\RevisionStatus;
 use App\Models\Character;
 use App\Models\CharacterRevision;
 use App\Models\Series;
@@ -20,8 +19,8 @@ readonly class GenerateVoicePreviewAction
 
     public function run(Series $series, Character $character, CharacterRevision $revision, VoicePreviewData $data): VoiceSample
     {
-        if ($series->archived_at !== null || $character->archived_at !== null || $revision->status !== RevisionStatus::DRAFT || $revision->lock_version !== $data->lock_version || $this->revisions->hasNewerRevision($revision)) {
-            throw ValidationException::withMessages(['revision' => 'Откройте актуальный черновик персонажа для создания пробы.']);
+        if ($series->archived_at !== null || $character->archived_at !== null || $revision->lock_version !== $data->lock_version || ! $this->revisions->acceptsVoiceSample($revision, $character)) {
+            throw ValidationException::withMessages(['revision' => 'Обновите текущую утверждённую версию или последний черновик персонажа для создания пробы.']);
         }
 
         return $this->speech->generate($data);
