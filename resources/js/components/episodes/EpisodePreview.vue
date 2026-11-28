@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Pause, Play } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { Maximize, Pause, Play } from '@lucide/vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 
 const props = withDefaults(
     defineProps<{
@@ -11,6 +11,7 @@ const props = withDefaults(
         playLabel?: string;
         pauseLabel?: string;
         timeline?: boolean;
+        showFullscreen?: boolean;
     }>(),
     {
         label: 'Предпросмотр эпизода',
@@ -35,6 +36,7 @@ watch(
         playing.value = false;
     },
 );
+onBeforeUnmount(() => video.value?.pause());
 function syncProgress() {
     if (!video.value) return;
     duration.value = Number.isFinite(video.value.duration) ? video.value.duration : 0;
@@ -108,6 +110,9 @@ async function play() {
                 <Pause v-if="playing" aria-hidden="true" /><Play v-else aria-hidden="true" />
             </button>
             <time>{{ format(time) }}</time><span>/</span><time>{{ format(duration) }}</time>
+            <button v-if="showFullscreen" type="button" aria-label="Полный экран" class="ml-auto" @click="fullscreen">
+                <Maximize aria-hidden="true" />
+            </button>
         </div>
         <p v-if="error" role="alert">Не удалось воспроизвести видео.</p>
     </section>

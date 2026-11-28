@@ -1,28 +1,16 @@
 <script setup lang="ts">
-import type { EpisodeRevisionSummary, Screenplay, ShotSummary } from '@/types/episodes';
-import { computed, ref } from 'vue';
+import type { EpisodeRevisionSummary, Screenplay } from '@/types/episodes';
+import { computed } from 'vue';
 
 const props = defineProps<{
     panel: string;
-    choosingShot?: boolean;
     revision: EpisodeRevisionSummary;
     screenplay: Screenplay;
     selection: { prompt_id: number; trim_start_ms: number; trim_end_ms: number }[];
-    selectedTakeIds: number[];
 }>();
 const emit = defineEmits<{ open: [number] }>();
-const rowButtons = ref<HTMLButtonElement[]>([]);
-defineExpose({ focusFirstShot: () => rowButtons.value[0]?.focus() });
 const padded = (value: number) => String(value).padStart(2, '0');
 const shots = computed(() => props.revision.scenes.flatMap((scene) => scene.shots));
-function status(shot: ShotSummary) {
-    const operations = shot.takes.flatMap((take) => take.operations);
-    if (operations.some((operation) => ['running', 'submitting', 'submitted'].includes(operation.status))) return 'генерация';
-    if (operations.some((operation) => operation.status === 'planned')) return 'в очереди';
-    if (shot.takes.some((take) => props.selectedTakeIds.includes(take.id))) return 'принят';
-    if (shot.takes.some((take) => take.generated)) return 'готов';
-    return operations[0]?.status_label ?? 'ожидает дубля';
-}
 const fragments = computed(() => {
     let offset = 0;
     return shots.value.map((shot, i) => {
@@ -40,24 +28,21 @@ const rows = computed(() => {
         const take = shot.takes.find((candidate) => candidate.id === props.selection[i]?.prompt_id);
         return {
             name: 'Кадр ' + padded(i + 1),
-            description:
-                props.panel === 'shots'
-                    ? (shot.title || shot.plan_type || shot.camera?.description || shot.action || '') + ' · ' + status(shot)
-                    : take
-                      ? 'Дубль ' +
-                        padded(take.take_number) +
-                        ' · ' +
-                        new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(fragments.value[i].duration / 1000) +
-                        ' с'
-                      : 'Выберите готовый дубль',
+            description: take
+                ? 'Дубль ' +
+                  padded(take.take_number) +
+                  ' · ' +
+                  new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(fragments.value[i].duration / 1000) +
+                  ' с'
+                : 'Выберите готовый дубль',
         };
     });
 });
 </script>
 <template>
     <section class="episode-overview">
-        <h2>{{ panel === 'screenplay' ? 'Сценарий' : panel === 'shots' ? (choosingShot ? 'Выберите кадр' : 'Кадры') : 'Монтаж' }}</h2>
-        <button v-for="(row, i) in rows" ref="rowButtons" :key="i" type="button" class="overview-row" @click="emit('open', i)">
+        <h2>{{ panel === 'screenplay' ? 'Сценарий' : 'Монтаж' }}</h2>
+        <button v-for="(row, i) in rows" :key="i" type="button" class="overview-row" @click="emit('open', i)">
             <strong>{{ row.name }}</strong><span>{{ row.description }}</span>
         </button>
         <div v-if="panel !== 'screenplay' && fragments.length" class="overview-track">

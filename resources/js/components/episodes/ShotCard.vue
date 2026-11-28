@@ -5,8 +5,10 @@ import InputError from '@/components/InputError.vue';
 import ShotOperationControls from '@/components/episodes/ShotOperationControls.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import type { EpisodeRouteParams, ShotSummary } from '@/types/episodes';
+import EpisodePreview from './EpisodePreview.vue';
+import ShotGenerationDialog from './ShotGenerationDialog.vue';
+import { keepShotLocation, takeStatus, preferredTake } from '@/lib/shotTakes';
+import type { ContinuationSource, EpisodeRouteParams, ShotSummary } from '@/types/episodes';
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -21,14 +23,13 @@ const props = defineProps<{
     selectedTakeIds: number[];
     sceneTitle?: string;
     number?: number;
-    sourceOptions: { id: number; label: string }[];
+    sourceOptions: ContinuationSource[];
 }>();
 const submitForm = useFormApi();
 const params = { ...props.params, revision: props.revisionId, scene: props.shot.scene_id, shot: props.shot.id };
-const form = useForm({ source_prompt_id: props.shot.source_prompt_id ?? '', request_key: props.requestKey + '-' + props.shot.id, new_take: false });
 const cancelForm = useForm({});
 const stopping = ref<number | null>(null);
-const orderedTakes = computed(() => [...props.shot.takes].sort((left, right) => left.take_number - right.take_number));
+const orderedTakes = computed(() => [...props.shot.takes].sort((left, right) => right.take_number - left.take_number));
 const savedTakes = computed(() =>
     props.shot.takes
         .filter((take) => take.generated)
@@ -36,30 +37,22 @@ const savedTakes = computed(() =>
         .sort()
         .join(', '),
 );
-const hasActiveRequest = computed(() =>
-    props.shot.takes.some((take) =>
-        take.operations.some((operation) =>
-            ['frame_review', 'planned', 'submitting', 'submitted', 'running', 'submission_unknown'].includes(operation.status),
-        ),
-    ),
+const viewedId = ref<number>();
+const take = computed(() => orderedTakes.value.find((t) => t.id === viewedId.value) ?? preferredTake(orderedTakes.value));
+const video = computed(() => take.value?.media.find((m) => m.collection === 'shot-video'));
+const image = computed(() => take.value?.media.find((m) => m.collection === 'shot-image'));
+const heading = computed(
+    () => 'Кадр ' + String(props.number ?? props.shot.position).padStart(2, '0') + ' · ' + (props.shot.title || props.shot.action),
 );
-const errors = computed(() => Object.values(form.errors).join(' '));
-function pauseHiddenMedia(event: Event) {
-    const details = event.currentTarget;
-    if (details instanceof HTMLDetailsElement && !details.open) {
-        details.querySelectorAll('video').forEach((video) => video.pause());
-    }
-}
-function generate(newTake: boolean) {
-    form.new_take = newTake;
-    form.transform((data) => ({ ...data, source_prompt_id: data.source_prompt_id === '' ? null : Number(data.source_prompt_id) }));
-    submitForm(form, ['shots.generate', params], { preserveScroll: true, preserveState: 'errors' });
-}
+const primaryOperation = computed(() =>
+    take.value?.operations.some((op) => op.status === 'submission_unknown' || op.status === 'frame_review' || op.can_retry_download),
+);
 function stop(prompt: number) {
     if (cancelForm.processing || stopping.value !== prompt) return;
     submitForm(cancelForm, ['shots.cancel', { ...params, prompt }], {
         preserveScroll: true,
         preserveState: 'errors',
+        onBeforeUpdate: keepShotLocation(props.shot.id),
         onSuccess: () => {
             stopping.value = null;
         },
@@ -68,85 +61,45 @@ function stop(prompt: number) {
 </script>
 
 <template>
-    <article class="take-group studio-panel">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <h4 class="font-semibold">
-                Кадр {{ String(number ?? shot.position).padStart(2, '0') }} · {{ (shot.duration_ms / 1000).toLocaleString('ru') }} с
-            </h4>
-            <span class="text-muted-foreground text-xs">{{ shot.transition_mode_label }}</span>
-        </div>
-        <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ shot.action }}</p>
-        <GenerationUsage :id="shot.id" :key="shot.id" kind="shot" />
-        <div v-if="approved && !archived && projectEnabled" class="take-generate flex flex-wrap items-end gap-3">
-            <div v-if="shot.transition_mode !== 'new_scene'" class="grid gap-2">
-                <Label :for="'shot-source-' + shot.id">Продолжить от дубля</Label
-                ><select
-                    :id="'shot-source-' + shot.id"
-                    v-model="form.source_prompt_id"
-                    class="list-select w-full max-w-80"
-                    :disabled="form.processing || hasActiveRequest"
-                >
-                    <option value="">Источник из сценария</option>
-                    <option v-for="source in sourceOptions" :key="source.id" :value="source.id">{{ source.label }}</option>
-                </select>
-            </div>
-            <Button type="button" class="h-11" :disabled="form.processing || hasActiveRequest" @click="generate(shot.takes.length > 0)">{{
-                form.processing ? 'Запуск…' : shot.takes.length ? 'Создать новый дубль' : 'Создать кадр'
-            }}</Button>
-        </div>
-        <p v-if="approved && !archived && projectEnabled" class="text-muted-foreground text-xs">
-            Новый дубль создаётся по утверждённому сценарию и выбранным референсам. Провайдер может списать средства за генерацию.
-        </p>
-        <InputError :message="errors" />
-        <p v-if="!shot.takes.length" class="text-muted-foreground text-sm">Пока нет дублей.</p>
-        <div class="take-list">
-            <section v-for="take in orderedTakes" :key="take.id" class="space-y-2 border-b py-2">
-                <details v-if="take.media.length" class="take-media" @toggle="pauseHiddenMedia">
-                    <summary class="take-heading">
-                        <img
-                            v-if="take.media.some((media) => media.collection === 'shot-image')"
-                            :src="take.media.find((media) => media.collection === 'shot-image')?.url"
-                            alt=""
-                        />
-                        <span
-                            ><strong>Дубль {{ String(take.take_number).padStart(2, '0') }}</strong
-                            ><small>{{
-                                selectedTakeIds.includes(take.id) ? 'Принят' : take.generated ? 'Готов к монтажу' : 'В работе или требует проверки'
-                            }}</small></span
-                        >
-                    </summary>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <template v-for="media in take.media" :key="media.id"
-                            ><video
-                                v-if="media.collection === 'shot-video'"
-                                :src="media.url"
-                                :aria-label="'Видео дубля ' + take.take_number"
-                                controls
-                                preload="metadata"
-                                class="bg-muted max-h-80 w-full rounded-md" /><img
-                                v-else-if="media.collection === 'shot-image'"
-                                :src="media.url"
-                                :alt="'Первый кадр дубля ' + take.take_number"
-                                loading="lazy"
-                                class="bg-muted max-h-80 w-full rounded-md object-contain"
-                        /></template>
-                    </div>
-                </details>
-                <div v-else class="take-heading">
-                    <span
-                        ><strong>Дубль {{ String(take.take_number).padStart(2, '0') }}</strong
-                        ><small>{{ take.generated ? 'Готов к монтажу' : 'В работе или требует проверки' }}</small></span
-                    >
+    <div class="shot-detail grid min-w-0 gap-4 min-[851px]:gap-6">
+        <section class="studio-panel min-w-0 space-y-4 wrap-anywhere">
+            <header class="grid grid-cols-[minmax(0,1fr)_fit-content(32%)] items-start gap-2">
+                <div class="min-w-0">
+                    <h2 class="mb-0">{{ heading }}</h2>
+                    <p class="text-muted-foreground mt-1 text-sm">
+                        {{ sceneTitle }} · {{ (shot.duration_ms / 1000).toLocaleString('ru') }} с · {{ shot.transition_mode_label }}
+                    </p>
                 </div>
-                <ul class="space-y-1 text-xs">
-                    <li v-for="operation in take.operations" :key="operation.id" class="text-muted-foreground">
-                        {{ operation.stage_label }} · {{ operation.status_label
-                        }}<span v-if="operation.cancel_requested_at"> · Запрошена остановка</span>
-                    </li>
-                </ul>
-                <p v-if="take.operations.some((item) => item.status === 'submission_unknown')" class="text-destructive text-sm">
-                    Проверьте результат в кабинете провайдера перед повтором.
-                </p>
+                <span class="text-muted-foreground text-xs" role="status">{{ takeStatus(take) }}</span>
+            </header>
+            <EpisodePreview
+                v-if="video"
+                :key="video.id"
+                :src="video.url"
+                :poster="image?.url"
+                timeline
+                show-fullscreen
+                :label="'Видео дубля ' + take?.take_number"
+                player-label="Предпросмотр дубля"
+                play-label="Воспроизвести дубль"
+                pause-label="Приостановить дубль"
+            />
+            <Dialog v-else-if="image"
+                ><DialogTrigger as-child
+                    ><button class="frame-preview block max-w-full overflow-hidden rounded-lg bg-black" aria-label="Увеличить первый кадр">
+                        <img :src="image.url" alt="Первый кадр дубля" class="max-w-full object-contain" /></button
+                ></DialogTrigger>
+                <DialogContent :aria-describedby="undefined" class="sm:max-w-3xl"
+                    ><DialogTitle>Первый кадр · дубль {{ take?.take_number }}</DialogTitle
+                    ><img :src="image.url" alt="Увеличенный первый кадр" class="max-h-[72dvh] w-full object-contain"
+                /></DialogContent>
+            </Dialog>
+            <p v-else class="bg-muted text-muted-foreground rounded-lg px-4 py-5 text-sm">
+                {{ take ? 'Медиафайл пока недоступен.' : 'Здесь появится первый кадр или видео дубля.' }}
+            </p>
+            <div v-if="take" class="flex flex-wrap items-center justify-between gap-3">
+                <strong class="text-sm">Дубль {{ String(take.take_number).padStart(2, '0') }}</strong>
+                <ShotOperationControls v-if="!archived" :key="take.id" :take="take" :params="params" />
                 <Dialog
                     v-if="
                         !archived &&
@@ -187,58 +140,63 @@ function stop(prompt: number) {
                         >
                     </DialogContent>
                 </Dialog>
-                <details v-if="take.inputs?.prompt" class="text-sm">
+                <details v-if="take.inputs?.prompt || take.operations.length" class="w-full text-sm">
                     <summary>Что передаётся в генерацию</summary>
-                    <p>
-                        {{ take.inputs.model }} · {{ take.inputs.duration }} с · изображения первого кадра:
-                        {{ take.inputs.images.join(', ') || 'продолжение' }}
-                    </p>
-                    <p v-for="speaker in take.inputs.speakers" :key="speaker.name">
-                        {{ speaker.name }} · {{ speaker.sample ? 'образец №' + speaker.sample : 'описание' }}
-                    </p>
-                    <pre class="max-h-64 overflow-auto whitespace-pre-wrap">{{ take.inputs.prompt }}</pre>
+                    <ul class="text-muted-foreground my-2">
+                        <li v-for="operation in take.operations" :key="operation.id">{{ operation.stage_label }} · {{ operation.status_label }}</li>
+                    </ul>
+                    <template v-if="take.inputs?.prompt"
+                        ><p>
+                            {{ take.inputs.model }} · {{ take.inputs.duration }} с · изображения первого кадра:
+                            {{ take.inputs.images.join(', ') || 'продолжение' }}
+                        </p>
+                        <p v-for="speaker in take.inputs.speakers" :key="speaker.name">
+                            {{ speaker.name }} · {{ speaker.sample ? 'образец №' + speaker.sample : 'описание' }}
+                        </p>
+                        <pre class="max-h-64 overflow-auto whitespace-pre-wrap">{{ take.inputs.prompt }}</pre>
+                    </template>
                 </details>
-                <ShotOperationControls v-if="!archived" :take="take" :params="params" />
-            </section>
-        </div>
-    </article>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                <GenerationUsage :id="shot.id" kind="shot" />
+                <ShotGenerationDialog
+                    :shot="shot"
+                    :heading="heading"
+                    :params="params"
+                    :source-options="sourceOptions"
+                    :request-key="requestKey"
+                    :approved="approved"
+                    :archived="archived"
+                    :project-enabled="projectEnabled"
+                    :secondary="!!primaryOperation"
+                />
+            </div>
+        </section>
+        <section class="studio-panel min-w-0">
+            <h2>Дубли кадра</h2>
+            <p v-if="!orderedTakes.length" class="text-muted-foreground mt-3 text-sm">Пока нет дублей.</p>
+            <ul v-else class="mt-3 divide-y border-t">
+                <li v-for="item in orderedTakes" :key="item.id">
+                    <button
+                        class="aria-pressed:bg-accent aria-pressed:text-accent-foreground flex min-h-12 w-full flex-wrap items-center justify-between gap-2 rounded-sm px-2 text-left text-sm"
+                        :aria-pressed="item.id === take?.id"
+                        @click="viewedId = item.id"
+                    >
+                        <strong>Дубль {{ String(item.take_number).padStart(2, '0') }}</strong
+                        ><span>{{ selectedTakeIds.includes(item.id) ? 'Принят в монтаж' : takeStatus(item) }}</span>
+                    </button>
+                </li>
+            </ul>
+        </section>
+    </div>
 </template>
-
 <style scoped>
-.take-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.frame-preview img {
+    height: clamp(175px, 32vw, 360px);
+    width: auto;
 }
-.take-generate {
-    order: 2;
-}
-.take-generate + p {
-    order: 3;
-}
-.take-list {
-    order: 1;
-}
-.take-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 44px;
-}
-summary.take-heading {
-    cursor: pointer;
-}
-.take-heading img {
-    width: 60px;
-    height: 44px;
-    border-radius: 6px;
-    object-fit: cover;
-}
-.take-heading small {
-    display: block;
-    color: var(--muted-foreground);
-}
-.take-media[open] .take-heading {
-    margin-bottom: 12px;
+.shot-detail :deep(.episode-preview video) {
+    width: 100%;
+    height: clamp(175px, 32vw, 360px);
 }
 </style>

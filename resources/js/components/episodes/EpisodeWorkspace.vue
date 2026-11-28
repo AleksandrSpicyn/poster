@@ -23,7 +23,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { EpisodeWorkspaceProps } from '@/types/episodes';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { RefreshCw } from '@lucide/vue';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from '@/composables/useRoute';
 
 const props = defineProps<EpisodeWorkspaceProps>();
@@ -110,14 +110,7 @@ const panelTitles: Record<string, string> = {
 const panel = ref('screenplay');
 const detail = ref<number | null>(null);
 const memoryOpen = ref(false);
-const choosingShot = ref(false);
-const episodeOverview = ref<InstanceType<typeof EpisodeOverview> | null>(null);
-async function chooseShot() {
-    choosingShot.value = true;
-    await nextTick();
-    episodeOverview.value?.focusFirstShot();
-}
-const overview = computed(() => panel.value !== 'release' && !!revision.value && detail.value === null);
+const overview = computed(() => panel.value !== 'shots' && panel.value !== 'release' && !!revision.value && detail.value === null);
 const editingShot = computed(() => (panel.value === 'montage' && detail.value !== null ? shots.value[detail.value] : null));
 const editingTake = computed(() => editingShot.value?.takes.find((take) => take.id === assemblyForm.shots[detail.value ?? 0]?.prompt_id));
 const editingVideo = computed(() => editingTake.value?.media.find((m) => m.collection === 'shot-video'));
@@ -150,13 +143,14 @@ watch([editorStale, scriptErrors, archived], ([stale, errors, isArchived]) => {
 function restorePanel() {
     const [key, row] = window.location.hash.slice(1).split('/');
     memoryOpen.value = key === 'history' && (!!revision.value?.source_assembly_id || !!props.sourceAssembly);
-    choosingShot.value = false;
     const index =
         key === 'shots' && row === 'review'
             ? shots.value.findIndex((shot) =>
                   shot.takes.some((take) => take.operations.some((operation) => operation.status === 'submission_unknown')),
               )
-            : Number(row) - 1;
+            : key === 'shots'
+              ? shots.value.findIndex((shot) => shot.id === Number(row))
+              : Number(row) - 1;
     detail.value =
         Number.isInteger(index) && index >= 0 && index < (key === 'screenplay' ? scriptForm.script.scenes.length : shots.value.length) ? index : null;
     leaveDialogueFocus();
@@ -186,11 +180,11 @@ function refresh() {
             class="workspace-page"
             :class="{
                 'dialogue-workspace': dialogueFocus,
+                'episode-shots-page': panel === 'shots',
                 'episode-release-page': panel === 'release',
                 'screenplay-page': panel === 'screenplay' && !dialogueFocus,
                 'episode-overview-page': overview,
                 'scene-detail-page': panel === 'screenplay' && detail !== null && !dialogueFocus,
-                'takes-detail-page': panel === 'shots' && detail !== null,
                 'trim-detail-page': panel === 'montage' && detail !== null,
             }"
             @keydown.esc="leaveDialogueFocus"
@@ -209,9 +203,14 @@ function refresh() {
                 </header>
                 <div v-show="!dialogueFocus" class="flex flex-wrap items-start justify-between gap-4">
                     <Heading
+                        v-if="panel !== 'shots'"
                         :title="panel === 'release' ? episode.title : (panelTitles[panel] ?? 'Сценарий эпизода')"
                         :description="series.name + ' / Эпизод ' + String(episode.number).padStart(2, '0')"
                     />
+                    <div v-else class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3">
+                        <h1 class="text-[30px] font-bold wrap-anywhere min-[700px]:text-[40px]">{{ episode.title }}</h1>
+                        <span class="text-muted-foreground font-mono text-sm">Эпизод {{ String(episode.number).padStart(2, '0') }}</span>
+                    </div>
                     <Button
                         v-if="overview && panel === 'montage'"
                         class="h-11"
@@ -226,13 +225,6 @@ function refresh() {
                         @click="saveScript"
                         >Сохранить черновик</Button
                     >
-                    <Button
-                        v-else-if="overview && panel === 'shots'"
-                        class="h-11"
-                        :disabled="archived || !project.is_active || revision?.status !== 'approved'"
-                        @click="chooseShot"
-                        >Создать дубль</Button
-                    >
                     <ConfirmationDialog
                         v-else-if="hasDraft && panel !== 'release'"
                         heading="Сброс несохранённых изменений"
@@ -245,7 +237,9 @@ function refresh() {
                     >
                         <template #trigger
                             ><Button variant="outline" class="h-11"
-                                ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
+                                ><RefreshCw class="size-4" aria-hidden="true" /><span :class="{ 'sr-only': panel === 'shots' }"
+                                    >Обновить результаты</span
+                                ></Button
                             ></template
                         >
 
@@ -265,7 +259,9 @@ function refresh() {
                         </div>
                     </ConfirmationDialog>
                     <Button v-else-if="panel !== 'release'" variant="outline" class="h-11" @click="refresh"
-                        ><RefreshCw class="size-4" aria-hidden="true" />Обновить результаты</Button
+                        ><RefreshCw class="size-4" aria-hidden="true" /><span :class="{ 'sr-only': panel === 'shots' }"
+                            >Обновить результаты</span
+                        ></Button
                     >
                 </div>
             </template>
@@ -303,23 +299,26 @@ function refresh() {
                 >
                     Предыдущий принятый эпизод изменился. Проверьте источник и сохраните новую версию сценария перед продолжением или публикацией.
                 </p>
-                <SeriesAssetShelf
-                    v-if="!archived && (panel === 'screenplay' || panel === 'shots') && !dialogueFocus"
-                    :series="series"
-                    :episode="episode"
+                <SeriesAssetShelf v-if="!archived && panel === 'screenplay' && !dialogueFocus" :series="series" :episode="episode" />
+                <EpisodeShotList
+                    v-if="panel === 'shots' && revision"
+                    :revision="revision"
+                    :selected-take-ids="acceptedTakeIds"
+                    :detail="detail"
+                    :params="params"
+                    :archived="archived"
+                    :project-enabled="project.is_active"
+                    :request-key="requestKey"
+                    :ready-sources-for="readySourcesFor"
                 />
-                <div class="episode-columns grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
+                <p v-else-if="panel === 'shots'" class="studio-panel">Сохраните первую версию сценария, чтобы перейти к кадрам.</p>
+                <div v-else class="episode-columns grid items-start gap-4 md:grid-cols-[min(34%,400px)_minmax(0,1fr)]">
                     <aside v-show="dialogueFocus" class="dialogue-preview studio-panel">
                         <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" class="rounded-lg" />
                         <h2>{{ series.name }}</h2>
                         <p>Эпизод {{ String(episode.number).padStart(2, '0') }}</p>
                     </aside>
-                    <aside v-if="panel === 'shots' && detail !== null" class="studio-panel take-project">
-                        <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" />
-                        <h2>{{ project.name }}</h2>
-                        <p>Проект</p>
-                    </aside>
-                    <aside v-else-if="editingShot && !dialogueFocus" class="studio-panel trim-player">
+                    <aside v-if="editingShot && !dialogueFocus" class="studio-panel trim-player">
                         <h2>Предпросмотр</h2>
                         <video
                             v-if="editingVideo"
@@ -344,13 +343,10 @@ function refresh() {
                     <div class="min-w-0 space-y-5">
                         <EpisodeOverview
                             v-if="overview && revision"
-                            ref="episodeOverview"
-                            :choosing-shot="choosingShot"
                             :panel="panel"
                             :revision="revision"
                             :screenplay="scriptForm.script"
                             :selection="assemblyForm.shots"
-                            :selected-take-ids="acceptedTakeIds"
                             @open="openRow"
                         />
                         <a
@@ -535,22 +531,10 @@ function refresh() {
                                 />
                             </section>
                         </div>
-                        <p v-if="panel === 'shots' && !revision" class="studio-panel">Сохраните первую версию сценария, чтобы перейти к кадрам.</p>
                         <p v-if="panel === 'montage' && (revision?.status !== 'approved' || archived)" class="studio-panel">
                             Для нового монтажа нужен утверждённый сценарий активного сериала.
                         </p>
-                        <EpisodeShotList
-                            v-if="revision"
-                            v-show="!overview && panel === 'shots'"
-                            :revision="revision"
-                            :selected-take-ids="acceptedTakeIds"
-                            :detail="detail"
-                            :params="params"
-                            :archived="archived"
-                            :project-enabled="project.is_active"
-                            :request-key="requestKey"
-                            :ready-sources-for="readySourcesFor"
-                        />
+
                         <section v-if="panel === 'montage' && (stale || saveError || restored)" class="studio-panel space-y-3" role="status">
                             <h2>{{ stale ? 'Серверная версия изменилась' : saveError ? 'Сохранение не выполнено' : 'Черновик восстановлен' }}</h2>
                             <p v-if="stale && difference">
@@ -607,6 +591,21 @@ function refresh() {
 </template>
 
 <style scoped>
+.episode-shots-page > nav {
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+}
+.episode-shots-page > nav a:where(:not([aria-current])) {
+    background: transparent;
+}
+@media (max-width: 699px) {
+    .episode-shots-page > nav a {
+        padding-inline: 8px;
+        font-size: 13px;
+    }
+}
+
 @media (max-width: 699px) {
     .episode-release-page {
         gap: 16px;
@@ -674,46 +673,6 @@ function refresh() {
     max-height: 410px;
     margin: 16px 0;
     background: #111;
-}
-.takes-detail-page .episode-columns {
-    display: grid;
-    grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr);
-}
-.take-project > div {
-    aspect-ratio: 2.1;
-    border-radius: 8px;
-}
-.takes-detail-page #episode-shots-title,
-.takes-detail-page section[aria-labelledby='episode-shots-title'] > section > div:first-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-}
-.take-project {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-}
-.take-project h2 {
-    margin-top: 12px;
-}
-.take-project p {
-    color: var(--muted-foreground);
-}
-.takes-detail-page .episode-columns > .min-w-0 {
-    grid-column: 1;
-    grid-row: 1;
-}
-@media (max-width: 767px) {
-    .takes-detail-page .episode-columns {
-        grid-template-columns: minmax(0, 1fr);
-    }
-    .take-project {
-        grid-column: 1;
-        grid-row: 2;
-    }
 }
 .scene-detail-page .episode-columns {
     display: block;
