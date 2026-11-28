@@ -24,6 +24,7 @@ test('сохраняет материал и возвращает формат �
         'png' => File::get(base_path('tests/Fixtures/portrait.png')),
         'wav' => serialVoiceWav(),
         'json' => '{"format":"poster.season.v1","episodes":[{"title":"Начало"}]}',
+        default => throw new InvalidArgumentException($extension),
     };
     $upload = UploadedFile::fake()->createWithContent('sample.' . $extension, $contents);
     $file = new UploadedFile($upload->getPathname(), $upload->name, test: true);
@@ -33,8 +34,7 @@ test('сохраняет материал и возвращает формат �
         ->assertSessionHasNoErrors()
         ->assertRedirect();
 
-    $media = $series->getFirstMedia(Series::ASSETS);
-    expect($media)->not->toBeNull();
+    $media = $series->getMedia(Series::ASSETS)->sole();
     Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
     get(route('series.show', ['project' => $series->project_id, 'series' => $series, 'section' => 'materials']))
         ->assertInertia(fn(Assert $page): Assert => $page
