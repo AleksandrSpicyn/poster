@@ -62,9 +62,11 @@ readonly class SubmitShotGenerationAction
                 } elseif ($operation->stage === GenerationOperationStage::VIDEO) {
                     $configuration = $operation->request_snapshot['video'] ?? null;
                     $provider = VideoProvider::from(Payload::string(is_array($configuration) ? ($configuration['provider'] ?? null) : null, 'provider'));
-                    $request = $this->request->run($operation);
                     $generator = $this->generators->make($provider);
-                    $generator->capabilities($request->model)->assertSupports($request);
+                    $model = Payload::string(is_array($configuration) ? ($configuration['model'] ?? null) : null, 'model');
+                    $capabilities = $generator->capabilities($model);
+                    $request = $this->request->run($operation, $capabilities);
+                    $capabilities->assertSupports($request);
                     $submittedId = $generator->generate($request);
                     $submittedProvider = $provider;
                     $submittedModel = $request->model;

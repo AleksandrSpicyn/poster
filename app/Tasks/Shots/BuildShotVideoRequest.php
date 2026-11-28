@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tasks\Shots;
 
 use App\Classes\Billing\PilotShotQuote;
+use App\Classes\Generators\VoiceSample;
 use App\Data\AudioReferenceData;
+use App\Data\VideoCapabilitiesData;
 use App\Data\VideoGenerationRequestData;
 use App\Enums\VideoInputMode;
 use App\Models\CharacterRevision;
@@ -23,7 +25,7 @@ class BuildShotVideoRequest
 {
     public function __construct(private readonly PromptRepository $prompts, private readonly GenerationReservationRepository $usage, private readonly MediaRepository $media) {}
 
-    public function run(GenerationOperation $operation): VideoGenerationRequestData
+    public function run(GenerationOperation $operation, VideoCapabilitiesData $capabilities): VideoGenerationRequestData
     {
         $prompt = $this->prompts->forOperation($operation);
         $image = $prompt->getFirstMedia(Prompt::SHOT_IMAGE) ?? throw new RuntimeException('The private opening frame is missing.');
@@ -60,7 +62,7 @@ class BuildShotVideoRequest
             PilotShotQuote::assertVerticalFrame($frame);
         }
 
-        $audio = $this->audioReferences($operation);
+        $audio = $this->audioReferences($operation, $capabilities);
         $imageUrl = 'data:' . ($image->mime_type ?? 'image/png') . ';base64,' . base64_encode($frame);
 
         return new VideoGenerationRequestData(
@@ -79,7 +81,7 @@ class BuildShotVideoRequest
     }
 
     /** @return list<AudioReferenceData> */
-    private function audioReferences(GenerationOperation $operation): array
+    private function audioReferences(GenerationOperation $operation, VideoCapabilitiesData $capabilities): array
     {
         $characters = $operation->request_snapshot['characters'] ?? [];
 
@@ -87,7 +89,8 @@ class BuildShotVideoRequest
             throw new RuntimeException('The pinned cast is invalid.');
         }
 
-        $references = [];
+        $samples = [];
+        $durations = [];
 
         foreach ($characters as $character) {
             if (! is_array($character)) {
@@ -118,7 +121,22 @@ class BuildShotVideoRequest
                 throw new RuntimeException('The pinned voice sample changed.');
             }
 
-            $references[] = new AudioReferenceData('data:audio/wav;base64,' . base64_encode($bytes), $sample['duration_ms']);
+            $samples[] = $bytes;
+            $durations[] = $sample['duration_ms'];
+        }
+
+        $references = [];
+
+        foreach ($capabilities->audioExcerptDurations($durations) as $index => $duration) {
+            $bytes = $samples[$index];
+
+            if ($duration < $durations[$index]) {
+                $excerpt = VoiceSample::excerpt($bytes, $duration);
+                $bytes = $excerpt->wav;
+                $duration = $excerpt->durationMs;
+            }
+
+            $references[] = new AudioReferenceData('data:audio/wav;base64,' . base64_encode($bytes), $duration);
         }
 
         return $references;

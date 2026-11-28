@@ -52,6 +52,31 @@ class VideoCapabilitiesData extends Data
         }
     }
 
+    /**
+     * @param list<int> $durationsMs
+     * @return list<int>
+     */
+    public function audioExcerptDurations(array $durationsMs): array
+    {
+        $sorted = $durationsMs;
+        asort($sorted);
+        $budget = $this->maxReferenceAudioMs;
+        $remaining = count($sorted);
+        $excerpts = $durationsMs;
+
+        // Allocate short samples first so unused time stays available to longer voices.
+        foreach ($sorted as $index => $duration) {
+            $excerpts[$index] = min($duration, 15000, intdiv($budget, $remaining));
+            $budget -= $excerpts[$index];
+            $remaining--;
+        }
+
+        $excerpts = array_values($excerpts);
+        $this->assertAudioDurations($excerpts);
+
+        return $excerpts;
+    }
+
     /** @param list<int> $durationsMs */
     public function assertAudioDurations(array $durationsMs): void
     {

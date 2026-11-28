@@ -161,7 +161,7 @@ readonly class PrepareShotGenerationInput
         }
 
         try {
-            $settings->capabilities->assertAudioDurations($sampleDurations);
+            $settings->capabilities->audioExcerptDurations($sampleDurations);
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['voice' => $exception->getMessage()]);
         }

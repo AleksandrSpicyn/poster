@@ -10,6 +10,7 @@ use App\Actions\Shots\ResolveUnknownShotGenerationAction;
 use App\Actions\Shots\RetryShotDownloadAction;
 use App\Actions\Shots\SubmitShotGenerationAction;
 use App\Classes\Generators\ImageGenerator\ImageGenerator;
+use App\Classes\Generators\VoiceSample;
 use App\Data\Series\SeriesCastData;
 use App\Data\Shots\ResolveShotGenerationData;
 use App\Enums\BillingProduct;
@@ -892,8 +893,35 @@ test('ожидает согласования первого кадра и от�
     Http::assertSentCount(1);
 });
 
-test('два голоса остаются за своими репликами после смены версии персонажа', function (): void {
+test('отправляет первые 15 секунд длинной пробы говорящего персонажа', function (): void {
     ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    config(['services.seedance.model' => 'dreamina-seedance-2-0-mini-260615']);
+    $character = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail()->characterRevisions()->sole();
+    $prefix = str_repeat(pack('v*', 500, 65036), 180000);
+    $wav = VoiceSample::fromPcm($prefix . str_repeat(pack('v', 1000), 129120))->wav;
+    $sample = $character->addMediaFromString($wav)
+        ->usingFileName('voice.wav')
+        ->withCustomProperties(['duration_ms' => 20380, 'checksum' => hash('sha256', $wav)])
+        ->toMediaCollection(CharacterRevision::VOICE_SAMPLE);
+    $shot->update(['dialogue' => [['character_id' => $character->character_id, 'text' => 'Вы можете вернуть моего папу?']]]);
+    Bus::fake();
+    fakeSerialOpeningFrame();
+    Http::fake(['*contents/generations/tasks' => Http::response(['id' => 'long-voice'])]);
+
+    $take = app(RequestShotGenerationAction::class)->run($shot, $actor);
+    $submit = app(SubmitShotGenerationAction::class);
+    $submit->run($take->generationOperations()->sole()->id);
+    $submit->run($take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->sole()->id);
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn(Request $request): bool => data_get($request['content'], '2.audio_url.url')
+        === 'data:audio/wav;base64,' . base64_encode(VoiceSample::fromPcm($prefix)->wav));
+    expect(File::get($sample->getPath()))->toBe($wav);
+});
+
+test('два голоса остаются за своими репликами после смены версии персонажа', function (int $seconds, string $model, int $expectedSeconds): void {
+    ['shot' => $shot, 'actor' => $actor] = serialShotFixture();
+    config(['services.seedance.model' => $model]);
     $script = $shot->scene()->firstOrFail()->episodeRevision()->firstOrFail();
     $series = $script->episode()->firstOrFail()->series()->firstOrFail();
     $first = $script->characterRevisions()->sole();
@@ -909,12 +937,19 @@ test('два голоса остаются за своими репликами 
     $revisionParams = [...$params, 'revision' => $draft];
     $upload = fn(int $seconds): UploadedFile => UploadedFile::fake()->createWithContent('sample.wav', serialVoiceWav($seconds));
 
-    actingAs($actor)->post(route('characters.references.store', $revisionParams), ['view' => 'voice', 'file' => $upload(4), 'lock_version' => 0])
+    actingAs($actor)->post(route('characters.references.store', $revisionParams), ['view' => 'voice', 'file' => $upload($seconds), 'lock_version' => 0])
         ->assertSessionHasNoErrors();
     actingAs($actor)->post(route('characters.revisions.approve', $revisionParams), ['lock_version' => 1])
         ->assertSessionHasNoErrors();
     $script->characterRevisions()->attach($draft);
     $secondWav = File::get($draft->refresh()->getFirstMediaPath(CharacterRevision::VOICE_SAMPLE));
+    $expectedWav = $secondWav;
+
+    if ($seconds > $expectedSeconds) {
+        $pcm = substr($secondWav, 44, $expectedSeconds * 48000);
+        $expectedWav = VoiceSample::fromPcm($pcm)->wav;
+    }
+
     $shot->update(['dialogue' => [
         ['character_id' => $character->id, 'text' => 'Кто на мосту?'],
         ['character_id' => $first->character_id, 'text' => 'Это я.'],
@@ -957,14 +992,20 @@ test('два голоса остаются за своими репликами 
     $submit->run($take->generationOperations()->sole()->id);
     $submit->run($take->generationOperations()->where('stage', GenerationOperationStage::VIDEO)->sole()->id);
 
+    expect(data_get($take->input_snapshot, 'characters.1.voice_sample.duration_ms'))->toBe($seconds * 1000)
+        ->and(data_get($take->input_snapshot, 'characters.1.voice_sample.sha256'))->toBe(hash('sha256', $secondWav));
     Http::assertSentCount(1);
-    Http::assertSent(function (Request $request) use ($first, $character, $firstWav, $secondWav): bool {
+    Http::assertSent(function (Request $request) use ($first, $character, $firstWav, $expectedWav): bool {
         $text = data_get($request['content'], '0.text');
 
         return is_string($text) && str_contains($text, 'Кто на мосту?') && str_contains($text, 'Это я.')
             && str_contains($text, 'Audio 1 is the voice of ' . $first->character?->name . ' (character_id ' . $first->character_id . ')')
             && str_contains($text, 'Audio 2 is the voice of ' . $character->name . ' (character_id ' . $character->id . ')')
             && data_get($request['content'], '2.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($firstWav)
-            && data_get($request['content'], '3.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($secondWav);
+            && data_get($request['content'], '3.audio_url.url') === 'data:audio/wav;base64,' . base64_encode($expectedWav);
     });
-});
+})->with([
+    'короткие пробы' => [4, 'dreamina-seedance-2-0-mini-260615', 4],
+    '3 и 12 секунд в общем лимите Mini' => [21, 'dreamina-seedance-2-0-mini-260615', 12],
+    'максимум 15 секунд на голос у модели 2.5' => [21, 'dreamina-seedance-2-5-260628', 15],
+]);

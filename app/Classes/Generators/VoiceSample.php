@@ -22,10 +22,21 @@ final readonly class VoiceSample
             'audio/mpeg', 'audio/mp3' => 'mp3',
             default => throw ValidationException::withMessages(['file' => 'Загрузите образец речи в WAV или MP3.']),
         };
+
+        return self::decode($contents, $format, '30.01', $minimumMs);
+    }
+
+    public static function excerpt(string $wav, int $durationMs): self
+    {
+        return self::decode($wav, 'wav', $durationMs . 'ms', 2000);
+    }
+
+    private static function decode(string $contents, string $format, string $duration, int $minimumMs): self
+    {
         // Decode a bounded clip. Measuring the decoded samples also handles VBR MP3.
         $result = Process::timeout(20)->input($contents)->run([
             'ffmpeg', '-nostdin', '-v', 'error', '-xerror', '-protocol_whitelist', 'pipe', '-f', $format, '-i', 'pipe:0',
-            '-map', '0:a:0', '-t', '30.01', '-ac', '1', '-ar', (string) self::SAMPLE_RATE, '-f', 's16le', 'pipe:1',
+            '-map', '0:a:0', '-t', $duration, '-ac', '1', '-ar', (string) self::SAMPLE_RATE, '-f', 's16le', 'pipe:1',
         ]);
         $pcm = $result->output();
 
