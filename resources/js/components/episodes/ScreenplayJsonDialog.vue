@@ -61,6 +61,7 @@ watch(scriptText, () => {
             </div>
             <p v-if="checkedJson" role="status">Структура сценария проверена.</p>
             <InputError :message="saveError" />
+            <slot />
             <div class="json-actions">
                 <Button variant="outline" @click="checkedJson = !!checkJson()">Проверить JSON</Button>
                 <Button as-child variant="outline">

@@ -9,7 +9,7 @@ import EpisodeMemory from '@/components/episodes/EpisodeMemory.vue';
 import EpisodeOverview from '@/components/episodes/EpisodeOverview.vue';
 import EpisodeRelease from '@/components/episodes/EpisodeRelease.vue';
 import EpisodeShotList from '@/components/episodes/EpisodeShotList.vue';
-import SeriesAssetShelf from '@/components/episodes/SeriesAssetShelf.vue';
+import SeasonScriptImport from '@/components/episodes/SeasonScriptImport.vue';
 import SceneScriptEditor from '@/components/episodes/SceneScriptEditor.vue';
 import Heading from '@/components/Heading.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
@@ -299,7 +299,6 @@ function refresh() {
                 >
                     Предыдущий принятый эпизод изменился. Проверьте источник и сохраните новую версию сценария перед продолжением или публикацией.
                 </p>
-                <SeriesAssetShelf v-if="!archived && panel === 'screenplay' && !dialogueFocus" :series="series" :episode="episode" />
                 <EpisodeShotList
                     v-if="panel === 'shots' && revision"
                     :revision="revision"
@@ -516,21 +515,27 @@ function refresh() {
                                     </div>
                                     <InputError :message="approveErrors" />
                                 </form>
-                                <ScreenplayJsonDialog
-                                    v-model="scriptText"
-                                    :episode-id="episode.id"
-                                    :screenplay="scriptForm.script"
-                                    :json-error="jsonError"
-                                    :save-error="scriptSaveError || scriptErrors"
-                                    :draft-stored="draftStored"
-                                    :read-only="archived"
-                                    :processing="scriptForm.processing"
-                                    :disabled="archived || editorStale || !online"
-                                    :check-json="checkJson"
-                                    @import="importScript"
-                                />
                             </section>
                         </div>
+                        <ScreenplayJsonDialog
+                            v-if="panel === 'screenplay' && !dialogueFocus"
+                            v-model="scriptText"
+                            :episode-id="episode.id"
+                            :screenplay="scriptForm.script"
+                            :json-error="jsonError"
+                            :save-error="scriptSaveError || scriptErrors"
+                            :draft-stored="draftStored"
+                            :read-only="archived"
+                            :processing="scriptForm.processing"
+                            :disabled="archived || editorStale || !online"
+                            :check-json="checkJson"
+                            @import="importScript"
+                            ><SeasonScriptImport
+                                v-if="!archived"
+                                :series="series"
+                                :episode="episode"
+                                :disabled="editorStale || !online || scriptForm.processing"
+                        /></ScreenplayJsonDialog>
                         <p v-if="panel === 'montage' && (revision?.status !== 'approved' || archived)" class="studio-panel">
                             Для нового монтажа нужен утверждённый сценарий активного сериала.
                         </p>
