@@ -44,10 +44,7 @@ function time(event: Event): number | null {
             </div>
             <fieldset>
                 <legend>Изображения для первого кадра</legend>
-                <label
-                    v-for="asset in page.props.series.assets?.filter((a) => a.kind !== 'sound' && a.kind !== 'season')"
-                    :key="asset.id"
-                    class="mr-3"
+                <label v-for="asset in page.props.series.assets?.filter((a) => a.format === 'image')" :key="asset.id" class="mr-3"
                     ><input v-model="shot.direction.reference_ids" type="checkbox" :value="asset.id" /> {{ asset.label }}</label
                 >
                 <div
@@ -85,7 +82,13 @@ function time(event: Event): number | null {
                     >Материал
                     <select v-model="item.asset_id">
                         <option :value="null">{{ item.kind === 'sound' ? 'Сгенерировать по описанию' : 'Выберите изображение' }}</option>
-                        <option v-for="asset in page.props.series.assets?.filter((a) => a.kind === item.kind)" :key="asset.id" :value="asset.id">
+                        <option
+                            v-for="asset in page.props.series.assets?.filter(
+                                (a) => a.kind === item.kind && a.format === (item.kind === 'sound' ? 'audio' : 'image'),
+                            )"
+                            :key="asset.id"
+                            :value="asset.id"
+                        >
                             {{ asset.label }}
                         </option>
                     </select></label

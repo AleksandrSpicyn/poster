@@ -106,6 +106,20 @@ const managing = computed(() => new URL(page.url, page.props.ziggy.url).searchPa
                     <Button as-child class="h-11 shrink-0"><Link :href="route('clipping.index')">Импортировать</Link></Button>
                 </div>
                 <div v-if="!page.props.opusClips" id="project-heading-actions" class="flex flex-wrap gap-2">
+                    <template v-if="page.props.series">
+                        <Button as-child variant="outline"
+                            ><Link
+                                :href="route('series.show', { project: page.props.project.id, series: page.props.series.id, section: 'production' })"
+                                >Производство</Link
+                            ></Button
+                        >
+                        <Button as-child variant="outline"
+                            ><Link
+                                :href="route('series.show', { project: page.props.project.id, series: page.props.series.id, section: 'materials' })"
+                                >Материалы</Link
+                            ></Button
+                        >
+                    </template>
                     <Button as-child variant="default" class="h-11 shrink-0"
                         ><Link :href="route('projects.edit', page.props.project.id)">Открыть настройки</Link></Button
                     >

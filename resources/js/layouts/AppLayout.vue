@@ -11,6 +11,7 @@ import type { BreadcrumbItem, SharedData } from '@/types';
 
 interface Props {
     breadcrumbs?: BreadcrumbItem[];
+    seriesHeader?: boolean;
 }
 
 const sidebarOpen = usePage<SharedData>().props.sidebarOpen;
@@ -25,7 +26,7 @@ withDefaults(defineProps<Props>(), {
     <SidebarProvider :default-open="sidebarOpen">
         <AppSidebar><WorkspaceLiveStatus :connected="connected" :enabled="enabled" @refresh="refresh" /></AppSidebar>
         <SidebarInset class="min-w-0 pb-[calc(66px+env(safe-area-inset-bottom))] min-[700px]:pb-0">
-            <AppSidebarHeader :breadcrumbs="breadcrumbs" />
+            <AppSidebarHeader :breadcrumbs="breadcrumbs" :series-header="seriesHeader" />
             <AppFeedback />
             <p
                 v-if="enabled && !connected"

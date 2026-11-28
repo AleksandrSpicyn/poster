@@ -61,6 +61,10 @@ readonly class PrepareShotGenerationInput
 
         if ($assetIds !== []) {
             foreach ($series->getMedia(Series::ASSETS)->whereIn('id', $assetIds) as $asset) {
+                if (! str_starts_with($asset->mime_type ?? '', 'image/') && $asset->getCustomProperty('kind') !== 'sound') {
+                    throw ValidationException::withMessages(['references' => 'Для постановки кадра доступны изображения и звук.']);
+                }
+
                 $checksum = $asset->getCustomProperty('checksum');
 
                 if (! is_string($checksum) || ! is_file($asset->getPath()) || hash_file('sha256', $asset->getPath()) !== $checksum) {

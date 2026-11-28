@@ -62,7 +62,7 @@ function abandon() {
                 <select v-model="approval.asset_id" class="w-full rounded border p-2">
                     <option :value="null">Подготовленный кадр дубля</option>
                     <option
-                        v-for="asset in page.props.series.assets?.filter((a) => a.kind !== 'sound' && a.kind !== 'season')"
+                        v-for="asset in page.props.series.assets?.filter((a) => a.format === 'image' && a.size < 5 * 1024 * 1024)"
                         :key="asset.id"
                         :value="asset.id"
                     >

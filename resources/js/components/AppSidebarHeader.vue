@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAppearance } from '@/composables/useAppearance';
+import { Moon, Sun } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
@@ -7,7 +9,11 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useRoute } from '@/composables/useRoute';
 
-const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), { breadcrumbs: () => [] });
+const props = withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[]; seriesHeader?: boolean }>(), { breadcrumbs: () => [] });
+const { updateAppearance } = useAppearance();
+function toggleTheme() {
+    updateAppearance(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
+}
 const route = useRoute();
 const studio = { title: 'Обзор', href: route('dashboard') };
 const parentTrail = computed(() => props.breadcrumbs.at(-1)?.href.startsWith('#'));
@@ -17,10 +23,11 @@ const { openMobile, setOpenMobile } = useSidebar();
 <template>
     <header class="studio-top" :class="{ 'parent-trail': parentTrail }">
         <Link :href="route('dashboard')" class="min-[700px]:hidden" aria-label="Poster — обзор студии"><AppLogo /></Link>
-        <nav v-if="mobileReturn && !parentTrail" class="mx-3 min-w-0 min-[700px]:hidden" aria-label="Хлебные крошки">
+        <nav v-if="mobileReturn && !parentTrail && !seriesHeader" class="mx-3 min-w-0 min-[700px]:hidden" aria-label="Хлебные крошки">
             <Link :href="mobileReturn.href" class="block truncate text-sm underline" :title="mobileReturn.title">{{ mobileReturn.title }}</Link>
         </nav>
         <button
+            v-if="!seriesHeader"
             class="text-muted-foreground ml-auto min-h-11 translate-x-px translate-y-px px-4 text-[13px] min-[700px]:hidden"
             aria-haspopup="dialog"
             :aria-expanded="openMobile"
@@ -30,11 +37,19 @@ const { openMobile, setOpenMobile } = useSidebar();
         </button>
         <Breadcrumbs v-if="parentTrail" class="mobile-parent-trail min-[700px]:hidden" :breadcrumbs="breadcrumbs" />
         <div class="hidden min-w-0 flex-1 items-center gap-4 min-[700px]:flex">
-            <Link v-if="!parentTrail" class="text-muted-foreground shrink-0 text-sm" :href="route('dashboard')">Моя студия</Link>
-            <span v-if="!parentTrail" aria-hidden="true" class="text-muted-foreground">/</span
+            <Link v-if="!parentTrail && !seriesHeader" class="text-muted-foreground shrink-0 text-sm" :href="route('dashboard')">Моя студия</Link>
+            <span v-if="!parentTrail && !seriesHeader" aria-hidden="true" class="text-muted-foreground">/</span
             ><Breadcrumbs v-if="breadcrumbs.length" :breadcrumbs="breadcrumbs" />
-            <SidebarTrigger class="ml-auto size-11" />
+            <SidebarTrigger v-if="!seriesHeader" class="ml-auto size-11" />
         </div>
+        <button
+            v-if="seriesHeader"
+            class="bg-card ml-auto grid size-11 place-items-center rounded-lg border"
+            aria-label="Переключить тему"
+            @click="toggleTheme"
+        >
+            <Moon class="size-5 dark:hidden" /><Sun class="hidden size-5 dark:block" />
+        </button>
     </header>
 </template>
 <style scoped>

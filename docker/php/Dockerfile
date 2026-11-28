@@ -16,4 +16,5 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 RUN groupadd -g ${GROUP_ID} appuser && useradd -m -u ${USER_ID} -g appuser appuser
 RUN sed -i 's/user = www-data/user = appuser/; s/group = www-data/group = appuser/' /usr/local/etc/php-fpm.d/www.conf
+RUN printf 'upload_max_filesize=10M\npost_max_size=12M\n' > /usr/local/etc/php/conf.d/poster-uploads.ini
 WORKDIR /var/www

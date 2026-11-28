@@ -21,8 +21,26 @@ export interface SeriesCast {
     use_series_voice: boolean;
 }
 
+export const assetKinds = {
+    location: 'Место',
+    ensemble: 'Ансамбль',
+    prop: 'Реквизит',
+    insert: 'Готовая вставка',
+    sound: 'Звук',
+    season: 'Сценарий сезона',
+} as const;
+export interface SeriesAsset {
+    id: number;
+    label: string;
+    kind: keyof typeof assetKinds;
+    format: 'image' | 'audio' | 'video' | 'json' | null;
+    extension: string;
+    size: number;
+    url: string;
+}
+
 export interface SeriesSummary {
-    assets?: { id: number; label: string; kind: string; url: string }[];
+    assets?: SeriesAsset[];
     last_episode_number?: number | null;
     cast_settings?: SeriesCast | null;
     id: number;

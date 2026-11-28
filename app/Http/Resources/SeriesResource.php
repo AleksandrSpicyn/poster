@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\SeriesAssetFormat;
 use App\Enums\SeriesAudioMode;
 use App\Models\Series;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ class SeriesResource extends JsonResource
             'id' => $this->id,
             'assets' => $this->whenLoaded('media', fn(): array => $this->getMedia(Series::ASSETS)->map(fn(Media $asset): array => [
                 'id' => $asset->id, 'label' => $asset->name, 'kind' => $asset->getCustomProperty('kind'),
+                'format' => SeriesAssetFormat::of($asset)?->value,
+                'extension' => pathinfo($asset->file_name, PATHINFO_EXTENSION),
+                'size' => $asset->size,
                 'url' => route('episodes.media.preview', $asset->id),
             ])->values()->all()),
             'project_id' => $this->project_id,

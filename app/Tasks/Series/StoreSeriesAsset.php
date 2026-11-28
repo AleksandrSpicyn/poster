@@ -8,6 +8,7 @@ use App\Classes\Generators\VoiceSample;
 use App\Data\Series\SeriesAssetData;
 use App\Enums\SeriesAssetKind;
 use App\Models\Series;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -37,6 +38,16 @@ class StoreSeriesAsset
         } elseif ($data->kind === SeriesAssetKind::SOUND) {
             $bytes = VoiceSample::fromUpload($bytes, $data->file->getMimeType(), 10)->wav;
             $extension = 'wav';
+        } elseif ($data->kind === SeriesAssetKind::INSERT && in_array($mime = $data->file->getMimeType(), ['video/mp4', 'video/webm'], true)) {
+            $extension = $mime === 'video/mp4' ? 'mp4' : 'webm';
+            $stream = Process::timeout(15)->run([
+                'ffprobe', '-v', 'error', '-protocol_whitelist', 'file', '-f', $extension === 'mp4' ? 'mov' : 'matroska',
+                '-select_streams', 'V:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', $data->file->getPathname(),
+            ]);
+
+            if (! $stream->successful() || preg_match('/^[1-9][0-9]*,[1-9][0-9]*$/D', trim($stream->output())) !== 1) {
+                throw ValidationException::withMessages(['file' => 'Нужен читаемый файл MP4 или WebM с видеодорожкой.']);
+            }
         } else {
             $info = @getimagesizefromstring($bytes);
 

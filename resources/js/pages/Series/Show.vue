@@ -3,7 +3,7 @@ import ProjectArchive from '@/components/projects/ProjectArchive.vue';
 import SeriesWorkspace from '@/components/SeriesWorkspace.vue';
 import SeriesProduction from '@/components/SeriesProduction.vue';
 import ProjectArtwork from '@/components/projects/ProjectArtwork.vue';
-import Heading from '@/components/Heading.vue';
+import SeriesMaterials from '@/components/SeriesMaterials.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { ProjectChannel, ProjectSummary } from '@/types/projects';
 import type { PaginatedResource } from '@/types/content';
@@ -20,7 +20,14 @@ const props = defineProps<{
 }>();
 const route = useRoute();
 const page = usePage();
-const production = computed(() => new URL(page.url, page.props.ziggy.url).searchParams.get('section') === 'production');
+const sections = { overview: 'Обзор', production: 'Производство', materials: 'Материалы' } as const;
+const section = computed(() => {
+    const key = new URL(page.url, page.props.ziggy.url).searchParams.get('section');
+    return key === 'production' || key === 'materials' ? key : 'overview';
+});
+function sectionUrl(key: keyof typeof sections) {
+    return route('series.show', { project: props.project.id, series: props.series.id, ...(key === 'overview' ? {} : { section: key }) });
+}
 
 const episodePlanComplete = computed(() => {
     const latest = props.episodes[0];
@@ -45,29 +52,38 @@ const episodeNumber = computed(() => displayedRun.value?.episode_number ?? curre
 const breadcrumbs = computed(() => [
     { title: 'Сериалы', href: route('series.index') },
     { title: props.series.name, href: route('series.show', { project: props.project.id, series: props.series.id }) },
-    ...(production.value ? [{ title: 'Производство', href: page.url }] : []),
+    { title: sections[section.value], href: page.url },
 ]);
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <Head :title="project.name" />
-        <div class="workspace-page series-overview" :class="{ 'production-view': production }">
-            <div class="flex flex-col items-start justify-between gap-3 min-[1100px]:flex-row">
-                <div v-if="!production" class="w-full space-y-2 min-[1100px]:w-auto">
-                    <div class="flex items-center justify-between gap-1 md:justify-start">
-                        <Heading :title="series.name" />
-                    </div>
-                    <p class="text-muted-foreground text-sm leading-relaxed">Сериал / Эпизоды и персонажи</p>
+    <AppLayout series-header :breadcrumbs="breadcrumbs">
+        <Head :title="series.name + ' · ' + sections[section]" />
+        <div class="workspace-page">
+            <header>
+                <div class="flex items-center gap-3">
+                    <ProjectArtwork :name="series.name" :cover="project.cover" class="size-10 shrink-0 rounded-lg min-[700px]:size-12" />
+                    <h1 class="min-w-0 text-3xl font-bold wrap-anywhere">{{ series.name }}</h1>
                 </div>
-                <Heading v-else :title="series.name" />
-                <div v-if="!production" id="series-heading-actions" class="flex flex-wrap gap-2">
-                    <Link class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold" :href="route('projects.edit', project.id)"
-                        >Открыть паспорт</Link
+                <nav class="mt-3 flex gap-1 border-b pb-2 min-[700px]:gap-2" aria-label="Разделы сериала">
+                    <Link
+                        v-for="(label, key) in sections"
+                        :key="key"
+                        :href="sectionUrl(key)"
+                        :aria-current="section === key ? 'page' : undefined"
+                        class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm min-[700px]:px-4"
+                        :class="section === key ? 'bg-accent text-accent-foreground font-bold' : 'text-muted-foreground hover:bg-muted'"
+                        >{{ label }}</Link
                     >
-                </div>
+                </nav>
+            </header>
+            <div v-if="section === 'overview'" id="series-heading-actions" class="flex flex-wrap gap-2">
+                <Link class="bg-primary text-primary-foreground rounded-lg px-4 py-3 text-sm font-bold" :href="route('projects.edit', project.id)"
+                    >Открыть паспорт</Link
+                >
             </div>
-            <template v-if="production">
+            <SeriesMaterials v-if="section === 'materials'" :series="series" />
+            <template v-else-if="section === 'production'">
                 <div class="run-grid">
                     <SeriesProduction
                         :key="displayedRun?.id ?? episodeNumber + '-next'"
@@ -106,39 +122,12 @@ const breadcrumbs = computed(() => [
                 :characters="characters"
                 :episodes="episodes"
             />
-            <ProjectArchive v-if="!production" :project-id="project.id" :archived="!!project.archived_at" />
+            <ProjectArchive v-if="section === 'overview'" :project-id="project.id" :archived="!!project.archived_at" />
         </div>
     </AppLayout>
 </template>
 
 <style scoped>
-.series-overview {
-    gap: 23px;
-}
-@media (min-width: 768px) and (max-width: 1099px) {
-    .series-overview {
-        gap: 25px;
-    }
-}
-@media (max-width: 767px) {
-    .series-overview:not(.production-view) {
-        padding-top: 14px;
-        gap: 27px;
-    }
-    .series-overview:not(.production-view) :deep(#series-episodes) {
-        margin-top: 2px;
-        margin-bottom: 20px;
-    }
-    .series-overview:not(.production-view) :deep(.studio-history-row) {
-        row-gap: 0;
-        align-content: center;
-    }
-}
-@media (min-width: 1100px) {
-    .series-overview:not(.production-view) > div:first-child > a {
-        margin-top: 6px;
-    }
-}
 .run-grid {
     display: grid;
     gap: 20px;
@@ -168,27 +157,11 @@ const breadcrumbs = computed(() => [
         display: block;
     }
 }
-.production-view {
-    gap: 16px;
-    padding-top: 21px;
-}
 @media (min-width: 1920px) {
     .run-grid {
         max-width: 1236px;
         grid-template-columns: minmax(0, 860px) minmax(0, 354px);
         gap: 22px;
-    }
-}
-@media (min-width: 768px) and (max-width: 1099px) {
-    .production-view {
-        gap: 16px;
-        padding-top: 21px;
-    }
-}
-@media (max-width: 767px) {
-    .production-view {
-        gap: 14px;
-        padding-top: 22px;
     }
 }
 </style>

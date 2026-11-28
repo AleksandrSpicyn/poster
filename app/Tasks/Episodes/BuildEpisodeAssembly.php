@@ -228,6 +228,7 @@ readonly class BuildEpisodeAssembly
 
             if ($asset->model_type !== new Series()->getMorphClass() || (int) $asset->model_id !== $shot->seriesId || $asset->disk !== 'local'
                 || $asset->collection_name !== Series::ASSETS || $asset->getCustomProperty('kind') !== $cue->kind->value
+                || ($cue->kind === ShotCueKind::INSERT && ! str_starts_with($asset->mime_type ?? '', 'image/'))
                 || hash_file('sha256', $asset->getPath()) !== data_get($shot->assets, $cue->asset_id . '.checksum')) {
                 throw new RuntimeException('The pinned timed asset is unavailable or changed.');
             }

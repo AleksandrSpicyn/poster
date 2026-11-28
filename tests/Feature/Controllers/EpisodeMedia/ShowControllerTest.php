@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\EpisodeAssembly;
 use App\Models\Prompt;
+use App\Models\Series;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
@@ -52,4 +53,26 @@ test('подтверждённый посторонний пользовател
         ->assertNotFound();
 
     Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
+});
+
+test('выдаёт диапазон байтов архивного материала только владельцу', function (): void {
+    Storage::fake('local');
+    $user = serialOperator();
+    $series = Series::factory()->recycle($user)->create(['archived_at' => now()]);
+    $media = $series->addMedia(base_path('tests/Fixtures/shot.mp4'))
+        ->preservingOriginal()
+        ->withCustomProperties(['kind' => 'insert'])
+        ->toMediaCollection(Series::ASSETS);
+    $url = route('episodes.media.preview', $media);
+
+    actingAs($user)
+        ->get($url, ['Range' => 'bytes=37-68'])
+        ->assertStatus(206)
+        ->assertHeader('Content-Type', 'video/mp4')
+        ->assertHeader('Content-Range', 'bytes 37-68/' . $media->size)
+        ->assertHeader('Content-Length', '32');
+
+    actingAs(User::factory()->create())
+        ->get($url, ['Range' => 'bytes=37-68'])
+        ->assertNotFound();
 });

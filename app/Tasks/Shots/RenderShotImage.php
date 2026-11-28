@@ -155,7 +155,7 @@ readonly class RenderShotImage
                 $item = $assetMedia->get((int) $id);
 
                 if ($item === null || $item->disk !== 'local' || $item->model_type !== new Series()->getMorphClass() || (int) $item->model_id !== ($snapshot['series_id'] ?? null)
-                    || $item->collection_name !== Series::ASSETS || hash_file('sha256', $item->getPath()) !== ($asset['checksum'] ?? null)) {
+                    || $item->collection_name !== Series::ASSETS || ! str_starts_with($item->mime_type ?? '', 'image/') || hash_file('sha256', $item->getPath()) !== ($asset['checksum'] ?? null)) {
                     throw new RuntimeException('The approved series reference is unavailable or changed.');
                 }
 

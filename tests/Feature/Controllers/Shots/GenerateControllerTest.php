@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\VideoProvider;
 use App\Jobs\SubmitShotGenerationJob;
+use App\Models\Series;
 use App\Models\Shot;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -116,3 +117,25 @@ test('дубль получает локальную цель и финал то
     Process::assertNothingRan();
     Http::assertNothingSent();
 })->with(['промежуточный план' => [1, false], 'последний план' => [2, true]]);
+
+test('видео из материалов нельзя передать как изображение кадра', function (): void {
+    Storage::fake('local');
+    $context = episodeHttpFixture();
+    serialReferenceMedia($context['revision']->characterRevisions()->firstOrFail());
+    $series = $context['episode']->series()->firstOrFail();
+    $video = $series->addMedia(base_path('tests/Fixtures/shot.mp4'))
+        ->preservingOriginal()
+        ->withCustomProperties(['kind' => 'insert', 'checksum' => hash_file('sha256', base_path('tests/Fixtures/shot.mp4'))])
+        ->toMediaCollection(Series::ASSETS);
+    $shot = $context['shot'];
+    $shot->update(['camera' => [...$shot->camera, 'direction' => ['reference_ids' => [$video->id]]]]);
+    Bus::fake();
+
+    actingAs($context['user'])
+        ->postJson(route('shots.generate', $context['params']), ['request_key' => 'invalid-video-frame', 'new_take' => false])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('references');
+
+    expect($shot->prompts()->exists())->toBeFalse();
+    Bus::assertNothingDispatched();
+});
