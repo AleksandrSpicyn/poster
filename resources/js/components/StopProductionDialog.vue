@@ -30,7 +30,7 @@ defineEmits<{ confirm: [] }>();
         </div>
         <div v-if="recipients !== undefined" class="studio-row">
             <dt>Каналы выпуска</dt>
-            <dd>{{ recipients }}</dd>
+            <dd class="min-w-0 wrap-anywhere">{{ recipients }}</dd>
         </div>
     </ConfirmationDialog>
 </template>

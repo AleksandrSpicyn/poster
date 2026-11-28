@@ -56,7 +56,7 @@ export interface SeriesSummary {
     cycle_plan?: { objective: string; parts: { number: number; objective: string; expected_result: string }[] } | null;
     cycle_paused?: boolean;
     episode_limit: number | null;
-    latest_production?: ProductionRun | null;
+    latest_production?: (ProductionRun & { automatic_delivery: boolean }) | null;
     archived_at: string | null;
     characters_count?: number;
     episodes_count?: number;

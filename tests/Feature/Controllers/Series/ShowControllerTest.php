@@ -130,3 +130,22 @@ test('скрывает архивных персонажей до разбивк
             ->where('characters.meta.total', 1)
             ->has('characters.data', 0));
 });
+
+test('карточка показывает фактический режим отправки запуска', function (array $snapshot, bool $expected): void {
+    $context = serialCharacterContext();
+    $series = $context['series'];
+    $series->update(['auto_publish' => true]);
+    ProductionRun::factory()
+        ->for($series)
+        ->create(['project_id' => $series->project_id, 'input_snapshot' => $snapshot]);
+
+    actingAs(serialOperator())
+        ->get(route('series.show', [...$context['params'], 'section' => 'production']))
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('series.latest_production.automatic_delivery', $expected));
+})->with([
+    [['channel_ids' => [1]], true],
+    [['channel_ids' => []], false],
+    [['channel_ids' => [1], 'skip_delivery' => true], false],
+    [['channel_ids' => null], true],
+]);

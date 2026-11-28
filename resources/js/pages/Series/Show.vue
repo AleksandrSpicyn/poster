@@ -83,37 +83,24 @@ const breadcrumbs = computed(() => [
                 >
             </div>
             <SeriesMaterials v-if="section === 'materials'" :series="series" />
-            <template v-else-if="section === 'production'">
-                <div class="run-grid">
-                    <SeriesProduction
-                        :key="displayedRun?.id ?? episodeNumber + '-next'"
-                        :project-id="project.id"
-                        :channels="project.channels"
-                        :series-id="series.id"
-                        :auto-publish="series.auto_publish"
-                        :plan-complete="episodePlanComplete"
-                        :pinned-channel-ids="
-                            series.output_mode === 'single_video' ? series.latest_production?.channel_ids : currentEpisode?.delivery_channel_ids
-                        "
-                        :episode-title="displayedRun?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber"
-                        :episode-number="episodeNumber"
-                        :enabled="
-                            project.is_active && !series.archived_at && (!displayedRun || series.automation_enabled || displayedRun.manual_start)
-                        "
-                        :run="displayedRun"
-                    />
-                    <aside class="studio-panel run-aside">
-                        <ProjectArtwork :name="project.name" :cover="project.cover" loading="eager" class="h-[106px] w-full rounded-lg" />
-                        <h2>{{ displayedRun?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber }}</h2>
-                        <dl>
-                            <dt>Проект</dt>
-                            <dd>{{ project.name }}</dd>
-                            <dt>Производство</dt>
-                            <dd>Эпизод {{ String(episodeNumber).padStart(2, '0') }}</dd>
-                        </dl>
-                    </aside>
-                </div>
-            </template>
+            <SeriesProduction
+                v-else-if="section === 'production'"
+                :key="displayedRun?.id ?? episodeNumber + '-next'"
+                :project-id="project.id"
+                :cover="project.cover"
+                :project-name="project.name"
+                :channels="project.channels"
+                :series-id="series.id"
+                :auto-publish="series.auto_publish"
+                :plan-complete="episodePlanComplete"
+                :pinned-channel-ids="
+                    series.output_mode === 'single_video' ? series.latest_production?.channel_ids : currentEpisode?.delivery_channel_ids
+                "
+                :episode-title="displayedRun?.episode_title || currentEpisode?.title || 'Эпизод ' + episodeNumber"
+                :episode-number="episodeNumber"
+                :enabled="project.is_active && !series.archived_at && (!displayedRun || series.automation_enabled || displayedRun.manual_start)"
+                :run="displayedRun"
+            />
             <SeriesWorkspace
                 v-else
                 actions-target="#series-heading-actions"
@@ -126,42 +113,3 @@ const breadcrumbs = computed(() => [
         </div>
     </AppLayout>
 </template>
-
-<style scoped>
-.run-grid {
-    display: grid;
-    gap: 20px;
-    align-items: start;
-}
-.run-aside {
-    display: none;
-    padding: 15px;
-    padding-bottom: 5px;
-}
-.run-aside h2 {
-    margin: 12px 0;
-}
-.run-aside dt {
-    color: var(--muted-foreground);
-    font-size: 13px;
-}
-.run-aside dd {
-    margin-bottom: 12px;
-    font-size: 15px;
-}
-@media (min-width: 1100px) {
-    .run-grid {
-        grid-template-columns: minmax(0, 2.36fr) minmax(0, 1fr);
-    }
-    .run-aside {
-        display: block;
-    }
-}
-@media (min-width: 1920px) {
-    .run-grid {
-        max-width: 1236px;
-        grid-template-columns: minmax(0, 860px) minmax(0, 354px);
-        gap: 22px;
-    }
-}
-</style>

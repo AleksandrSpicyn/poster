@@ -11,7 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-/** @mixin Series */
+/**
+ * @mixin Series
+ * @property Series $resource
+ */
 class SeriesResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -40,7 +43,10 @@ class SeriesResource extends JsonResource
             'last_episode_number' => $this->whenHas('episodes_max_number'),
             'cast_settings' => $this->cast_settings?->toArray(),
             'episode_limit' => $this->episode_limit,
-            'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null ? null : ProductionRunResource::make($this->latestProductionRun)->resolve($request)),
+            'latest_production' => $this->whenLoaded('latestProductionRun', fn(): ?array => $this->latestProductionRun === null ? null : [
+                ...ProductionRunResource::make($this->latestProductionRun)->resolve($request),
+                'automatic_delivery' => $this->latestProductionRun->deliveryChannelIds() !== [] && $this->latestProductionRun->allowsAutomaticDelivery($this->resource),
+            ]),
             'archived_at' => $this->archived_at?->toISOString(),
             'characters_count' => $this->whenCounted('characters'),
             'accepted_episodes_count' => $this->whenCounted('acceptedEpisodes'),
