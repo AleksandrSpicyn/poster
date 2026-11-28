@@ -88,6 +88,36 @@
         "sw-workflow",
         "sw-writers-room"
       ]
+    },
+    {
+      "repository": "https://arkdocs-en.tos-ap-southeast-1.volces.com/skills/",
+      "digest": "sha256:c9c765aa5ba9fa84e8a27ee606f7b8c6229bfb775138133f366ea1ad37b97cba",
+      "skills": [
+        "sd25-pe"
+      ]
+    },
+    {
+      "repository": "https://arkdocs-en.tos-ap-southeast-1.volces.com/skills/",
+      "digest": "sha256:b5fb04555405b956f2263f0dd61ef4fa75ee55d2a230e773456d6911d9a96ad3",
+      "skills": [
+        "sd2-pe"
+      ]
+    },
+    {
+      "repository": "https://github.com/Emily2040/seedance-2.0",
+      "commit": "4668457e560eee06e95d7fcfdf441c8c0bba802e",
+      "path": ".",
+      "skills": [
+        "seedance-20"
+      ]
+    },
+    {
+      "repository": "https://github.com/calesthio/generative-media-skills",
+      "commit": "8c85352d5d75d4dcbe58480bd138e37b9742bab1",
+      "path": "skills/providers/video-generation/seedance-2-0",
+      "skills": [
+        "seedance-2-0"
+      ]
     }
   ]
 }
